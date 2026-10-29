@@ -1,0 +1,367 @@
+/* ── Pantallas del dashboard unificado: Clientes, ficha, Referidos y Ventas ──────────────────
+   Se apoya en los tokens y primitivas de cj.css (no redefine colores). Mismas reglas de marca:
+   sin degradados, sombras ni blur, radio 0, latón escaso (etiquetas y foco), Bodoni solo en títulos y cifras.
+   Todo con prefijo cj-. */
+
+/* Texto corriente dentro de avisos y paneles */
+.cj-aviso p, .cj-panel p { margin: 0; }
+.cj-aviso p + p, .cj-panel p + p { margin-top: 8px; }
+.cj-aviso a { text-underline-offset: 3px; }
+.cj-parrafo { margin: 0; max-width: 64ch; }
+
+/* Franja de cifras (expediente): una línea de 3 o 4 cifras entre dos filetes */
+.cj-franja {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 40px 32px;
+  padding: 40px 0;
+  border-top: 1px solid var(--cj-filete);
+  border-bottom: 1px solid var(--cj-filete);
+}
+/* Unidad pegada a una cifra ("31 %"): en Archivo y chica, porque el % de Bodoni a ese tamaño se lee como un símbolo raro */
+.cj-cifra__unidad { margin-left: 0.15em; font-family: var(--cj-fuente-texto); font-size: 0.4em; letter-spacing: 0; }
+
+/* Cifra que es una fecha ("12/7/2027"): en el mínimo del rango de cifras (38 px) para que entre en su columna */
+.cj-cifra--fecha .cj-cifra__valor { font-size: 38px; }
+
+/* Etiquetas que acompañan al título de página (hora de los datos, etc.) */
+.cj-seccion__meta { margin: 0; text-align: right; }
+
+/* ── Filtros ────────────────────────────────────────────────────────────────────────────── */
+.cj-filtros { display: flex; flex-direction: column; gap: 28px; }
+.cj-grupos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 48px; }
+.cj-grupo { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cj-grupo .cj-fila { gap: 8px; }
+.cj-resultado { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin: 0; }
+
+/* ── Enlaces dentro de tablas y tarjetas: hueso con subrayado fino (el latón no domina en 120 filas) ── */
+.cj-enlace-fila {
+  display: inline-block;
+  padding: 4px 0;
+  color: var(--cj-hueso);
+  text-decoration: none;
+  border-bottom: 1px solid var(--cj-filete-fuerte);
+  overflow-wrap: break-word;
+}
+.cj-enlace-fila:hover { border-bottom-color: var(--cj-laton); }
+.cj-sub { display: block; color: var(--cj-texto-2); }
+.cj-tabla td .cj-sub { margin-top: 2px; }
+
+/* Tabla densa con muchas columnas: los encabezados pueden partirse en dos líneas para que entre sin scroll horizontal.
+   El segundo selector hace falta porque `.cj-tabla .cj-num` (nowrap) es más específico y dejaba el encabezado numérico
+   ("Cobrado / contratado (USD)") en una sola línea de 244 px: sin esto la tabla de Clientes pasa de 900 px a 1006 px */
+.cj-tabla-compacta th, .cj-tabla-compacta th.cj-num { white-space: normal; vertical-align: bottom; }
+
+/* ── Tabla en escritorio, tarjetas apiladas en móvil (mismos datos) ──────────────────────── */
+.cj-solo-movil { display: none; }
+.cj-tarjetas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.cj-tarjeta { border: 1px solid var(--cj-filete-fuerte); }
+.cj-tarjeta__enlace, .cj-tarjeta__cuerpo { display: block; min-height: 44px; padding: 16px; color: inherit; text-decoration: none; }
+.cj-tarjeta__enlace:focus-visible { outline-offset: -2px; }
+.cj-tarjeta__cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 20px; }
+.cj-tarjeta__nombre { margin: 8px 0 16px; font-size: 16px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.cj-tarjeta__datos { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.cj-tarjeta__datos > div { min-width: 0; }
+.cj-tarjeta__datos > div:last-child { grid-column: 1 / -1; }
+.cj-tarjeta__datos dt { margin: 0 0 4px; }
+.cj-tarjeta__datos dd { margin: 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ── Acciones que todavía no existen: botón deshabilitado + leyenda ──────────────────────── */
+.cj-pendiente { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.cj-pendientes { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 32px; }
+
+/* ── Ficha del cliente ──────────────────────────────────────────────────────────────────── */
+.cj-ficha-cabecera { display: flex; flex-direction: column; gap: 24px; }
+.cj-ficha-cabecera .cj-fila { gap: 8px 28px; }
+.cj-ficha-estado { margin: 0; font-size: 14px; }
+.cj-ficha-seccion { display: flex; flex-direction: column; gap: 32px; }
+.cj-datos { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 28px 32px; }
+.cj-datos > div { min-width: 0; }
+.cj-datos dt { margin: 0 0 6px; }
+.cj-datos dd { margin: 0; overflow-wrap: anywhere; }
+.cj-datos dd + dd { margin-top: 4px; }
+.cj-datos__ancho { grid-column: 1 / -1; }
+.cj-notas { margin: 0; max-width: 72ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Línea de tiempo de períodos: marcador cuadrado sobre un filete vertical */
+.cj-linea {
+  list-style: none;
+  margin: 0 0 0 4px;
+  padding: 0 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  border-left: 1px solid var(--cj-filete-fuerte);
+}
+.cj-linea > li { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.cj-linea > li::before {
+  content: '';
+  position: absolute;
+  left: -29px;
+  top: 3px;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  background: var(--cj-tinta);
+  border: 1px solid var(--cj-hueso);
+}
+.cj-linea > li[aria-current='step']::before { background: var(--cj-laton); border-color: var(--cj-laton); }
+.cj-linea__fechas { margin: 0; }
+.cj-linea__detalle { margin: 0; font-size: 14px; color: var(--cj-texto-2); }
+
+/* Lista simple con filetes (reglas, dudas abiertas, advertencias) */
+.cj-lista { list-style: none; margin: 0; padding: 0; }
+.cj-lista > li { padding: 14px 0; border-top: 1px solid var(--cj-filete); }
+.cj-lista > li:last-child { border-bottom: 1px solid var(--cj-filete); }
+.cj-lista--aviso > li { border-color: var(--cj-filete-fuerte); }
+
+/* Paso del programa: cinco cuadraditos (los cumplidos rellenos) + palabras al lado */
+.cj-pasos { display: inline-flex; gap: 3px; margin-right: 10px; vertical-align: middle; }
+.cj-pasos i { display: block; box-sizing: border-box; width: 8px; height: 8px; border: 1px solid var(--cj-humo); }
+.cj-pasos i[data-on] { background: var(--cj-hueso); border-color: var(--cj-hueso); }
+.cj-paso { display: flex; align-items: center; }
+
+/* Bloque plegable (calidad de los datos, detalles) */
+.cj-detalles > summary { display: flex; align-items: center; min-height: 40px; cursor: pointer; list-style: none; }
+.cj-detalles > summary::-webkit-details-marker { display: none; }
+.cj-detalles > summary::after { content: '+' / ''; margin-left: 12px; color: var(--cj-laton); font-size: 15px; }
+.cj-detalles[open] > summary::after { content: '−' / ''; }
+.cj-detalles > .cj-lista { margin-top: 16px; }
+
+/* Estado de carga */
+.cj-cargando { margin: 0; padding: 48px 0; border-top: 1px solid var(--cj-filete); border-bottom: 1px solid var(--cj-filete); }
+
+@media (max-width: 768px) {
+  .cj-solo-escritorio { display: none; }
+  .cj-solo-movil { display: block; }
+  .cj-franja { padding: 32px 0; gap: 32px 24px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .cj-seccion__meta { text-align: left; }
+  /* filtros: cada grupo en una sola fila que se desplaza (si no, los chips ocupan más de una pantalla).
+     El padding deja lugar al contorno de foco, que el overflow recortaría */
+  .cj-grupos { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .cj-grupo { gap: 6px; }
+  .cj-grupo .cj-fila {
+    flex-wrap: nowrap;
+    margin: 0 -16px;
+    padding: 4px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cj-grupo .cj-fila::-webkit-scrollbar { display: none; }
+  .cj-grupo .cj-chip { flex: none; }
+  /* "Mostrar" (Clientes) se parte en varias filas: es la lista de trabajo de los CSM y un chip fuera de la pantalla no se ve */
+  .cj-grupo--envuelve .cj-fila { flex-wrap: wrap; overflow: visible; margin: 0; padding: 4px 0; }
+  .cj-datos { grid-template-columns: 1fr; gap: 24px; }
+  /* áreas táctiles de 40 px en los enlaces de etiqueta; el subrayado pasa a text-decoration para quedar pegado al texto */
+  .cj-contenido .cj-enlace {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding-bottom: 0;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-color: rgba(176, 141, 79, 0.45);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 6px;
+  }
+  .cj-contenido .cj-enlace:hover { text-decoration-color: var(--cj-laton); }
+  .cj-enlace-fila { padding: 10px 0; }
+  .cj-pendiente, .cj-pendientes { align-items: flex-start; flex-direction: column; }
+}
+
+/* Tablet táctil de más de 768 px: enlaces con área de toque de 40 px (el resto del diseño es el de escritorio) */
+@media (pointer: coarse) {
+  .cj-enlace-fila { padding: 10px 0; }
+  .cj-contenido .cj-enlace {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding-bottom: 0;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-color: rgba(176, 141, 79, 0.45);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 6px;
+  }
+  .cj-contenido .cj-enlace:hover { text-decoration-color: var(--cj-laton); }
+}
+
+/* Entre 769 y 1000 px la hora de los datos cae debajo del título: a la izquierda, porque alineada a la derecha
+   quedaba con las dos líneas desparejas */
+@media (max-width: 1000px) {
+  .cj-seccion__meta { text-align: left; }
+}
+
+/* ── Formulario "Registrar referido" ─────────────────────────────────────────────────────── */
+.cj-formulario-envoltorio { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; width: 100%; }
+.cj-formulario { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 520px; }
+.cj-formulario__campo { display: flex; flex-direction: column; gap: 6px; }
+.cj-formulario__campo .cj-campo__entrada { max-width: none; min-height: 44px; }
+.cj-formulario__ayuda { font-size: 13px; line-height: 1.4; color: var(--cj-texto-2); }
+.cj-formulario__error { font-size: 14px; line-height: 1.4; color: var(--cj-error); }
+.cj-formulario__acciones { display: flex; gap: 16px; }
+.cj-formulario__resultado--error { border-color: var(--cj-error); }
+
+/* ── Base de referidos (una ficha por persona recomendada) ── */
+.cj-base-cabecera { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; }
+.cj-base-titulo { margin: 4px 0 0; font-family: var(--cj-fuente-titulo); font-weight: 400; font-size: clamp(22px, 3vw, 28px); line-height: 1.2; }
+.cj-base-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cj-base-ficha { display: flex; flex-direction: column; gap: 14px; padding: 20px; border: 1px solid var(--cj-filete-fuerte); border-left-width: 4px; border-radius: var(--cj-radio); background: color-mix(in srgb, var(--cj-hueso) 4%, transparent); min-width: 0; }
+.cj-base-ficha[data-categoria='cerro'] { border-left-color: var(--cj-ok); }
+.cj-base-ficha[data-categoria='intento'] { border-left-color: var(--cj-laton); }
+.cj-base-ficha[data-categoria='en_curso'] { border-left-color: var(--cj-control); }
+.cj-base-ficha[data-categoria='sin_llamada'] { border-left-color: var(--cj-filete-fuerte); }
+.cj-base-ficha__nombre { margin: 0; font-family: var(--cj-fuente-titulo); font-weight: 400; font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+.cj-base-ficha__ref { margin: 0; font-size: 15px; }
+.cj-base-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.cj-base-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 2px 12px; border: 1px solid var(--cj-filete-fuerte); border-radius: 999px; font-size: 13px; letter-spacing: 0.04em; }
+.cj-base-chip[data-tono='cerro'] { border-color: var(--cj-ok); }
+.cj-base-chip[data-tono='intento'] { border-color: var(--cj-laton); color: var(--cj-laton); }
+.cj-base-datos { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.cj-base-datos dt { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cj-texto-2); margin-bottom: 2px; }
+.cj-base-datos dd { margin: 0; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+.cj-base-datos dd[data-tono='aplica'] { color: var(--cj-ok); }
+@media (prefers-color-scheme: dark) { .cj-base-datos dd[data-tono='aplica'] { color: var(--cj-dorado); } }
+
+/* ── Configuración (accesos) ───────────────────────────────────────────────────────────────────────────── */
+.cfg-form { display: flex; flex-direction: column; gap: 22px; margin-top: 16px; }
+.cfg-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.cfg-campo { display: flex; flex-direction: column; gap: 6px; }
+.cfg-campo input { min-height: 44px; padding: 0 12px; font: inherit; font-size: 16px; color: var(--cj-hueso); background: var(--cj-tinta); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); }
+.cfg-campo input:read-only { opacity: 0.7; }
+.cfg-campo input:focus-visible { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+.cfg-form fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cfg-form legend { padding: 0; margin-bottom: 10px; }
+.cfg-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.cfg-tipo { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); cursor: pointer; background: var(--cj-sala); transition: border-color 0.15s ease, background-color 0.15s ease; }
+.cfg-tipo:has(input:checked) { border-color: var(--cj-laton); background: color-mix(in srgb, var(--cj-laton) 9%, var(--cj-sala)); }
+.cfg-tipo input { margin-top: 3px; accent-color: var(--cj-verde); width: 18px; height: 18px; flex: none; }
+.cfg-tipo strong { display: block; font-weight: 600; }
+.cfg-tipo span { font-size: 14px; color: var(--cj-texto-2); }
+.cfg-casillas { display: flex; flex-wrap: wrap; gap: 8px; }
+.cfg-casilla { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--cj-control); border-radius: 999px; cursor: pointer; font-size: 14px; background: var(--cj-sala); transition: border-color 0.15s ease, background-color 0.15s ease; }
+.cfg-casilla:has(input:checked) { border-color: var(--cj-verde); background: var(--cj-verde); color: #f2eadc; }
+.cfg-casilla input { accent-color: var(--cj-dorado); width: 16px; height: 16px; }
+.cfg-casilla:focus-within { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+.cfg-pestanas { margin-top: 18px; }
+.cfg-pestanas .cj-etiqueta { margin-bottom: 8px; }
+.cfg-form:has(input[name='tipo'][value='admin']:checked) .cfg-secciones { display: none; }
+.cfg-form:not(:has(input[name='secciones'][value='ventas']:checked)) .cfg-pestanas { display: none; }
+.cfg-nota { font-size: 13px; margin: 10px 0 0; }
+.cfg-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.cfg-ok { margin: 0; color: var(--cj-ok); font-size: 14px; }
+.cfg-error { margin: 6px 0 0; color: var(--cj-error); font-size: 14px; }
+.cfg-aviso { border-color: var(--cj-laton); }
+.cfg-pasos { margin: 14px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.cfg-pasos code, .cfg-nota code { font-size: 13px; overflow-wrap: anywhere; }
+.cfg-tabla { margin-top: 12px; }
+.cfg-chip { display: inline-block; padding: 2px 10px; border: 1px solid var(--cj-control); border-radius: 999px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.cfg-chip--admin { background: var(--cj-verde); border-color: var(--cj-verde); color: #f2eadc; }
+.cfg-baja { opacity: 0.55; }
+.cfg-fila-acciones { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.cfg-boton-chico { min-height: 36px; padding: 0 14px; }
+@media (max-width: 768px) { .cfg-boton-chico { min-height: 44px; } }
+
+/* ── Clientes: insignias de renovación pendiente y proyección (las heredó de Backend, retirado el 10/10/2026) ──────── */
+.bk-insignias { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+/* Marcas de Clientes (lo que era Backend): en la tarjeta del celular, separadas de la grilla de datos; la nota del CRM corta palabras largas */
+.cl-marcas { display: block; }
+.cl-marcas .cj-sub { margin-top: 4px; overflow-wrap: anywhere; }
+.cj-tarjeta .cl-marcas { margin-bottom: 16px; }
+.bk-insignia { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; font-size: 12px; font-weight: 600; border-radius: 999px; border: 1px solid currentColor; }
+.bk-insignia--rojo { color: var(--cj-error); }
+.bk-insignia--ambar { color: var(--cj-laton); }
+.bk-insignia--verde { color: var(--cj-ok); }
+
+/* ── Clientes: puntaje "cómo le va" (1 a 10), bloque de prioridad y Typeform (8/10/2026) ────────────────────────── */
+.pt-caja { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pt-chip { display: inline-flex; align-items: baseline; gap: 2px; min-height: 44px; min-width: 64px; padding: 0 12px; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--cj-hueso); background: transparent; border: 1px dashed var(--cj-control); border-radius: var(--cj-radio); cursor: pointer; align-items: center; }
+.pt-chip strong { font-size: 18px; }
+.pt-chip__de { font-size: 12px; color: var(--cj-texto-2); }
+.pt-chip--alto { border-style: solid; border-color: var(--cj-ok); }
+.pt-chip--medio { border-style: solid; border-color: var(--cj-laton); }
+.pt-chip--bajo { border-style: solid; border-color: var(--cj-error); }
+.pt-chip:hover { background: color-mix(in srgb, var(--cj-verde) 6%, transparent); }
+.pt-flecha { margin-left: 6px; font-size: 15px; }
+.pt-flecha--sube { color: var(--cj-ok); }
+.pt-flecha--baja { color: var(--cj-error); }
+.pt-flecha--igual { color: var(--cj-texto-2); }
+.pt-sub { font-size: 12px; color: var(--cj-texto-2); }
+.pt-sub--alerta { color: var(--cj-error); font-weight: 600; }
+.pt-form { display: grid; gap: 10px; padding: 12px; width: 280px; max-width: calc(100vw - 48px); box-sizing: border-box; background: var(--cj-sala); border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); }
+.pt-botones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.pt-botones legend { grid-column: 1 / -1; margin-bottom: 6px; padding: 0; }
+.pt-num { min-height: 44px; min-width: 44px; font: inherit; font-size: 16px; font-weight: 700; color: var(--cj-hueso); background: transparent; border: 1px solid var(--cj-control); border-radius: var(--cj-radio); cursor: pointer; transition: background-color 0.12s, transform 0.1s; }
+.pt-num--alto:hover:not(:disabled) { background: color-mix(in srgb, var(--cj-ok) 18%, transparent); }
+.pt-num--medio:hover:not(:disabled) { background: color-mix(in srgb, var(--cj-laton) 20%, transparent); }
+.pt-num--bajo:hover:not(:disabled) { background: color-mix(in srgb, var(--cj-error) 14%, transparent); }
+.pt-num:active:not(:disabled) { transform: scale(0.95); }
+.pt-num:disabled { opacity: 0.5; cursor: progress; }
+.pt-nota { display: flex; flex-direction: column; gap: 4px; }
+.pt-nota input { min-height: 44px; padding: 0 10px; font: inherit; font-size: 16px; color: var(--cj-hueso); background: var(--cj-tinta); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); }
+.pt-cancelar { justify-self: start; min-height: 44px; padding: 0 4px; font: inherit; font-size: 13px; font-weight: 600; color: var(--cj-laton); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.pt-msj { margin: 0; font-size: 12px; color: var(--cj-ok); }
+.pt-msj:empty { display: none; }
+.pt-msj--error { color: var(--cj-error); }
+/* Aviso del renglón de resultados cuando la fila puntuada sale del filtro: frase normal, no la etiqueta en mayúsculas */
+.cl-aviso { display: block; margin-top: 4px; font-size: 12px; letter-spacing: normal; text-transform: none; color: var(--cj-ok); }
+.cj-tarjeta__puntaje { padding: 0 16px 14px; }
+
+.pr-bloque { display: flex; flex-direction: column; gap: 12px; border-left: 3px solid var(--cj-error); }
+.pr-cabecera { display: flex; align-items: center; gap: 12px; }
+.pr-cuenta { padding: 2px 10px; font-weight: 600; color: #fffdf8; background: var(--cj-error); border-radius: 999px; }
+.pr-sub { margin: 0; font-size: 14px; }
+.pr-aviso { margin: 0; padding: 8px 12px; font-size: 13px; background: color-mix(in srgb, var(--cj-laton) 12%, transparent); border-radius: var(--cj-radio); }
+.pr-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.pr-item { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); background: var(--cj-sala); min-width: 0; }
+.pr-item__fila { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.pr-item__nombre { font-weight: 600; color: var(--cj-hueso); text-decoration: none; min-height: 32px; display: inline-flex; align-items: center; overflow-wrap: anywhere; }
+.pr-item__nombre:hover { text-decoration: underline; }
+.pr-etapa { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; font-size: 12px; font-weight: 600; color: var(--cj-laton); border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
+.pr-item__datos { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--cj-texto-2); }
+.pr-enlace { display: inline-flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 600; color: var(--cj-laton); }
+/* Con una sola clase pierde contra `.cj-raiz a:not(...)` de cj.css (0,1,1) y salía del color del texto de al lado, sin subrayado:
+   latón y subrayado para que se distinga como enlace (Prioridad y Guiones) */
+.cj-raiz a.pr-enlace { color: var(--cj-laton); text-decoration: underline; text-underline-offset: 3px; }
+/* En el celular y en pantallas táctiles: áreas de toque de 44 px en los chips de filtros y en los enlaces de Prioridad */
+@media (max-width: 768px), (pointer: coarse) {
+  .cj-grupo .cj-chip, .pr-item__nombre, .pr-enlace { min-height: 44px; }
+}
+
+.tf-panel summary { cursor: pointer; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tf-pasos { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; }
+.tf-sin-asignar { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.clv { display: flex; flex-direction: column; gap: 10px; }
+.clv-historial { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+
+/* ── Guiones: tabla por cliente (tarjetas) ── */
+.gs-sub { margin: 0; font-size: 14px; }
+.gs-filtros { display: flex; flex-direction: column; gap: 10px; }
+.gs-buscar { min-height: 44px; max-width: 420px; padding: 0 12px; font: inherit; font-size: 16px; color: var(--cj-hueso); background: var(--cj-tinta); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); }
+.gs-filtros .cj-chip { min-height: 44px; }
+.gs-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.gs-item { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--cj-sala); border: 1px solid var(--cj-filete-fuerte); border-left-width: 3px; border-radius: var(--cj-radio); min-width: 0; --cj-texto-2: var(--cj-humo-claro); }
+.gs-item--p5 { border-left-color: var(--cj-error); }
+.gs-item--p4 { border-left-color: var(--cj-alerta); }
+.gs-item--p3 { border-left-color: var(--cj-laton); }
+.gs-item--p1 { border-left-color: var(--cj-ok); }
+.gs-item__cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gs-item__nombre { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--cj-hueso); text-decoration: none; overflow-wrap: anywhere; min-height: 32px; display: inline-flex; align-items: center; }
+.gs-item__nombre:hover { text-decoration: underline; }
+.gs-prioridad { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 26px; font-size: 12px; font-weight: 700; color: #fffdf8; border-radius: 999px; }
+.gs-prioridad--5 { background: var(--cj-error); }
+.gs-prioridad--4 { background: #a3471f; }
+.gs-prioridad--3 { background: var(--cj-laton); }
+.gs-prioridad--1 { background: var(--cj-ok); }
+.gs-datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; margin: 0; font-size: 14px; }
+.gs-datos dt { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-texto-2); }
+.gs-datos dd { margin: 2px 0 0; color: var(--cj-hueso); }
+.pr-mas summary { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; color: var(--cj-laton); }
+.pr-mas[open] summary { margin-bottom: 10px; }
+
+.gs-alerta { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; font-size: 12px; font-weight: 600; color: #fffdf8; background: var(--cj-error); border-radius: 999px; white-space: nowrap; }
+.gs-por { display: block; font-size: 12px; color: var(--cj-texto-2); }
+.gs-enlace { color: var(--cj-hueso); text-decoration: underline; text-underline-offset: 3px; }
+.gs-enlaces { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; }

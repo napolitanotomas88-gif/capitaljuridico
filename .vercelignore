@@ -1,0 +1,11 @@
+node_modules
+.next
+.vercel
+out
+*.tsbuildinfo
+.env*
+.cache
+.tmp
+.private-config
+*.local.json
+*.log

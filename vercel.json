@@ -1,0 +1,68 @@
+{
+  "crons": [
+    {
+      "path": "/api/clientes/sincronizar",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/resumen-diario?soloFoto=1",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/recordatorio-formularios",
+      "schedule": "0 12 1,15 * *"
+    },
+    {
+      "path": "/api/reporte-enrutamiento",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/agenda-slots",
+      "schedule": "10 11 * * *"
+    },
+    {
+      "path": "/api/analista",
+      "schedule": "20 11 * * *"
+    },
+    {
+      "path": "/api/finanzas-cierre",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/reporte-anuncios",
+      "schedule": "0 11 * * 1"
+    },
+    {
+      "path": "/api/alerta-anuncios",
+      "schedule": "45 11 * * *"
+    },
+    {
+      "path": "/api/fathom-anuncios/reintentar",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/trazabilidad/procesar",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/trazabilidad/semanal",
+      "schedule": "0 11 * * 1"
+    },
+    {
+      "path": "/api/bot/grabacion/diario",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/bot/exito",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/bot/bajas",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/clientes/inactivos/cron",
+      "schedule": "15 12 * * *"
+    }
+  ]
+}

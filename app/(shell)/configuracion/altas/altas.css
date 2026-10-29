@@ -1,0 +1,56 @@
+/* Simulador de altas del bot Capital Jurídico. Usa los tokens de cj.css. */
+.alta-intro { max-width: 68ch; color: var(--cj-texto-2); margin: 0; }
+.alta-grilla { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.alta-columna { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.alta-ejemplos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Chip elegido: el de cj.css (texto marfil --cj-tinta sobre negro --cj-hueso, unos 14:1). Antes se pisaba con dorado
+   sobre transparente, que quedaba al límite (4.6:1 con letra de 11 px) y casi igual al chip sin elegir. */
+.alta-mensaje {
+  width: 100%; min-height: 360px; resize: vertical;
+  font: 14px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--cj-hueso); background: var(--cj-sala);
+  border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); padding: 14px;
+}
+.alta-mensaje:focus-visible { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+.alta-nota { margin: 0; font-size: 14px; color: var(--cj-texto-2); }
+
+.alta-estado { padding: 10px 14px; border-radius: var(--cj-radio); font-weight: 600; border: 1px solid currentColor; }
+.alta-estado--falta { color: var(--cj-error); }
+.alta-estado--ok { color: var(--cj-laton); }
+.alta-estado--lista { color: var(--cj-ok); }
+.alta-estado--fee { color: var(--cj-hueso); border-color: var(--cj-laton); border-style: dashed; }
+
+.alta-burbuja { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-left: 3px solid var(--cj-laton); background: var(--cj-sala); border-radius: 0 var(--cj-radio) var(--cj-radio) 0; }
+.alta-burbuja p { margin: 0; }
+.alta-avisos { margin: 0; padding-left: 20px; color: var(--cj-error); display: flex; flex-direction: column; gap: 4px; }
+
+.alta-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.alta-datos { margin: 0; display: flex; flex-direction: column; }
+.alta-dato { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--cj-filete); }
+.alta-dato:last-child { border-bottom: 0; }
+.alta-dato dt { font-size: 13px; color: var(--cj-texto-2); }
+.alta-dato dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.alta-dato--vacio dd { color: var(--cj-texto-2); }
+
+/* Fila de "Registro de Pagos" (modo prueba) */
+.alta-registro th[scope='row'] { padding-top: 12px; padding-bottom: 12px; vertical-align: top; border-bottom-color: var(--cj-filete); font-size: 13px; font-weight: 400; color: var(--cj-texto-2); width: 1%; }
+.alta-registro td { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.alta-registro--vacio td { color: var(--cj-texto-2); font-style: italic; }
+.alta-pendientes { margin: 0; padding-left: 20px; color: var(--cj-laton); display: flex; flex-direction: column; gap: 4px; }
+
+.alta-pasos { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--cj-filete-fuerte); padding-top: 24px; }
+.alta-pasos > ol { margin: 0; padding-left: 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px 32px; }
+.alta-pasos > ol > li { display: flex; flex-direction: column; gap: 6px; }
+.alta-pasos > ol > li::marker { color: var(--cj-laton); font-weight: 700; }
+.alta-pasos ul { margin: 0; padding-left: 18px; font-size: 15px; color: var(--cj-texto-2); display: flex; flex-direction: column; gap: 3px; }
+.alta-paso__titulo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.alta-humano { font-size: 12px; padding: 1px 8px; border: 1px solid var(--cj-laton); color: var(--cj-laton); border-radius: 999px; }
+/* Paso en espera: sin opacity (bajaba el texto a ~2:1). El título pasa a texto secundario (5.7:1 sobre marfil) y la
+   espera se marca con una etiqueta legible de filete punteado; la primera línea del detalle dice por qué espera. */
+.alta-paso--espera .alta-paso__titulo strong { color: var(--cj-texto-2); }
+.alta-espera { font-size: 12px; padding: 1px 8px; border: 1px dashed var(--cj-laton); color: var(--cj-texto-2); border-radius: 999px; }
+.alta-panel .cj-tabla-scroll:focus-visible { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+
+@media (max-width: 860px) {
+  .alta-grilla { grid-template-columns: minmax(0, 1fr); }
+}

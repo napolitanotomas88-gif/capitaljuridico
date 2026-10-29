@@ -1,0 +1,16 @@
+// ── Repositorio de Grabación y Edición (bloque A): todo lo que leen y escriben la pantalla, el bot y los avisos ────────
+// Cada módulo se puede importar por separado (@/lib/edicion/db/videos, …); este índice los junta para comodidad.
+export * as Base from './base'
+export * as Videos from './videos'
+export * as Archivos from './archivos'
+export * as Tandas from './tandas'
+export * as Carpetas from './carpetas'
+export * as Guiones from './guiones'
+export * as Seguimientos from './seguimientos'
+export * as Corridas from './corridas'
+export * as Clientes from './clientes'
+export { baseConfigurada, sqlParaPruebas, asegurarTablas, ErrorEntradaEdicion } from './base'
+export { leerCliente, leerVideo, listarVideos, type DatosCliente, type DetalleVideo, type FilaTablero, type FiltroVideos } from './videos'
+export { listarVinculos } from './carpetas'
+export { listarPendientesE01 } from './seguimientos'
+export { ultimaCorrida } from './corridas'

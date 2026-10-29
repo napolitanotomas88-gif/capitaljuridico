@@ -1,0 +1,30 @@
+/* «Cargar alta» (26/10/2026): formulario, vista previa y tarjetas de altas abiertas. Usa los tokens de cj.css. */
+.cj-altas__estado p + p { margin-top: 8px; }
+.cj-altas__form { max-width: 720px; }
+.cj-altas__form textarea { min-height: 240px; font-family: inherit; resize: vertical; }
+.cj-altas__previa { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+.cj-altas__previa dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+.cj-altas__previa dt { color: var(--cj-texto-2); }
+.cj-altas__previa dd { margin: 0; overflow-wrap: anywhere; }
+.cj-altas__lista { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.cj-altas__texto { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 14px; line-height: 1.5; margin: 0; padding: 12px 14px; border: 1px solid var(--cj-filete); border-radius: var(--cj-radio); }
+.cj-altas__tarjeta { display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 96px; }
+.cj-altas__tarjeta--foco { border-color: var(--cj-laton); }
+.cj-altas__cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
+.cj-altas__nombre { font-family: var(--cj-fuente-titulo); font-size: 22px; margin: 0; }
+.cj-altas__pasos { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.cj-altas__paso { font-size: 12px; padding: 3px 8px; border: 1px solid var(--cj-filete); border-radius: 999px; }
+.cj-altas__paso--hecho { border-color: var(--cj-ok); }
+.cj-altas__paso--espera, .cj-altas__paso--reintento, .cj-altas__paso--revisar { border-color: var(--cj-alerta); }
+.cj-altas__espera { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--cj-filete); scroll-margin-top: 96px; }
+.cj-altas__espera:target { outline: 2px solid var(--cj-laton); outline-offset: 6px; border-radius: 2px; }
+.cj-altas__botones { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.cj-altas__botones .cj-campo__entrada { min-height: 40px; max-width: 220px; }
+.cj-altas__amano { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--cj-filete); }
+.cj-altas__historial { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.cj-altas__resultado { font-size: 14px; }
+.cj-altas__resultado--error { color: var(--cj-error); }
+@media (max-width: 640px) {
+  .cj-altas__botones .cj-campo__entrada { max-width: none; width: 100%; }
+  .cj-altas__previa dl { grid-template-columns: 1fr; }
+}

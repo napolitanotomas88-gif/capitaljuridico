@@ -1,0 +1,57 @@
+/* ── Trazabilidad ─────────────────────────────────────────────────────────────────────────
+   Mismos tokens del shell (cj.css): filetes finos, latón escaso, sin sombras ni degradados. */
+.traz-subnav { display: flex; flex-wrap: wrap; gap: 8px; }
+.traz-subnav a { text-decoration: none; }
+.cj-chip[aria-current='page'] { color: var(--cj-tinta); background: var(--cj-hueso); border-color: var(--cj-hueso); }
+
+.traz-texto { color: var(--cj-texto-2, var(--cj-humo)); font-size: 15px; line-height: 1.55; max-width: 70ch; margin: 0; }
+.traz-texto strong { color: var(--cj-hueso); font-weight: 600; }
+.traz-nota { font-size: 13px; color: var(--cj-humo); margin: 0; }
+
+.traz-direccional { border-left: 2px solid var(--cj-laton); padding: 4px 0 4px 16px; }
+
+.traz-capa { display: inline-block; min-width: 20px; font-size: 13px; text-align: center; }
+.traz-capa--si { color: var(--cj-ok); }
+.traz-capa--no { color: var(--cj-humo); opacity: 0.6; }
+.traz-capa--error { color: var(--cj-error); }
+
+.traz-grupo { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-humo); }
+.traz-grupo--muestra { color: var(--cj-laton); }
+
+/* Barra horizontal de porcentaje: una sola tinta, sin degradado */
+.traz-barra { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.traz-barra__pista { flex: 1; height: 6px; background: var(--cj-filete); border-radius: 3px; overflow: hidden; }
+.traz-barra__valor { display: block; height: 100%; background: var(--cj-hueso); }
+.traz-barra__valor--laton { background: var(--cj-laton); }
+.traz-barra__num { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 64px; text-align: right; }
+
+.traz-lectura { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+.traz-lectura--dispara { color: var(--cj-ok); }
+.traz-lectura--atrae { color: var(--cj-laton); }
+
+.traz-dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; }
+.traz-dl { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 10px 20px; margin: 0; font-size: 15px; }
+.traz-dl dt { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cj-humo); padding-top: 3px; }
+.traz-dl dd { margin: 0; overflow-wrap: anywhere; }
+
+.traz-pre { white-space: pre-wrap; font-family: inherit; font-size: 14px; line-height: 1.55; margin: 0; max-height: 520px; overflow: auto; overflow-wrap: anywhere; }
+.traz-etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
+.traz-etiqueta { font-size: 12px; padding: 3px 8px; border: 1px solid var(--cj-filete-fuerte); border-radius: 4px; }
+.traz-etiqueta--gatillo { border-color: var(--cj-laton); color: var(--cj-laton); }
+
+.traz-form { display: flex; flex-direction: column; gap: 12px; }
+.traz-form textarea, .traz-form select, .traz-form input[type='text'] {
+  width: 100%; font-family: inherit; font-size: 14px; color: var(--cj-hueso); background: transparent;
+  border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); padding: 10px;
+}
+.traz-form textarea { min-height: 140px; resize: vertical; }
+.traz-form select { max-width: 420px; }
+.traz-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.traz-inline select { width: auto; min-width: 200px; max-width: 100%; font-family: inherit; font-size: 13px; color: var(--cj-hueso); background: transparent; border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio); padding: 6px 8px; }
+
+.traz-error { color: var(--cj-error); font-size: 13px; margin: 0; }
+.traz-cita { font-style: italic; color: var(--cj-humo); font-size: 13px; }
+.traz-ol { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 15px; }
+.traz-ol code { font-size: 13px; padding: 1px 5px; border: 1px solid var(--cj-filete); border-radius: 4px; overflow-wrap: anywhere; }
+.traz-link { color: var(--cj-hueso); text-decoration: none; border-bottom: 1px solid var(--cj-filete-fuerte); }
+.traz-link:hover { border-bottom-color: var(--cj-laton); }

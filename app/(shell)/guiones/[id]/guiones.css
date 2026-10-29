@@ -1,0 +1,33 @@
+/* ── Guiones del cliente (/clientes/<id>/guiones, 25/10/2026) ───────────────────────────────────────────────────
+   Se apoya en los tokens y primitivas de cj.css (no redefine colores). Prefijo gu-. Los enlaces van como `.cj-raiz a.gu-…`
+   (los de una sola clase pierden contra `.cj-raiz a:not(...)` de cj.css). */
+.gu-tanda { display: flex; flex-direction: column; gap: 20px; }
+.gu-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+.gu-estado { font-weight: 600; }
+.gu-estado--error, .gu-estado--con_notas { color: var(--cj-error); }
+.gu-meta { font-size: 13px; color: var(--cj-texto-2); }
+.gu-verificado { font-size: 13px; font-weight: 600; color: var(--cj-laton); }
+.cj-raiz a.gu-enlace { font-size: 14px; }
+.gu-msj { margin: 0; font-size: 14px; }
+.gu-msj--error { color: var(--cj-error); }
+.gu-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 28px; }
+.gu-guion { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 18px; border-top: 1px solid var(--cj-filete); }
+.gu-guion__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.gu-guion__cab h3 { margin: 0; font-size: 18px; }
+.gu-num { font-variant-numeric: tabular-nums; color: var(--cj-laton); font-weight: 600; }
+.gu-seccion { display: flex; flex-direction: column; gap: 4px; max-width: 72ch; min-width: 0; }
+.gu-etq { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-texto-2); font-weight: 600; }
+.gu-ind { margin: 0; font-style: italic; color: var(--cj-texto-2); font-size: 14px; overflow-wrap: anywhere; }
+.gu-txt { margin: 0; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+.gu-seccion textarea, .gu-campo input, .gu-campo textarea, .gu-campo select { width: 100%; font: inherit; }
+.gu-extra summary { cursor: pointer; font-size: 13px; color: var(--cj-texto-2); }
+.gu-extra ul { margin: 6px 0; padding-left: 18px; display: grid; gap: 4px; }
+.gu-acciones, .gu-aprobar, .gu-nueva { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+.gu-campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--cj-texto-2); flex: 1 1 260px; min-width: 0; }
+.gu-notas { display: flex; flex-direction: column; gap: 10px; }
+.gu-notas h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.gu-notas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gu-nota { display: flex; flex-direction: column; gap: 4px; }
+.gu-nota p { margin: 0; overflow-wrap: anywhere; }
+.gu-nota--aplicada p { color: var(--cj-texto-2); }
+.gu-vel { font-size: 13px; color: var(--cj-texto-2); }

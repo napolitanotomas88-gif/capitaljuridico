@@ -1,0 +1,21 @@
+> **REFERENCIA TÉCNICA HISTÓRICA SANEADA.** Las marcas antiguas «hecho», «falta publicar», «pendiente» y sus fechas describen el contexto de origen; no acreditan el estado actual ni autorizan activar una integración. Los ejemplos e identificadores son ficticios o marcadores. Prevalecen `CONTEXTO-HUB.md`, `FLUJOS-VIGENTES.md`, `CONFIGURACION-PRIVADA.md` y `RUNBOOK.md`; WhatsApp permanece apagado. Se excluyeron casos, recibos, contactos y configuración operativa.
+
+# Guiones: documento automático y entrega interna — 28/10/2026
+
+El alta guarda el Doc y su carpeta por ID CRM en `cj_guiones_documentos` apenas Drive copia la plantilla. `crearTanda` también vincula automáticamente el Doc antes de finalizar, y la pantalla recupera vínculos de tandas anteriores. No se pide pegar el enlace para aprobar. Sin tanda todavía, la pantalla muestra el documento ya vinculado por el alta. Para clientes anteriores, entrar a la ficha completa, a su tarjeta o a Guiones sin tanda también resuelve el vínculo: sólo las personas autorizadas pueden iniciar esa vinculación, se confirma el ID y nombre en el CRM actual y se bloquean los archivados.
+
+La búsqueda prioriza los IDs exactos del paso CRM/Drive del alta. Para clientes anteriores sólo busca una carpeta exacta y un único Doc de guiones, y exige que el nombre corresponda a un único cliente del CRM. Ambigüedad, archivo en papelera o error de permisos frenan la escritura con un motivo visible; no se adivina otro archivo.
+
+Si falta el documento, usa la plantilla `PLANTILLA_GUIONES_ID` por el Puente Drive actual. La creación reserva primero el ID CRM en Neon y conserva el ID de la carpeta antes de copiar: dos corridas no crean dos documentos. Un timeout dudoso queda reservado; una lectura posterior puede recuperar un documento que efectivamente se creó. No se repite la creación ciegamente.
+
+Se conserva `cargarEnChips`: cada guion va bajo la sección plegable Video de su tanda. No se pisa texto manual. Editar saca la verificación y el check final sigue siendo de una sola persona: RESPONSABLE_HUB o REVISOR_GUIONES.
+
+Al aprobar, el Doc se publica y se notifica internamente a COORDINACION/OPERADOR_AUTORIZADO (y RESPONSABLE_HUB). No se manda automáticamente al cliente. La cola `/clientes/entregas` muestra sólo la versión del Doc que coincide con la aprobación vigente. Permiso: Clientes + mail explícito en `EDICION_REVISOR_AYLU`, `KICKOFF_REVISOR_GERO_M`, `KICKOFF_REVISOR_TOMI` o `GUIONES_ENTREGA_EMAIL`.
+
+La persona abre/copia el link, lo manda y confirma la entrega. POST `/api/clientes/entregas` exige sesión, mismo origen, whitelist, `confirmacion:true` y versión optimista. Eso registra quién entregó, cierra los avisos y comienza la espera de respuesta para el control interno de inactivos. Las respuestas identificadas por el webhook actualizan actividad con su fecha real.
+
+Esquema nuevo: tabla `cj_guiones_documentos (id_crm PRIMARY KEY, estado, doc_id, carpeta_id, actualizado)` creada al primer vínculo/escritura. No requiere nueva versión de Apps Script: usa las acciones existentes crearCarpeta, copiarArchivo y cargarEnChips. Para los registros de guiones se agregan campos en el JSON `doc` (sin columnas nuevas): `publicada`, `publicacion` y `entrega`.
+
+Los clientes archivados desaparecen de las colas de guiones, trabajador local, tracker y entregas. La ficha conserva el historial en sólo lectura. Las acciones, la generación y la escritura del Doc comprueban el CRM actual antes de continuar; ante error de CRM esperan, y no usan un snapshot viejo para autorizar un envío. El tracker legado sólo incluye nombres exactos y únicos de clientes activos o pausados, porque sus registros no traen ID CRM.
+
+Revisión: 45 pruebas del bloque (44 aprobadas y 1 omitida), incluidas 11 nuevas de resolución, ambigüedad, reserva de creación, errores, publicación/handoff y bloqueo de archivados. ESLint del bloque sin errores. TypeScript del bloque sin errores; el typegen global de Next corresponde a la integración principal. No se ejecutaron escrituras en Drive ni entregas reales durante estas pruebas. Runner de QA real aislada preparado fuera del código publicable: `work/verificacion-real-hub.mjs` y `work/VERIFICACION-REAL-HUB.md`; sólo se comprobaron sintaxis y `--plan`, no se ejecutó la suite real.

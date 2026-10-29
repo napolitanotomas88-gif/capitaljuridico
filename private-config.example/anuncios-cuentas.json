@@ -1,0 +1,15 @@
+{
+  "base": [
+    "act_1000000000000001"
+  ],
+  "excluidas": [
+    "act_1000000000000002"
+  ],
+  "ajustes": {
+    "act_1000000000000001": {
+      "cliente": "Cliente Ficticio Uno",
+      "aliasGuiones": "FicticioUno",
+      "rama": "laboral"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+/* Botón "Ocultar / Mostrar montos" (BotonMontos.tsx). El tapado de las cifras lo agrega el botón como <style> en <head>. */
+.cj-boton-montos {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 14px;
+  border: 1px solid var(--cj-control, #8c7b62); border-radius: var(--cj-radio-pildora, 999px); background: var(--cj-sala, #fffdf8);
+  color: var(--cj-hueso, #1d1d1b); font: inherit; font-size: 14px; cursor: pointer;
+}
+.cj-boton-montos[aria-pressed='true'] { background: var(--cj-hueso, #1d1d1b); color: var(--cj-sala, #fffdf8); border-color: var(--cj-hueso, #1d1d1b); }
+.cj-boton-montos svg { flex: none; }

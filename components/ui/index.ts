@@ -1,0 +1,12 @@
+// Primitivas de la marca Capital Jurídico (estilos en app/(shell)/cj.css)
+export { Etiqueta } from './Etiqueta'
+export { Cifra } from './Cifra'
+export { Filete } from './Filete'
+export { Tabla, type Columna } from './Tabla'
+export { ChipSemaforo, type EstadoSemaforo } from './ChipSemaforo'
+export { ChipFiltro } from './ChipFiltro'
+export { Boton, BotonEnlace, type VarianteBoton } from './Boton'
+export { CampoBusqueda } from './CampoBusqueda'
+export { Vacio } from './Vacio'
+export { SeccionTitulo } from './SeccionTitulo'
+export { Resumen, Bloque, Estado, VacioGuiado, type DatoResumen, type Tono } from './Tarjetas'

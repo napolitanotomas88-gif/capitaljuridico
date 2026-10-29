@@ -1,0 +1,537 @@
+@import "tailwindcss";
+
+:root {
+  /* 7/10/2026: paleta del CRM de ventas (Capital Jurídico) aplicada también al dashboard viejo: dorado en lugar del
+     naranja, bordó en lugar del rojo, fondo marfil y tarjetas blancas cálidas. */
+  --brand-red:    #7f202c;
+  --brand-orange: #be8f49;
+  --brand-yellow: #d9b574;
+  --brand-gray:   #605747;
+  --bg:           #f2eadc;
+  --card:         #fffdf8;
+  --text:         #1d1d1b;
+  --text-muted:   #605747;
+  --border:       #d6cbb8;
+  --shadow:       0 1px 3px rgba(29,29,27,0.08), 0 1px 2px rgba(29,29,27,0.04);
+  --shadow-md:    0 4px 12px rgba(29,29,27,0.08), 0 2px 4px rgba(29,29,27,0.04);
+  /* Identidad del CRM de ventas en el Resumen: verde de la marca para cifras y títulos, dorado oscuro para texto de acento
+     (el dorado #be8f49 queda para rellenos y filetes) y negro sobre los rellenos dorados. */
+  --brand-num:    #012d25;
+  --brand-texto:  #805c29;
+  --on-brand:     #1d1d1b;
+  --tono-bueno:   #1f6b52;   /* texto de "bien" y "mal": verde y bordó de la marca (claros en el tema oscuro) */
+  --tono-malo:    #7f202c;
+  /* Series de gráficos: paleta de marca; en el tema oscuro pasan a tonos claros para que se vean sobre el verde profundo */
+  --s-bordo: #7f202c; --s-dorado: #be8f49; --s-dorado-claro: #d9b574; --s-dorado-osc: #805c29;
+  --s-verde: #1f6b52; --s-verde-prof: #012d25; --s-gris: #605747; --s-taupe: #8c7b62; --s-arena: #b8ad98;
+}
+
+/* ── Dark mode ───────────────────────────── */
+[data-theme="dark"] {
+  /* Oscuro de la marca: verde profundo del CRM (antes gris casi negro) */
+  --bg:        #06231d;
+  --card:      #0d3a30;
+  --text:      #f2eadc;
+  --text-muted:#cbbfa8;
+  --border:    #1f5748;
+  --shadow:    0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+  --brand-num: #f2eadc;
+  --brand-texto: #d9b574;
+  --brand-red: #ff9d8f;
+  --tono-bueno: #7fd6ab;
+  --tono-malo: #ff9d8f;
+  --s-bordo: #ff9d8f; --s-dorado: #d9b574; --s-dorado-claro: #e6c98f; --s-dorado-osc: #d0a45a;
+  --s-verde: #7fd6ab; --s-verde-prof: #f2eadc; --s-gris: #b8ad98; --s-taupe: #cbbfa8; --s-arena: #8c7b62;
+  color-scheme: dark;
+}
+
+
+/* ── CRM de ventas (Capital Jurídico): tokens y clases que usan los componentes de components/crm ──────────
+   Paleta oficial (PALETA DE COLORES.png). Los tokens de @theme generan las utilidades (bg-dorado, text-negro…).
+   Las clases propias van sin prefijo porque las trae el CRM original tal cual. */
+@theme {
+  --color-dorado: #be8f49;
+  --color-dorado-oscuro: #805c29;
+  --color-verde: #012d25;
+  --color-marfil: #f2eadc;
+  --color-bordo: #7f202c;
+  --color-negro: #1d1d1b;
+  --color-blanco: #fffdf8;
+  --color-gris-fondo: #f2eadc;
+  --color-gris-linea: #d6cbb8;
+  --color-gris-borde: #8c7b62;
+  --color-gris-texto: #605747;
+  --color-gris-medio: #b8ad98;
+  --color-whatsapp: #012d25;
+  --color-ambar: #805c29;
+  --color-ambar-fondo: #f7edda;
+  --color-rojo: #7f202c;
+  --color-rojo-fondo: #f8e9eb;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+}
+/* `font-titulo` (cifras del CRM: "Hechas N", contadores del encabezado, KPI del admin) con la fuente de títulos del shell.
+   Va `inline`: la utilidad lleva el var() de cj.css y se resuelve en cada elemento. Sin `inline` la variable se resolvería
+   en :root, donde --cj-fuente-titulo no existe (vive en .cj-raiz), y la clase no haría nada. Fuera del shell, Georgia. */
+@theme inline {
+  --font-titulo: var(--cj-fuente-titulo, Georgia, serif);
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+.sin-barra { scrollbar-width: none; }
+.sin-barra::-webkit-scrollbar { display: none; }
+
+/* Hoja inferior: entra desde abajo en el celular, desde la derecha en la computadora. */
+@keyframes entrar-abajo { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes entrar-derecha { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.hoja-inferior { animation: entrar-abajo 180ms ease-out; }
+.panel-lateral { animation: entrar-derecha 180ms ease-out; }
+@media (min-width: 1024px) { .hoja-inferior { animation: entrar-derecha 180ms ease-out; } }
+@media (prefers-reduced-motion: reduce) { .hoja-inferior, .panel-lateral { animation: none; } }
+
+/* Barras y columnas con la identidad Capital Jurídico */
+.marca-barra { background: linear-gradient(110deg, #012d25, #012d25 68%, #1d1d1b); border-bottom: 1px solid #be8f49; }
+.marca-columna { border-top: 2px solid #be8f49; background: #012d25; }
+.marca-columna[data-grupo="noShow"], .marca-columna[data-grupo="postCall"] { background: #7f202c; }
+
+* { box-sizing: border-box; }
+
+/* El tema también se aplica a <html> (page.tsx): así el body toma el fondo del tema
+   y el overscroll en oscuro no muestra una franja clara */
+html, body {
+  background: var(--bg);
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Cards ───────────────────────────────── */
+.card {
+  position: relative;
+  /* 27/10/2026: vidrio sobrio, igual al del Hub (components/ui/cristal.css): blur 16, saturación 125 %, sin reflejos */
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 28px -18px rgba(29, 29, 27, 0.38);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, rgba(255, 255, 255, 0.4));
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1), box-shadow 0.28s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 8px 18px -14px rgba(29, 29, 27, 0.55);
+}
+
+[data-theme="dark"] .card {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01) 55%),
+    color-mix(in srgb, var(--card) 48%, transparent);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="dark"] .card:hover {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Big Metric Card ─────────────────────── */
+.big-metric {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 1.25rem 1.5rem 1rem;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.big-metric:hover { box-shadow: var(--shadow-md); }
+
+.big-metric .bm-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.big-metric .bm-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-num);
+}
+
+.big-metric .bm-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-gray);
+  margin-left: 0.25rem;
+}
+
+.big-metric .bm-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ── Small Metric Card ───────────────────── */
+.small-metric {
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+}
+
+.small-metric .sm-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.small-metric .sm-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+
+/* ── Goal Bar ────────────────────────────── */
+.goal-card {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+}
+
+/* ── Section title ───────────────────────── */
+.section-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-num);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--brand-orange) 60%, transparent);
+}
+
+/* ── Filter pills ───────────────────────── */
+.filter-pill {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.filter-pill:hover {
+  border-color: var(--brand-orange);
+  color: var(--brand-texto);
+}
+.filter-pill.active {
+  background: var(--brand-orange);
+  border-color: var(--brand-orange);
+  color: var(--on-brand);
+}
+
+/* ── Status dot ─────────────────────────── */
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--brand-yellow);
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Cuotas progress ─────────────────────── */
+.cuotas-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+/* En oscuro la pista casi blanca encandilaba: usa el borde del tema */
+.cuotas-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-orange), var(--brand-yellow));
+  transition: width 0.8s ease-out;
+}
+
+/* ── Scrollbar ───────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a3a3a; }
+
+/* ── Header del tablero ──────────────────── */
+/* Fijo (sticky) solo desde 768px: en el celular medía más de la mitad de la pantalla
+   y tapaba el contenido al scrollear */
+.dashboard-header { position: static; }
+@media (min-width: 769px) {
+  .dashboard-header { position: sticky; top: 0; }
+}
+
+/* ── Date input ──────────────────────────── */
+input[type="date"] {
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--card);
+  outline: none;
+}
+input[type="date"]:focus {
+  border-color: var(--brand-orange);
+}
+
+/* ── Print ───────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: var(--bg) !important; }
+  .card, .big-metric, .small-metric, .goal-card, .glass-board, .glass-tile, .glass-alert {
+    box-shadow: none !important;
+    /* el PDF sale con tarjetas sólidas: sin vidrio, que al imprimir puede quedar transparente */
+    background: var(--card) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  @page { margin: 1cm; }
+}
+
+/* El header fijo vuelve a ser estático al imprimir */
+@media print {
+  .no-print-sticky {
+    position: static !important;
+    box-shadow: none !important;
+    border-bottom: none !important;
+  }
+}
+
+/* La impresión usa el ancho del papel y omite la navegación de la aplicación. */
+@media print {
+  .cj-lateral, .cj-tabbar, .cj-hoja, .cj-borde { display: none !important; }
+  .cj-raiz { display: block !important; min-height: 0 !important; }
+  .cj-contenido { width: 100% !important; max-width: none !important; padding: 0 !important; }
+  .resumen-marca { min-height: 0 !important; }
+  .resumen-marca .glass-board { break-inside: auto; page-break-inside: auto; overflow: visible; }
+  .resumen-marca .recharts-responsive-container > div { width: 100% !important; }
+  .resumen-marca .recharts-wrapper { width: 100% !important; max-width: 100% !important; }
+  .resumen-marca .recharts-legend-wrapper { width: 100% !important; max-width: 100% !important; }
+  .resumen-marca .recharts-surface { max-width: 100%; }
+}
+
+/* ── Tablero rápido: estilo cristal (glassmorphism iOS) ─────────────── */
+.glass-board {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.45));
+  /* 27/10/2026: sin manchas doradas ni reflejos (estética sobria, oro mate solo en filetes) */
+  background: color-mix(in srgb, var(--card) 62%, transparent);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 28px -18px rgba(29, 29, 27, 0.38);
+  overflow: hidden;
+}
+[data-theme="dark"] .glass-board {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.glass-tile {
+  position: relative;
+  /* Va adentro de .glass-board (ya desenfocado): velo sin desenfoque propio */
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, rgba(255, 255, 255, 0.5));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  border-radius: 10px;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.1), box-shadow 0.22s ease;
+  overflow: hidden;
+}
+.glass-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 64%);
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.glass-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+  z-index: 2;
+}
+.glass-tile:hover::before { transform: translateX(130%); }
+[data-theme="dark"] .glass-tile {
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .glass-tile:hover {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* ── Alertas: tarjetas cristal 3D con movimiento al hover ───────────── */
+.glass-alert {
+  position: relative;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, rgba(255, 255, 255, 0.5));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 28px -18px rgba(29, 29, 27, 0.38);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1), box-shadow 0.28s ease;
+  transform-style: preserve-3d;
+  overflow: hidden;
+}
+.glass-alert:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  z-index: 2;
+}
+/* destello que barre la tarjeta al pasar el cursor */
+.glass-alert::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.32) 48%, transparent 62%);
+  transform: translateX(-130%);
+  transition: transform 0.65s ease;
+  pointer-events: none;
+}
+.glass-alert:hover::before { transform: translateX(130%); }
+[data-theme="dark"] .glass-alert {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .glass-alert:hover {
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .glass-alert::before {
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.09) 48%, transparent 62%);
+}
+
+[data-theme="dark"] .glass-tile {
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, rgba(255, 255, 255, 0.14));
+}
+[data-theme="dark"] .glass-tile::before {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.1) 50%, transparent 64%);
+}
+[data-theme="dark"] .glass-alert {
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, rgba(255, 255, 255, 0.14));
+}
+[data-theme="dark"] .glass-board {
+  background: color-mix(in srgb, var(--card) 66%, transparent);
+}
+
+/* ── Resumen con la identidad de marca del CRM de ventas (7/10/2026) ──────────────────────────────────────────
+   Banda verde arriba (la misma del encabezado del CRM), filete dorado en cada tarjeta (como las columnas del CRM),
+   cifras y títulos en verde, y el escudo dorado de la marca de fondo, detrás de las tarjetas translúcidas. */
+.marca-banda {
+  background: linear-gradient(110deg, #012d25, #012d25 68%, #1d1d1b);
+  border-bottom: 1px solid #be8f49;
+  color: #f2eadc;
+  /* adentro de la banda los filtros, textos y botones usan los colores para fondo oscuro */
+  --text: #f2eadc; --text-muted: #cbbfa8; --card: rgba(242, 234, 220, 0.1); --border: rgba(242, 234, 220, 0.4);
+  --brand-orange: #be8f49; --brand-texto: #d0a45a; --brand-yellow: #d9b574; --on-brand: #1d1d1b; --brand-num: #f2eadc; --tono-bueno: #7fd6ab; --tono-malo: #ff9d8f; --brand-red: #ff9d8f;
+  color-scheme: dark;   /* el ícono del calendario y demás controles nativos se dibujan claros sobre el verde */
+}
+.resumen-marca .marca-banda :focus-visible, .resumen-marca[data-theme="dark"] :focus-visible { outline: 2px solid #d0a45a; outline-offset: 2px; }
+.resumen-marca { position: relative; isolation: isolate; }
+.resumen-marca::before {
+  content: '';
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: var(--cj-ancho-lateral, 0px);
+  z-index: -1;
+  pointer-events: none;
+  background: url('/marca/isotipo-dorado.svg') center 50% / min(58vw, 720px, 58vh) auto no-repeat;
+  opacity: 0.1;
+}
+[data-theme="dark"].resumen-marca::before { opacity: 0.08; }
+.resumen-marca .card, .resumen-marca .glass-board, .resumen-marca .goal-card, .resumen-marca .big-metric, .resumen-marca .small-metric {
+  border-top: 2px solid var(--brand-orange);
+}
+@media (max-width: 768px) {
+  .resumen-marca::before { left: 0; }
+}
+@media print {
+  .resumen-marca::before { display: none; }
+}
+
+/* ── Pulido de interfaz (7/10/2026, guía ui-ux-pro-max): interacciones sobrias y accesibles ─────────────────────
+   Sin inclinaciones 3D ni destellos al pasar el cursor: un cambio de borde suave (150-200 ms) alcanza y se ve profesional. */
+.card, .glass-tile, .glass-alert, .big-metric { transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease; }
+.card:hover, .glass-tile:hover, .glass-alert:hover,
+[data-theme="dark"] .card:hover, [data-theme="dark"] .glass-tile:hover, [data-theme="dark"] .glass-alert:hover {
+  transform: none;
+  z-index: auto;
+  border-color: color-mix(in srgb, var(--brand-orange) 55%, var(--border));
+}
+.glass-tile::before, .glass-alert::before { display: none; }
+
+/* Todo lo que se toca tiene cursor de mano; lo deshabilitado, no */
+button, [role="button"], .filter-pill, summary, select, a[href], label[for] { cursor: pointer; }
+button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+.filter-pill { min-height: 32px; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+@media (pointer: coarse) { .filter-pill { min-height: 44px; } }
+
+/* Cifras alineadas en columnas y con alto uniforme */
+.resumen-marca { font-variant-numeric: lining-nums; }
+.resumen-marca .glass-tile, .resumen-marca .big-metric, .resumen-marca .small-metric, .resumen-marca table { font-variant-numeric: tabular-nums lining-nums; }
+
+/* Foco visible con teclado en todo el Resumen (la banda y el modo oscuro usan el dorado claro, definido arriba) */
+.resumen-marca :focus-visible { outline: 2px solid var(--brand-texto); outline-offset: 2px; border-radius: 6px; }
+
+/* Carga: bloques con brillo suave en lugar de pantallas vacías o "Sin datos" mientras llega la información */
+.esqueleto {
+  border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--border, rgba(242,234,220,0.3)) 45%, transparent) 25%, color-mix(in srgb, var(--border, rgba(242,234,220,0.3)) 18%, transparent) 37%, color-mix(in srgb, var(--border, rgba(242,234,220,0.3)) 45%, transparent) 63%);
+  background-size: 400% 100%;
+  animation: esqueleto 1.5s ease infinite;
+}
+@keyframes esqueleto { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

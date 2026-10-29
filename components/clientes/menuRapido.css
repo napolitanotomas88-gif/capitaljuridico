@@ -1,0 +1,69 @@
+/* ── Menú rápido del hub Clientes (MenuRapido.tsx) ── Vidrio sobrio como el resto del hub (cristal.css), sin glow.
+   El panel se despliega bajo el botón; en el celular ocupa el ancho. Urgente = bordó con texto (no solo color). */
+.mr { position: relative; margin-left: auto; align-self: center; }
+/* La barra de pestañas (con vidrio) crea su propio contexto de apilado: tiene que quedar por encima del cuerpo del hub para que
+   el panel abierto no quede tapado por los paneles de vidrio que vienen después */
+.cj-raiz .cj-hub:has(.mr) { position: relative; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mr-boton {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px; border-radius: var(--cj-radio-pildora, 22px);
+  border: 1px solid var(--cj-control); background: rgba(255, 253, 248, 0.75); color: var(--cj-hueso); font: inherit; font-size: 14px; cursor: pointer;
+}
+.mr-boton--urgente { border-color: var(--cj-error); }
+.mr-boton[aria-expanded='true'] { background: var(--cj-hueso); color: #fffdf8; border-color: var(--cj-hueso); }
+.mr-cuenta {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--cj-hueso); color: #fffdf8;
+  font-size: 12px; line-height: 22px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.mr-boton--urgente .mr-cuenta { background: var(--cj-error); }
+.mr-boton[aria-expanded='true'] .mr-cuenta { background: #fffdf8; color: var(--cj-hueso); }
+.mr-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: min(440px, calc(100vw - 32px)); max-height: min(70vh, 640px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--cj-radio-l, 14px);
+  background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(18px) saturate(120%); backdrop-filter: blur(18px) saturate(120%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 18px 40px -20px rgba(29, 29, 27, 0.45);
+  animation: mr-entra 200ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.mr-titulo { margin: 0 0 8px; font-family: var(--cj-fuente-titulo); font-size: 18px; font-weight: 500; }
+.mr-sub { font-family: var(--cj-fuente-texto); font-size: 14px; color: var(--cj-humo); }
+.mr-vacio, .mr-aviso { margin: 0; font-size: 14px; color: var(--cj-humo); }
+.mr-lista { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.mr-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--cj-radio-m, 10px);
+  background: rgba(255, 253, 248, 0.85); border: 1px solid var(--cj-filete); border-left: 3px solid var(--cj-laton);
+}
+.mr-item--urgente { border-left-color: var(--cj-error); }
+.mr-item__texto { flex: 1; min-width: 0; }
+.mr-item__titulo { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.mr-item__titulo a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--cj-laton); }
+.mr-urgente { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 10px; background: var(--cj-error); color: #fffdf8; font-size: 12px; font-weight: 500; vertical-align: 1px; }
+.mr-item__cuerpo { margin: 2px 0 0; font-size: 14px; color: var(--cj-humo); overflow-wrap: anywhere; }
+.mr-item__meta { margin: 4px 0 0; font-size: 13px; color: var(--cj-humo); }
+.mr-hecho {
+  flex: none; min-height: 40px; padding: 0 12px; border-radius: var(--cj-radio-pildora, 20px); border: 1px solid var(--cj-control);
+  background: #fffdf8; color: var(--cj-hueso); font: inherit; font-size: 13px; cursor: pointer;
+}
+.mr-hecho:hover { border-color: var(--cj-ok); color: var(--cj-ok); }
+.mr-accesos { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; border-top: 1px solid var(--cj-filete); }
+.mr-acceso {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: var(--cj-radio-pildora, 20px);
+  border: 1px solid var(--cj-filete-fuerte); color: var(--cj-hueso); text-decoration: none; font-size: 14px; background: rgba(255, 253, 248, 0.8);
+}
+.mr-acceso:hover { border-color: var(--cj-laton); }
+@keyframes mr-entra { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 768px) {
+  .mr { margin: 8px 0 0; width: 100%; }
+  .mr-boton { width: 100%; justify-content: center; }
+  .mr-panel { left: 0; right: 0; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .mr-panel { animation: none; } }
+@media (prefers-reduced-transparency: reduce) { .mr-panel { background: #fffdf8; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+/* Hub de atajos: acciones reales primero, pendientes y trazabilidad debajo. */
+.mr-panel { width: min(620px, calc(100vw - 32px)); }
+.mr-acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mr-accion { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--cj-filete-fuerte); border-radius: 10px; color: var(--cj-hueso); background: #fffdf8; text-decoration: none; }
+.mr-accion:hover { border-color: var(--cj-laton); background: #f4eee4; }
+.mr-cab-pendientes { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.mr-historial { background: none; border: 0; color: var(--cj-hueso); text-decoration: underline; font: inherit; font-size: 13px; min-height: 36px; cursor: pointer; }
+.mr-item--hecha { opacity: .72; border-left-color: var(--cj-ok); }
+@media (max-width: 480px) { .mr-acciones { grid-template-columns: 1fr; } }

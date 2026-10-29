@@ -1,0 +1,134 @@
+/* ── Tarjetas del hub Clientes (components/ui/Tarjetas.tsx, 25/10/2026) ───────────────────────────────────────────
+   Manual de marca: Sitka para el dato grande, Source Serif para el texto, oro mate (#BE8F49 / latón #805C29) en íconos y
+   filetes, bordó en los botones de acción, verde oscuro en la barra. Estética sobria: superficie lisa, sombra seca de 1 px,
+   nada de brillos, degradados dorados ni relieve. Contrastes (AA) sobre la superficie blanca cálida #FFFDF8:
+   texto #1D1D1B 16:1 · humo #605747 6,9:1 · ok #1F6B52 6,4:1 · atención #6E4F22 7,1:1 · alerta #7F202C 9,6:1. */
+.cj-raiz {
+  --cj-superficie: var(--cj-sala);
+  --cj-sombra: var(--cj-sombra-1);
+  --cj-tono-ok: #1f6b52;
+  --cj-tono-atencion: #6e4f22;
+  --cj-tono-alerta: #7f202c;
+  --cj-tono-neutro: #605747;
+  --cj-radio-tarjeta: var(--cj-radio-m);
+}
+
+/* ── Estado: ícono + texto ── */
+.cj-estado {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px 3px 8px;
+  border-radius: 999px; font-size: 13.5px; line-height: 1.3; font-weight: 500; white-space: nowrap;
+  color: var(--cj-tono-neutro); background: rgba(96, 87, 71, 0.08);
+}
+.cj-estado .cj-icono { width: 16px; height: 16px; }
+.cj-estado--ok { color: var(--cj-tono-ok); background: rgba(31, 107, 82, 0.09); }
+.cj-estado--atencion { color: var(--cj-tono-atencion); background: rgba(190, 143, 73, 0.14); }
+.cj-estado--alerta { color: var(--cj-tono-alerta); background: rgba(127, 32, 44, 0.08); }
+
+/* ── Resumen: fila de tarjetas con los números clave ── */
+.cj-resumen__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+.cj-dato { min-width: 0; background: var(--cj-superficie); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); }
+.cj-dato--destacado { border-top: 2px solid var(--cj-dorado); }
+.cj-dato__cuerpo { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 18px 20px 18px; color: var(--cj-hueso); text-decoration: none; border-radius: inherit; }
+.cj-raiz a.cj-dato__cuerpo { color: var(--cj-hueso); }
+.cj-dato--enlace { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.cj-dato--enlace:hover { border-color: var(--cj-control); box-shadow: var(--cj-sombra-2); }
+.cj-dato__cuerpo:focus-visible { outline-offset: 2px; }
+.cj-dato__cab { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cj-dato__icono { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--cj-radio-m); background: rgba(190, 143, 73, 0.12); color: var(--cj-laton); }
+.cj-dato__icono .cj-icono { width: 18px; height: 18px; }
+.cj-dato__etiqueta { font-size: 15px; font-weight: 500; line-height: 1.3; color: var(--cj-hueso); }
+.cj-dato__valor { font-family: var(--cj-fuente-titulo); font-size: clamp(32px, 1.6vw + 22px, 42px); line-height: 1.05; letter-spacing: -0.01em; color: var(--cj-hueso); margin-top: 4px; }
+.cj-dato__valor .cj-cifra__unidad, .cj-dato__unidad { font-size: 0.5em; margin-left: 4px; color: var(--cj-tono-neutro); }
+.cj-dato__contexto { font-size: 14px; line-height: 1.45; color: var(--cj-tono-neutro); max-width: 36ch; }
+.cj-dato__pie { margin-top: auto; padding-top: 6px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.cj-dato__accion { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--cj-tono-alerta); }
+.cj-dato__accion .cj-icono { width: 16px; height: 16px; transition: transform 0.15s ease; }
+.cj-dato--enlace:hover .cj-dato__accion .cj-icono { transform: translateX(2px); }
+
+/* ── Bloque: tarjeta de contenido ── */
+.cj-bloque { --cj-texto-2: var(--cj-humo-claro); min-width: 0; background: var(--cj-superficie); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+.cj-bloque--sin-relleno { padding: 0; gap: 0; }
+.cj-bloque--sin-relleno > .cj-bloque__cab { padding: 22px 28px 14px; }
+.cj-bloque__cab { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.cj-bloque__titulos { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cj-bloque__titulo { margin: 0; font-family: var(--cj-fuente-titulo); font-weight: 400; font-size: clamp(21px, 0.8vw + 16px, 25px); line-height: 1.25; color: var(--cj-hueso); }
+.cj-bloque__cuerpo { min-width: 0; }
+.cj-bloque__cuerpo p { max-width: 72ch; }
+.cj-bloque__pie { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 16px; border-top: 1px solid var(--cj-filete); }
+
+/* ── Botón de marca: bordó (manual: los botones van en bordó) ── */
+.cj-boton--marca { background: var(--cj-borgona); color: #f2eadc; border-color: var(--cj-borgona); }
+.cj-raiz a.cj-boton--marca { color: #f2eadc; }
+.cj-boton--marca:hover { background: #6a1a25; border-color: #6a1a25; }
+
+/* ── Vacío guiado ── */
+.cj-vacio-guiado { display: flex; gap: 16px; align-items: flex-start; padding: 22px 24px; background: var(--cj-superficie); border: 1px dashed var(--cj-filete-fuerte); border-radius: var(--cj-radio-tarjeta); }
+.cj-vacio-guiado__icono { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--cj-radio-m); background: rgba(190, 143, 73, 0.12); color: var(--cj-laton); }
+.cj-vacio-guiado__texto { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cj-vacio-guiado__texto p { margin: 0; max-width: 60ch; font-size: 15px; line-height: 1.55; color: var(--cj-tono-neutro); }
+.cj-raiz .cj-vacio-guiado__titulo { font-size: 16.5px; font-weight: 600; color: var(--cj-hueso); }
+
+/* ── Celular: una columna, tarjetas compactas (ícono | rótulo y contexto | número) y acciones de 44 px ── */
+@media (max-width: 768px) {
+  .cj-resumen__lista { grid-template-columns: 1fr; gap: 10px; }
+  .cj-dato__cuerpo {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'cab valor' 'contexto valor' 'pie pie';
+    align-items: center; gap: 4px 12px; padding: 14px 16px; min-height: 64px;
+  }
+  .cj-dato__cab { grid-area: cab; }
+  .cj-dato__valor { grid-area: valor; margin: 0; font-size: 32px; text-align: right; }
+  .cj-dato__contexto { grid-area: contexto; font-size: 13.5px; padding-left: 44px; }
+  .cj-dato__pie { grid-area: pie; padding-top: 8px; }
+  .cj-dato--enlace .cj-dato__pie { min-height: 32px; }
+  .cj-bloque { padding: 18px 16px; gap: 16px; }
+  .cj-bloque--sin-relleno { padding: 0; }
+  .cj-bloque--sin-relleno > .cj-bloque__cab { padding: 18px 16px 12px; }
+  .cj-bloque__pie .cj-boton { flex: 1 1 auto; min-height: 44px; }
+  .cj-vacio-guiado { padding: 18px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cj-dato--enlace, .cj-dato__accion .cj-icono { transition: none; }
+}
+
+/* ── Lo que ya existía, dentro del hub, también en tarjetas (sin tocar las pantallas de fuera de Clientes) ────────────
+   .cj-hub-cuerpo envuelve las pestañas: app/(shell)/clientes/layout.tsx, app/(shell)/guiones/layout.tsx. */
+.cj-hub-cuerpo .cj-franja { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.cj-hub-cuerpo .cj-franja > .cj-cifra { background: var(--cj-superficie); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); padding: 20px 22px; gap: 8px; }
+.cj-hub-cuerpo .cj-franja > .cj-cifra .cj-cifra__valor { font-size: clamp(32px, 1.6vw + 22px, 42px); }
+.cj-hub-cuerpo .cj-ficha-seccion { background: var(--cj-superficie); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); padding: 24px 28px; --cj-texto-2: var(--cj-humo-claro); }
+.cj-hub-cuerpo .cj-ficha-seccion > .cj-filete:first-child { display: none; }
+.cj-hub-cuerpo .cj-vacio { padding: 22px 24px; background: var(--cj-superficie); border: 1px dashed var(--cj-filete-fuerte); border-radius: var(--cj-radio-tarjeta); gap: 16px; }
+.cj-hub-cuerpo .cj-vacio p { font-size: 15px; line-height: 1.55; color: var(--cj-tono-neutro); }
+.cj-hub-cuerpo .cj-tarjeta { background: var(--cj-superficie); border-color: var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); }
+.cj-hub-cuerpo .cj-tarjeta__nombre { font-size: 17px; }
+.cj-hub-cuerpo .gs-item { border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); padding: 18px 20px; gap: 12px; }
+.cj-hub-cuerpo .gs-item__nombre { font-size: 17px; }
+.cj-hub-cuerpo .cj-parrafo, .cj-hub-cuerpo .gs-sub, .cj-hub-cuerpo .ed-sub { max-width: 72ch; line-height: 1.6; }
+@media (max-width: 768px) {
+  .cj-hub-cuerpo .cj-franja { grid-template-columns: 1fr; gap: 10px; }
+  .cj-hub-cuerpo .cj-ficha-seccion { padding: 18px 16px; }
+}
+.cj-hub-cuerpo .gs-enlaces { align-items: center; gap: 10px 18px; padding-top: 12px; border-top: 1px solid var(--cj-filete); }
+.cj-raiz a.gs-accion { min-height: 40px; padding: 0 16px; }
+@media (max-width: 768px) { .cj-raiz a.gs-accion { min-height: 44px; flex: 1 1 100%; } }
+/* Referidos: cada bloque en su tarjeta; anclas del resumen sin quedar pegadas al borde */
+.cj-hub-cuerpo #clientes-contentos, .cj-hub-cuerpo #base-referidos, .cj-hub-cuerpo section[aria-label='Registrar referido'] {
+  background: var(--cj-superficie); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-tarjeta); box-shadow: var(--cj-sombra); padding: 24px 28px; --cj-texto-2: var(--cj-humo-claro);
+}
+.cj-hub-cuerpo [id] { scroll-margin-top: 24px; }
+.cj-nota-resumen { margin: 0; font-size: 14px; line-height: 1.5; }
+@media (max-width: 768px) {
+  .cj-hub-cuerpo #clientes-contentos, .cj-hub-cuerpo #base-referidos, .cj-hub-cuerpo section[aria-label='Registrar referido'] { padding: 18px 16px; }
+}
+/* Accesos rápidos de la ficha: píldoras con ícono, en minúscula normal */
+.cj-accesos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.cj-accesos__rotulo { font-size: 14px; color: var(--cj-tono-neutro); margin-right: 4px; }
+.cj-raiz a.cj-accesos__enlace { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1px solid var(--cj-control); border-radius: 999px; background: var(--cj-superficie); color: var(--cj-hueso); font-size: 14.5px; text-decoration: none; transition: border-color 0.15s ease; }
+.cj-raiz a.cj-accesos__enlace:hover { border-color: var(--cj-hueso); }
+.cj-accesos__enlace .cj-icono { width: 17px; height: 17px; color: var(--cj-laton); }
+@media (max-width: 768px) { .cj-raiz a.cj-accesos__enlace { min-height: 44px; } }
+/* Lineamientos de texto dentro del hub: mayúsculas espaciadas solo en rótulos de una o dos palabras. Los rótulos largos de los
+   datos ("¿Guion nuevo desde el lanzamiento?", "Cobrado / contratado (USD)") y los filtros pasan a minúscula normal. */
+.cj-hub-cuerpo .gs-datos dt, .cj-hub-cuerpo .cj-tarjeta__datos dt { text-transform: none; letter-spacing: 0; font-size: 13.5px; font-weight: 500; color: var(--cj-tono-neutro); }
+.cj-hub-cuerpo .cj-chip { text-transform: none; letter-spacing: 0.01em; font-size: 14px; }
+.cj-hub-cuerpo .gs-datos dd, .cj-hub-cuerpo .cj-tarjeta__datos dd { font-size: 15px; }

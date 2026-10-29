@@ -1,0 +1,133 @@
+/* ── Cristal del hub Clientes (26/10/2026, pedido de Tomás: "glassmorphism, diseño UX/UI profesional") ─────────────────
+   Glassmorphism SOBRIO, según el Manual de Identidad (memoria feedback_estetica_sobria): superficies de vidrio esmerilado
+   sobre una atmósfera de manchas mate (verde Toga, latón y bordó, muy bajas), sin glow, sin reflejos brillantes ni
+   degradados dorados. Pautas de la skill ui-ux-pro-max (estilo "glassmorphism"): desenfoque de 10 a 20 px, borde fino claro,
+   fondo con color debajo, texto con contraste AA (por eso el blanco es más opaco que el 15–30 % del estilo genérico: el texto
+   va encima del vidrio).
+   Cómo: dentro del hub se redefine el token --cj-sala (la superficie de paneles y tarjetas) como blanco translúcido, así
+   TODAS las pantallas del hub (cartera, tarjeta, ficha, kickoff, guiones, edición, referidos, anuncios) toman el cristal sin
+   tocar cada una; el desenfoque (caro) se pone solo en las superficies de primer nivel, no en las anidadas.
+   Lo carga components/shell/PestanasClientes.tsx (las pestañas están en todas las páginas del hub).
+   Accesibilidad: con "reducir transparencia" del sistema, o sin backdrop-filter, vuelve a las superficies sólidas. */
+
+.cj-contenido:has(.cj-hub) {
+  /* La atmósfera: manchas grandes y mates detrás del vidrio (sin ellas el cristal no se lee) */
+  background:
+    radial-gradient(60vmax 50vmax at 8% 0%, rgba(1, 45, 37, 0.14), transparent 60%),
+    radial-gradient(55vmax 45vmax at 100% 18%, rgba(190, 143, 73, 0.2), transparent 62%),
+    radial-gradient(50vmax 40vmax at 30% 100%, rgba(127, 32, 44, 0.08), transparent 60%),
+    var(--cj-tinta);
+  background-attachment: fixed;
+  position: relative;
+  isolation: isolate;
+}
+/* Sobre la atmósfera (manchas + isotipo) el marfil se oscurece un poco: los tonos de TEXTO bajan un punto para seguir en AA
+   también sobre el fondo descubierto (títulos, etiquetas, «Datos de las…»). Calculado en el peor punto (pico de una mancha
+   + isotipo): latón 4,53:1, humo 4,77, ok 4,51, atención 4,54 (con los de :root daba 3,5–4,2). Mismos tonos, más secos. */
+.cj-contenido:has(.cj-hub) {
+  --cj-laton: #674a1f;
+  --cj-humo: #544b3c;
+  --cj-texto-2: #544b3c;
+  --cj-ok: #195a45;
+  --cj-atencion: #7a4016;
+  --cj-alerta: #7a4016;
+}
+
+/* 27/10/2026 (Tomás: "difuminar el fondo y el cristal más literal"): el isotipo de la marca, grande, mate y difuminado, fijo
+   detrás del vidrio. Le da al cristal algo que esmerilar (sin forma detrás, el vidrio no se nota). Mismo recurso que el Resumen. */
+.cj-contenido:has(.cj-hub)::before {
+  content: '';
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: var(--cj-ancho-lateral, 0px);
+  z-index: -1;
+  pointer-events: none;
+  background: url('/marca/isotipo-dorado.svg') 72% 58% / min(70vw, 820px, 78vh) auto no-repeat;
+  opacity: 0.11;
+  filter: blur(6px);
+}
+
+.cj-hub-cuerpo, .cj-hub {
+  /* Vidrio más evidente (27/10/2026): más transparente y más esmerilado, con el canto de luz arriba. Sigue mate: sin reflejos */
+  --cj-vidrio: rgba(255, 253, 248, 0.52);          /* AA calculado sobre el peor punto del fondo (pico de una mancha + isotipo):
+                                                      latón 4,58:1, ok 4,7, ocre 4,7, humo 5,4, negro > 11 */
+  --cj-vidrio-borde: rgba(255, 255, 255, 0.72);
+  --cj-vidrio-sombra: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 0 0 1px rgba(255, 255, 255, 0.18) inset, 0 12px 32px -20px rgba(29, 29, 27, 0.42);
+  --cj-desenfoque: blur(24px) saturate(130%);
+}
+.cj-hub-cuerpo {
+  --cj-sala: var(--cj-vidrio);
+  --cj-superficie: var(--cj-vidrio);
+  --cj-sombra: var(--cj-vidrio-sombra);
+}
+
+/* Superficies de primer nivel y POCAS por pantalla: vidrio con desenfoque y el borde claro arriba (luz única, seca).
+   Las que se repiten en listas largas (tarjetas de Edición, Guiones y la lista de clientes) NO llevan desenfoque: con
+   decenas de backdrop-filter el scroll se pone lento (Edición la usan Aylu y René todo el día). Ver la regla de abajo. */
+.cj-hub-cuerpo :is(.cj-panel, .cj-dato, .cj-ficha-seccion, .cj-vacio, .cj-franja > .cj-cifra, .rc-col, .rc-tramo, .rc-regla):not(:is(.cj-panel, .cj-ficha-seccion, .rc-col, .rc-tramo) *) {
+  background: var(--cj-vidrio);
+  -webkit-backdrop-filter: var(--cj-desenfoque);
+  backdrop-filter: var(--cj-desenfoque);
+  border-color: var(--cj-vidrio-borde);
+  box-shadow: var(--cj-vidrio-sombra);
+}
+/* Repetidas en listas: vidrio sin desenfoque (más opaco, así el texto denso y los chips de estado quedan AA) */
+.cj-hub-cuerpo :is(.cj-tarjeta, .ed-tarjeta, .gs-item) {
+  background: rgba(255, 253, 248, 0.8);
+  border-color: var(--cj-vidrio-borde);
+  box-shadow: var(--cj-vidrio-sombra);
+}
+/* Anidadas: un velo un poco más blanco, sin desenfoque propio (ya están sobre vidrio) */
+.cj-hub-cuerpo :is(.cj-panel, .cj-ficha-seccion, .rc-col, .rc-tramo) :is(.rc-tarjeta, .rc-mini__item, .cj-dato, .rc-lista li, .rc-conteo li, .rc-recorrido) {
+  background: rgba(255, 253, 248, 0.6);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* --cj-sala también se usa como COLOR de texto sobre fondos oscuros: ahí tiene que seguir siendo blanco sólido (con el token
+   translúcido quedaba bajo AA, medido: Lanzado / Éxito / Renovación de la barra, chips y botones apretados) */
+.cj-hub-cuerpo :is(.rc-barra__btn--lanzado, .rc-barra__btn--exito, .rc-barra__btn--renovacion, .rc-interruptor[aria-pressed='true'], .rc-vista[aria-pressed='true'], .rc-tramo__n, .rc-abrir-filtros[aria-expanded='true']) { color: #fffdf8; }
+
+/* Pestañas: una barra de vidrio */
+.cj-raiz .cj-hub:not(.cj-hub--oscuro) {
+  background: rgba(255, 253, 248, 0.5);
+  -webkit-backdrop-filter: var(--cj-desenfoque);
+  backdrop-filter: var(--cj-desenfoque);
+  border: 1px solid var(--cj-vidrio-borde);
+  border-radius: var(--cj-radio-l);
+  box-shadow: var(--cj-vidrio-sombra);
+  padding: 4px 6px;
+}
+.cj-raiz .cj-hub:not(.cj-hub--oscuro) a.cj-hub__pestana { border-radius: var(--cj-radio-m); }
+.cj-raiz .cj-hub:not(.cj-hub--oscuro) a.cj-hub__pestana[aria-current='page'] { background: rgba(255, 253, 248, 0.85); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 4px 12px -8px rgba(29, 29, 27, 0.4); }
+
+/* Campos: vidrio más opaco (se escribe ahí) */
+.cj-hub-cuerpo :is(input:not([type='checkbox']):not([type='radio']), select, textarea) { background-color: rgba(255, 253, 248, 0.82); }
+
+/* Tarjeta abierta del cliente (va en un portal sobre <body>, fuera de .cj-hub-cuerpo) */
+.rc-capa .rc-fondo { background: rgba(29, 29, 27, 0.32); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.rc-capa .rc-panel {
+  background: rgba(242, 234, 220, 0.86);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+}
+.rc-capa .rc-panel__cab { background: linear-gradient(180deg, rgba(255, 253, 248, 0.8), rgba(255, 253, 248, 0.35)); }
+.rc-capa .rc-saltos { background: rgba(242, 234, 220, 0.7); }
+.rc-capa .cj-ficha-seccion { background: rgba(255, 253, 248, 0.72); border-color: rgba(255, 255, 255, 0.65); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 10px 28px -20px rgba(29, 29, 27, 0.35); }
+
+/* Celular: menos desenfoque (rinde mejor en equipos modestos) */
+@media (max-width: 767px) {
+  .cj-hub-cuerpo, .cj-hub { --cj-desenfoque: blur(14px) saturate(125%); }
+  .rc-capa .rc-panel { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+}
+
+/* Sin cristal: "reducir transparencia" del sistema o un navegador sin backdrop-filter → superficies sólidas de siempre */
+@media (prefers-reduced-transparency: reduce) {
+  .cj-hub-cuerpo, .cj-hub { --cj-vidrio: #fffdf8; --cj-desenfoque: none; }
+  .cj-contenido:has(.cj-hub)::before { display: none; }
+  .cj-raiz .cj-hub:not(.cj-hub--oscuro) { background: #fffdf8; }
+  .rc-capa .rc-panel { background: var(--cj-tinta); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cj-hub-cuerpo, .cj-hub { --cj-vidrio: rgba(255, 253, 248, 0.94); }
+  .rc-capa .rc-panel { background: var(--cj-tinta); }
+}

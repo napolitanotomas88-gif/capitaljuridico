@@ -1,0 +1,14 @@
+{
+  "meses": [
+    "2030-01"
+  ],
+  "comprobantes": [
+    [
+      "2030-01-15",
+      "Cliente Ficticio Uno",
+      100,
+      "Otro",
+      "alta"
+    ]
+  ]
+}

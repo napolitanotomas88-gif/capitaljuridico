@@ -1,0 +1,1 @@
+export default function CargandoCuotas() { return <div role="status" className="p-6"><p className="text-xl font-bold">Cargando cuotas…</p><div className="mt-4 grid gap-4 lg:grid-cols-3">{[0,1,2].map(i=><div key={i} className="h-72 rounded-xl border border-gris-linea bg-blanco motion-safe:animate-pulse"/>)}</div></div>; }

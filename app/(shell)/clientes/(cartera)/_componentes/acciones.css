@@ -1,0 +1,70 @@
+/* ── Acciones sobre el cliente en la tarjeta (AccionesCliente.tsx) ────────────────────────────────────────────────────
+   Tokens de cj.css. Prefijo ac-. Los campos son autónomos para la tarjeta y la ficha completa. */
+
+.ac { display: flex; flex-direction: column; gap: 12px; }
+.ac .rc-campo { display: flex; flex-direction: column; gap: 4px; }
+.ac .rc-input {
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--cj-control); border-radius: var(--cj-radio);
+  background: var(--cj-sala); color: var(--cj-hueso); font: inherit; font-size: 15px; max-width: 100%;
+}
+.ac .rc-campo input.rc-input { width: min(220px, 100%); }
+.ac .rc-limpiar { min-height: 44px; padding: 8px 14px; border: 0; background: transparent; color: var(--cj-laton); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.ac .rc-limpiar:disabled { opacity: .4; cursor: default; text-decoration: none; }
+.ac-modo {
+  margin: 0; padding: 6px 10px; border-left: 3px solid var(--cj-laton); border-radius: var(--cj-radio-s);
+  background: color-mix(in srgb, var(--cj-laton) 8%, transparent); color: var(--cj-hueso); font-size: 0.875rem;
+}
+.ac-modo--real { border-left-color: var(--cj-ok); background: color-mix(in srgb, var(--cj-ok) 8%, transparent); }
+.ac-pausa {
+  margin: 0; padding: 8px 12px; border-radius: var(--cj-radio-s); font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--cj-atencion) 45%, transparent); color: var(--cj-atencion);
+  background: color-mix(in srgb, var(--cj-atencion) 7%, transparent);
+}
+.ac-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac-boton {
+  min-height: 40px; padding: 8px 14px; border-radius: var(--cj-radio-pildora); cursor: pointer;
+  border: 1px solid var(--cj-control); background: var(--cj-sala); color: var(--cj-hueso);
+  font: inherit; font-size: 0.9rem; box-shadow: var(--cj-sombra-1);
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+.ac-boton:hover:not(:disabled) { border-color: var(--cj-laton); }
+.ac-boton:focus-visible { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+.ac-boton:disabled { cursor: default; opacity: 0.55; box-shadow: none; }
+.ac-pronto {
+  margin-left: 6px; padding: 1px 6px; border-radius: var(--cj-radio-pildora); font-size: 0.75rem;
+  border: 1px solid var(--cj-filete-fuerte); color: var(--cj-humo); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ac-forma {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: var(--cj-radio-m);
+  border: 1px solid var(--cj-filete-fuerte); background: var(--cj-sala);
+}
+.ac-campos { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ac-opciones { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ac-opcion { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+.ac-opcion input { accent-color: var(--cj-laton); }
+.ac-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.ac-o { padding-bottom: 8px; color: var(--cj-humo); }
+.ac-motivo .rc-input { width: 100%; }
+.ac-revisar { margin: 0; padding: 8px 10px; border-radius: var(--cj-radio-s); background: color-mix(in srgb, var(--cj-laton) 8%, transparent); }
+.ac-mensaje { padding: 10px 12px; border-radius: var(--cj-radio-s); border: 1px solid var(--cj-filete-fuerte); }
+.ac-mensaje p { margin: 0; }
+.ac-mensaje--ok { border-color: color-mix(in srgb, var(--cj-ok) 45%, transparent); }
+.ac-mensaje--error { border-color: color-mix(in srgb, var(--cj-error) 50%, transparent); color: var(--cj-error); }
+.ac-mensaje details { margin-top: 6px; }
+.ac-plan { margin: 6px 0 0; padding-left: 18px; font-size: 0.875rem; }
+.ac-antes { text-decoration: line-through; color: var(--cj-humo); }
+.ac-historial summary, .ac-mensaje summary { cursor: pointer; color: var(--cj-laton); min-height: 32px; display: list-item; }
+.ac-historial ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ac-historial li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 0; border-bottom: 1px solid var(--cj-filete); }
+.ac-meta { font-size: 0.8rem; color: var(--cj-humo); }
+.ac-anulada > span:first-child { text-decoration: line-through; color: var(--cj-humo); }
+
+@media (max-width: 768px) { .ac-opcion, .ac-historial summary, .ac-mensaje summary { min-height: 44px; } .ac .rc-campo input.rc-input { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .ac-boton { transition: none; } }
+
+/* Editar datos (EditarDatos.tsx) */
+.ed-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; }
+.ed-campo .rc-input, .rc-campo.ed-campo input.rc-input { width: 100%; }
+.ed-campo--ancho { grid-column: 1 / -1; }
+.ed-campo textarea.rc-input { resize: vertical; min-height: 64px; font: inherit; }
+.ed-campo--cambiado .rc-input { border-color: var(--cj-laton); box-shadow: inset 3px 0 0 var(--cj-laton); }
