@@ -2,7 +2,7 @@ import { escrituraPermitida, hojasClosers, spreadsheetId } from "@/lib/crm/confi
 import type { Cambios, CodigoError, Identidad, Operacion } from "@/lib/crm/contratos";
 import { agruparOperaciones } from "@/lib/crm/hechas";
 import { sheets } from "./cliente";
-import { etiquetaCampo, type Campo } from "./columnas";
+import { COLUMNAS, ENCABEZADOS_ESPERADOS, rango, etiquetaCampo, type Campo } from "./columnas";
 import { actualizarFilaEnCache, invalidarCache, leerFila } from "./leer";
 import { agregarAlLog, invalidarCacheLog, leerLog } from "./log";
 import {
@@ -104,6 +104,17 @@ export async function aplicarCambios(entrada: EntradaEscritura): Promise<Operaci
           ? `El lead cambió después de la acción (${lista(distintos)}). No se deshizo nada.`
           : `Alguien cambió este lead en la planilla (${lista(distintos)}). No se guardó nada: revisalo en la lista actualizada.`,
       );
+    }
+  }
+
+  // La nueva columna se prepara antes del despliegue: nunca escribir sobre una AK ajena.
+  if ("recordatorioPrecall" in cambios) {
+    const encabezado = await sheets().spreadsheets.values.get({
+      spreadsheetId: spreadsheetId(),
+      range: rango(hoja, `${COLUMNAS.recordatorioPrecall}1`),
+    });
+    if (encabezado.data.values?.[0]?.[0] !== ENCABEZADOS_ESPERADOS.recordatorioPrecall) {
+      throw new ErrorEscritura("escritura_bloqueada", "Recordatorio todavía no está habilitado en esta hoja.");
     }
   }
 

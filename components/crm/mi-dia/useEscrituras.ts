@@ -72,6 +72,7 @@ export type Escrituras = {
    * ni mostrar el toast. true si se guardó; si no, avisa el error y la tarjeta vuelve a como estaba.
    */
   alternarBandera: (item: ItemCliente, marcar: boolean) => Promise<boolean>;
+  cambiarRecordatorio: (item: ItemCliente, nuevo: string, anterior: string) => Promise<boolean>;
 };
 
 /**
@@ -259,9 +260,28 @@ export function useEscrituras(items?: readonly ItemCliente[]): Escrituras {
     [avisarError, router],
   );
 
+  const cambiarRecordatorio = useCallback(
+    async (item: ItemCliente, nuevo: string, anterior: string) => {
+      if (ocupados.current.has(item.clave)) return false;
+      ocupar(item.clave, true);
+      const resultado = await llamar(() => ejecutarAccion({
+        ...item.identidad,
+        cambios: { recordatorioPrecall: nuevo },
+        esperado: { recordatorioPrecall: anterior },
+        // No cuenta como una fase enviada ni como un seguimiento hecho.
+        motivo: `RECORDATORIO · ${nuevo || "Sin recordatorio"}`,
+      }));
+      ocupar(item.clave, false);
+      if (!resultado.ok) { avisarError(resultado); return false; }
+      router.refresh();
+      return true;
+    },
+    [ocupar, avisarError, router],
+  );
+
   const cerrarModal = useCallback(() => setModal(null), []);
   const estaOculto = useCallback((item: ItemCliente) => ocultas.has(claveOculta(item)), [ocultas]);
   const errorDe = useCallback((item: ItemCliente) => errores[claveOculta(item)], [errores]);
 
-  return { estaOculto, enCurso, errorDe, toast, modal, alTocarBoton, confirmar, deshacer, deshacerHecha, cerrarModal, alternarBandera };
+  return { estaOculto, enCurso, errorDe, toast, modal, alTocarBoton, confirmar, deshacer, deshacerHecha, cerrarModal, alternarBandera, cambiarRecordatorio };
 }

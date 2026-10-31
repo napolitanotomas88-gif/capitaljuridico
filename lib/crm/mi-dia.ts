@@ -9,6 +9,7 @@ import {
   type Metricas,
   type Periodo,
 } from "@/lib/crm/admin";
+import { instagramDeAgenda } from "@/lib/crm/instagramCalendly";
 import { NOMBRE_ADMIN } from "@/lib/crm/auth";
 import { closers, nombreCloserDeHoja } from "@/lib/crm/config";
 import type { CallDelDia, FichaLead, ItemCliente, OperacionHecha, PanelFicha } from "@/lib/crm/contratos";
@@ -143,11 +144,13 @@ export async function datosDelLead(hoja: string, numeroFila: number, ahora = new
   const fila = (filas.get(hoja) ?? []).find((f) => f.numeroFila === numeroFila);
   if (!fila || !fila.valores.nombre.trim()) return null;
   const dia: ContextoDia = { precallHoy: precallEnviadoHoy(operacionesDeHoy(log, hoja, ahora)) };
+  const [instagram, historial] = await Promise.all([instagramDeAgenda(fila.valores), historialDeFila(hoja, numeroFila, fila.valores.nombre)]);
   return {
+    instagram,
     identidad: identidadDe(fila),
     valores: fila.valores,
     items: accionesDeFila(fila, ahora, dia).map((accion) => armarItem(fila, accion, ahora)),
-    historial: await historialDeFila(hoja, numeroFila, fila.valores.nombre),
+    historial,
   };
 }
 

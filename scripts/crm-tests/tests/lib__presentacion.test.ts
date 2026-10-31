@@ -11,32 +11,26 @@ function fila(valores: Partial<Record<Campo, string>>): FilaLead {
   return { hoja: "Closer 1", numeroFila: 7, valores: { ...base, nombre: "Juan Carlos Gómez", telefono: "+54 9 11 5555-1234", llamadaPrecall: "No efectiva", ...valores } };
 }
 
-describe("urlWhatsApp", () => {
-  it("wa.me con solo dígitos y sin texto (la app no sugiere mensajes)", () => {
-    expect(urlWhatsApp("+54 9 11 5555-1234")).toBe("https://wa.me/5491155551234");
-    expect(urlWhatsApp("(011) 15-5555-1234")).toBe("https://wa.me/0111555551234");
+describe("WhatsApp Web (pedido de Gero, 30/10/2026)", () => {
+  it("abre el chat web con solo dígitos y sin texto precargado", () => {
+    const url = new URL(urlWhatsApp("+54 9 11 5555-1234"));
+    expect(url.origin).toBe("https://web.whatsapp.com");
+    expect(url.pathname).toBe("/send");
+    expect([...url.searchParams]).toEqual([["phone", "5491155551234"]]);
   });
-});
-
-describe("urlChat (pedido de Tomás, 19/10/2026)", () => {
-  it("2Chat desde el número del closer de la pestaña, con el teléfono del lead en dígitos", () => {
-    const espacio = "https://app.2chat.io/live-chat/STE00000000-0000-4000-8000-000000000001";
-    expect(urlChat("Closer 1", "+54 9 358 000-0001")).toEqual({ url: `${espacio}/WA-WAN00000000-0000-4000-8000-000000000001-5493580000001`, es2Chat: true });
-    expect(urlChat("Closer 2", "5491100000031").url).toBe(`${espacio}/WA-WAN00000000-0000-4000-8000-000000000002-5491100000031`);
-    expect(urlChat("Closer 3", "5491100000032").url).toBe(`${espacio}/WA-WAN00000000-0000-4000-8000-000000000003-5491100000032`);
-    expect(urlChat("Closer 4", "+54 9 11 0000-0022").url).toBe(`${espacio}/WA-WAN00000000-0000-4000-8000-000000000004-5491100000022`);
-    // Un lead de Chile en la pestaña de Brenda: el número queda como está (el agregado del 9 es solo para Argentina)
-    expect(urlChat("Closer 5", "+56 9 0000 0001").url).toBe(`${espacio}/WA-WAN00000000-0000-4000-8000-000000000005-56900000001`);
-  });
-  it("a un celular argentino cargado sin el 9 se lo agrega (así lo identifica WhatsApp); otros países quedan igual", () => {
-    expect(digitosWhatsApp("+54 358 482-3217")).toBe("5493580000001");
+  it.each(["Gero-Xavi Rejunte", "Closer 1", "Closer 2", "Closer 3", "Closer 4", "Closer 5", "Nueva pestaña"])(
+    "%s usa WhatsApp Web sin depender de un número configurado en 2Chat",
+    (hoja) => expect(urlChat(hoja, "+54 9 11 5555-1234")).toEqual({
+      url: "https://web.whatsapp.com/send?phone=5491155551234", es2Chat: false,
+    }),
+  );
+  it("normaliza celulares argentinos sin 9 y conserva otros países", () => {
+    expect(digitosWhatsApp("+54 358 000-0001")).toBe("5493580000001");
     expect(digitosWhatsApp("+54 9 358 000-0001")).toBe("5493580000001");
-    expect(digitosWhatsApp("+57 315 2886633")).toBe("573152886633");
-    expect(digitosWhatsApp("+591 72011000")).toBe("59172011000");
-    expect(urlChat("Closer 1", "+54 11 5133-7517").url).toMatch(/-5491100000033$/);
-  });
-  it("una pestaña sin número de 2Chat sigue con WhatsApp", () => {
-    expect(urlChat("Gero-Xavi Rejunte", "+54 9 11 5555-1234")).toEqual({ url: "https://wa.me/5491155551234", es2Chat: false });
+    expect(urlChat("Closer 1", "+54 11 0000-0033").url).toBe("https://web.whatsapp.com/send?phone=5491100000033");
+    expect(urlChat("Closer 5", "+56 9 0000 0001").url).toBe("https://web.whatsapp.com/send?phone=56900000001");
+    expect(digitosWhatsApp("+57 300 0000000")).toBe("573000000000");
+    expect(digitosWhatsApp("+591 70000000")).toBe("59170000000");
   });
 });
 
@@ -56,7 +50,7 @@ describe("armarItem", () => {
       fechaCall: "26/09/2026 10:30",
     });
     // Solo los campos escribibles, para armar `esperado` (sin U ni X, que la app no usa).
-    expect(Object.keys(item.valores)).toHaveLength(18);
+    expect(Object.keys(item.valores)).toHaveLength(19);
     expect(item.valores.precall).toBe("");
     expect(item.valores).not.toHaveProperty("telefono");
     expect(item.valores).not.toHaveProperty("presentoCall2");
@@ -66,8 +60,8 @@ describe("armarItem", () => {
     expect(item.horaCall).toBe("sáb 26/09 10:30");
     expect(item).not.toHaveProperty("mensaje");
     expect(item.accion).not.toHaveProperty("plantilla");
-    expect(item.urlChat).toBe("https://app.2chat.io/live-chat/STE00000000-0000-4000-8000-000000000001/WA-WAN00000000-0000-4000-8000-000000000001-5491155551234");
-    expect(item.chat2Chat).toBe(true);
+    expect(item.urlChat).toBe("https://web.whatsapp.com/send?phone=5491155551234");
+    expect(item.chat2Chat).toBe(false);
     // Pre-call de una reunión que todavía no empezó: se puede cancelar
     expect(item.cancelable).toBe(true);
     expect(JSON.parse(JSON.stringify(item))).toEqual(item);
@@ -93,7 +87,7 @@ describe("armarItem", () => {
     ];
     const items = filas.flatMap((f) => accionesDeFila(f, AHORA).map((a) => armarItem(f, a, AHORA)));
     expect(items.map((i) => i.accion.tipo)).toEqual(["PRE_CALL", "NO_SHOW", "NO_SHOW", "SE_PRESENTO", "POST_CALL"]);
-    for (const item of items) expect(item.urlChat).toMatch(/^https:\/\/app\.2chat\.io\/live-chat\/[^?]+-5491155551234$/);
+    for (const item of items) expect(item.urlChat).toBe("https://web.whatsapp.com/send?phone=5491155551234");
     // Solo el pre-call de la reunión que todavía no pasó se puede cancelar
     expect(items.map((i) => i.cancelable)).toEqual([true, false, false, false, false]);
   });

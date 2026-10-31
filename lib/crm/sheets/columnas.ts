@@ -51,6 +51,8 @@ export const COLUMNAS = {
   // era un aviso de riesgo de no-show con botones y se sacó). Se prende y se apaga con el circulito de la esquina de las
   // tarjetas de Pre-call (`alternarBandera`). Columna al final de las 6 pestañas, con desplegable.
   banderaRoja: "AJ",
+  // Recordatorio manual del pre-call (Gero, 30/10/2026): vacío, 1, 2 o 3. No cambia la fase F.
+  recordatorioPrecall: "AK",
 } as const;
 
 export type Campo = keyof typeof COLUMNAS;
@@ -94,6 +96,7 @@ export const ENCABEZADOS_ESPERADOS: Record<Campo, string> = {
   proximoSeguimiento: "Próximo seguimiento",
   llamadaPrecall: "Llamada pre-call",
   banderaRoja: "Bandera roja",
+  recordatorioPrecall: "Recordatorio",
 };
 
 /**
@@ -137,6 +140,7 @@ export const ETIQUETA_CAMPO: Record<Campo, string> = {
   proximoSeguimiento: "Próximo seguimiento",
   llamadaPrecall: "Llamada pre-call",
   banderaRoja: "Bandera roja 🚩",
+  recordatorioPrecall: "Recordatorio",
 };
 
 /** Etiqueta legible de un campo; si no es un campo conocido, el texto tal cual. */
@@ -169,6 +173,7 @@ export const CAMPOS_ESCRIBIBLES = [
   "proximoSeguimiento",
   "llamadaPrecall",
   "banderaRoja",
+  "recordatorioPrecall",
 ] as const satisfies readonly Campo[];
 
 export type CampoEscribible = (typeof CAMPOS_ESCRIBIBLES)[number];
@@ -179,7 +184,7 @@ export type CampoEscribible = (typeof CAMPOS_ESCRIBIBLES)[number];
  */
 export const CAMPOS_TEXTO_LIBRE: readonly Campo[] = ["datosReagenda", "grabacion1", "grabacion2", "grabacion3"];
 
-export const ULTIMA_COLUMNA: Letra = COLUMNAS.banderaRoja;
+export const ULTIMA_COLUMNA: Letra = COLUMNAS.recordatorioPrecall;
 
 /** "A" → 0, "Z" → 25, "AA" → 26. */
 export function indiceColumna(letra: string): number {

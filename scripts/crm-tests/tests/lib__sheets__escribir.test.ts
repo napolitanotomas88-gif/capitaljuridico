@@ -137,7 +137,7 @@ describe("relectura de la fila", () => {
     expect(api.spreadsheets.values.get).toHaveBeenCalledTimes(1);
     expect(api.spreadsheets.values.get.mock.calls[0][0]).toMatchObject({
       spreadsheetId: COPIA,
-      range: "'Closer 3'!A12:AJ12",
+      range: "'Closer 3'!A12:AK12",
       valueRenderOption: "UNFORMATTED_VALUE",
     });
     expect(api.spreadsheets.values.batchUpdate).not.toHaveBeenCalled();
@@ -407,5 +407,88 @@ describe("deshacerOperacion (Hechas hoy)", () => {
     e = await errorDe(deshacerOperacion({ idOperacion: "e5f6a7b8", closer: "x", puedeVerHoja: puede }));
     expect(e.message).toMatch(/ya es un Deshacer/);
     expect(api.spreadsheets.values.batchUpdate).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Recordatorio manual del pre-call", () => {
+  function simular(antes: string, encabezado = "Recordatorio") {
+    api.spreadsheets.values.get.mockImplementation(async ({ range }: { range: string }) => ({
+      data: { values: range.endsWith("!AK1") ? [[encabezado]] : [celdas({
+        recordatorioPrecall: antes, precall: "DOLORES", ultimoToque: "24/09/2026 10:00:00",
+      })] },
+    }));
+  }
+  it.each(["", "1", "2", "3"])("guarda %s en AK y conserva fase y último toque", async (nuevo) => {
+    const antes = nuevo === "" ? "2" : "";
+    simular(antes);
+    const resultado = await aplicarCambios({ ...identidad,
+      cambios: { recordatorioPrecall: nuevo }, esperado: { recordatorioPrecall: antes },
+      motivo: `RECORDATORIO · ${nuevo || "Sin recordatorio"}`, tocar: false, ahora: AHORA,
+    });
+    expect(resultado.antes).toEqual({ recordatorioPrecall: antes });
+    expect(resultado.despues).toEqual({ recordatorioPrecall: nuevo });
+    expect(api.spreadsheets.values.batchUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      requestBody: { valueInputOption: "USER_ENTERED", data: [{ range: "'Closer 3'!AK12", values: [[nuevo]] }] },
+    }));
+  });
+  it("rechaza un recordatorio inválido antes de leer o escribir", async () => {
+    const e = await errorDe(aplicarCambios({ ...identidad, cambios: { recordatorioPrecall: "4" }, motivo: "RECORDATORIO" }));
+    expect(e.codigo).toBe("valor_invalido");
+    apiNoLlamada();
+  });
+  it("no pisa un cambio concurrente", async () => {
+    simular("2");
+    const e = await errorDe(aplicarCambios({ ...identidad, cambios: { recordatorioPrecall: "3" },
+      esperado: { recordatorioPrecall: "1" }, motivo: "RECORDATORIO", tocar: false }));
+    expect(e.codigo).toBe("fila_cambiada");
+    expect(api.spreadsheets.values.batchUpdate).not.toHaveBeenCalled();
+  });
+  it.each(["", "Otro campo"])("bloquea si AK no está preparada (%s)", async (encabezado) => {
+    simular("", encabezado);
+    const e = await errorDe(aplicarCambios({ ...identidad, cambios: { recordatorioPrecall: "1" },
+      esperado: { recordatorioPrecall: "" }, motivo: "RECORDATORIO", tocar: false }));
+    expect(e.codigo).toBe("escritura_bloqueada");
+    expect(api.spreadsheets.values.batchUpdate).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Recordatorio: lectura de vuelta", () => {
+  it("relee el recordatorio persistido sin cambiar el pre-call existente", async () => {
+    let guardado = "";
+    api.spreadsheets.values.get.mockImplementation(async ({ range }: { range: string }) => ({ data: {
+      values: range.endsWith("!AK1") ? [["Recordatorio"]] : [celdas({ recordatorioPrecall: guardado, precall: "DOLORES" })],
+    } }));
+    api.spreadsheets.values.batchUpdate.mockImplementation(async ({ requestBody }: { requestBody: { data: { range: string; values: string[][] }[] } }) => {
+      guardado = requestBody.data.find(d => d.range === "'Closer 3'!AK12")!.values[0][0];
+      return { data: {} };
+    });
+    await aplicarCambios({ ...identidad, cambios: { recordatorioPrecall: "2" }, esperado: { recordatorioPrecall: "" }, motivo: "RECORDATORIO · 2", tocar: false });
+    const { leerFila } = await import("@/lib/crm/sheets/leer");
+    const vuelta = await leerFila("Closer 3", 12);
+    expect(vuelta!.valores.recordatorioPrecall).toBe("2");
+    expect(vuelta!.valores.precall).toBe("DOLORES");
+  });
+});
+
+describe("Selector 0–3: guardado y lectura compatibles con AK", () => {
+  it.each(["0", "1", "2", "3"])("guarda %s y lo recupera sin cambiar VIDEOS CONF", async (numero) => {
+    const { recordatorioParaGuardar, recordatorioVisual } = await import("@/lib/crm/recordatorio");
+    const antes = numero === "0" ? "3" : "";
+    let guardado = antes;
+    api.spreadsheets.values.get.mockImplementation(async ({ range }: { range: string }) => ({ data: {
+      values: range.endsWith("!AK1") ? [["Recordatorio"]] : [celdas({ recordatorioPrecall: guardado, precall: "VIDEOS CONF", llamadaPrecall: "Efectiva" })],
+    } }));
+    api.spreadsheets.values.batchUpdate.mockImplementation(async ({ requestBody }: { requestBody: { data: { range: string; values: string[][] }[] } }) => {
+      guardado = requestBody.data.find(d => d.range === "'Closer 3'!AK12")!.values[0][0];
+      return { data: {} };
+    });
+    await aplicarCambios({ ...identidad, cambios: { recordatorioPrecall: recordatorioParaGuardar(numero) }, esperado: { recordatorioPrecall: antes }, motivo: `RECORDATORIO · ${numero}`, tocar: false });
+    const { leerFila } = await import("@/lib/crm/sheets/leer");
+    const vuelta = await leerFila("Closer 3", 12);
+    expect(guardado).toBe(numero === "0" ? "" : numero);
+    expect(recordatorioVisual(vuelta!.valores.recordatorioPrecall)).toBe(numero);
+    expect(vuelta!.valores.precall).toBe("VIDEOS CONF");
   });
 });

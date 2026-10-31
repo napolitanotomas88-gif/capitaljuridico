@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
 import { telefonoWhatsApp } from "@/components/tablero";
 import { actualizarPlan, nuevoPlan } from "@/lib/crm/cuotas/acciones";
 import {
@@ -1144,11 +1145,11 @@ function Tarjeta({
       <div className="flex flex-wrap gap-2">
         {(
           <a
-            href={telefono ? `https://wa.me/${telefono}` : "https://web.whatsapp.com/"}
+            href={telefono ? `https://web.whatsapp.com/send?phone=${telefono}` : "https://web.whatsapp.com/"}
             title={telefono ? "Abrir chat del cliente" : "Sin teléfono cargado: abrir WhatsApp"}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${BOTON} bg-whatsapp text-blanco`}
+            className={`${BOTON} ${ESTILO_WHATSAPP}`}
           >
             WhatsApp <span aria-hidden>↗</span>
             <span className="sr-only"> (abre otra pestaña)</span>

@@ -90,7 +90,7 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
   const refChipTodo = useRef<HTMLButtonElement>(null);
 
   const escrituras = useEscrituras(items);
-  const { estaOculto, enCurso, errorDe, alTocarBoton, alternarBandera } = escrituras;
+  const { estaOculto, enCurso, errorDe, alTocarBoton, alternarBandera, cambiarRecordatorio } = escrituras;
   const { actualizar, actualizando } = useRefresco(items);
 
   // Cada lista nueva del servidor es una versión nueva: el panel de la ficha se vuelve a leer.
@@ -158,6 +158,7 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
       error={errorDe(item)}
       onBoton={alTocarBoton}
       onBandera={alternarBandera}
+      onRecordatorio={cambiarRecordatorio}
       onAbrirFicha={abrirFicha}
       mostrarGrupo={mostrarGrupo}
       tenue={tenue}

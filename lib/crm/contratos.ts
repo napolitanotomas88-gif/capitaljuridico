@@ -1,6 +1,7 @@
 // Tipos que cruzan la frontera servidor ↔ cliente (docs/arquitectura.md). Solo tipos y valores
 // planos: este archivo lo importan tanto server actions como componentes cliente.
 
+import type { InstagramAgenda } from "@/lib/crm/instagram";
 import type { Accion, Grupo } from "@/lib/crm/motor/proxima-accion";
 import type { Campo, CampoEscribible } from "@/lib/crm/sheets/columnas";
 
@@ -81,10 +82,11 @@ export type ItemCliente = {
   /** "jue 24/09 15:00" */
   horaCall: string;
   /**
-   * El chat con el lead, sin texto: la app no sugiere mensajes (los decide el closer). En 2Chat, desde el número del closer
-   * de la pestaña (`chat2Chat`); en una pestaña sin número de 2Chat, WhatsApp (https://wa.me/<solo dígitos>).
+   * WhatsApp Web con el teléfono del lead normalizado y sin texto precargado.
+   * La cuenta remitente es la sesión abierta por el closer en el navegador.
    */
   urlChat: string;
+  /** Compatibilidad con el contrato anterior; los enlaces nuevos usan false. */
   chat2Chat: boolean;
   /** Pre-call de una reunión que todavía no empezó: se puede cancelar en Calendly ("Cancelar reunión"). */
   cancelable: boolean;
@@ -107,6 +109,8 @@ export type EntradaLog = {
 
 /** Todo lo que muestra la ficha del lead (página propia o panel lateral). */
 export type FichaLead = {
+  /** Respuesta opcional de la reserva original en Calendly; no es una columna del Sheet. */
+  instagram?: InstagramAgenda;
   identidad: Identidad;
   /** Todos los campos de la fila, tal como están en la planilla (las columnas ignoradas N, O, P, U y X, vacías). */
   valores: Record<Campo, string>;

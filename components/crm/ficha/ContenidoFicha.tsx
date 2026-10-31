@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
 import type { ReactNode } from "react";
 import type { FichaLead } from "@/lib/crm/contratos";
 import { CAMPOS_CONTEXTO, CAMPOS_ESTADO, ETIQUETA_CAMPO, datosFichaDesde, esLink } from "@/lib/crm/ficha";
 import { claveIdentidad } from "@/lib/crm/pantalla";
+import { urlPerfilInstagram, type InstagramAgenda } from "@/lib/crm/instagram";
 import { urlChat } from "@/lib/crm/presentacion";
 import type { Campo } from "@/lib/crm/sheets/columnas";
 import { FormularioFicha } from "./FormularioFicha";
@@ -27,7 +29,7 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
   const { identidad, valores, historial } = ficha;
   const telefono = valores.telefono.trim();
   // Mismo criterio que la tarjeta: sin ningún dígito ("-", "sin tel") no hay llamada ni chat
-  // (sería un link a "https://wa.me/" sin número); se muestra el texto tal cual.
+  // (sería un link a "https://web.whatsapp.com/send?phone=" sin número); se muestra el texto tal cual.
   const tieneTelefono = /\d/.test(telefono);
   const chat = urlChat(identidad.hoja, telefono);
   const email = valores.email.trim();
@@ -61,14 +63,14 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
                   <a href={`tel:${telefono.replace(/[^\d+]/g, "")}`} className={LINK}>
                     {telefono}
                   </a>
-                  {/* El chat en 2Chat desde el número del closer de la pestaña (o WhatsApp si no tiene), como en la tarjeta */}
+                  {/* Mismo enlace a WhatsApp Web que en la tarjeta, sin mensaje precargado. */}
                   <a
                     href={chat.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center rounded-lg border border-negro bg-blanco px-3 text-sm font-bold text-negro hover:bg-negro hover:text-blanco"
+                    className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-bold ${ESTILO_WHATSAPP}`}
                   >
-                    {chat.es2Chat ? "Abrir en 2Chat" : "WhatsApp"} <span aria-hidden="true">&nbsp;↗</span>
+                    WhatsApp Web <span aria-hidden="true">&nbsp;↗</span>
                   </a>
                 </span>
               )}
@@ -109,7 +111,7 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
       <div className={`mt-4 space-y-4 ${dosColumnas ? "lg:mt-0" : ""}`}>
         <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">Antes de la call</h2>
-          <Contexto valores={valores} />
+          <Contexto valores={valores} instagram={ficha.instagram} />
         </section>
 
         <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
@@ -166,11 +168,16 @@ function Valor({ texto }: { texto: string }) {
   return <>{valor}</>;
 }
 
-function Contexto({ valores }: { valores: Record<Campo, string> }) {
+function Contexto({ valores, instagram }: { valores: Record<Campo, string>; instagram?: InstagramAgenda }) {
   const conValor = CAMPOS_CONTEXTO.filter((c) => valores[c].trim());
-  if (conValor.length === 0) return <p className="text-sm text-gris-texto">Sin datos.</p>;
+  const texto = instagram?.estado === "disponible" ? instagram.texto : "";
+  const perfil = urlPerfilInstagram(texto);
   return (
     <dl className="text-sm">
+      <Dato etiqueta="Instagram">
+        {perfil ? <a href={perfil} target="_blank" rel="noopener noreferrer" className={`${LINK} break-all`}>{texto}<span className="sr-only"> (abre otra pestaña)</span></a>
+          : texto || <span className="text-gris-texto">{instagram?.estado === "no_disponible" ? "No disponible" : "—"}</span>}
+      </Dato>
       {conValor.map((c) => (
         <Dato key={c} etiqueta={ETIQUETA_CAMPO[c]}>
           <Valor texto={valores[c]} />

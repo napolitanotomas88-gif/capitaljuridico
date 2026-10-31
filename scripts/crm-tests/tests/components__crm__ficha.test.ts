@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import { createElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import type { FichaLead, Identidad } from "@/lib/crm/contratos";
 import { claveIdentidad } from "@/lib/crm/pantalla";
 import { COLUMNAS, type Campo, type FilaLead } from "@/lib/crm/sheets/columnas";
@@ -272,5 +272,121 @@ describe("aviso de fila cambiada", () => {
     const h = html({ actual: " ", anterior: "" });
     expect(h).toContain("Esta fila ahora es de otro lead (cambió la planilla)");
     expect(h).toContain("para el lead anterior no se guardó.");
+  });
+});
+
+
+describe("CRM: WhatsApp Web en tarjetas y fichas", () => {
+  it.each(["Gero-Xavi Rejunte", "Closer 1", "Closer 2", "Closer 3", "Closer 4", "Closer 5"])(
+    "%s muestra el enlace web accesible y sin texto en ambas vistas",
+    async (hoja) => {
+      const { Tarjeta } = await import("@/components/crm/mi-dia/Tarjeta");
+      const { accionPrecall } = await import("@/lib/crm/motor/proxima-accion");
+      const { armarItem } = await import("@/lib/crm/presentacion");
+      const f = ficha({ fechaCall: "31/10/2026 12:00:00", precall: "VIDEOS CONF" });
+      f.identidad.hoja = hoja;
+      const fila: FilaLead = { hoja, numeroFila: 10, valores: f.valores };
+      const ahora = new Date("2026-10-30T18:00:00-03:00");
+      const item = armarItem(fila, accionPrecall(fila, ahora)!, ahora);
+      const tarjeta = renderToStaticMarkup(createElement(Tarjeta, { item, enCurso: false, onBoton: vi.fn(), onRecordatorio: vi.fn() }));
+      expect(tarjeta).toContain('>Recordatorio</label>');
+      expect(tarjeta).toContain('<option value="0" selected="">0</option>');
+      for (const n of ["1", "2", "3"]) expect(tarjeta).toContain(`<option value="${n}">${n}</option>`);
+      expect(tarjeta).toContain('aria-label="WhatsApp Web con Ana María Pérez (abre otra pestaña)"');
+      const contenido = ContenidoFicha({ ficha: f, accion: null });
+      // Evita montar los formularios: inspecciona los enlaces reales del árbol de la ficha.
+      const links: ReactElement<{ href?: string; target?: string; rel?: string; children?: ReactNode }>[] = [];
+      const recorrer = (nodo: ReactNode) => {
+        if (Array.isArray(nodo)) return nodo.forEach(recorrer);
+        if (!isValidElement(nodo)) return;
+        const el = nodo as (typeof links)[number];
+        if (el.type === "a") links.push(el);
+        recorrer(el.props.children);
+      };
+      recorrer(contenido);
+      const chat = links.find(el => el.props.href?.startsWith("https://web.whatsapp.com/"));
+      expect(chat).toBeDefined();
+      const contacto = renderToStaticMarkup(chat!);
+      for (const html of [tarjeta, contacto]) {
+        expect(html).toContain('href="https://web.whatsapp.com/send?phone=5491155551234"');
+        expect(html).toContain('target="_blank"');
+        expect(html).toContain('rel="noopener noreferrer"');
+        expect(html).toContain("WhatsApp Web");
+        expect(html).not.toContain("2Chat");
+        expect(html).not.toContain("text=");
+        expect(html).toContain("bg-[#075e54]");
+        expect(html).toContain("text-white!");
+        expect(html).toContain("hover:bg-[#054d44]");
+        expect(html).toContain("focus-visible:ring-2");
+      }
+    },
+  );
+});
+
+describe("Recordatorio: sólo VIDEOS CONF enviada, sin depender de la llamada", () => {
+  const casos = ["", "CONF + DECISORES", "VIDEOS CONF", "DOLORES", "Hecho - link a call", "Olvidar", "Enviado"].flatMap(precall =>
+    ["", "Efectiva", "No efectiva"].map(llamadaPrecall => ({ precall, llamadaPrecall, visible: precall === "VIDEOS CONF" })),
+  );
+  it.each(casos)("F=$precall, AI=$llamadaPrecall → visible=$visible", async ({ precall, llamadaPrecall, visible }) => {
+    const { Tarjeta } = await import("@/components/crm/mi-dia/Tarjeta");
+    const { accionPrecall } = await import("@/lib/crm/motor/proxima-accion");
+    const { armarItem } = await import("@/lib/crm/presentacion");
+    const f = ficha({ fechaCall: "31/10/2026 12:00:00", precall: "VIDEOS CONF", recordatorioPrecall: "2" });
+    const fila: FilaLead = { hoja: "Closer 1", numeroFila: 10, valores: f.valores };
+    const ahora = new Date("2026-10-30T18:00:00-03:00");
+    const item = armarItem(fila, accionPrecall(fila, ahora)!, ahora);
+    item.valores.precall = precall;
+    item.valores.llamadaPrecall = llamadaPrecall;
+    const guardar = vi.fn();
+    const html = renderToStaticMarkup(createElement(Tarjeta, { item, enCurso: false, onBoton: vi.fn(), onRecordatorio: guardar }));
+    expect(html.includes('>Recordatorio</label>')).toBe(visible);
+    if (visible) {
+      expect(html).toContain('<option value="2" selected="">2</option>');
+      expect(html).toContain('min-h-8 w-14');
+      expect(html).not.toContain('Sin recordatorio');
+    }
+    expect(item.valores.recordatorioPrecall).toBe("2");
+    expect(guardar).not.toHaveBeenCalled();
+  });
+  it.each(["", "1", "2", "3"])("muestra %s como número, también en la tarjeta de la ficha", async (guardado) => {
+    const { Tarjeta } = await import("@/components/crm/mi-dia/Tarjeta");
+    const { accionPrecall } = await import("@/lib/crm/motor/proxima-accion");
+    const { armarItem } = await import("@/lib/crm/presentacion");
+    const f = ficha({ fechaCall: "31/10/2026 12:00:00", precall: "VIDEOS CONF", recordatorioPrecall: guardado, llamadaPrecall: "Efectiva" });
+    const fila: FilaLead = { hoja: "Closer 1", numeroFila: 10, valores: f.valores };
+    const ahora = new Date("2026-10-30T18:00:00-03:00");
+    const item = armarItem(fila, accionPrecall(fila, ahora)!, ahora);
+    const html = renderToStaticMarkup(createElement(Tarjeta, { item, enCurso: false, linkFicha: false, onBoton: vi.fn(), onRecordatorio: vi.fn() }));
+    const numero = guardado || "0";
+    expect(html).toContain(`<option value="${numero}" selected="">${numero}</option>`);
+    expect(html).not.toContain("Sin recordatorio");
+    expect((html.match(/<option /g) ?? []).length).toBe(4);
+    expect(item.valores.recordatorioPrecall).toBe(guardado);
+  });
+});
+
+describe("Instagram opcional junto a las respuestas del formulario", () => {
+  it.each([
+    { dato: undefined, enlace: false, texto: "—" },
+    { dato: { estado: "sin_dato" as const }, enlace: false, texto: "—" },
+    { dato: { estado: "no_disponible" as const }, enlace: false, texto: "No disponible" },
+    { dato: { estado: "disponible" as const, texto: "@estudio.ejemplo" }, enlace: true, texto: "@estudio.ejemplo" },
+    { dato: { estado: "disponible" as const, texto: "no tengo" }, enlace: false, texto: "no tengo" },
+    { dato: { estado: "disponible" as const, texto: "<script>alert(1)</script>" }, enlace: false, texto: "&lt;script&gt;alert(1)&lt;/script&gt;" },
+    { dato: { estado: "disponible" as const, texto: "https://evil.test/a" }, enlace: false, texto: "https://evil.test/a" },
+  ])("muestra respuesta opcional $texto con enlace=$enlace", ({ dato, enlace, texto }) => {
+    const f = ficha({ contextoAgenda: "Contexto original", mensual: "Rango original", precall: "VIDEOS CONF", recordatorioPrecall: "2" });
+    const antes = JSON.stringify(f.valores);
+    if (dato) f.instagram = dato;
+    const h = renderToStaticMarkup(createElement(ContenidoFicha, { ficha: f, accion: null }));
+    expect(h).toContain("Instagram</dt>");
+    expect(h).toContain(texto);
+    expect(h).toContain("Contexto original");
+    expect(h).toContain("Rango original");
+    expect(h).not.toContain("<script>");
+    expect(h.includes('href="https://www.instagram.com/estudio.ejemplo/"')).toBe(enlace);
+    expect(h).not.toContain('href="https://evil.test/a"');
+    if (enlace) expect(h).toContain('rel="noopener noreferrer"');
+    expect(JSON.stringify(f.valores)).toBe(antes);
   });
 });
