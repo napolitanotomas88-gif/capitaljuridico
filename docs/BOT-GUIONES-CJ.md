@@ -76,6 +76,15 @@ de CUENTA_QA): 6 guiones en TANDA 1° con el 6.º chip agregado y su desplegable
 formato igual al de los Docs a mano; recarga = 6 reemplazados sin duplicar; en la última tanda del Doc también agrega el chip; con
 otra clave frena («ya hay texto que no cargó el bot»).
 
+### El chip pasa solo a «Para grabar» (31/10/2026)
+
+Con el check final, después de cargar el Doc, `publicarParaEntrega` llama a `marcarParaGrabar` (acción `estadoChips` del Puente
+Drive, `docs/guiones/puente/GuionesEstadoChips.gs`): los chips «Video:» de la tanda que usó `cargarEnChips` pasan de «No iniciado»
+a «Para grabar». Apps Script (DocumentApp) no ve los chips desplegables; la Docs API sí (`ParagraphElement.dropdown` +
+`updateDropdownProperties`), por el servicio avanzado `Docs` del puente (v8). Solo cambia los que están en «No iniciado» (nunca
+baja un «Grabado completo») y es idempotente. Si falla, el Doc ya quedó publicado: se deja aviso en el log y se cambia a mano.
+Probado el 31/10 en una copia de prueba de la plantilla: 6 chips cambiados, 0 en la segunda corrida, las otras tandas intactas.
+
 ## Motor: plan Max en la Mac de RESPONSABLE_HUB (25/10/2026)
 Decisión de RESPONSABLE_HUB («hagamos eso siempre»), después de gastar ~USD 20 de API en pruebas: las tandas NO se arman con la API.
 - **Despacho:** la tanda nace en estado `pendiente` (`GUIONES_MOTOR`, por defecto `local`; con `api` vuelve al flujo por invocaciones). No dispara nada ni gasta.

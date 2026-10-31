@@ -53,6 +53,7 @@ function doPost(e) {
       case 'aPapeleraCarpeta': return resp_(aPapeleraCarpeta_(p.id));
       case 'agregarTanda': return resp_(agregarTanda_(p));
       case 'cargarEnChips': return resp_(cargarEnChips_(p));
+      case 'estadoChips': return resp_(estadoChips_(p));
       case 'quitarAccesoCliente': return resp_(quitarAccesoCliente_(p));
       default: return resp_({ ok: false, error: 'acción desconocida: ' + p.accion });
     }

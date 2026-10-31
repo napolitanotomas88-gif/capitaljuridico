@@ -66,6 +66,28 @@ export async function escribirEnDoc(fila: FilaTanda, docId: string, op: { hasta:
   return { estado: 'ok', id: String(j.id ?? docId), url: String(j.url ?? `https://docs.google.com/document/d/${docId}/edit`), yaExistia: j.yaExistia === true, tanda: typeof j.tanda === 'number' ? j.tanda : null }
 }
 
+/** Con el check final, los chips «Video:» de la tanda que cargó el bot pasan solos a «Para grabar» (pedido de RESPONSABLE_HUB del
+ *  31/10). Acción «estadoChips» del Puente Drive (docs/guiones/puente/GuionesEstadoChips.gs: la Docs API, porque Apps Script no
+ *  ve los chips desplegables). Solo cambia los que están en «No iniciado» (nunca baja un «Grabado completo») y es idempotente. */
+export type ResultadoChips = { estado: 'ok'; cambiados: number } | { estado: 'pendiente' | 'error'; motivo: string }
+
+export async function marcarParaGrabar(docId: string, tanda: number, cantidad: number, op: { hasta: number }): Promise<ResultadoChips> {
+  const url = process.env.PUENTE_DRIVE_URL?.trim(), secreto = process.env.PUENTE_DRIVE_SECRETO?.trim()
+  if (!url || !secreto) return { estado: 'pendiente', motivo: 'falta PUENTE_DRIVE_URL o PUENTE_DRIVE_SECRETO' }
+  let j: Record<string, unknown> | null = null
+  try {
+    const r = await fetch(url, {
+      method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secreto, accion: 'estadoChips', docId, tanda, cantidad, estado: 'Para grabar' }),
+      signal: AbortSignal.timeout(Math.max(5_000, Math.min(60_000, op.hasta - Date.now()))),
+    })
+    j = JSON.parse(await r.text()) as Record<string, unknown>
+  } catch { return { estado: 'error', motivo: 'el puente no respondió al cambiar los chips' } }
+  if (j?.ok === true) return { estado: 'ok', cambiados: typeof j.cambiados === 'number' ? j.cambiados : 0 }
+  const d = String(j?.error ?? '').slice(0, 160)
+  return /acci[oó]n desconocida/i.test(d) ? { estado: 'pendiente', motivo: 'el Puente Drive todavía no tiene la acción estadoChips' } : { estado: 'error', motivo: `el puente no cambió los chips: ${d}` }
+}
+
 /** El mensaje al grupo Contenido del cliente. BORRADOR: el texto lo aprueba Tomás antes de prender GUIONES_WHATSAPP. */
 export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
   const nombre = (fila.cliente ?? '').trim().split(/\s+/)[0] || ''
