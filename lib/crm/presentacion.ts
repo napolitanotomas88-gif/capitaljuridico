@@ -14,7 +14,7 @@ import { normalizarTexto, soloDigitos } from "@/lib/crm/sheets/verificacion";
  * La columna B ya trae el código de país; solo se sacan los no-dígitos.
  */
 export function urlWhatsApp(telefono: string): string {
-  return `https://wa.me/${digitosWhatsApp(telefono)}`;
+  return `https://web.whatsapp.com/send?phone=${digitosWhatsApp(telefono)}`;
 }
 
 /**
@@ -26,24 +26,13 @@ export function digitosWhatsApp(telefono: string): string {
   return d.length === 12 && d.startsWith("54") && d[2] !== "9" ? `549${d.slice(2)}` : d;
 }
 
-// 2Chat (pedido de Tomás, 19/10/2026): el botón del chat abre la conversación con el lead en 2Chat, desde el número de
-// WhatsApp del closer de la pestaña. Link: /live-chat/<espacio>/WA-<número del closer>-<teléfono del lead, solo dígitos>.
-// Los códigos salen de links de 2Chat que pasó Tomás. Si una pestaña cambia de closer o se suma un número, cambiar acá.
-const ESPACIO_2CHAT = process.env.NEXT_PUBLIC_2CHAT_ESPACIO?.trim() ?? "";
-export const NUMERO_2CHAT: Readonly<Record<string, string>> = (() => {
-  try {
-    const x: unknown = JSON.parse(process.env.NEXT_PUBLIC_2CHAT_NUMEROS_JSON ?? "{}");
-    if (!x || typeof x !== "object" || Array.isArray(x)) return {};
-    return Object.fromEntries(Object.entries(x).filter(([k,v]) => /^Closer \d+$/.test(k) && typeof v === "string" && /^WAN[A-Za-z0-9-]+$/.test(v)));
-  } catch { return {}; }
-})();
-
-/** El chat con el lead: en 2Chat desde el número del closer de la pestaña; sin número de 2Chat, WhatsApp. */
-export function urlChat(hoja: string, telefono: string): { url: string; es2Chat: boolean } {
-  const numero = NUMERO_2CHAT[hoja];
-  const digitos = digitosWhatsApp(telefono);
-  if (!numero || !ESPACIO_2CHAT) return { url: urlWhatsApp(telefono), es2Chat: false };
-  return { url: `https://app.2chat.io/live-chat/${ESPACIO_2CHAT}/WA-${numero}-${digitos}`, es2Chat: true };
+/**
+ * WhatsApp Web para todas las pestañas, sin texto precargado (pedido de Gero, 30/10/2026).
+ * Se conserva la firma y el indicador para los consumidores existentes del contrato.
+ * La cuenta remitente es la sesión que el closer tiene abierta en WhatsApp Web.
+ */
+export function urlChat(_hoja: string, telefono: string): { url: string; es2Chat: boolean } {
+  return { url: urlWhatsApp(telefono), es2Chat: false };
 }
 
 /** `${hoja}:${numeroFila}`: el lead (`ItemCliente.clave`, `CallDelDia.clave`). */

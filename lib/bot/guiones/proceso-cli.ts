@@ -6,7 +6,7 @@ export class MotorNoDisponible extends Error {
 }
 
 export function entornoMotor(): NodeJS.ProcessEnv {
-  const env = {} as NodeJS.ProcessEnv
+  const env: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV }
   for (const k of ['HOME', 'USER', 'LOGNAME', 'PATH', 'SHELL', 'TMPDIR', 'LANG', 'LC_ALL', 'CODEX_HOME']) {
     if (process.env[k]) env[k] = process.env[k]
   }

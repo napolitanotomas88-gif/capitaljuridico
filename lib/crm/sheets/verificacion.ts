@@ -48,6 +48,7 @@ export const LISTAS_FIJAS: Partial<Record<Campo, readonly string[]>> = {
   seguimientoPost1: [VALORES.hacer, VALORES.noHacer, ...SEGUIMIENTOS],
   llamadaPrecall: [VALORES.llamadaEfectiva, VALORES.llamadaNoEfectiva],
   banderaRoja: [VALORES.si],
+  recordatorioPrecall: ["1", "2", "3"],
 };
 
 export const esNumero = (v: string) => /^-?\d+([.,]\d+)?$/.test(v.trim());
@@ -139,7 +140,7 @@ export function tocaUltimoToque(cambios: Cambios): boolean {
   // El pre-call (una fase de F, la llamada del pre-caller en AI y/o la bandera roja en AJ) no toca AG: no frena los
   // seguimientos de ese día.
   const campos = Object.keys(cambios);
-  if (campos.length === 0 || campos.some((c) => c !== "precall" && c !== "llamadaPrecall" && c !== "banderaRoja")) return true;
+  if (campos.length === 0 || campos.some((c) => c !== "precall" && c !== "llamadaPrecall" && c !== "banderaRoja" && c !== "recordatorioPrecall")) return true;
   if (!("precall" in cambios)) return false;
   const valor = normalizarTexto(cambios.precall ?? "");
   return !FASES_PRECALL.some((fase) => normalizarTexto(fase) === valor);

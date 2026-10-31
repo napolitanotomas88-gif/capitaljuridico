@@ -203,9 +203,11 @@ function sheetsEscritura() {
 // La pestaña es auditoría ("¿le llegó el mensaje a X?") y candado a la vez. Una sola lectura responde:
 //   duplicado  → esta misma reserva ya se procesó (Calendly reintentó el webhook)
 //   yaRecibio  → ese teléfono ya recibió la bienvenida hace poco (canceló y volvió a agendar, o agendó dos veces)
-//   enviadosHoy → tope diario: si algo se descontrola (o alguien abusa del formulario) el daño queda acotado
+//   enviadosHoy → freno ante un bucle. Tomás (27/10/2026): "que no tenga límite… no puede volver a pasar eso" (con 40 se
+//                 cortaron confirmaciones el día del webinar). Queda en 1000 solo para que un webhook en bucle no mande miles;
+//                 los candados de arriba (reserva duplicada y mismo teléfono en 30 días) siguen igual.
 const DIAS_SIN_REPETIR = 30
-const TOPE_DIARIO = 40
+const TOPE_DIARIO = 1000
 const fechaFila = (v: unknown): Date | null => {
   const m = String(v ?? '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
   return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null

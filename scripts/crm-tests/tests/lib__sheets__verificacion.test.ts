@@ -59,7 +59,7 @@ describe("camposProhibidos", () => {
     expect(camposProhibidos({ inventado: "1" })).toEqual(["inventado"]);
   });
   it("la lista blanca es F, R, S, T, V, W, Y, Z, AA, AB, AC, AD, AE, AF, AG, AH, AI y AJ: sin U ni X", () => {
-    expect(CAMPOS_ESCRIBIBLES.map((c) => COLUMNAS[c])).toEqual(["F", "R", "S", "T", "V", "W", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ"]);
+    expect(CAMPOS_ESCRIBIBLES.map((c) => COLUMNAS[c])).toEqual(["F", "R", "S", "T", "V", "W", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK"]);
     expect(camposProhibidos({ presentoCall2: "", seguimientoPost2: "Hacer", seguimientoPost1: "Hacer" })).toEqual(["presentoCall2", "seguimientoPost2"]);
     for (const c of COLUMNAS_IGNORADAS) expect(camposProhibidos({ [c]: "" })).toEqual([c]);
   });
@@ -280,5 +280,12 @@ describe("filasLog", () => {
       ["24/09/2026 15:04:05", "op1", "Closer 3", "Closer 3", 12, "Ana", "S", "fupsNoShow", "S1", "S2", "NO_SHOW · Enviado S2"],
       ["24/09/2026 15:04:05", "op1", "Closer 3", "Closer 3", 12, "Ana", "AG", "ultimoToque", "", "24/09/2026 15:04:05", "NO_SHOW · Enviado S2"],
     ]);
+  });
+});
+
+
+describe("Recordatorio no altera último toque", () => {
+  it.each(["", "1", "2", "3"])("%s es metadato del pre-call", valor => {
+    expect(tocaUltimoToque({ recordatorioPrecall: valor })).toBe(false);
   });
 });

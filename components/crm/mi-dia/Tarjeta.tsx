@@ -6,6 +6,8 @@ import type { Identidad, ItemCliente } from "@/lib/crm/contratos";
 import type { Boton } from "@/lib/crm/motor/proxima-accion";
 import { BOTON_CANCELAR_REUNION, ETIQUETA_GRUPO, hrefFicha, urgencia, type Urgencia } from "@/lib/crm/pantalla";
 import { partesFecha } from "@/lib/crm/fechas";
+import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
+import { recordatorioParaGuardar, recordatorioVisual, videosConfEnviados } from "@/lib/crm/recordatorio";
 import { digitosWhatsApp } from "@/lib/crm/presentacion";
 
 const FRANJA: Record<Urgencia, string> = {
@@ -34,6 +36,7 @@ type Props = {
   onBoton: (item: ItemCliente, boton: Boton) => void;
   /** Bandera roja (solo Pre-call): prende o apaga el circulito de la esquina. true si se guardó. */
   onBandera?: (item: ItemCliente, marcar: boolean) => Promise<boolean>;
+  onRecordatorio?: (item: ItemCliente, nuevo: string, anterior: string) => Promise<boolean>;
   /** false dentro de la ficha, donde el nombre no tiene adónde ir. */
   linkFicha?: boolean;
   /** En la computadora, el nombre abre la ficha como panel lateral (sin perder el tablero). */
@@ -98,12 +101,12 @@ function TelefonoCopiable({ telefono }: { telefono: string }) {
 
 /**
  * Una acción de un lead (docs/diseno.md §Tarjeta). La app no sugiere textos (decisión de Gero del
- * 28/09/2026): el botón del chat (2Chat, o WhatsApp si la pestaña no tiene número) abre el chat sin texto y el closer escribe según su guía (el doc
+ * 28/09/2026): el botón de WhatsApp Web abre el chat sin texto y el closer escribe según su guía (el doc
  * del botón "Mensajes" de la barra). Un pre-call "listo por hoy" (`accion.listoPorHoy`) lleva la
  * franja gris y, fuera de su sección plegada (p. ej. en la ficha), la marca "Listo por hoy"; el
  * título y los botones son los de siempre.
  */
-export function Tarjeta({ item, enCurso, error, onBoton, onBandera, linkFicha = true, onAbrirFicha, mostrarGrupo = true, tenue = false }: Props) {
+export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordatorio, linkFicha = true, onAbrirFicha, mostrarGrupo = true, tenue = false }: Props) {
   const { accion, identidad } = item;
   // La marca "Listo por hoy" sobra dentro de su sección; la del seguimiento coordinado ("Seguimiento el 15/10") no
   const marcaListo = accion.listoPorHoy && (!tenue || accion.grupo !== "precall");
@@ -111,6 +114,28 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, linkFicha = 
   const nombre = identidad.nombre.trim() || "(sin nombre)";
   // El lector de pantalla nombra la tarjeta por el lead (el h3).
   const idNombre = useId();
+
+  const recordatorioLeido = item.valores.recordatorioPrecall ?? "";
+  const [recordatorio, setRecordatorio] = useState(recordatorioLeido);
+  const [recordatorioPrevio, setRecordatorioPrevio] = useState(recordatorioLeido);
+  if (recordatorioLeido !== recordatorioPrevio) {
+    setRecordatorioPrevio(recordatorioLeido);
+    setRecordatorio(recordatorioLeido);
+  }
+  const [guardandoRecordatorio, setGuardandoRecordatorio] = useState(false);
+  const cambiarRecordatorio = async (nuevo: string) => {
+    if (!onRecordatorio || guardandoRecordatorio || enCurso) return;
+    const anterior = recordatorio;
+    setRecordatorio(nuevo);
+    setGuardandoRecordatorio(true);
+    try {
+      if (!await onRecordatorio(item, nuevo, anterior)) setRecordatorio(anterior);
+    } catch {
+      setRecordatorio(anterior);
+    } finally {
+      setGuardandoRecordatorio(false);
+    }
+  };
 
   // Bandera roja (pedido de Tomás del 25/10/2026): marca interna del equipo, solo en Pre-call. El circulito cambia al toque y
   // vuelve atrás si no se pudo guardar; cuando llega la lista nueva, manda lo de la planilla.
@@ -201,6 +226,26 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, linkFicha = 
       <p className="mt-1 break-words text-sm text-gris-texto">{accion.estado}</p>
       <p className="mt-1 break-words text-base font-bold">{accion.titulo}</p>
 
+      {accion.grupo === "precall" && videosConfEnviados(item.valores.precall) && onRecordatorio && (
+        <div className="mt-2 flex items-center gap-2">
+          <label htmlFor={`${idNombre}-recordatorio`} className="text-xs font-semibold">Recordatorio</label>
+          <select
+            id={`${idNombre}-recordatorio`}
+            value={recordatorioVisual(recordatorio)}
+            onChange={(e) => void cambiarRecordatorio(recordatorioParaGuardar(e.target.value))}
+            disabled={enCurso || guardandoRecordatorio}
+            aria-busy={guardandoRecordatorio}
+            className="min-h-8 w-14 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+          >
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+          {guardandoRecordatorio && <span role="status" className="text-xs text-gris-texto">Guardando…</span>}
+        </div>
+      )}
+
       {accion.avisos.length > 0 && (
         <ul className="mt-2 space-y-1 rounded-lg bg-ambar-fondo px-3 py-2 text-sm text-ambar">
           {accion.avisos.map((a) => (
@@ -217,19 +262,18 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, linkFicha = 
         </p>
       )}
 
-      {/* El chat, primero en la fila de los botones de la acción: abre la conversación con el lead en 2Chat, desde el número
-          del closer de la pestaña (pedido de Tomás del 19/10/2026), sin texto. En una pestaña sin número de 2Chat, WhatsApp. */}
+      {/* Abre WhatsApp Web con el teléfono del lead y sin mensaje precargado. */}
       <div className="mt-3 flex flex-wrap gap-2">
         {tieneTelefono && (
           <a
             href={item.urlChat}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`${item.chat2Chat ? "Chat en 2Chat" : "WhatsApp"} con ${nombre} (abre otra pestaña)`}
-            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-negro bg-blanco px-3 text-sm font-bold text-negro hover:bg-negro hover:text-blanco"
+            aria-label={`WhatsApp Web con ${nombre} (abre otra pestaña)`}
+            className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold ${ESTILO_WHATSAPP}`}
           >
             <IconoChat />
-            {item.chat2Chat ? "2Chat" : "WhatsApp"}
+            WhatsApp Web
           </a>
         )}
         {accion.botones.map((b) => (

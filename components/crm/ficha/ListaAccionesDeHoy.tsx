@@ -37,6 +37,7 @@ export function ListaAccionesDeHoy({ items, escrituras }: Props) {
           error={escrituras.errorDe(item)}
           onBoton={escrituras.alTocarBoton}
           onBandera={escrituras.alternarBandera}
+          onRecordatorio={escrituras.cambiarRecordatorio}
           linkFicha={false}
         />
       ))}
