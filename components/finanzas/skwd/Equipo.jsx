@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
+import DatosPago from './DatosPago'
 import { armarPersona, validarPersona, consolidarSensibles, textoMeses, fichaPermanente, autorizacionDesdeSondeo, etiquetaOrigen } from './calculoEquipo'
 
 const mask = (v) => (v ? '••••' + String(v).slice(-4) : '—')
@@ -30,6 +31,7 @@ function Detalle({ persona, autorizado, onCerrar, onCambioActivo, onEditar }) {
   const [historial, setHistorial] = useState([]) // versiones de personas_sensibles_historial (solo lectura)
   const [mostrar, setMostrar] = useState(false)
   const [error, setError] = useState('')
+  const [version, setVersion] = useState(0) // se suma al guardar datos de pago: vuelve a leer el registro y el historial
 
   useEffect(() => {
     let vivo = true
@@ -77,7 +79,7 @@ function Detalle({ persona, autorizado, onCerrar, onCambioActivo, onEditar }) {
       setRegistro(null)
       setHistorial([])
     }
-  }, [persona.id, autorizado])
+  }, [persona.id, autorizado, version])
 
   const porLinea = Object.fromEntries(sens.map((s) => [s.pago_equipo_id, s]))
   const conDatos = lineas.filter((l) => porLinea[l.id])
@@ -116,8 +118,9 @@ function Detalle({ persona, autorizado, onCerrar, onCambioActivo, onEditar }) {
         <>
           <p>
             <button type="button" onClick={() => setMostrar(!mostrar)}>{mostrar ? 'Ocultar datos' : 'Mostrar datos'}</button>{' '}
-            <span className="aviso">{ficha.estado === 'sin_registro' ? 'Esta persona no tiene registro permanente' : 'Registro permanente de la persona (solo lectura)'}</span>
+            <span className="aviso">{ficha.estado === 'sin_registro' ? 'Esta persona no tiene registro permanente' : 'Registro permanente de la persona'}</span>
           </p>
+          <DatosPago key={persona.id} persona={persona} registro={registro} onGuardado={() => setVersion((v) => v + 1)} />
 
           <h4>Datos permanentes</h4>
           <ul className="datos">
