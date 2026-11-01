@@ -13,6 +13,7 @@ import vm from 'node:vm'
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 
 const CHIPS = readFileSync(new URL('../docs/guiones/puente/GuionesChips.gs', import.meta.url), 'utf8')
+const ESTADO = readFileSync(new URL('../docs/guiones/puente/GuionesEstadoChips.gs', import.meta.url), 'utf8')
 const RUTA_CODIGO = process.env.PUENTE_CODIGO_GS || new URL('../integrations/apps-script/Codigo.gs', import.meta.url)
 const VIGIA = readFileSync(new URL('../docs/edicion/puente/Vigia.gs', import.meta.url), 'utf8')
 const DOC_ID = 'fixture-google-id-000000000000000000000006'
@@ -206,7 +207,7 @@ test('con el candado ocupado no abre el doc', () => {
 
 test('ningún nombre global choca con Codigo.gs ni con Vigia.gs', { skip: !existsSync(RUTA_CODIGO) }, () => {
   const globales = (src) => new Set([...src.matchAll(/^(?:function\s+([A-Za-z0-9_$]+)|var\s+([A-Za-z0-9_$]+))/gm)].map(m => m[1] ?? m[2]))
-  const mios = globales(CHIPS), otros = new Set([...globales(readFileSync(RUTA_CODIGO, 'utf8')), ...globales(VIGIA)])
+  const mios = new Set([...globales(CHIPS), ...globales(ESTADO)]), otros = new Set([...globales(readFileSync(RUTA_CODIGO, 'utf8')), ...globales(VIGIA)])
   assert.ok(mios.size >= 8)
   assert.deepEqual([...mios].filter(n => otros.has(n)), [])
   assert.ok(otros.has('PREFIJO_DOC_GUIONES') && otros.has('resp_'), 'usa PREFIJO_DOC_GUIONES y resp_ de Codigo.gs')
@@ -242,4 +243,58 @@ test('con tanda explícita, lo que el bot cargó en OTRA tanda no habilita a esc
   const e = entorno({ estructura: est })
   assert.equal(e.cargar(pedido({ tanda: 2 })).ok, true)
   assert.match(e.cargar(pedido({ tanda: 1 })).error, /video 1 de la TANDA 1°/)
+})
+
+// ── estadoChips (31/10): los chips de la tanda pasan a «Para grabar» por la Docs API ──
+const DEF = { 'kix.estado': { title: 'Estado', dropdownOptions: [
+  { optionId: 'dropdownItem.no', displayValue: 'No iniciado' }, { optionId: 'dropdownItem.grabar', displayValue: 'Para grabar' },
+  { optionId: 'dropdownItem.listo', displayValue: 'Grabado completo' }] } }
+const par = (texto, chip) => ({ paragraph: { elements: [
+  { textRun: { content: texto } },
+  ...(chip ? [{ dropdown: { dropdownId: chip.id, dropdownProperties: { dropdownDefinitionId: 'kix.estado', selectedOptionId: 'x', displayValue: chip.valor } } }] : []),
+] } })
+function docApi(valoresT2) {
+  const content = [par('TANDA 1°\n'), par('Video: ', { id: 'c1', valor: 'Para grabar' }), par('TANDA 2°\n'),
+    ...valoresT2.map((v, i) => par('Video: ', { id: `d${i + 1}`, valor: v })), par('TANDA 3°\n'), par('Video: ', { id: 'e1', valor: 'No iniciado' })]
+  return { tabs: [{ tabProperties: { tabId: 't.0' }, documentTab: { body: { content }, dropdownDefinitions: DEF } }] }
+}
+function entornoEstado(valoresT2, { nombre = 'Guiones - PRUEBA', codigoBatch = 200 } = {}) {
+  const llamadas = []
+  const ctx = {
+    PREFIJO_DOC_GUIONES: 'Guiones - ',
+    DriveApp: { getFileById: () => ({ getName: () => nombre, isTrashed: () => false }) },
+    Docs: { Documents: {
+      get: (id, op) => { llamadas.push({ que: 'get', id, op }); return docApi(valoresT2) },
+      batchUpdate: (cuerpo, id) => { llamadas.push({ que: 'batch', id, cuerpo }); if (codigoBatch !== 200) throw new Error(`API call failed with error ${codigoBatch}`); return {} },
+    } },
+  }
+  vm.createContext(ctx); vm.runInContext(CHIPS, ctx); vm.runInContext(ESTADO, ctx)
+  return { llamadas, estado: (p) => JSON.parse(JSON.stringify(ctx.estadoChips_(JSON.parse(JSON.stringify({ docId: DOC_ID, tanda: 2, cantidad: 6, estado: 'Para grabar', ...p }))))) }
+}
+
+test('estadoChips: pasa a «Para grabar» solo los chips «No iniciado» de SU tanda, en un solo batchUpdate', () => {
+  const e = entornoEstado(['No iniciado', 'No iniciado', 'Para grabar', 'Grabado completo', 'No iniciado', 'No iniciado'])
+  const r = e.estado({})
+  assert.equal(r.ok, true, r.error); assert.equal(r.cambiados, 4); assert.deepEqual(r.omitidos, [{ n: 4, valor: 'Grabado completo' }])
+  const batch = e.llamadas.find(x => x.que === 'batch')
+  const pedidos = JSON.parse(JSON.stringify(batch.cuerpo.requests))
+  assert.deepEqual(pedidos.map(x => x.updateDropdownProperties.dropdownId), ['d1', 'd2', 'd5', 'd6'])
+  assert.ok(pedidos.every(x => x.updateDropdownProperties.dropdownProperties.selectedOptionId === 'dropdownItem.grabar' && x.updateDropdownProperties.fields === 'selectedOptionId' && x.updateDropdownProperties.tabId === 't.0'))
+  assert.equal(batch.id, DOC_ID); assert.equal(e.llamadas[0].op.includeTabsContent, true)
+})
+
+test('estadoChips: si ya están todos, no llama a batchUpdate; soloLeer no cambia nada', () => {
+  const e = entornoEstado(Array(6).fill('Para grabar'))
+  assert.equal(e.estado({}).cambiados, 0)
+  const l = entornoEstado(Array(6).fill('No iniciado'))
+  const r = l.estado({ soloLeer: true })
+  assert.equal(r.chips.length, 6); assert.ok(r.definiciones['kix.estado'])
+  assert.ok([...e.llamadas, ...l.llamadas].every(x => x.que !== 'batch'))
+})
+
+test('estadoChips: errores claros (menos chips que guiones, opción inexistente, API que falla, doc ajeno)', () => {
+  assert.match(entornoEstado(['No iniciado']).estado({}).error, /tiene 1 chips y hacen falta 6/)
+  assert.match(entornoEstado(Array(6).fill('No iniciado')).estado({ estado: 'Publicado' }).error, /no tiene la opción «Publicado»/)
+  assert.match(entornoEstado(Array(6).fill('No iniciado'), { codigoBatch: 403 }).estado({}).error, /no cambió los chips: API call failed with error 403/)
+  assert.match(entornoEstado(Array(6).fill('No iniciado'), { nombre: 'Plantilla Guiones - C.J' }).estado({}).error, /solo se tocan docs/)
 })

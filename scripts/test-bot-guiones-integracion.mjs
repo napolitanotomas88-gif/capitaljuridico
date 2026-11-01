@@ -146,6 +146,25 @@ const publicador = (o = {}) => {
 test('la aprobación escribe el Doc antes de avisar al equipo, sin enviar al cliente', async () => {
   const a = publicador(); await publicarParaEntrega(7, Date.now() + 1000, a.deps); assert.deepEqual(a.log, ['resolver', 'escribir', 'guardar', 'notificar'])
 })
+test('con el check final, los chips de la tanda que usó el puente pasan a «Para grabar» antes de avisar', async () => {
+  const pedidos = []
+  const a = publicador({ marcarChips: async (doc, tanda, cantidad) => { a.log.push('chips'); pedidos.push([doc, tanda, cantidad]); return { estado: 'ok', cambiados: 6 } } })
+  a.deps.leer = async () => ({ ...fila, guiones: Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, {}])), ...(a.guardado ?? {}) })
+  const guardar = a.deps.guardar; a.deps.guardar = async (i, doc) => { await guardar(i, doc); a.guardado = { doc } }
+  await publicarParaEntrega(7, Date.now() + 1000, a.deps)
+  assert.deepEqual(a.log, ['resolver', 'escribir', 'guardar', 'chips', 'notificar']); assert.deepEqual(pedidos, [[ID, 2, 6]])
+})
+test('si los chips no cambian, el Doc queda publicado y se avisa igual (se cambian a mano)', async () => {
+  for (const marcarChips of [async () => ({ estado: 'error', motivo: 'API caída' }), async () => { throw new Error('sin conexión') }]) {
+    const a = publicador({ marcarChips })
+    a.deps.leer = async () => ({ ...fila, guiones: { 1: {} }, ...(a.guardado ?? {}) })
+    const guardar = a.deps.guardar; a.deps.guardar = async (i, doc) => { await guardar(i, doc); a.guardado = { doc } }
+    await publicarParaEntrega(7, Date.now() + 1000, a.deps)
+    assert.deepEqual(a.log, ['resolver', 'escribir', 'guardar', 'notificar'])
+  }
+  const sin = publicador({ marcarChips: async () => { throw new Error('No debe llamarse sin guiones') } })
+  await publicarParaEntrega(7, Date.now() + 1000, sin.deps); assert.deepEqual(sin.log, ['resolver', 'escribir', 'guardar', 'notificar'])
+})
 test('sin reserva o con respuesta dudosa no publica ni entrega el link', async () => {
   const a = publicador({ reservar: async () => false }); await publicarParaEntrega(7, 1, a.deps); assert.equal(a.log.length, 0)
   const b = publicador({ escribir: async () => ({ estado: 'dudoso', motivo: 'timeout' }) }); await publicarParaEntrega(7, 1, b.deps); assert.deepEqual(b.log, ['resolver', 'dudoso'])
