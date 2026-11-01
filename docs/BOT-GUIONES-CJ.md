@@ -85,6 +85,19 @@ a «Para grabar». Apps Script (DocumentApp) no ve los chips desplegables; la Do
 baja un «Grabado completo») y es idempotente. Si falla, el Doc ya quedó publicado: se deja aviso en el log y se cambia a mano.
 Probado el 31/10 en una copia de prueba de la plantilla: 6 chips cambiados, 0 en la segunda corrida, las otras tandas intactas.
 
+### d05: los videos entran solos a Edición con el check final (01/11/2026)
+
+Apenas los chips quedan en «Para grabar», `publicarParaEntrega` llama a `altaDesdeTanda` (`lib/bot/grabacion/altaDesdeGuiones.ts`):
+arma el mismo texto que va a leer el vigía (`TANDA N°`, `* Video: Para grabar`, HOOK / Velocidad / (indicación) / texto), lo pasa
+por `parsearDocGuiones` y `planDoc` (mismo freno de 10 por cliente, misma `EDICION_FECHA_CORTE`) y crea los videos en Esperando
+crudos con clave `T<tanda>-V<n>`, origen `doc` y actor `bot (guiones)`. Antes Edición se enteraba al día siguiente y, si era la
+primera lectura del Doc (cliente nuevo), la línea de base no creaba nada.
+- **Idempotente:** `crearVideoSiFalta` no duplica `(id_crm, clave)`; la pasada del vigía reconoce los videos por huella o clave.
+- **Reaprobación con correcciones:** actualiza el guion de los que todavía esperan crudos; los ya grabados quedan con aviso.
+- **No toca** lo que guardó el vigía del Doc (`cj_grab_guiones`). Respeta `EDICION_MODO` (en dry no escribe). No manda mensajes.
+- Solo corre si los chips pasaron a «Para grabar»; si se cambian a mano, los toma el vigía como siempre. Si falla, el Doc ya
+  quedó publicado y se deja aviso en el log. Pruebas: `scripts/test-alta-desde-guiones.mjs`.
+
 ## Motor: plan Max en la Mac de RESPONSABLE_HUB (25/10/2026)
 Decisión de RESPONSABLE_HUB («hagamos eso siempre»), después de gastar ~USD 20 de API en pruebas: las tandas NO se arman con la API.
 - **Despacho:** la tanda nace en estado `pendiente` (`GUIONES_MOTOR`, por defecto `local`; con `api` vuelve al flujo por invocaciones). No dispara nada ni gasta.

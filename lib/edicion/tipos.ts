@@ -37,7 +37,7 @@ export const ETIQUETA_ESTADO: Record<EstadoVideo, string> = {
 
 export type RolEdicion = 'aylu' | 'tomas' | 'rene' | 'lector'
 export interface Persona { rol: Exclude<RolEdicion, 'lector'>; nombre: string; email: string }
-export type ProcesoBot = 'vigia' | 'diario' | 'transcripcion' | 'comparacion' | 'importacion'
+export type ProcesoBot = 'vigia' | 'diario' | 'transcripcion' | 'comparacion' | 'importacion' | 'guiones'
 export type Actor = ({ tipo: 'persona' } & Persona) | { tipo: 'bot'; proceso: ProcesoBot }
 
 export type Prioridad = 'urgente' | 'alta' | 'normal'
