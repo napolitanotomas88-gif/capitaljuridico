@@ -149,7 +149,7 @@ describe('armarLanzamiento', () => {
     const cr = m.posts.find(p => p[0] === 'act_7/adcreatives')[1]
     assert.equal(cr.object_story_spec.page_id, 'P1'); assert.equal(cr.object_story_spec.instagram_user_id, 'IG1')
     assert.equal(cr.object_story_spec.video_data.message, COPY); assert.equal(cr.object_story_spec.video_data.call_to_action.type, 'WHATSAPP_MESSAGE')
-    for (const [r, c] of m.posts) if (r === 'act_7/ads') { assert.equal(c.status, 'PAUSED'); assert.match(c.name, /^\d- ¿Te despidieron sin causa\?$/) }
+    for (const [r, c] of m.posts) if (r === 'act_7/ads') { assert.equal(c.status, 'PAUSED'); assert.match(c.name, /^\d- ¿Te despidieron sin causa\? · V\d$/) }
     assert.equal(b.nueva, true)
     assert.ok(b.faltan.some(f => /no ubiqué en Meta: Lugar inventado/.test(f)))
     assert.ok(b.faltan.some(f => /frenos \(Tarjeta\)/.test(f)))

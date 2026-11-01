@@ -114,23 +114,24 @@ Clave `tipo:campaña:fecha del ciclo`. Se reclama antes de mandar (`INSERT … O
 
 ## Método 3:2:2 en los anuncios de clientes (1/11/2026, Hub + Tomás)
 
-Reemplaza la regla de las 5 variaciones de copy. Cada anuncio que arma g03 (rotación o lanzamiento) es **uno solo en
-formato flexible**: 3 videos de la misma idea + 2 textos principales + 2 títulos, sin descripciones. Meta combina las 12
-variantes.
+Reemplaza la regla de las 5 variaciones de copy. Por cada **idea** (3 videos de la tanda, en orden: 1-2-3, 4-5-6…) se
+escriben 2 textos principales (uno **amplio/entretenido** y uno **directo**, el molde de siempre) y 2 títulos, sin
+descripción. Cada video es **su propio anuncio** y los 3 comparten esos textos y títulos: Meta combina 4 variantes por
+video, 12 por idea.
 
-- **Videos:** los que ya grabó el cliente, de a 3 en el orden de la tanda (1-2-3, 4-5-6…). No se le piden a Guiones 3
-  ejecuciones por concepto. Si sobran 1 o 2, van en un anuncio más chico, con aviso. El aviso le pide a Valen que
-  confirme que cada anuncio junte videos de la misma idea.
-- **Textos** (`copys.ts`, un solo pedido a Claude por anuncio con los guiones de sus videos): uno **directo** (el molde
-  de siempre: gancho ⬇️, problema, «Enviame un mensaje 💬…»), que va de texto principal, y uno **amplio/entretenido**
-  (una escena breve que termina con la misma llamada). Los títulos son 2, de hasta 40 caracteres. Si Claude falla, va el
-  copy del ganador con aviso (rotación) o no se arma (lanzamiento).
-- **En Meta** (`borrador.ts`): `object_story_spec.video_data` con el primer video, el directo y el primer título; los 3
-  videos, los 2 textos y los 2 títulos van en `asset_feed_spec` con `ad_formats: ["AUTOMATIC_FORMAT"]` y
-  `optimization_type: "DEGREES_OF_FREEDOM"`. Se valida sin crear nada con `execution_options: ["validate_only"]`; el
-  1/11 Meta lo aceptó con un conjunto de WhatsApp real.
-- **Estructura:** la regla de Tomás cuenta **anuncios**, no videos (6 videos = 2 anuncios → «un conjunto por anuncio» o
-  todos juntos).
+- **Por qué no un solo anuncio flexible con los 3 videos:** Meta no admite el formato flexible de varios videos con el
+  objetivo Interacción, que es el de las campañas de WhatsApp de los clientes. La prueba real del 1/11 lo rechazó con
+  «El objetivo seleccionado no admite el formato flexible en este momento». Según la documentación, por API solo lo
+  admiten Ventas y Apps. Además, si los videos van en `asset_feed_spec` junto con un `video_data`, Meta los descarta
+  sin avisar (`validate_only` da OK igual).
+- **En Meta** (`borrador.ts`): cada anuncio lleva `video_data` con su video, el directo y el primer título, más
+  `asset_feed_spec` con `bodies` (directo y amplio), `titles` (los 2) y `optimization_type: "DEGREES_OF_FREEDOM"`.
+- **Textos** (`copys.ts`): un pedido a Claude por idea, con los guiones de sus 3 videos. Si Claude falla, va el copy
+  del ganador con aviso (rotación) o no se arma (lanzamiento).
+- **Estructura:** la regla de Tomás cuenta **ideas** (6 videos = 2 ideas): un conjunto por idea o todos juntos.
+- **Nombres:** «n- <gancho> · V<número del video>».
+- Si sobran 1 o 2 videos, forman una idea más chica, con aviso. El aviso le pide a Valen que confirme que cada idea
+  junte videos del mismo concepto.
 
 ## Notas del cliente: WhatsApp → Despacho → Valen (1/11/2026, Hub + Tomás)
 

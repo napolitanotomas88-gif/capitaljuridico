@@ -6,8 +6,8 @@
 //     activo que más gastó. Del conjunto se copian la zona, las edades, las ubicaciones, el objetivo y el destino; del
 //     anuncio, la página, Instagram, el botón de WhatsApp, el mensaje de bienvenida y las mejoras de Meta (sin
 //     standard_enhancements: Meta ya no lo acepta) y el copy (⚠️ es el del ganador: Valen lo ajusta al video).
-//   · Crea: los videos (por link de Drive), los conjuntos (uno con todo o uno por anuncio) y 1 anuncio flexible por cada
-//     3 videos (método 3:2:2, copys.ts: 3 videos + 2 textos + 2 títulos, sin descripción), TODO con status PAUSED.
+//   · Crea: los videos (por link de Drive), los conjuntos (uno con todo o uno por idea) y, por cada idea de 3 videos
+//     (método 3:2:2, copys.ts), un anuncio por video con los mismos 2 textos y 2 títulos, sin descripción. TODO en PAUSED.
 //     Sin attribution_spec (con este objetivo Meta solo acepta la ventana por defecto).
 //   · APAGADO por defecto: solo con ANUNCIOS_BORRADOR=real; ANUNCIOS_BORRADOR_SOLO=<act_…,act_…> lo limita a esas cuentas.
 // Token: META_ANUNCIOS_TOKEN (usuario de Gero A en dashboard-skwd, con ads_management), en la cabecera, nunca en la URL ni
@@ -103,12 +103,12 @@ export interface Borrador {
   conjuntoId: string; conjunto: string; anuncios: string[]   // el primero (compatibilidad con el texto de una sola línea)
 }
 export interface DepsBorrador { graph: Graph; esperar(ms: number): Promise<void>; ahora(): number }
-/** Cómo se arma: un conjunto con todos los anuncios o uno por anuncio (regla de Tomás, plan.ts) y el diario de CADA conjunto. */
+/** Cómo se arma: un conjunto con todo o uno por idea de 3 videos (regla de Tomás, plan.ts) y el diario de CADA conjunto. */
 export interface EstructuraBorrador { porAnuncio: boolean; diarioUSD: number }
-/** Método 3:2:2: videos por anuncio. */
+/** Método 3:2:2: videos por idea (cada video es su propio anuncio; los 3 comparten textos y títulos). */
 export const TAMANO_322 = 3
 export const cantidadAnuncios = (videos: number) => Math.max(1, Math.ceil(videos / TAMANO_322))
-/** Un anuncio a cargar: sus videos de Drive (hasta 3) y, si se pudieron escribir desde los guiones, los 2 textos y los 2 títulos (copys.ts). */
+/** Una idea a cargar: sus videos de Drive (hasta 3, un anuncio cada uno) y, si se pudieron escribir desde los guiones, los 2 textos y los 2 títulos (copys.ts). */
 export interface GrupoBorrador { videos: { nombre: string; drive: string }[]; textos: string[]; titulos: string[]; guiones: string[] }
 
 const ddmm = (ms: number) => new Date(ms).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
@@ -183,36 +183,35 @@ export async function crearEnPausa(cuenta: string, x: {
       if (sinWhatsApp(String((e as Error).message))) throw new Error(MOTIVO_SIN_WHATSAPP)
       throw e
     }
-    // 4) Un anuncio flexible por cada grupo de videos, en pausa (3:2:2): los textos de los guiones, o el copy del molde con aviso
+    // 4) 3:2:2 en pausa: por cada idea (grupo de hasta 3 videos), un anuncio por video con los MISMOS 2 textos y 2 títulos
+    //    (asset_feed_spec solo con bodies y titles: Meta combina 4 variantes por video). Meta no admite el formato flexible de
+    //    varios videos con el objetivo Interacción (probado el 1/11: «El objetivo seleccionado no admite el formato flexible»).
     const anuncios: string[] = []
     for (const { gr, vs } of grupo) {
-      n++
-      const miniaturas: string[] = []
-      for (const v of vs) {
-        const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
-        miniaturas.push(((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri)
-      }
       // El directo (el molde de siempre) va de texto principal; el amplio y el segundo título, como variantes
       const directo = gr.textos[1] ?? gr.textos[0]
-      const vd: Json = { ...x.anuncio.video_data, video_id: vs[0].id, image_url: miniaturas[0], ...(directo ? { message: directo } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
-      delete vd.image_hash
-      delete vd.link_description   // 3:2:2: sin descripciones
-      const textos = gr.textos.length ? [directo, ...gr.textos.filter(z => z !== directo)] : vd.message ? [vd.message] : []
-      const titulos = gr.titulos.length ? gr.titulos : vd.title ? [vd.title] : []
-      const flexible = vs.length > 1 || textos.length > 1 || titulos.length > 1
-      const nombreAd = directo ? nombreAnuncio(directo, n) : vs.length === 1 ? vs[0].nombre : `${n}- ${vs.map(v => v.nombre).join(' + ').slice(0, 80)}`
-      const cr = await g.post(`${cuenta}/adcreatives`, {
-        name: `${vs.map(v => v.nombre).join(' + ')} · Tanda ${x.tanda ?? '?'}`,
-        object_story_spec: { page_id: x.anuncio.page_id, ...(x.anuncio.instagram_user_id ? { instagram_user_id: x.anuncio.instagram_user_id } : {}), video_data: vd },
-        ...(flexible ? { asset_feed_spec: {
-          videos: vs.map((v, i) => ({ video_id: v.id, thumbnail_url: miniaturas[i] })),
-          ...(textos.length ? { bodies: textos.map(text => ({ text })) } : {}), ...(titulos.length ? { titles: titulos.map(text => ({ text })) } : {}),
-          ad_formats: ['AUTOMATIC_FORMAT'], optimization_type: 'DEGREES_OF_FREEDOM',
-        } } : {}),
-        degrees_of_freedom_spec: { creative_features_spec: x.anuncio.mejoras }, contextual_multi_ads: { enroll_status: 'OPT_OUT' },
-      })
-      const ad = await g.post(`${cuenta}/ads`, { name: nombreAd, adset_id: set.id, creative: { creative_id: cr.id }, status: 'PAUSED' })
-      anuncios.push(String(ad.id))
+      for (const v of vs) {
+        n++
+        const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
+        const uri = ((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri
+        const vd: Json = { ...x.anuncio.video_data, video_id: v.id, image_url: uri, ...(directo ? { message: directo } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
+        delete vd.image_hash
+        delete vd.link_description   // 3:2:2: sin descripciones
+        const textos = gr.textos.length ? [directo, ...gr.textos.filter(z => z !== directo)] : []
+        const variantes = textos.length > 1 || gr.titulos.length > 1
+        const nombreAd = directo ? `${nombreAnuncio(directo, n)} · V${numeroOVideo(v.nombre)}` : v.nombre
+        const cr = await g.post(`${cuenta}/adcreatives`, {
+          name: `${v.nombre} · Tanda ${x.tanda ?? '?'}`,
+          object_story_spec: { page_id: x.anuncio.page_id, ...(x.anuncio.instagram_user_id ? { instagram_user_id: x.anuncio.instagram_user_id } : {}), video_data: vd },
+          ...(variantes ? { asset_feed_spec: {
+            ...(textos.length ? { bodies: textos.map(text => ({ text })) } : {}), ...(gr.titulos.length ? { titles: gr.titulos.map(text => ({ text })) } : {}),
+            optimization_type: 'DEGREES_OF_FREEDOM',
+          } } : {}),
+          degrees_of_freedom_spec: { creative_features_spec: x.anuncio.mejoras }, contextual_multi_ads: { enroll_status: 'OPT_OUT' },
+        })
+        const ad = await g.post(`${cuenta}/ads`, { name: nombreAd, adset_id: set.id, creative: { creative_id: cr.id }, status: 'PAUSED' })
+        anuncios.push(String(ad.id))
+      }
     }
     conjuntos.push({ id: String(set.id), nombre, anuncios })
   }
@@ -225,12 +224,12 @@ export async function crearEnPausa(cuenta: string, x: {
     const chk = await g.get(c.id, { fields: 'status,ads{status}' })
     if (chk.status !== 'PAUSED' || ((chk.ads?.data ?? []) as Json[]).some(a => a.status !== 'PAUSED')) throw new Error(`¡el conjunto ${c.id} no quedó en pausa! Revisalo ya`)
   }
-  const nAd = (i: number) => `anuncio ${i + 1}`
+  const nAd = (i: number) => `idea ${i + 1}`
   const sinTextos = x.grupos.map((gr, i) => (gr.textos.length ? null : nAd(i))).filter(Boolean)
   if (sinTextos.length) faltan.push(`${sinTextos.length === x.grupos.length ? 'el copy' : `el copy del ${sinTextos.join(', ')}`} es el del anuncio ganador: escribí los 2 textos y los 2 títulos`)
-  const cortos = x.grupos.map((gr, i) => (gr.videos.length < TAMANO_322 ? `el ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
-  if (cortos.length) faltan.push(`3:2:2 pide 3 videos por anuncio y ${cortos.join(', ')}: sumale de la próxima tanda o dejalo así`)
-  if (x.grupos.length) faltan.push(`agrupé los videos de a 3 en orden (${x.grupos.map((gr, i) => `${nAd(i)}: ${gr.videos.map(v => numeroOVideo(v.nombre)).join('-')}`).join(' · ')}): confirmá que cada anuncio junte videos de la misma idea`)
+  const cortos = x.grupos.map((gr, i) => (gr.videos.length < TAMANO_322 ? `la ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
+  if (cortos.length) faltan.push(`3:2:2 pide 3 videos por idea y ${cortos.join(', ')}: sumale de la próxima tanda o dejalo así`)
+  if (x.grupos.length) faltan.push(`agrupé los videos de a 3 en orden (${x.grupos.map((gr, i) => `${nAd(i)}: ${gr.videos.map(v => numeroOVideo(v.nombre)).join('-')}`).join(' · ')}): confirmá que cada idea junte videos del mismo concepto`)
   const conGuion = x.grupos.map((gr, i) => (gr.textos.length && gr.guiones.length ? `${nAd(i)} ← ${gr.guiones.join(', ')}` : null)).filter(Boolean)
   if (conGuion.length) faltan.push(`textos escritos desde el guion (${conGuion.join(' · ')}): confirmá que sean los de sus videos`)
   const act = cuenta.replace(/^act_/, '')
