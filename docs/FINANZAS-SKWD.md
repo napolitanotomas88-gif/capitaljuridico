@@ -27,3 +27,4 @@ público): `db/finanzas/estructura.sql`.
   `finanzas_priv.sensibles_autorizados` y `creado_por` / `corregido_por` los firma la base.
 - Sin Google (solo con la contraseña de Finanzas) firma `acceso-por-clave@finanzas.despacho`, que no ve lo sensible.
 - Pruebas: `scripts/test-finanzas-base.mjs`.
+- Los pagos que carga el bot (y la tarjeta del cliente) se copian a la app: `lib/finanzasSkwd/pagoApp.ts` (ver docs/BOT-ALTA-CJ.md). Pruebas: `scripts/test-finanzas-pago-app.mjs`.
