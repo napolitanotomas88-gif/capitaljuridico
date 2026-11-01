@@ -24,10 +24,18 @@ export const ENCABEZADOS_SEGURIDAD = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
 
+// Videos de /v/ (WhatsApp de confirmación: Make y 2Chat los bajan sin sesión). No van al repo, que es público: viven en el
+// proyecto estático capitaljuridico-medios (~/capitaljuridico-medios, ver su LEEME.md) y el Despacho los sirve en la misma
+// dirección. Es un rewrite de respaldo: solo actúa si el archivo no está en public/v (1/11/2026).
+export const MEDIOS_URL = "https://capitaljuridico-medios.vercel.app";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async redirects() {
     return REDIRECCIONES_HUB;
+  },
+  async rewrites() {
+    return { beforeFiles: [], afterFiles: [], fallback: [{ source: "/v/:archivo", destination: `${MEDIOS_URL}/v/:archivo` }] };
   },
   async headers() {
     return [{ source: "/:ruta*", headers: ENCABEZADOS_SEGURIDAD }];
