@@ -7,13 +7,14 @@
 //   · cj_bajas_pedidos ...... los pedidos de OK en Verificaciones (aviso de fin, confirmación de baja, despedida).
 //   · cj_bajas_bajas ........ las bajas CONFIRMADAS y qué pasó con cada paso (CRM, Skool, despedida, grupos).
 //   · cj_bajas_llamadas ..... las grabaciones de Fathom que se miraron (dedupe) y lo que decidió el cliente.
-//   · cj_bajas_recontactos .. la lista mensual de históricos (una por mes).
+//   · cj_bajas_recontactos .. la lista mensual de históricos (una por mes; las de prueba con mes "prueba:AAAA-MM").
+//   · cj_bajas_rastros ...... modo prueba (BOT_CLIENTES_PRUEBA): cada acción externa sobre un cliente de prueba, para borrarla.
 // Solo servidor. Los tests usan un cliente SQL falso (sqlBajasParaPruebas).
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
-import type { AlmacenBajas, Baja, EstadoPedido, Llamada, Pedido } from './almacen'
+import type { AlmacenBajas, Baja, EstadoPedido, Llamada, Pedido, Rastro } from './almacen'
 
 export const TOPE_CONSULTA_MS = 10_000
-export const TABLAS_BAJAS = ['cj_bajas_pedidos', 'cj_bajas_bajas', 'cj_bajas_llamadas', 'cj_bajas_recontactos'] as const
+export const TABLAS_BAJAS = ['cj_bajas_pedidos', 'cj_bajas_bajas', 'cj_bajas_llamadas', 'cj_bajas_recontactos', 'cj_bajas_rastros'] as const
 
 type Sql = NeonQueryFunction<false, false>
 const sqlReal = (url: string): Sql => neon(url, { fetchOptions: { signal: AbortSignal.timeout(TOPE_CONSULTA_MS) } })
@@ -68,6 +69,10 @@ export async function asegurarTablasBajas(): Promise<void> {
     await q`CREATE TABLE IF NOT EXISTS cj_bajas_recontactos (
       mes text PRIMARY KEY, estado text NOT NULL, modo text NOT NULL, cantidad integer NOT NULL DEFAULT 0,
       discord_ids jsonb NOT NULL DEFAULT '[]'::jsonb, creado timestamptz NOT NULL DEFAULT now())`
+    await q`CREATE TABLE IF NOT EXISTS cj_bajas_rastros (
+      id bigserial PRIMARY KEY, id_crm text NOT NULL, tipo text NOT NULL, datos jsonb NOT NULL DEFAULT '{}'::jsonb,
+      creado timestamptz NOT NULL DEFAULT now())`
+    await q`CREATE INDEX IF NOT EXISTS cj_bajas_rastros_id_crm ON cj_bajas_rastros (id_crm, creado)`
   }).catch((e) => { tablasListas = null; throw e })
   return tablasListas
 }
@@ -210,6 +215,15 @@ export function almacenBajasNeon(): AlmacenBajas {
     },
     async listarBajas(limite) {
       return (await leer((q) => q`SELECT * FROM cj_bajas_bajas ORDER BY creado DESC LIMIT ${limite}` as Promise<Row[]>, [])).map(aBaja)
+    },
+    async registrarRastro(r) {
+      await escribir((q) => q`INSERT INTO cj_bajas_rastros (id_crm, tipo, datos, creado) VALUES (${r.idCrm.toUpperCase()}, ${r.tipo}, ${JSON.stringify(r.datos)}::jsonb, ${r.creado})`)
+    },
+    async rastrosDe(ids) {
+      const lista = ids.map((x) => x.toUpperCase())
+      if (!lista.length) return []
+      const f = await leer((q) => q`SELECT * FROM cj_bajas_rastros WHERE id_crm = ANY(${lista}::text[]) ORDER BY creado, id` as Promise<Row[]>, [])
+      return f.map((r): Rastro => ({ idCrm: String(r.id_crm), tipo: String(r.tipo) as Rastro['tipo'], datos: json(r.datos, {}), creado: fecha(r.creado) ?? '' }))
     },
   }
 }

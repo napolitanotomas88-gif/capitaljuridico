@@ -2,12 +2,14 @@
 // No toca app/(shell)/clientes/(cartera)/*. Para mostrarlo (sesión "Hub de Clientes"): import { leerEstadoBajas } from
 // '@/lib/bot/bajas/lectura'. Se cruza por idCrm ("A123"). Nunca tira: sin base, vuelve vacío.
 import type { AlmacenBajas, Baja, Pedido } from './almacen'
-import { capacidadesBajasDesconocidas, configBajas, faltantesBajas } from './config'
+import { capacidadesBajasDesconocidas, configBajas, configPruebaBajas, faltantesBajas } from './config'
 
 export type EstadoBajaCliente = 'aviso_pedido' | 'renovacion_enviada' | 'baja_pedida' | 'baja_confirmada' | 'despedida_pedida' | 'cerrada'
 
 export interface EstadoBajas {
   modo: string; capacidades: string[]; desconocidas: number; faltan: string[]
+  /** Modo prueba (BOT_CLIENTES_PRUEBA): IDs y capacidades. null = apagado. */
+  prueba: { clientes: string[]; capacidades: string[] } | null
   clientes: { idCrm: string; cliente: string; estado: EstadoBajaCliente; desde: string; pasos?: Baja['pasos'] }[]
   pedidosAbiertos: { tipo: Pedido['tipo']; cliente: string; creado: string }[]
 }
@@ -15,7 +17,8 @@ export interface EstadoBajas {
 export async function leerEstadoBajas(op: { env?: NodeJS.ProcessEnv; almacen?: AlmacenBajas } = {}): Promise<EstadoBajas> {
   const env = op.env ?? process.env
   const c = configBajas(env)
-  const base: EstadoBajas = { modo: c.modo, capacidades: [...c.capacidades], desconocidas: capacidadesBajasDesconocidas(env).length, faltan: faltantesBajas(env), clientes: [], pedidosAbiertos: [] }
+  const p = configPruebaBajas(env)
+  const base: EstadoBajas = { modo: c.modo, capacidades: [...c.capacidades], desconocidas: capacidadesBajasDesconocidas(env).length, faltan: faltantesBajas(env), prueba: p ? { clientes: p.clientesPrueba ?? [], capacidades: [...p.capacidades] } : null, clientes: [], pedidosAbiertos: [] }
   if (!op.almacen && !env.DATABASE_URL?.trim()) return base
   try {
     const almacen = op.almacen ?? (await import('./almacenNeon')).almacenBajasNeon()

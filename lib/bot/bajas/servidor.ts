@@ -18,7 +18,10 @@ import { validarReunion, type ReunionFathom } from '@/lib/fathomAnuncios/tipos'
 import type { AlmacenBajas } from './almacen'
 import { almacenBajasNeon } from './almacenNeon'
 import { clasificarLlamadaConClaude } from './claude'
-import { PLAZO_BAJAS_MS, bajasApagado, capacidadesBajasDesconocidas, configBajas, hayLecturas, listaPersonas, prendida, type ConfigBajas } from './config'
+import { PLAZO_BAJAS_MS, bajasApagado, capacidadesBajasDesconocidas, configBajas, configPruebaBajas, hayLecturas, listaPersonas, prendida, type ConfigBajas } from './config'
+import { clienteDePrueba, esClientePrueba, nombreDePrueba } from './prueba'
+import { normNombre } from './fin'
+import type { DirectorioGrupos } from './grupos'
 
 export { PLAZO_BAJAS_MS }
 import { marcarBajaCrm, nombreCalza } from './crm'
@@ -99,9 +102,24 @@ export function almacenSoloLectura(b: AlmacenBajas): AlmacenBajas {
   }
 }
 
+/** Modo prueba: los grupos solo se aceptan si son del MISMO cliente (por ID del motor o nombre idéntico), nunca "parecidos". */
+export function directorioSoloPrueba(base: DirectorioGrupos): DirectorioGrupos {
+  return {
+    async deCliente(id, nombre) {
+      const f = await base.deCliente(id, nombre)
+      if (!f) return null
+      return (f.idCrm && f.idCrm === id.toUpperCase()) || normNombre(f.cliente) === normNombre(nombre) ? f : null
+    },
+  }
+}
+
+const PREFIJO_DISCORD_PRUEBA = '🧪 PRUEBA (cliente ficticio, no hay que hacer nada) — '
+
 export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
   const env = op.env ?? process.env
   const config = op.config ?? configBajas(env)
+  const prueba = !!config.prueba
+  const listaPrueba = config.clientesPrueba ?? []
   const lecturas = hayLecturas(config.modo)
   const token = tokenWhapi(env)
   const conWhapi = lecturas && !!token
@@ -111,11 +129,20 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
   const whapi = () => (cliente ??= crearClienteWhapi({ token: token!, fetch: op.fetch }))
   const equipo = new Set([...personasDelEquipo(env), ...listaPersonas(env.BAJA_EXCLUIR_TELEFONOS)])
   const almacenBase = op.almacen ?? almacenBajasNeon()
-  return {
-    config,
-    clienteOperativo,
-    almacen: op.dry ? almacenSoloLectura(almacenBase) : almacenBase,
-    grupos: crearDirectorioGrupos({
+  // Alcance: el núcleo de prueba atiende SOLO a los clientes de BOT_CLIENTES_PRUEBA con fila "PRUEBA BOT…"; el general, a todos
+  // menos los de la lista (así nunca se atiende dos veces ni se cruza un cliente real con el modo prueba)
+  const alcance = (idCrm: string) => (prueba ? esClientePrueba(idCrm, listaPrueba) : !esClientePrueba(idCrm, listaPrueba))
+  const leerBase = op.leerClientes ?? leerClientesReal
+  const leer = async (): Promise<ClienteBaja[]> => {
+    const todos = await leerBase()
+    if (!prueba) return listaPrueba.length ? todos.filter((k) => !esClientePrueba(k.id, listaPrueba)) : todos
+    const enLista = todos.filter((k) => esClientePrueba(k.id, listaPrueba))
+    const raros = enLista.filter((k) => !nombreDePrueba(k.nombre)).length
+    if (raros) (op.log ?? console).warn(`bot-bajas: BOT_CLIENTES_PRUEBA trae ${raros} ID(s) cuya fila no es "PRUEBA BOT…": se ignoran`)
+    return enLista.filter((k) => clienteDePrueba(k, listaPrueba))
+  }
+  const discordBase = webhook ? async (textos: string[], menciones: string[]) => (op.dry ? null : (await enviarDiscord(webhook, textos, menciones, { fetch: op.fetch }))[0] ?? null) : undefined
+  const directorio = crearDirectorioGrupos({
       conWhapi,
       async filasMotor() {
         if (!db || !lecturas) return []
@@ -136,7 +163,13 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
         }
         return out
       },
-    }),
+    })
+  return {
+    config,
+    clienteOperativo,
+    alcance,
+    almacen: op.dry ? almacenSoloLectura(almacenBase) : almacenBase,
+    grupos: prueba ? directorioSoloPrueba(directorio) : directorio,
     async enviarTexto(p) {
       if (op.dry) return { id: null }   // ?dry=1: no sale nada
       if (config.modo === 'seco') throw new Error('modo seco: no sale nada')
@@ -147,16 +180,18 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
     participantes: conWhapi ? (chatId) => whapi().participantesGrupo(chatId) : undefined,
     quitar: conWhapi && !op.dry && config.modo === 'real' && config.capacidades.has('baja_quitar_grupos') ? (chatId, ids) => whapi().quitarParticipantes({ grupoId: chatId, participantes: ids }) : undefined,
     clasificar: prendida('baja_fathom', config.modo, config.capacidades) ? (p) => clasificarLlamadaConClaude(p, { topeMs: p.topeMs }) : undefined,
-    discord: webhook ? async (textos, menciones) => (op.dry ? null : (await enviarDiscord(webhook, textos, menciones, { fetch: op.fetch }))[0] ?? null) : undefined,
+    // En prueba, el aviso de Discord lleva un prefijo claro y no menciona a nadie
+    discord: discordBase && prueba ? (textos) => discordBase(textos.map((t, i) => (i === 0 ? `${PREFIJO_DISCORD_PRUEBA}${t}` : t)), []) : discordBase,
     crm: lecturas ? async (p, modo) => {
       const { planillaCrmReal } = await import('@/lib/bot/alta/crmEscribir')
-      const r = await marcarBajaCrm(planillaCrmReal(), p, { modo: op.dry ? 'simulacion' : modo, soloPrueba: /^(si|sí|1|true)$/i.test(env.BAJA_CRM_SOLO_PRUEBA?.trim() ?? '') })
+      // En modo prueba el CRM SOLO escribe filas "PRUEBA BOT…", sin importar BAJA_CRM_SOLO_PRUEBA
+      const r = await marcarBajaCrm(planillaCrmReal(), p, { modo: op.dry ? 'simulacion' : modo, soloPrueba: prueba || /^(si|sí|1|true)$/i.test(env.BAJA_CRM_SOLO_PRUEBA?.trim() ?? '') })
       if (r.estado === 'hecho') { const { invalidarSnapshot } = await import('@/lib/clientes/snapshot'); invalidarSnapshot() }
       return r
     } : undefined,
     // Ronda 2. Meta: solo con la capacidad (en ensayo, solo lectura). Token: META_ANUNCIOS_TOKEN (Gero A, ve las cuentas de los
     // clientes); el usuario del sistema de META_ADS_WRITE_TOKEN no las ve. En dry, la pausa no sale
-    meta: op.meta ?? (prendida('baja_pausar_meta', config.modo, config.capacidades) ? (() => {
+    meta: prueba ? undefined : op.meta ?? (prendida('baja_pausar_meta', config.modo, config.capacidades) ? (() => {
       const m = crearMetaBajas({ token: env.META_ANUNCIOS_TOKEN?.trim() || null, cuentasDelCliente: cuentasMetaDelCliente, fetch: op.fetch })
       return op.dry ? { ...m, pausar: async (ids: string[]) => ({ pausadas: [], fallidas: ids.map((id) => ({ id, motivo: 'dry: no se pausó' })), tokenCaido: false }) } : m
     })() : undefined),
@@ -172,9 +207,9 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
       const halladas = await whapi().buscarComunidades({ nombre: nombreComunidad(cliente), desde: '2020-01-01T00:00:00.000Z' })
       return halladas.length === 1 ? halladas[0].id : null
     } : undefined,
-    leerClientes: op.leerClientes ?? leerClientesReal,
+    leerClientes: leer,
     puntajes: lecturas ? puntajesTypeform : undefined,
-    mencionAylu: idDiscord(env.DISCORD_ID_AYLU),
+    mencionAylu: prueba ? null : idDiscord(env.DISCORD_ID_AYLU),
     equipo,
     ahora: op.ahora ?? Date.now,
     esperar: op.esperar ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms))),
@@ -186,10 +221,45 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
 export const lineaResumenBajas = (r: ResumenBajas) =>
   `modo ${r.modo}: ${r.avisos} aviso(s) de fin, ${r.renovaciones} renovación(es), ${r.llamadas} llamada(s), ${r.pedidosBaja} pedido(s) de baja, ${r.bajas} baja(s), ${r.despedidas} despedida(s), ${r.quitados} quitado(s), ${r.aprobados} OK, ${r.rechazados} NO, ${r.recontactos} recontacto(s), ${r.vencidos} vencido(s), ${r.errores.length} error(es)`
 
+/** Junta los resúmenes de los núcleos (prueba y general). Las líneas del de prueba van con "[prueba] ". */
+export function unirResumenes(rs: readonly { prueba: boolean; r: ResumenBajas }[], modoGeneral: string): ResumenBajas {
+  const out: ResumenBajas = { modo: modoGeneral, avisos: 0, pedidosBaja: 0, despedidas: 0, aprobados: 0, rechazados: 0, renovaciones: 0, llamadas: 0, bajas: 0, quitados: 0, recontactos: 0, vencidos: 0, ecos: 0, ignorados: 0, errores: [], registro: [] }
+  const numericos = ['avisos', 'pedidosBaja', 'despedidas', 'aprobados', 'rechazados', 'renovaciones', 'llamadas', 'bajas', 'quitados', 'recontactos', 'vencidos', 'ecos', 'ignorados'] as const
+  for (const { prueba, r } of rs) {
+    for (const k of numericos) out[k] += r[k]
+    const pre = prueba ? '[prueba] ' : ''
+    out.errores.push(...r.errores.map((e) => pre + e))
+    out.registro.push(...r.registro.map((e) => pre + e))
+  }
+  if (rs.some((x) => x.prueba)) out.modo = `${modoGeneral} + prueba`
+  return out
+}
+
+/** Los núcleos que corren: el de PRUEBA (si BOT_CLIENTES_PRUEBA tiene IDs; real solo para esos) y SIEMPRE el general (en seco
+ *  no hace nada, como siempre). Con la lista vacía es exactamente lo de antes. */
+export function nucleosBajas(op: OpcionesBajasReal = {}): { prueba: boolean; nucleo: ReturnType<typeof crearNucleoBajas>; config: ConfigBajas }[] {
+  const env = op.env ?? process.env
+  if (bajasApagado(env)) return []
+  const general = op.config ?? configBajas(env)
+  const p = op.config ? null : configPruebaBajas(env)
+  const out: { prueba: boolean; nucleo: ReturnType<typeof crearNucleoBajas>; config: ConfigBajas }[] = []
+  if (p) out.push({ prueba: true, config: p, nucleo: crearNucleoBajas(depsBajasReales({ ...op, config: p })) })
+  out.push({ prueba: false, config: general, nucleo: crearNucleoBajas(depsBajasReales({ ...op, config: general })) })
+  return out
+}
+
+async function enTodos(op: OpcionesBajasReal, fn: (n: ReturnType<typeof crearNucleoBajas>, prueba: boolean) => Promise<ResumenBajas>): Promise<ResumenBajas> {
+  const env = op.env ?? process.env
+  const ns = nucleosBajas(op)
+  const rs: { prueba: boolean; r: ResumenBajas }[] = []
+  for (const n of ns) rs.push({ prueba: n.prueba, r: await fn(n.nucleo, n.prueba) })
+  return rs.length === 1 && !rs[0].prueba ? rs[0].r : unirResumenes(rs, (op.config ?? configBajas(env)).modo)
+}
+
 let avisoFalta = ''
 function puedeCorrer(env: NodeJS.ProcessEnv, log: RegistroLogBajas, op: OpcionesBajasReal): boolean {
   if (bajasApagado(env)) return false
-  if (configBajas(env).modo === 'seco' && !op.config) return false
+  if (configBajas(env).modo === 'seco' && !op.config && !configPruebaBajas(env)) return false
   if (!env.DATABASE_URL?.trim() && !op.almacen) {
     if (avisoFalta !== 'DATABASE_URL') { avisoFalta = 'DATABASE_URL'; log.warn('bot-bajas: sin DATABASE_URL — la etapa Bajas no procesa nada') }
     return false
@@ -206,7 +276,7 @@ export async function procesarBajasReal(cands: CandidatosBajas, op: OpcionesBaja
   const log = op.log ?? console
   if (sinCandidatosBajas(cands) || !puedeCorrer(env, log, op)) return null
   try {
-    const r = await crearNucleoBajas(depsBajasReales(op)).procesarEventos(cands)
+    const r = await enTodos(op, (n) => n.procesarEventos(cands))
     if (r.aprobados || r.rechazados || r.ecos || r.errores.length) log.info(`bot-bajas: ${lineaResumenBajas(r)}`)
     logErrores(log, r)
     return r
@@ -226,8 +296,8 @@ export async function procesarLlamadaBajasReal(datos: unknown, op: OpcionesBajas
   const env = op.env ?? process.env
   const log = op.log ?? console
   if (!puedeCorrer(env, log, op)) return null
-  const config = op.config ?? configBajas(env)
-  if (!prendida('baja_fathom', config.modo, config.capacidades)) return null   // sin la capacidad no se gasta nada
+  const configs = op.config ? [op.config] : [configBajas(env), configPruebaBajas(env)].filter((x): x is ConfigBajas => !!x)
+  if (!configs.some((c) => prendida('baja_fathom', c.modo, c.capacidades))) return null   // sin la capacidad no se gasta nada
   const v = validarReunion(datos)
   if (!v.ok) return null
   const ahora = op.ahora ?? Date.now
@@ -235,7 +305,7 @@ export async function procesarLlamadaBajasReal(datos: unknown, op: OpcionesBajas
   let timer: ReturnType<typeof setTimeout> | undefined
   const tope = new Promise<'tope'>((res) => { timer = setTimeout(() => res('tope'), Math.max(0, deadline - ahora())) })
   try {
-    const r = await Promise.race([crearNucleoBajas(depsBajasReales(op)).procesarLlamada(v.reunion, { deadline }), tope])
+    const r = await Promise.race([enTodos(op, (n) => n.procesarLlamada(v.reunion, { deadline })), tope])
     if (r === 'tope') { log.warn(`bot-bajas: llamada ${v.reunion.recording_id} — se acabó el tope de la etapa (queda para reintentar)`); return null }
     if (r.llamadas || r.errores.length) log.info(`bot-bajas: llamada ${v.reunion.recording_id} — ${lineaResumenBajas(r)}`)
     logErrores(log, r)
@@ -250,16 +320,23 @@ export async function procesarLlamadaBajasReal(datos: unknown, op: OpcionesBajas
 export async function procesarGrabacionBajasReal(recordingId: number, quien: 'tomas' | 'gero_m', op: OpcionesBajasReal = {}): Promise<ResumenBajas> {
   const { traerReunion } = await import('@/lib/bot/kickoff/fathomApi')
   const t = await traerReunion(recordingId, quien, { fetch: op.fetch, env: op.env })
-  return crearNucleoBajas(depsBajasReales(op)).procesarLlamada(t.reunion as ReunionFathom)
+  return enTodos(op, (n) => n.procesarLlamada(t.reunion as ReunionFathom))
 }
 
 export async function pedirBajaManualReal(id: string, por: string, motivo: string, op: OpcionesBajasReal = {}): Promise<ResumenBajas> {
-  return crearNucleoBajas(depsBajasReales(op)).pedirBajaManual(id, por, motivo)
+  // Un cliente de prueba lo atiende SOLO el núcleo de prueba; cualquier otro, solo el general
+  const env = op.env ?? process.env
+  const ns = nucleosBajas(op)
+  const esPrueba = !op.config && esClientePrueba(id, configBajas(env).clientesPrueba ?? [])
+  const n = ns.find((x) => x.prueba === esPrueba)
+  if (!n) { const r = unirResumenes([], configBajas(env).modo); r.registro.push('BOT_BAJAS=no: la etapa está apagada'); return r }
+  const r = await n.nucleo.pedirBajaManual(id, por, motivo)
+  return n.prueba ? unirResumenes([{ prueba: true, r }], configBajas(env).modo) : r
 }
 
 /** El cron diario. `dry`: lee todo y devuelve lo que haría, sin mandar ni escribir nada. */
 export async function correrDiarioBajasReal(op: OpcionesBajasReal & { forzarRecontacto?: boolean } = {}): Promise<ResumenBajas> {
-  const r = await crearNucleoBajas(depsBajasReales(op)).correrDiario({ forzarRecontacto: op.forzarRecontacto })
+  const r = await enTodos(op, (n) => n.correrDiario({ forzarRecontacto: op.forzarRecontacto }))
   if (!op.dry) (op.log ?? console).info(`bot-bajas: diario — ${lineaResumenBajas(r)}`)
   return r
 }

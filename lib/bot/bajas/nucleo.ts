@@ -18,7 +18,7 @@
 import { conPrefijoEnsayo } from '@/lib/bot/whapi/compuerta'
 import type { AutorWhapi, ParticipanteGrupo, ResultadoQuitar } from '@/lib/bot/alta/motor/tipos'
 import type { ReunionFathom } from '@/lib/fathomAnuncios/tipos'
-import type { AlmacenBajas, Baja, NombrePaso, PasoBaja, Pedido, TipoPedido } from './almacen'
+import type { AlmacenBajas, Baja, NombrePaso, PasoBaja, Pedido, TipoPedido, TipoRastro } from './almacen'
 import type { ClasificarLlamada } from './claude'
 import {
   ESPERA_DESPEDIDA_MS, MARGEN_ENVIO_MS, MARGEN_INICIO_MS, MAX_AVISOS_DIA, MAX_QUITAR_POR_GRUPO, MAX_RECONTACTO, PLAZO_BAJAS_MS, VENCE_PEDIDO_MS,
@@ -39,6 +39,9 @@ export interface RegistroLogBajas { info(m: string): void; warn(m: string): void
 
 export interface DepsBajas {
   clienteOperativo?(idCrm: string | null, nombre: string): Promise<boolean>
+  /** ¿Este núcleo atiende a ese cliente? (modo prueba: solo BOT_CLIENTES_PRUEBA; el general: todos menos esos). Sin esto, todos.
+   *  Los pedidos, ecos y vencimientos de otro alcance se dejan para el otro núcleo. */
+  alcance?(idCrm: string): boolean
   config: ConfigBajas
   almacen: AlmacenBajas
   grupos: DirectorioGrupos
@@ -121,21 +124,29 @@ export function crearNucleoBajas(d: DepsBajas) {
   const real = (cap: CapacidadBaja) => saleReal(cap, c.modo, c.capacidades)
   const ensayo = (cap: CapacidadBaja) => reporteEnsayo(cap, c.modo, c.capacidades)
   const hoy = () => diaAR(d.ahora())
+  const enAlcance = (idCrm: string) => !d.alcance || d.alcance(idCrm)
+  /** Modo prueba: anota cada acción externa sobre el cliente de prueba para poder borrarla después. Nunca tira. */
+  const rastro = async (idCrm: string | null | undefined, tipo: TipoRastro, datos: Record<string, unknown>) => {
+    if (!c.prueba || !idCrm || !almacen.registrarRastro) return
+    try { await almacen.registrarRastro({ idCrm: idCrm.toUpperCase(), tipo, datos, creado: iso(d.ahora()) }) } catch (e) { d.log.warn(`bot-bajas: no se anotó un rastro de prueba (${motivoDe(e)})`) }
+  }
 
   /** Manda un texto si `permitido`; en ensayo, con el prefijo SIMULACIÓN. Nunca tira. */
-  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null): Promise<Salida & { texto: string }> {
+  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null, idCrm: string | null = null): Promise<Salida & { texto: string }> {
     const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
     if (!permitido || !chatId) return { estado: 'simulado', texto: final }
     try {
       const r = await d.enviarTexto({ chatId, texto: final, citar })
+      await rastro(idCrm, 'whatsapp', { chatId, mensajeId: r.id })
       return { estado: 'enviado', id: r.id, texto: final }
     } catch (e) {
       const ap = (e as { aplicado?: boolean | null })?.aplicado
+      if (ap !== false) await rastro(idCrm, 'whatsapp', { chatId, mensajeId: null, dudoso: true })
       return { estado: 'error', dudoso: ap === null || ap === undefined ? (e as { tipo?: string })?.tipo === 'dudoso' : false, motivo: motivoDe(e), texto: final }
     }
   }
   /** Respuesta corta en Verificaciones (solo en real con la capacidad; citando el OK). */
-  const responder = async (cap: CapacidadBaja, texto: string, citar: string) => { if (real(cap)) await salir(true, c.verificaciones, texto, citar) }
+  const responder = async (cap: CapacidadBaja, texto: string, citar: string, idCrm: string | null = null) => { if (real(cap)) await salir(true, c.verificaciones, texto, citar, idCrm) }
 
   /** Abre un pedido de OK en Verificaciones (o el reporte SIMULACIÓN en ensayo). false si no se abrió. */
   async function abrirPedido(r: ResumenBajas, p: { id: string; tipo: TipoPedido; cliente: ClienteBaja; general: string | null; fin: string | null; texto: string; detalle: Record<string, unknown>; permitido: boolean; haria: string }): Promise<boolean> {
@@ -148,7 +159,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       modo: c.modo, mensajePedidoId: null, huella: huellaTexto(final), detalle: p.detalle, creado: iso(d.ahora()),
     })
     if (!creado) { r.ignorados++; return false }
-    const s = await salir(true, c.verificaciones, p.texto)
+    const s = await salir(true, c.verificaciones, p.texto, null, p.cliente.id)
     if (s.estado === 'enviado') {
       if (s.id) await almacen.actualizarPedido(p.id, { mensajePedidoId: s.id })
       r.registro.push(`pedido ${p.tipo} de ${p.cliente.nombre} en Verificaciones${c.modo === 'ensayo' ? ' (SIMULACIÓN)' : ''}`)
@@ -194,26 +205,26 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (falta) {
       if (await almacen.actualizarPedido(p.id, { estado: 'error', por, respuesta: `OK ${x.resto}`.trim(), error: falta, resuelto: ahora }, ['abierto'])) {
         r.errores.push(`${p.cliente}: no mandé el mensaje de renovación (${falta})`)
-        await responder('baja_aviso_fin', `No le mandé el mensaje de renovación a ${p.cliente}: ${falta}. Se puede mandar a mano.`, x.mensajeId)
+        await responder('baja_aviso_fin', `No le mandé el mensaje de renovación a ${p.cliente}: ${falta}. Se puede mandar a mano.`, x.mensajeId, p.idCrm)
       }
       return
     }
     if (!(await almacen.actualizarPedido(p.id, { estado: 'aprobado', por, respuesta: `OK ${x.resto}`.trim() }, ['abierto']))) return
     r.aprobados++
-    const s = await salir(true, p.general, textoRenovacion(p.cliente, p.fin!, c.calendlyUrl))
+    const s = await salir(true, p.general, textoRenovacion(p.cliente, p.fin!, c.calendlyUrl), null, p.idCrm)
     if (s.estado === 'enviado') {
       await almacen.actualizarPedido(p.id, { estado: 'enviado', mensajeClienteId: s.id, resuelto: iso(d.ahora()) })
       r.renovaciones++
       r.registro.push(`mensaje de renovación enviado a ${p.cliente}`)
-      await responder('baja_aviso_fin', `Listo: le mandé el mensaje de renovación a ${p.cliente}.`, x.mensajeId)
+      await responder('baja_aviso_fin', `Listo: le mandé el mensaje de renovación a ${p.cliente}.`, x.mensajeId, p.idCrm)
     } else if (s.estado === 'error' && s.dudoso) {
       await almacen.actualizarPedido(p.id, { estado: 'dudoso', error: s.motivo, resuelto: iso(d.ahora()) })
       r.errores.push(`${p.cliente}: Whapi no confirmó el mensaje de renovación (puede haber salido)`)
-      await responder('baja_aviso_fin', `No sé si le llegó el mensaje de renovación a ${p.cliente} (WhatsApp no confirmó). Revisen el General antes de mandarlo a mano.`, x.mensajeId)
+      await responder('baja_aviso_fin', `No sé si le llegó el mensaje de renovación a ${p.cliente} (WhatsApp no confirmó). Revisen el General antes de mandarlo a mano.`, x.mensajeId, p.idCrm)
     } else {
       await almacen.actualizarPedido(p.id, { estado: 'error', error: s.estado === 'error' ? s.motivo : 'no salió', resuelto: iso(d.ahora()) })
       r.errores.push(`${p.cliente}: no salió el mensaje de renovación`)
-      await responder('baja_aviso_fin', `No pude mandarle el mensaje de renovación a ${p.cliente}. Se puede mandar a mano.`, x.mensajeId)
+      await responder('baja_aviso_fin', `No pude mandarle el mensaje de renovación a ${p.cliente}. Se puede mandar a mano.`, x.mensajeId, p.idCrm)
     }
   }
 
@@ -339,7 +350,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       // Había dudas y respondieron "OK" solo: no avanza nada; se pide el estado (el pedido sigue abierto)
       r.ignorados++
       r.registro.push(`${p.cliente}: OK sin el estado del CRM (había dudas): se pide OK FINALIZADO / OK INACTIVO`)
-      if (real('baja_fathom') || ensayo('baja_fathom')) await salir(true, c.verificaciones, `Para confirmar la baja de ${p.cliente} necesito el estado del CRM: respondé citando el pedido con OK FINALIZADO / OK INACTIVO.`, x.mensajeId)
+      if (real('baja_fathom') || ensayo('baja_fathom')) await salir(true, c.verificaciones, `Para confirmar la baja de ${p.cliente} necesito el estado del CRM: respondé citando el pedido con OK FINALIZADO / OK INACTIVO.`, x.mensajeId, p.idCrm)
       return
     }
     const origen = (p.detalle.origen ?? { tipo: 'manual', por: '', motivo: '' }) as OrigenBaja
@@ -370,7 +381,7 @@ export function crearNucleoBajas(d: DepsBajas) {
         prendida('baja_eliminar_comunidad', c.modo, c.capacidades) ? `Comunidad: después eliminaría su comunidad${ficha?.comunidad ? '' : ' (la buscaría por nombre)'}` : 'Comunidad: (sin baja_eliminar_comunidad)',
       ]
       await almacen.actualizarPedido(p.id, { detalle: { simulacion: partes } })
-      if (ensayo('baja_fathom')) await salir(true, c.verificaciones, partes.join('\n'), x.mensajeId)
+      if (ensayo('baja_fathom')) await salir(true, c.verificaciones, partes.join('\n'), x.mensajeId, p.idCrm)
       r.registro.push(`haría: confirmar la baja de ${p.cliente} (${c.modo}, ${estadoCrm})`)
       return
     }
@@ -387,6 +398,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (real('baja_crm') && d.crm) {
       try {
         const res = await d.crm({ id: p.idCrm, nombre: p.cliente, fecha, nota: notaCrm, estado: estadoCrm }, 'real')
+        if (res.estado === 'hecho' || (res.estado === 'error' && res.escrituras.length)) await rastro(p.idCrm, 'crm', { fila: res.fila, anterior: res.anterior ?? null, escrituras: res.escrituras.map((w) => w.range) })
         await almacen.marcarPaso(bajaId, 'crm', paso(res.estado === 'hecho' || res.estado === 'ya_estaba' ? 'hecho' : 'error', res.detalle))
         resumen.push(`CRM: ${res.estado === 'error' ? `no se pudo (${res.detalle})` : res.detalle}`)
         if (res.estado === 'error') r.errores.push(`${p.cliente}: CRM — ${res.detalle}`)
@@ -404,6 +416,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (real('baja_aviso_skool') && d.discord) {
       try {
         const id = await d.discord([textoDiscordSkool({ cliente: p.cliente, mencion: d.mencionAylu, mail, por, fecha: fechaCorta(fecha) })], d.mencionAylu ? [d.mencionAylu] : [])
+        await rastro(p.idCrm, 'discord', { mensajeId: id })
         await almacen.marcarPaso(bajaId, 'skool', paso('hecho', `aviso en Discord ${id ?? ''}`.trim()))
         resumen.push('Skool: le avisé a Aylu en #🤝-exito-y-bajas')
       } catch (e) {
@@ -423,6 +436,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       else {
         try {
           const q = await d.quitarAccesoDrive(carpeta, correos)
+          await rastro(p.idCrm, 'drive', { carpeta, quitados: q.quitados })
           const enlace = q.enlacePublico ? ` · OJO: la carpeta tiene acceso general (${q.acceso ?? '?'}): no lo cambié, decidan ustedes` : ''
           const det = `saqué a ${q.quitados.length}${q.noTenian.length ? `, ${q.noTenian.length} ya no tenía(n) acceso` : ''}${q.protegidos.length ? `, ${q.protegidos.length} protegido(s)` : ''}${enlace}`
           await almacen.marcarPaso(bajaId, 'drive', paso('hecho', det))
@@ -482,7 +496,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       resumen.push('Despedida y grupos: a mano (capacidades apagadas)')
     }
     r.registro.push(`baja de ${p.cliente} confirmada por ${por} (${estadoCrm})`)
-    await responder('baja_fathom', `Listo: baja de ${p.cliente} confirmada (${estadoCrm}).\n${resumen.join('\n')}`, x.mensajeId)
+    await responder('baja_fathom', `Listo: baja de ${p.cliente} confirmada (${estadoCrm}).\n${resumen.join('\n')}`, x.mensajeId, p.idCrm)
   }
 
   /** Ronda 2: OK / NO a pausar sus campañas de Meta. Solo pausa (status PAUSED) y verifica; si el token cae, falla cerrado. */
@@ -515,11 +529,11 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (res.fallidas.length || res.tokenCaido) r.errores.push(`${p.cliente}: Meta — ${res.fallidas.length} sin pausar`)
     await almacen.actualizarPedido(p.id, { estado: res.fallidas.length ? 'error' : 'enviado', resuelto: iso(d.ahora()), error: res.fallidas.length ? res.fallidas.map((f) => f.motivo).join('; ').slice(0, 300) : null, detalle: { pausadas: res.pausadas } })
     if (bajaId) await almacen.marcarPaso(bajaId, 'meta', paso(res.fallidas.length ? 'error' : 'hecho', texto))
-    await responder('baja_pausar_meta', texto, x.mensajeId)
+    await responder('baja_pausar_meta', texto, x.mensajeId, p.idCrm)
   }
 
   /** i03a: saca a los miembros que no son del equipo de cada grupo. Nunca más de MAX_QUITAR_POR_GRUPO por grupo. */
-  async function quitarDeGrupos(grupos: Partial<Record<GrupoCliente, string>>): Promise<{ estado: PasoBaja['estado']; detalle: string; quitados: number }> {
+  async function quitarDeGrupos(grupos: Partial<Record<GrupoCliente, string>>, idCrm: string): Promise<{ estado: PasoBaja['estado']; detalle: string; quitados: number }> {
     if (!d.participantes || !d.quitar) return { estado: 'error', detalle: 'no hay cliente de Whapi', quitados: 0 }
     const partes: string[] = []
     let quitados = 0, errores = 0, dudosos = 0
@@ -531,6 +545,7 @@ export function crearNucleoBajas(d: DepsBajas) {
         if (!ids.length) { partes.push(`${NOMBRE_GRUPO[g]}: no había nadie para sacar`); continue }
         if (ids.length > MAX_QUITAR_POR_GRUPO) { partes.push(`${NOMBRE_GRUPO[g]}: ${ids.length} personas que no son del equipo (más de ${MAX_QUITAR_POR_GRUPO}): no saqué a nadie, revisar`); errores++; continue }
         const res = await d.quitar(chat, ids)
+        await rastro(idCrm, 'grupos', { chatId: chat, grupo: g, quitados: res.quitados })
         quitados += res.quitados.length
         partes.push(`${NOMBRE_GRUPO[g]}: saqué ${res.quitados.length}${res.fallidos.length ? `, fallaron ${res.fallidos.map(telCorto).join(', ')}` : ''}`)
         if (res.fallidos.length) errores++
@@ -552,6 +567,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (!id) return { estado: 'error', detalle: 'no conozco su comunidad (o hay más de una con su nombre): eliminarla a mano' }
     try {
       await d.eliminarComunidad(id)
+      await rastro(p.idCrm, 'comunidad', { comunidadId: id })
       return { estado: 'hecho', detalle: 'eliminada (con su grupo de Avisos)' }
     } catch (e) {
       const st = (e as { status?: number | null })?.status
@@ -576,7 +592,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (!sinMensaje && !real('baja_mensaje_cliente')) {
       if (await almacen.actualizarPedido(p.id, { estado: 'aprobado_simulado', por, respuesta: `OK ${x.resto}`.trim(), resuelto: ahora }, ['abierto'])) {
         r.aprobados++
-        await responder('baja_quitar_grupos', `No mandé la despedida a ${p.cliente} (baja_mensaje_cliente apagada) y por eso tampoco lo saqué de los grupos. Para sacarlo sin despedida: "OK sin mensaje".`, x.mensajeId)
+        await responder('baja_quitar_grupos', `No mandé la despedida a ${p.cliente} (baja_mensaje_cliente apagada) y por eso tampoco lo saqué de los grupos. Para sacarlo sin despedida: "OK sin mensaje".`, x.mensajeId, p.idCrm)
       }
       return
     }
@@ -586,7 +602,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     const resumen: string[] = []
     // 1. PRIMERO la despedida
     if (!sinMensaje) {
-      const s = await salir(true, grupos.general ?? p.general, textoDespedida(p.cliente))
+      const s = await salir(true, grupos.general ?? p.general, textoDespedida(p.cliente), null, p.idCrm)
       if (s.estado === 'enviado' || (s.estado === 'error' && s.dudoso)) {
         if (bajaId) await almacen.marcarPaso(bajaId, 'despedida', paso(s.estado === 'enviado' ? 'hecho' : 'dudoso', s.estado === 'enviado' ? 'despedida enviada al General' : 'WhatsApp no confirmó la despedida'))
         resumen.push(s.estado === 'enviado' ? 'Despedida: enviada al General' : 'Despedida: WhatsApp no confirmó (revisar el General)')
@@ -596,8 +612,8 @@ export function crearNucleoBajas(d: DepsBajas) {
         await almacen.actualizarPedido(p.id, { estado: 'error', error: m, resuelto: iso(d.ahora()) })
         if (bajaId) await almacen.marcarPaso(bajaId, 'despedida', paso('error', m))
         r.errores.push(`${p.cliente}: no salió la despedida (${m}); no se lo sacó de los grupos`)
-        await responder('baja_quitar_grupos', `No salió la despedida a ${p.cliente} (${m}), así que no lo saqué de los grupos. Se puede mandar a mano y después responder "OK sin mensaje".`, x.mensajeId)
-        if (!real('baja_quitar_grupos')) await responder('baja_mensaje_cliente', `No salió la despedida a ${p.cliente} (${m}).`, x.mensajeId)
+        await responder('baja_quitar_grupos', `No salió la despedida a ${p.cliente} (${m}), así que no lo saqué de los grupos. Se puede mandar a mano y después responder "OK sin mensaje".`, x.mensajeId, p.idCrm)
+        if (!real('baja_quitar_grupos')) await responder('baja_mensaje_cliente', `No salió la despedida a ${p.cliente} (${m}).`, x.mensajeId, p.idCrm)
         return
       }
     } else if (bajaId) await almacen.marcarPaso(bajaId, 'despedida', paso('omitido', `"OK sin mensaje" de ${por}`))
@@ -605,7 +621,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (d.clienteOperativo && !await d.clienteOperativo(p.idCrm, p.cliente)) { r.ignorados++; return }
     let gruposOk = false
     if (real('baja_quitar_grupos')) {
-      const q = await quitarDeGrupos(grupos)
+      const q = await quitarDeGrupos(grupos, p.idCrm)
       r.quitados += q.quitados
       gruposOk = q.estado === 'hecho'
       if (bajaId) await almacen.marcarPaso(bajaId, 'grupos', paso(q.estado, q.detalle))
@@ -625,13 +641,14 @@ export function crearNucleoBajas(d: DepsBajas) {
     await almacen.actualizarPedido(p.id, { estado: 'enviado', resuelto: iso(d.ahora()) })
     r.registro.push(`despedida de ${p.cliente}: ${resumen.join(' · ')}`)
     const cap: CapacidadBaja = real('baja_quitar_grupos') ? 'baja_quitar_grupos' : 'baja_mensaje_cliente'
-    await responder(cap, `Listo con ${p.cliente}.\n${resumen.join('\n')}`, x.mensajeId)
+    await responder(cap, `Listo con ${p.cliente}.\n${resumen.join('\n')}`, x.mensajeId, p.idCrm)
   }
 
   // ── Webhook ──
   async function aplicarRespuesta(r: ResumenBajas, x: RespuestaBaja) {
     const p = await almacen.pedidoPorMensaje(x.citado)
     if (!p) return   // cita otra cosa (un alta, un pedido de Éxito): no es de esta etapa
+    if (!enAlcance(p.idCrm)) return   // lo atiende el otro núcleo (prueba / general)
     const lista = p.tipo === 'despedida' ? c.despedida : c.aprobadores
     if (!enLista(x.autor, lista)) { r.ignorados++; r.registro.push(`respuesta al pedido ${p.tipo} de ${p.cliente} de alguien que no puede aprobarlo: se ignora`); return }
     if (p.estado !== 'abierto') { r.ignorados++; return }
@@ -648,7 +665,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     for (const e of cands.ecos) {
       try {
         const p = await almacen.pedidoSinIdPorHuella(huellaTexto(e.texto), iso(Date.parse(e.enviadoEn) - 3600_000))
-        if (p && (await almacen.actualizarPedido(p.id, { mensajePedidoId: e.mensajeId }, ['abierto']))) { r.ecos++; r.registro.push(`eco: pedido ${p.tipo} de ${p.cliente} con su id`) }
+        if (p && enAlcance(p.idCrm) && (await almacen.actualizarPedido(p.id, { mensajePedidoId: e.mensajeId }, ['abierto']))) { r.ecos++; r.registro.push(`eco: pedido ${p.tipo} de ${p.cliente} con su id`) }
       } catch (err) { r.errores.push(`eco ${e.mensajeId}: ${motivoDe(err)}`) }
     }
     for (const x of cands.respuestas) {
@@ -665,7 +682,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     const permitido = real('baja_recontacto') || ensayo('baja_recontacto')
     const controles = await Promise.all(clientes.map(k => d.clienteOperativo ? d.clienteOperativo(k.id, k.nombre) : true))
     const permitidos = clientes.filter((_, i) => controles[i])
-    const cands = historicosParaRecontacto(permitidos, h)
+    const cands = historicosParaRecontacto(permitidos, h, c.prueba ? 0 : undefined)
     if (!permitido) { r.registro.push(`haría: publicar la lista de recontacto de ${mes} (${cands.length} histórico(s); sin la capacidad baja_recontacto)`); return }
     const puntajes = d.puntajes ? await d.puntajes(clientes).catch(() => new Map<string, number>()) : new Map<string, number>()
     const motivos = await almacen.motivosDeBaja()
@@ -674,7 +691,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       puntaje: puntajes.get(x.cliente.id.toUpperCase()) ?? x.cliente.satisfaccion ?? null,
       motivo: motivos.get(x.cliente.id.toUpperCase()) ?? null,
     })).sort((a, b) => (b.puntaje ?? -1) - (a.puntaje ?? -1) || a.dias - b.dias).slice(0, MAX_RECONTACTO)
-    const clave = c.modo === 'real' ? mes : `ensayo:${mes}`
+    const clave = c.prueba ? `prueba:${mes}` : c.modo === 'real' ? mes : `ensayo:${mes}`
     if (!(await almacen.reclamarRecontacto({ mes: clave, modo: c.modo, cantidad: lista.length, creado: iso(d.ahora()) }))) return
     if (!lista.length) { await almacen.actualizarRecontacto(clave, { estado: 'vacio' }); r.registro.push(`recontacto ${mes}: no hay históricos para recontactar`); return }
     if (c.modo === 'ensayo') {
@@ -687,6 +704,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     try {
       const id = await d.discord(textosRecontacto(mes, lista), [])
       await almacen.actualizarRecontacto(clave, { estado: 'publicado', discordIds: id ? [id] : [] })
+      for (const x of cands.slice(0, MAX_RECONTACTO)) await rastro(x.cliente.id, 'discord', { mensajeId: id, recontacto: clave })
       r.recontactos += lista.length
       r.registro.push(`recontacto ${mes}: ${lista.length} histórico(s) en #🤝-exito-y-bajas`)
     } catch (e) {
@@ -700,6 +718,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (c.modo === 'seco') { r.registro.push('seco: no se lee el CRM y no sale nada'); return r }
     try {
       for (const p of await almacen.pedidosAbiertosAntesDe(iso(d.ahora() - VENCE_PEDIDO_MS))) {
+        if (!enAlcance(p.idCrm)) continue
         if (await almacen.actualizarPedido(p.id, { estado: 'vencido', resuelto: iso(d.ahora()) }, ['abierto'])) {
           r.vencidos++
           r.registro.push(`venció el pedido ${p.tipo} de ${p.cliente} (14 días sin respuesta)`)

@@ -34,6 +34,8 @@ export interface ResultadoBajaCrm {
   fila: number | null
   detalle: string
   escrituras: RangoValores[]
+  /** Lo que había antes en esas celdas (Estado, Fecha de baja y Notas renovación), para poder volver atrás una prueba. */
+  anterior?: { estado: string; fechaBaja: Celda | null; notas: string; celdas: { estado: string; fechaBaja: string; notas: string } }
 }
 
 const esFormula = (c: Celda | undefined): boolean => typeof c === 'string' && c.startsWith('=')
@@ -78,7 +80,8 @@ export async function marcarBajaCrm(planilla: PlanillaCrm, p: PedidoBajaCrm, op:
     ...(vacia(f[idx.fechaBaja]) ? [{ range: celda('fechaBaja'), values: [[ymdASerial(p.fecha)]] }] : []),
     { range: celda('notasRenov'), values: [[`'${notas}`]] },
   ]
-  if (op.modo === 'simulacion') return { estado: 'simulado', fila, detalle: `pasaría la fila ${fila} (${nombre}) a ${destino}${vacia(f[idx.fechaBaja]) ? ` con fecha de baja ${fechaCorta(p.fecha)}` : ''} y sumaría la nota`, escrituras }
+  const anterior = { estado, fechaBaja: vacia(f[idx.fechaBaja]) ? null : (f[idx.fechaBaja] ?? null), notas: previa, celdas: { estado: celda('estado'), fechaBaja: celda('fechaBaja'), notas: celda('notasRenov') } }
+  if (op.modo === 'simulacion') return { estado: 'simulado', anterior, fila, detalle: `pasaría la fila ${fila} (${nombre}) a ${destino}${vacia(f[idx.fechaBaja]) ? ` con fecha de baja ${fechaCorta(p.fecha)}` : ''} y sumaría la nota`, escrituras }
 
   await planilla.escribirValores(escrituras)
   // Relee y verifica (los valores calculados)
@@ -90,6 +93,6 @@ export async function marcarBajaCrm(planilla: PlanillaCrm, p: PedidoBajaCrm, op:
   const fb = v[idx.fechaBaja]
   if (typeof fb !== 'number' || !serialAYmd(fb)) problemas.push('Fecha de baja no quedó como fecha')
   if (!texto(v[idx.notasRenov]).includes(notaNueva)) problemas.push('la nota no quedó')
-  if (problemas.length) return { estado: 'error', fila, detalle: `escribí la fila ${fila} pero al releer: ${problemas.join(', ')}. Revisar a mano.`, escrituras }
-  return { estado: 'hecho', fila, detalle: `fila ${fila} (${nombre}) en ${destino}, con fecha de baja y nota`, escrituras }
+  if (problemas.length) return { estado: 'error', anterior, fila, detalle: `escribí la fila ${fila} pero al releer: ${problemas.join(', ')}. Revisar a mano.`, escrituras }
+  return { estado: 'hecho', anterior, fila, detalle: `fila ${fila} (${nombre}) en ${destino}, con fecha de baja y nota`, escrituras }
 }
