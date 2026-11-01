@@ -8,7 +8,7 @@ const usd = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractio
 const ars = (n) => 'ARS ' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
 const mesActual = () => new Date().toLocaleDateString('en-CA').slice(0, 7)
 // comisionEditada / bonusEditado: false = el importe lo propone el cálculo automático; true = lo escribió la persona (manual) y no se pisa
-const vacio = (mes = '') => ({ persona_id: '', mes, puesto: '', departamento: '', honorarios_base: '', bonuses: '', comision: '', comisionEditada: false, bonusEditado: false, pagado: false, pagado_por: '', nota: '', confirmaAdicional: false })
+const vacio = (mes = '') => ({ persona_id: '', mes, puesto: '', departamento: '', honorarios_base: '', bonuses: '', comision: '', extras: '', extras_detalle: '', comisionEditada: false, bonusEditado: false, pagado: false, pagado_por: '', nota: '', confirmaAdicional: false })
 
 // Reglas de esta pantalla:
 // - Lee la vista pagos_equipo_vigentes (valores con las correcciones aplicadas). Los datos sensibles NO se leen acá.
@@ -99,6 +99,7 @@ export default function PagosEquipo({ onCorregir }) {
     honorarios: suma(visibles, 'honorarios_base'),
     bonuses: suma(visibles, 'bonuses'),
     comision: suma(visibles, 'comision'),
+    extras: suma(visibles, 'extras'),
     total: suma(visibles, 'total_usd'),
     pagado: suma(visibles.filter((l) => l.pagado), 'total_usd'),
     pendiente: suma(visibles.filter((l) => !l.pagado), 'total_usd'),
@@ -180,7 +181,7 @@ export default function PagosEquipo({ onCorregir }) {
     setEditandoId(l.id)
     setForm({
       persona_id: String(l.persona_id ?? ''), mes: mesDe(l.mes), puesto: l.puesto ?? '', departamento: l.departamento ?? '',
-      honorarios_base: String(l.honorarios_base ?? ''), bonuses: String(l.bonuses ?? ''), comision: String(l.comision ?? ''), comisionEditada: true, bonusEditado: true, // al editar una línea guardada, sus importes no se pisan
+      honorarios_base: String(l.honorarios_base ?? ''), bonuses: String(l.bonuses ?? ''), comision: String(l.comision ?? ''), extras: Number(l.extras) ? String(l.extras) : '', extras_detalle: l.extras_detalle ?? '', comisionEditada: true, bonusEditado: true, // al editar una línea guardada, sus importes no se pisan
       pagado: !!l.pagado, pagado_por: l.pagado_por ?? '', nota: l.nota ?? '', confirmaAdicional: true,
     })
     setKpi(false)
@@ -290,6 +291,8 @@ export default function PagosEquipo({ onCorregir }) {
             <label>Área (departamento)<input name="departamento" value={form.departamento} onChange={cambiarForm} /></label>
             <label>Honorarios (USD)<input type="number" step="0.01" min="0" name="honorarios_base" value={form.honorarios_base} onChange={cambiarForm} /></label>
             <label>Bonus (USD){!form.bonusEditado && autoBono ? ' · bono KPI automático' : ''}<input type="number" step="0.01" min="0" name="bonuses" value={formEf.bonuses} onChange={cambiarImporteManual('bonuses')} /></label>
+            <label>Extras (USD)<input type="number" step="0.01" min="0" name="extras" value={form.extras} onChange={cambiarForm} placeholder="0" /></label>
+            <label>Detalle de los extras{Number(form.extras) > 0 ? ' (obligatorio)' : ''}<input name="extras_detalle" value={form.extras_detalle} onChange={cambiarForm} placeholder="Qué hizo de más (ej.: cubrió edición de otro cliente)" /></label>
             <label>Comisión (USD){!form.comisionEditada && autoComision ? ' · propuesta automática' : ''}<input type="number" step="0.01" min="0" name="comision" value={formEf.comision} onChange={cambiarImporteManual('comision')} /></label>
             <label>Estado
               <select name="pagado" value={form.pagado ? 'si' : 'no'} onChange={(e) => setForm({ ...form, pagado: e.target.value === 'si' })}>
@@ -305,7 +308,7 @@ export default function PagosEquipo({ onCorregir }) {
             </label>
             <label>Nota (opcional)<input name="nota" value={form.nota} onChange={cambiarForm} /></label>
             <p className="aviso">
-              Tipo de remuneración: <strong>{tipoRemuneracion(formEf)}</strong> · Total a pagar: <strong>{usd(totalDe(formEf))}</strong> (honorarios + bonus + comisión) · Moneda: USD
+              Tipo de remuneración: <strong>{tipoRemuneracion(formEf)}</strong> · Total a pagar: <strong>{usd(totalDe(formEf))}</strong> (honorarios + bonus + comisión + extras) · Moneda: USD
             </p>
             {validacion?.existentes.length > 0 && !editandoId && (
               <div className="aviso-box">
@@ -396,12 +399,12 @@ export default function PagosEquipo({ onCorregir }) {
           </div>
           <div className="tabla-scroll">
             <table>
-              <thead><tr><th>Persona</th><th>Rol</th><th>Área</th><th>Honorarios</th><th>Bonus</th><th>Comisión</th><th>Total a pagar</th><th>Pagado</th><th>Pendiente</th><th>Líneas</th><th></th></tr></thead>
+              <thead><tr><th>Persona</th><th>Rol</th><th>Área</th><th>Honorarios</th><th>Bonus</th><th>Comisión</th><th>Extras</th><th>Total a pagar</th><th>Pagado</th><th>Pendiente</th><th>Líneas</th><th></th></tr></thead>
               <tbody>
                 {cierre.filas.map((f) => (
                   <tr key={f.persona_id ?? f.nombre} className={f.activo === false ? 'fila-inactiva' : ''}>
                     <td>{f.nombre}{f.activo === false && ' (inactiva)'}</td><td>{f.puesto}</td><td>{f.departamento}</td>
-                    <td>{usd(f.honorarios)}</td><td>{usd(f.bonus)}</td><td>{usd(f.comision)}</td><td><strong>{usd(f.total)}</strong></td><td>{usd(f.pagado)}</td><td>{usd(f.pendiente)}</td><td>{f.lineas}</td>
+                    <td>{usd(f.honorarios)}</td><td>{usd(f.bonus)}</td><td>{usd(f.comision)}</td><td>{usd(f.extras)}</td><td><strong>{usd(f.total)}</strong></td><td>{usd(f.pagado)}</td><td>{usd(f.pendiente)}</td><td>{f.lineas}</td>
                     <td className="nowrap">{f.activo && <button type="button" onClick={() => abrirNueva(f.persona_id, mesCierre)}>Agregar línea</button>}</td>
                   </tr>
                 ))}
@@ -455,6 +458,7 @@ export default function PagosEquipo({ onCorregir }) {
         <div><span>Honorarios</span><strong>{usd(totales.honorarios)}</strong></div>
         <div><span>Bonus</span><strong>{usd(totales.bonuses)}</strong></div>
         <div><span>Comisión</span><strong>{usd(totales.comision)}</strong></div>
+        <div><span>Extras</span><strong>{usd(totales.extras)}</strong></div>
         <div className="destacada"><span>Total USD</span><strong>{usd(totales.total)}</strong></div>
         <div><span>Pagado</span><strong>{usd(totales.pagado)}</strong></div>
         <div><span>Pendiente</span><strong>{usd(totales.pendiente)}</strong></div>
@@ -478,7 +482,7 @@ export default function PagosEquipo({ onCorregir }) {
         <table>
           <thead>
             <tr>
-              <th></th><th>Mes</th><th>Persona</th><th>Puesto</th><th>Departamento</th><th>Honorarios</th><th>Bonus</th><th>Comisión</th><th>Total</th><th>Moneda</th><th>Pagado</th><th>Pagado por</th><th>Nota</th>
+              <th></th><th>Mes</th><th>Persona</th><th>Puesto</th><th>Departamento</th><th>Honorarios</th><th>Bonus</th><th>Comisión</th><th>Extras</th><th>Total</th><th>Moneda</th><th>Pagado</th><th>Pagado por</th><th>Nota</th>
             </tr>
           </thead>
           <tbody>
@@ -500,6 +504,7 @@ export default function PagosEquipo({ onCorregir }) {
                 <td><Celda l={l} k="honorarios_base">{usd(l.honorarios_base)}</Celda></td>
                 <td><Celda l={l} k="bonuses">{usd(l.bonuses)}</Celda></td>
                 <td><Celda l={l} k="comision">{usd(l.comision)}</Celda></td>
+                <td>{Number(l.extras) ? <span title={l.extras_detalle || ''}>{usd(l.extras)}</span> : '—'}</td>
                 <td>
                   <Celda l={l} k="total_usd"><strong>{usd(l.total_usd)}</strong></Celda>
                   {l.total_ars !== null && <div className="aviso">{ars(l.total_ars)}</div>}

@@ -1,7 +1,8 @@
 // Reglas puras del ALTA de líneas de Pagos del equipo y del CIERRE DE MES. No consulta la base: recibe las filas ya leídas.
 // - Una línea nueva (creada en la web) guarda: persona, puesto (rol), departamento (área), honorarios, bonus, comisión, total, estado y "pagado por".
 // - El "tipo de remuneración" se deduce de qué importes se completan (honorarios, bonus y/o comisión); no se guarda aparte.
-// - total_usd = honorarios + bonus + comisión (igual que en las líneas importadas).
+// - total_usd = honorarios + bonus + comisión + extras. Extras (Tomás, 1/11/2026): lo que se paga aparte porque la persona
+//   hizo más de lo que le tocaba; va con su detalle (qué hizo). Las líneas importadas no tienen extras.
 // - Evita duplicar: no admite una segunda comisión para la misma persona y mes, y pide confirmar cualquier otra línea adicional del mismo mes.
 // - Las personas inactivas no se pueden elegir para cargar líneas nuevas (su historial se conserva).
 // Nada de esto toca las líneas importadas ni recalcula Payroll histórico.
@@ -29,7 +30,7 @@ export const mesAnterior = (m) => {
   return `${y}-${String(mm).padStart(2, '0')}`
 }
 
-export const totalCentavos = (f) => aC(f.honorarios_base) + aC(f.bonuses) + aC(f.comision)
+export const totalCentavos = (f) => aC(f.honorarios_base) + aC(f.bonuses) + aC(f.comision) + aC(f.extras)
 export const totalDe = (f) => deC(totalCentavos(f))
 
 /** Tipo de remuneración según los importes completados. */
@@ -38,6 +39,7 @@ export function tipoRemuneracion(f) {
   if (aC(f.honorarios_base) > 0) partes.push('Honorarios')
   if (aC(f.bonuses) > 0) partes.push('Bonus')
   if (aC(f.comision) > 0) partes.push('Comisión')
+  if (aC(f.extras) > 0) partes.push('Extras')
   return partes.length ? partes.join(' + ') : '—'
 }
 
@@ -53,14 +55,15 @@ export function validarLinea(f, { personas = [], lineas = [], editandoId = null 
   if (!persona) errores.push('Elegí una persona.')
   else if (!persona.activo && !f.permitirInactiva) errores.push(`${persona.nombre} está inactiva: no se pueden cargar pagos nuevos para una persona inactiva.`)
   if (!mesAFecha(f.mes)) errores.push('Elegí el mes (período) de la línea.')
-  const importes = [['honorarios', f.honorarios_base], ['bonus', f.bonuses], ['comisión', f.comision]]
+  const importes = [['honorarios', f.honorarios_base], ['bonus', f.bonuses], ['comisión', f.comision], ['extras', f.extras]]
   for (const [nombre, v] of importes) {
     const c = aC(v)
     if (Number.isNaN(c)) errores.push(`El importe de ${nombre} no es un número válido.`)
     else if (c < 0) errores.push(`El importe de ${nombre} no puede ser negativo.`)
   }
   const total = totalCentavos(f)
-  if (!Number.isNaN(total) && total <= 0) errores.push('El total debe ser mayor que 0: completá honorarios, bonus o comisión.')
+  if (!Number.isNaN(total) && total <= 0) errores.push('El total debe ser mayor que 0: completá honorarios, bonus, comisión o extras.')
+  if (aC(f.extras) > 0 && !String(f.extras_detalle ?? '').trim()) errores.push('Contá qué hizo de más en «Detalle de los extras».')
   if (f.pagado_por && !OPCIONES_PAGADO_POR.includes(f.pagado_por)) errores.push('«Pagado por» no es una opción válida.')
 
   let existentes = []
@@ -104,6 +107,8 @@ export function armarLinea(f, persona) {
     honorarios_base: deC(aC(f.honorarios_base)),
     bonuses: deC(aC(f.bonuses)),
     comision: deC(aC(f.comision)),
+    extras: deC(aC(f.extras)),
+    extras_detalle: aC(f.extras) > 0 ? texto(f.extras_detalle) : null,
     total_usd: deC(totalCentavos(f)),
     moneda: MONEDA_NUEVAS,
     pagado: !!f.pagado,
@@ -122,18 +127,18 @@ export function cierreDeMes(lineas, personas, mes) {
   for (const l of delMes) {
     const clave = l.persona_id ?? `nombre:${l.nombre_original}`
     const p = personas.find((x) => x.id === l.persona_id)
-    if (!porPersona.has(clave)) porPersona.set(clave, { persona_id: l.persona_id ?? null, nombre: p?.nombre ?? l.nombre_original, activo: p ? p.activo : null, puesto: l.puesto ?? p?.puesto ?? null, departamento: l.departamento ?? p?.departamento ?? null, lineas: 0, h: 0, b: 0, c: 0, t: 0, pagado: 0, pendiente: 0 })
+    if (!porPersona.has(clave)) porPersona.set(clave, { persona_id: l.persona_id ?? null, nombre: p?.nombre ?? l.nombre_original, activo: p ? p.activo : null, puesto: l.puesto ?? p?.puesto ?? null, departamento: l.departamento ?? p?.departamento ?? null, lineas: 0, h: 0, b: 0, c: 0, e: 0, t: 0, pagado: 0, pendiente: 0 })
     const f = porPersona.get(clave)
     f.lineas++
-    f.h += aC(l.honorarios_base); f.b += aC(l.bonuses); f.c += aC(l.comision)
+    f.h += aC(l.honorarios_base); f.b += aC(l.bonuses); f.c += aC(l.comision); f.e += aC(l.extras)
     const t = aC(l.total_usd)
     f.t += t
     if (l.pagado) f.pagado += t; else f.pendiente += t
   }
-  const filas = [...porPersona.values()].map((f) => ({ persona_id: f.persona_id, nombre: f.nombre, activo: f.activo, puesto: f.puesto, departamento: f.departamento, lineas: f.lineas, honorarios: deC(f.h), bonus: deC(f.b), comision: deC(f.c), total: deC(f.t), pagado: deC(f.pagado), pendiente: deC(f.pendiente) }))
+  const filas = [...porPersona.values()].map((f) => ({ persona_id: f.persona_id, nombre: f.nombre, activo: f.activo, puesto: f.puesto, departamento: f.departamento, lineas: f.lineas, honorarios: deC(f.h), bonus: deC(f.b), comision: deC(f.c), extras: deC(f.e), total: deC(f.t), pagado: deC(f.pagado), pendiente: deC(f.pendiente) }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
   const conLinea = new Set(filas.map((f) => f.persona_id).filter((x) => x !== null))
   const sinLinea = personas.filter((p) => p.activo && !conLinea.has(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre))
   const suma = (k) => deC(filas.reduce((s, f) => s + aC(f[k]), 0))
-  return { mes, filas, sinLinea, totales: { lineas: delMes.length, honorarios: suma('honorarios'), bonus: suma('bonus'), comision: suma('comision'), total: suma('total'), pagado: suma('pagado'), pendiente: suma('pendiente') } }
+  return { mes, filas, sinLinea, totales: { lineas: delMes.length, honorarios: suma('honorarios'), bonus: suma('bonus'), comision: suma('comision'), extras: suma('extras'), total: suma('total'), pagado: suma('pagado'), pendiente: suma('pendiente') } }
 }
