@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
+import { ORDEN_CONCEPTOS } from './calculoDashboard'
 
 // Registro de pagos.
 // - LEE de la vista pagos_vigentes (los datos con las correcciones aplicadas; sin correcciones es idéntica a la tabla pagos).
@@ -93,7 +94,8 @@ export default function Pagos({ onCorregir }) {
     const u = (k) => [...new Set(pagos.map((p) => p[k]).filter(Boolean))].sort()
     return {
       meses: [...new Set(pagos.map((p) => p.fecha.slice(0, 7)))].sort().reverse(),
-      conceptos: u('concepto'),
+      // Los conceptos fijos (Renovación incluida) aparecen aunque todavía no haya pagos con ese concepto
+      conceptos: [...new Set([...ORDEN_CONCEPTOS, ...u('concepto')])],
       fuentes: u('fuente'),
       closers: u('closer'),
       setters: u('setter'),

@@ -21,7 +21,7 @@ export const REGLAS_COMISION = {
   fuenteInbound: 'Inbound IG',
   fuenteEnrutamiento: 'Enrutamiento',
   conceptosSetter: ['Fee', 'PIF', '1ra Cuota'],
-  conceptosConocidos: ['Fee', 'PIF', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota'],
+  conceptosConocidos: ['Fee', 'PIF', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota', 'Renovación'],
   closer: 0.1,
   tipoVentaCloser: 'Front-end',
   variantesTipoVentaCloser: ['Front-end', 'Front end', 'Frontend'], // lista cerrada de escrituras equivalentes (se comparan normalizadas); cualquier otra NO se acepta
