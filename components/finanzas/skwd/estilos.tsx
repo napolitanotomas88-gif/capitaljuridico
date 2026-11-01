@@ -1,11 +1,11 @@
-// Estilos de las pantallas de Finanzas SKWD dentro del Despacho (1/11/2026, pedido de Tomás: «lleva la estética que tiene
-// lo de finanzas»). Es el App.css de la app original pasado al verde de Finanzas (components/finanzas/Tema.tsx: usa sus
+// Estilos de las pantallas de Finanzas SKWD dentro del Despacho (1/11/2026). Es el App.css de la app original pasado a
+// la estética del Despacho (marfil, blanco cálido, latón y bordó para los botones) (components/finanzas/Tema.tsx: usa sus
 // variables --bg, --card, --text, --text-muted, --border, --brand-orange y --fin-*) y encerrado en .fin-skwd, así no
 // toca el resto del Despacho. Las clases son las mismas que usan los componentes (form, filtros, tabla-scroll, kpi, er-*…).
 export const ESTILOS_SKWD = `
-.fin-skwd { --sk-campo: #0b3f33; --sk-thead: #062c25; --sk-realce: rgba(242,234,220,0.08); --sk-texto-3: #a99f8b;
+.fin-skwd { --sk-campo: var(--cj-sala); --sk-thead: var(--cj-sala); --sk-realce: rgba(29,29,27,0.04); --sk-texto-3: #6f6859;
   --sk-oro-suave: rgba(190,143,73,0.16); --sk-verde-suave: rgba(159,227,193,0.10); --sk-radio: 10px; }
-.fin-skwd h2, .fin-skwd h3, .fin-skwd h4 { color: var(--text); font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
+.fin-skwd h2, .fin-skwd h3, .fin-skwd h4 { color: var(--text); font-weight: 400; font-family: 'Sitka Heading', 'Sitka Display', 'Sitka', var(--font-source-serif), Georgia, serif; line-height: 1.2; letter-spacing: -0.01em; }
 .fin-skwd h2 { font-size: 24px; margin: 0 0 14px; }
 .fin-skwd h2::after { content: ''; display: block; width: 52px; height: 2px; margin-top: 8px; background: var(--brand-orange); }
 .fin-skwd .detalle h2::after, .fin-skwd .detalle-cab h2::after { display: none; }
@@ -23,7 +23,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd input[type='checkbox'], .fin-skwd input[type='radio'] { accent-color: var(--brand-orange); min-height: 0; }
 .fin-skwd input:disabled, .fin-skwd select:disabled, .fin-skwd textarea:disabled { background: var(--sk-realce); color: var(--sk-texto-3); }
 .fin-skwd input::placeholder, .fin-skwd textarea::placeholder { color: var(--sk-texto-3); }
-.fin-skwd button { background: var(--brand-orange); color: var(--fin-sobre-dorado); border: 1.5px solid var(--brand-orange); border-radius: 8px;
+.fin-skwd button { background: var(--fin-boton); color: var(--cj-sala); border: 1px solid var(--fin-boton); border-radius: var(--cj-radio);
   padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: filter .15s, background-color .15s, color .15s; }
 .fin-skwd button:hover:not(:disabled) { filter: brightness(1.08); }
 .fin-skwd button:disabled { opacity: .5; cursor: not-allowed; }
@@ -39,7 +39,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .subtabs button, .fin-skwd td button { background: var(--card); color: var(--text-muted); border-color: var(--fin-borde-control); }
 .fin-skwd .subtabs button { padding: 6px 14px; font-size: 14px; }
 .fin-skwd .subtabs button:hover:not(:disabled), .fin-skwd td button:hover:not(:disabled) { color: var(--text); filter: none; border-color: var(--brand-orange); }
-.fin-skwd .subtabs button:disabled { opacity: 1; cursor: default; background: var(--brand-orange); color: var(--fin-sobre-dorado); border-color: var(--brand-orange); }
+.fin-skwd .subtabs button:disabled { opacity: 1; cursor: default; background: var(--cj-hueso); color: var(--cj-sala); border-color: var(--cj-hueso); }
 .fin-skwd .acciones-fila { white-space: normal; }
 .fin-skwd td button { margin: 1px 3px 1px 0; font-size: 12px; padding: 4px 9px; font-weight: 600; }
 
@@ -59,7 +59,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .tarjeta-alerta { background: var(--sk-oro-suave) !important; border-color: var(--brand-orange) !important; }
 
 /* Tablas (como .fin-tabla) */
-.fin-skwd .tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--card); border: 1px solid var(--border); border-radius: var(--sk-radio); scrollbar-color: rgba(242,234,220,0.45) transparent; }
+.fin-skwd .tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--card); border: 1px solid var(--border); border-radius: var(--sk-radio); scrollbar-color: rgba(29,29,27,0.3) transparent; }
 .fin-skwd table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: lining-nums tabular-nums; }
 .fin-skwd th, .fin-skwd td { text-align: left; padding: 7px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); color: var(--text); vertical-align: top; }
 .fin-skwd thead th { background: var(--sk-thead); color: var(--text-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--border); }
@@ -102,7 +102,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 8px 0 18px; }
 .fin-skwd .kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--sk-radio); padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }
 .fin-skwd .kpi.destacada { border-left-width: 5px; }
-.fin-skwd .kpi strong { font-size: 26px; line-height: 1.15; font-weight: 900; color: var(--text); font-variant-numeric: lining-nums tabular-nums; }
+.fin-skwd .kpi strong { font-size: 28px; line-height: 1.15; font-weight: 400; font-family: 'Sitka Display', 'Sitka', var(--font-source-serif), Georgia, serif; color: var(--text); font-variant-numeric: lining-nums tabular-nums; }
 .fin-skwd .kpi small { font-size: 11px; color: var(--sk-texto-3); }
 .fin-skwd .delta { font-size: 12px; font-weight: 600; }
 .fin-skwd .delta-pos { color: var(--fin-bien); }
@@ -113,7 +113,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .dash-card figcaption { margin-bottom: 8px; font-size: 14px; font-weight: 700; color: var(--text); }
 .fin-skwd .dash-tabla { margin-top: 6px; font-size: 12px; }
 .fin-skwd .dash-tabla summary { cursor: pointer; color: var(--text-muted); }
-.fin-skwd .dash-tooltip { background: var(--card); border: 1px solid var(--brand-orange); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.fin-skwd .dash-tooltip { background: var(--card); border: 1px solid var(--brand-orange); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--text); box-shadow: var(--cj-sombra-2); }
 .fin-skwd .dash-seccion { margin: 22px 0; }
 .fin-skwd .dash-seccion h3 { margin: 0 0 8px; }
 .fin-skwd .dash-seccion h4 { margin: 14px 0 6px; font-size: 14px; }
@@ -131,7 +131,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .er-subfila td { color: var(--sk-texto-3); font-size: 11px; }
 .fin-skwd .er-sangria { padding-left: 22px !important; }
 .fin-skwd .er-encurso, .fin-skwd .er-encurso td, .fin-skwd .er-tabla .er-encurso td:first-child { color: var(--sk-texto-3); background: var(--sk-realce); }
-.fin-skwd .er-vacio { color: #7f8f86; }
+.fin-skwd .er-vacio { color: #9a9284; }
 .fin-skwd .er-total { font-weight: 700; border-left: 2px solid var(--brand-orange); }
 .fin-skwd .er-detalle { margin: 14px 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; }
 .fin-skwd .er-detalle summary { cursor: pointer; font-weight: 600; color: var(--text); }
@@ -148,11 +148,14 @@ export const ESTILOS_SKWD = `
 .fin-skwd .login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
 .fin-skwd .login-form input, .fin-skwd .login-form button { padding: 11px 12px; font-size: 15px; min-height: 44px; }
 
-/* Pestañas de Finanzas (Resumen y las de la base) */
-.fin-nav { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; margin: 0 0 18px; scrollbar-width: thin; }
-.fin-nav a { flex: 0 0 auto; text-decoration: none; font-size: 13px; font-weight: 700; padding: 7px 13px; border-radius: 999px; border: 1.5px solid var(--fin-borde-control); color: var(--text-muted); background: var(--card); min-height: 36px; display: inline-flex; align-items: center; }
-.fin-nav a:hover { color: var(--text); border-color: var(--brand-orange); }
-.fin-nav a[aria-current='page'] { background: var(--brand-orange); color: var(--fin-sobre-dorado); border-color: var(--brand-orange); }
+/* Pestañas de Finanzas: como las del hub de Clientes (texto humo, la activa en negro con filete latón abajo) */
+.fin-nav { display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; border-bottom: 1px solid var(--cj-filete); scrollbar-width: none; }
+.fin-nav::-webkit-scrollbar { display: none; }
+.fin-nav a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 46px; padding: 0 16px; margin-bottom: -1px; text-decoration: none; font-size: 15px; font-weight: 500; color: var(--cj-humo); border-bottom: 2px solid transparent; border-radius: var(--cj-radio) var(--cj-radio) 0 0; transition: color .15s ease, background-color .15s ease; }
+.fin-nav a:hover { color: var(--cj-hueso); background: rgba(29,29,27,0.04); }
+.fin-nav a[aria-current='page'] { color: var(--cj-hueso); border-bottom-color: var(--cj-laton); background: rgba(190,143,73,0.10); }
+.fin-nav a:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .fin-nav a { transition: none; } }
 
 @media (max-width: 860px) {
   .fin-skwd h2 { font-size: 21px; }

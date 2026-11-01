@@ -6,8 +6,8 @@ import { calcularSaldoCombinado, etiquetaSaldo, INGRESOS_DESDE } from './calculo
 // («Quién recibió») ya leídos de Pagos. No escribe nada y no se mezcla con Gastos, Cuentas, Estado de Resultados ni Dashboard.
 
 // Paleta de gráficos de marca: Gero = Verde Toga, Tomi = Oro Capital (se distinguen también por luminosidad). Nombres de claves sin cambios.
-// Colores sobre el verde de Finanzas del Despacho (1/11/2026)
-const COLOR = { gero: '#9fe3c1', tomi: '#be8f49', neutro: '#f2eadc', gris: '#a99f8b', grilla: 'rgba(242,234,220,0.14)', tinta2: '#cbbfa8' }
+// Colores de la paleta del Despacho (marfil)
+const COLOR = { gero: '#012d25', tomi: '#be8f49', neutro: '#012d25', gris: '#8c8574', grilla: '#e3d9c6', tinta2: '#605747' }
 const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const compacto = (v) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 })}k` : `$${Math.round(v)}`)
 const hoyLocal = () => new Date().toLocaleDateString('en-CA')
@@ -63,7 +63,7 @@ function BarrasSimples({ datos, titulo }) {
       <ResponsiveContainer>
         <BarChart data={datos} margin={{ top: 18, right: 8, left: 0, bottom: 0 }} barCategoryGap="30%">
           <CartesianGrid stroke={COLOR.grilla} vertical={false} />
-          <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: 'rgba(242,234,220,0.35)' }} tickLine={false} interval={0} />
+          <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: '#cdbf9f' }} tickLine={false} interval={0} />
           <YAxis tickFormatter={compacto} tick={{ fill: COLOR.gris, fontSize: 11 }} axisLine={false} tickLine={false} width={46} />
           <Tooltip content={<TooltipSimple />} cursor={{ fill: 'rgba(11,11,11,0.04)' }} />
           <Bar dataKey="usd" fill={COLOR.neutro} radius={[4, 4, 0, 0]} barSize={34} isAnimationActive={false}>
@@ -152,12 +152,12 @@ export default function ResumenPersonales({ gastos, ingresos, errorIngresos, onE
                 <ResponsiveContainer>
                   <BarChart data={r.porMes} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
                     <CartesianGrid stroke={COLOR.grilla} vertical={false} />
-                    <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: 'rgba(242,234,220,0.35)' }} tickLine={false} interval={0} />
+                    <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: '#cdbf9f' }} tickLine={false} interval={0} />
                     <YAxis tickFormatter={compacto} tick={{ fill: COLOR.gris, fontSize: 11 }} axisLine={false} tickLine={false} width={46} />
                     <Tooltip content={<TooltipMes />} cursor={{ fill: 'rgba(11,11,11,0.04)' }} />
                     <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={(v) => <span style={{ color: COLOR.tinta2 }}>{v === 'gero' ? 'Pagó Gero' : 'Pagó Tomi'}</span>} />
-                    <Bar dataKey="gero" stackId="a" fill={COLOR.gero} stroke="#0f4639" strokeWidth={2} barSize={30} isAnimationActive={false} />
-                    <Bar dataKey="tomi" stackId="a" fill={COLOR.tomi} stroke="#0f4639" strokeWidth={2} radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false} />
+                    <Bar dataKey="gero" stackId="a" fill={COLOR.gero} stroke="#fffdf8" strokeWidth={2} barSize={30} isAnimationActive={false} />
+                    <Bar dataKey="tomi" stackId="a" fill={COLOR.tomi} stroke="#fffdf8" strokeWidth={2} radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

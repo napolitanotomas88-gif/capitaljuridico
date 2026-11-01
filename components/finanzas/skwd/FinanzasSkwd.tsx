@@ -12,7 +12,11 @@ import { EstilosFinanzas } from '../Tema'
 import { NavFinanzas } from '../NavFinanzas'
 import { EstilosSkwd } from './estilos'
 import { prepararBase, supabase, supabaseConfigurado } from './supabase'
-import type { VistaSkwd } from './vistas'
+import { VISTAS_SKWD, type VistaSkwd } from './vistas'
+import { SeccionTitulo } from '@/components/ui/SeccionTitulo'
+import { Boton } from '@/components/ui/Boton'
+
+const TITULOS = Object.fromEntries(VISTAS_SKWD) as Record<VistaSkwd, string>
 import Login from './Login'
 import Pagos from './Pagos'
 import Gastos from './Gastos'
@@ -57,36 +61,23 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
   const objetivo = useMemo<Objetivo | null>(() => (vista === 'correcciones' && tabla && id ? { tabla, id: /^\d+$/.test(id) ? Number(id) : id } : null), [vista, tabla, id])
 
   return (
-    <div className="fin-verde fin-fondo" data-theme="dark">
+    <div className="fin-verde fin-fondo">
       <EstilosFinanzas />
       <EstilosSkwd />
-      <div className="max-w-6xl mx-auto px-4 py-5 md:py-8">
-        <header className="flex items-start justify-between flex-wrap gap-3 mb-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">
-              Finanzas <span style={{ color: 'var(--brand-orange)' }}>Capital Jurídico</span>
-            </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {correo ? `Base de Finanzas · ${correo}` : 'Base de Finanzas'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 no-print">
+      <div className="fin-pagina">
+        <SeccionTitulo etiqueta="Finanzas" titulo={TITULOS[vista]} acciones={
+          <div className="fin-acciones no-print">
+            {correo && <span className="cj-texto-2" style={{ fontSize: 13 }}>{correo}</span>}
             {base?.modo === 'login' && sesion && supabase && (
-              <button type="button" onClick={() => supabase?.auth.signOut()} className="fin-sec text-xs font-semibold rounded-lg px-3 py-1.5" style={{ minHeight: 36 }}>
-                Salir de la base
-              </button>
+              <Boton variante="secundario" onClick={() => supabase?.auth.signOut()}>Salir de la base</Boton>
             )}
-            <form method="post" action="/api/finanzas/logout">
-              <button type="submit" className="fin-boton text-xs font-bold rounded-lg px-3 py-1.5" style={{ minHeight: 36 }}>
-                Cerrar Finanzas
-              </button>
-            </form>
+            <form method="post" action="/api/finanzas/logout"><Boton variante="secundario" type="submit">Cerrar Finanzas</Boton></form>
           </div>
-        </header>
+        } />
 
         <NavFinanzas actual={vista} />
 
-        <main className="fin-skwd">
+        <div className="fin-skwd">
           {!supabaseConfigurado ? (
             <div className="aviso-box">
               Falta conectar la base de Finanzas: cargar <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_KEY</code> (clave publicable) en Vercel y volver a publicar.
@@ -107,7 +98,7 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
               {vista === 'personales' && <GastosPersonales />}
             </>
           )}
-        </main>
+        </div>
       </div>
     </div>
   )

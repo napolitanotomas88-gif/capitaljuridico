@@ -33,7 +33,8 @@ const vacio = () => ({
   nota_revision: '',
 })
 
-const QUIENES = ['Gero', 'Tomi', 'Financiera', 'Empresa']
+// «Tomi y Gero»: el efectivo se reparte a medias (Tomás, 1/11/2026); la base lo admite desde ese día
+const QUIENES = ['Gero', 'Tomi', 'Tomi y Gero', 'Financiera', 'Empresa']
 const DESDE_PERSONALES = '2026-10-01' // desde esta fecha los pagos asignados a Gero o Tomi se usarán en Gastos Personales
 const numeros = ['monto_usd']
 const filtrosVacios = { mes: '', concepto: '', fuente: '', closer: '', quien: '', buscar: '', soloRevisar: false }

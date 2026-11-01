@@ -8,8 +8,8 @@ import { calcularDashboard, REGLAS } from './calculoDashboard'
 // No lee Cuentas, Gastos, Gastos Personales ni los datos sensibles del equipo.
 
 // Paleta de gráficos: tonos de la marca (Verde Toga, Oro Capital, Bordó) sobre superficie Marfil. Los nombres de las claves se conservan.
-// Colores sobre el verde de Finanzas del Despacho (1/11/2026; la app original era sobre marfil)
-const COLOR = { principal: '#f2eadc', suave: '#9fe3c1', naranja: '#be8f49', aqua: '#ffb5a9', gris: '#a99f8b', grilla: 'rgba(242,234,220,0.14)', tinta2: '#cbbfa8' }
+// Colores de la paleta del Despacho (marfil)
+const COLOR = { principal: '#012d25', suave: '#9db5ac', naranja: '#be8f49', aqua: '#7f202c', gris: '#8c8574', grilla: '#e3d9c6', tinta2: '#605747' }
 const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmt0 = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR')
 const compacto = (v) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 })}k` : `$${Math.round(v)}`)
@@ -59,11 +59,11 @@ function GraficoBarras({ datos, horizontal = false, colorDe, titulo }) {
           {horizontal ? (
             <>
               <XAxis type="number" tickFormatter={compacto} tick={{ fill: COLOR.gris, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="nombre" width={118} tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: 'rgba(242,234,220,0.35)' }} tickLine={false} interval={0} />
+              <YAxis type="category" dataKey="nombre" width={118} tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: '#cdbf9f' }} tickLine={false} interval={0} />
             </>
           ) : (
             <>
-              <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: 'rgba(242,234,220,0.35)' }} tickLine={false} interval={0} />
+              <XAxis dataKey="nombre" tick={{ fill: COLOR.tinta2, fontSize: 12 }} axisLine={{ stroke: '#cdbf9f' }} tickLine={false} interval={0} />
               <YAxis tickFormatter={compacto} tick={{ fill: COLOR.gris, fontSize: 11 }} axisLine={false} tickLine={false} width={46} />
             </>
           )}
