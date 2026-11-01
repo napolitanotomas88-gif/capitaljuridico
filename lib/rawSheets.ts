@@ -189,6 +189,7 @@ export interface Call {
   telefono: string                      // col B "Número de Contacto" (para el seguimiento de no-shows)
   hora: string                          // "HH:MM" de la call (col D)
   sinRegistro: boolean                  // ocurrió y "¿Se presentó?" quedó vacío (ni en col R ni en la reagenda)
+  precall: 'efectiva' | 'no efectiva' | ''   // col AI "Llamada pre-call" (la marca el pre-caller; existe desde el 21/10/2026)
   // true = figuraba cerrada pero el cliente pagó solo el fee (< UMBRAL_CLIENTE_USD en total, TC < umbral y
   // no está ACTIVO/PAUSADO en el CRM) → closed = false (queda como presentada). Ausente si no aplica.
   soloFee?: boolean
@@ -1157,7 +1158,8 @@ async function construirRawData(ligero = false): Promise<RawData> {
     // Las 4 hojas de closers (hasta col AB: situación, cash y reagendas) — FORMATTED (fecha como texto), SIN cortar la fila 1
     // ⚠️ El layout difiere entre pestañas (Closer 1/2 tienen "FUPs Show Up" extra que corre
     // "Situación del Lead" de la T a la U) — por eso las columnas volátiles se resuelven por header.
-    ...CLOSER_TABS.map(({ tab }) => ({ id: VENTAS, range: `${tab}!A:AB`, conHeader: false })),
+    // Hasta AI: "Llamada pre-call" (Efectiva / No efectiva) para la tasa del pre-call del Resumen
+    ...CLOSER_TABS.map(({ tab }) => ({ id: VENTAS, range: `${tab}!A:AI`, conHeader: false })),
   ]
 
   // Fetch all data in parallel (Sheets agrupado + APIs externas con su propia caché)
@@ -1735,6 +1737,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
     const situCol = hFind('situaci', 19)              // T en Closer 3/Gero, U en Closer 1/2
     const tcCol   = hFind('cash collected trato cerrado', -1)  // Y en Closer 1/2, X en Closer 3/Gero
     const d1Col   = hFind('cash collected d', -1)               // "Cash Collected Día 1"
+    const precallCol = hFind('llamada pre-call', 34)            // AI en las 6 pestañas
     for (const row of rows) {
       const parsed = parseCallDate(row[3])          // col D = Día y Fecha de la Call
       if (!parsed || parsed.date.getFullYear() !== YEAR) continue
@@ -1759,6 +1762,8 @@ async function construirRawData(ligero = false): Promise<RawData> {
       const situacion = (row[situCol] ?? '').toString().trim().toLowerCase()   // Situación del Lead
       const situacionCerrada = situacion === 'cerrado en llamada' || situacion === 'cerrado en seguimiento'
       const channel = classifyCanal(row)
+      const precallRaw = (row[precallCol] ?? '').toString().trim().toLowerCase()
+      const precall = precallRaw === 'efectiva' || precallRaw === 'no efectiva' ? precallRaw : ''
 
       // Cash FECCU del cliente matcheado contra el Registro de Pagos (nombre o teléfono),
       // deduplicado para que el FECCU de cada cliente cuente una sola vez.
@@ -1812,7 +1817,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
         lead: (row[0] ?? '').toString().trim(),
         telefono: (row[1] ?? '').toString().trim(),
         hora: `${String(dateTime.getHours()).padStart(2, '0')}:${String(dateTime.getMinutes()).padStart(2, '0')}`,
-        sinRegistro, ...(soloFee ? { soloFee } : {}) })
+        sinRegistro, precall, ...(soloFee ? { soloFee } : {}) })
     }
   }
   // Segunda pasada del cash FECCU: fila cerrada más reciente > ocurrida más reciente > la más reciente
@@ -2395,7 +2400,8 @@ async function construirRawData(ligero = false): Promise<RawData> {
   return {
     transactions,
     calls,
-    closerNames,
+    // También los closers de las hojas de llamadas: uno nuevo sin cobros todavía (Nahuel, Brenda) tiene que poder filtrarse
+    closerNames: [...new Set([...closerNames, ...calls.map(c => c.closer)])].sort(),
     monthlyLabels: MONTH_LABELS,
     monthlyCash,
     monthlyAgendadas,

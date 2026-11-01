@@ -15,7 +15,7 @@ import { KpiBoard } from '@/components/KpiBoard'
 import { AdsReport, AdsDaily, AdsCampaign, AdsAd } from '@/components/AdsReport'
 import { AnalystPanel } from '@/components/AnalystPanel'
 import { LeadSourceChart, type EmbudoPago } from '@/components/LeadSourceChart'
-import { fmtMoneda, gastosCompletos, baseOcurridas, pct, primerosPagosFeccu } from '@/components/tablero'
+import { fmtMoneda, gastosCompletos, baseOcurridas, pct, primerosPagosFeccu, resumenPrecall } from '@/components/tablero'
 import type { RawSerializada } from '@/lib/serializeRaw'
 import { LOGIN_VUELTA_AL_RESUMEN, leerJsonDeDatos } from '@/lib/auth/datosResumen'
 
@@ -271,6 +271,7 @@ export default function Dashboard() {
   const showUpRate = pct(llamadasPres, agBaseTasas)   // null si no hay ocurridas registradas
   const tasaCierre = pct(unidadesCerr, agBaseTasas)
   const subSinRegistro = agSinRegistro > 0 ? ` · ${agSinRegistro} sin registrar` : ''
+  const precall = resumenPrecall(periodCalls)
 
   // ── LEADS CRUDOS (solo en modo mes y sin filtro de persona:
   //    las visitas GA4/ManyChat son globales, no por closer) ──────────
@@ -779,6 +780,15 @@ export default function Dashboard() {
                   { label: 'Tasa de Show Up', value: showUpRate, format: 'percent', sub: `efectivas / ocurridas registradas${subSinRegistro}` },
                   { label: 'Tasa de Cierre s/ presentada', value: llamadasPres > 0 ? (unidadesCerr / llamadasPres) * 100 : null, format: 'percent' },
                   { label: 'Tasa de Calificación', value: llamadasAg > 0 ? (llamadasCalif / llamadasAg) * 100 : null, format: 'percent', sub: 'calificadas / agendadas' },
+                ]},
+                // Col AI "Llamada pre-call" de las hojas de closers (existe desde el 21/10/2026: antes todo queda "sin resultado")
+                { title: 'Llamada del pre-call', items: [
+                  { label: 'Pre-call efectiva', value: precall.pctEfectiva, format: 'percent', sub: `${precall.efectivas} de ${precall.total} agendadas` },
+                  { label: 'Pre-call no efectiva', value: precall.pctNoEfectiva, format: 'percent', sub: `${precall.noEfectivas} de ${precall.total} agendadas` },
+                  { label: 'Sin resultado', value: precall.pctSinResultado, format: 'percent', sub: `${precall.sinResultado} sin cargar · col AI desde el 21/10`,
+                    tone: precall.total > 0 && precall.sinResultado / precall.total > 0.2 ? 'warn' : undefined },
+                  { label: 'Efectividad del pre-call', value: precall.efectividad, format: 'percent', highlight: true,
+                    sub: `efectivas ÷ con resultado (${precall.efectivas + precall.noEfectivas})` },
                 ]},
               ]}
             />
