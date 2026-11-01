@@ -8,6 +8,7 @@
 // sigue, hasta MAX_PAUSAS o hasta el tope de tiempo. Igual que claude.ts: beta con fallbacks «default», thinking adaptativo,
 // streaming, sin reintentos del SDK; 429/5xx/conexión salen como ErrorTransitorio. Solo servidor.
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude } from '@/lib/ia/cliente'
 import { ErrorTransitorio } from '@/lib/fathomAnuncios/errores'
 import { claveClaude, modeloConfigurado, esPasajero, motivoApi, esfuerzoDe } from '../kickoff/claude'
 import { fichaParaIdeas } from '../kickoff/ideas'
@@ -47,7 +48,7 @@ export async function analizarMercado(ficha: ExtraccionKickoff, op: { topeMs: nu
   const apiKey = claveClaude()
   if (!apiKey) throw new Error('falta ANTHROPIC_API_KEY (o BOT_ANTHROPIC_API_KEY)')
   const fin = Date.now() + op.topeMs
-  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: op.topeMs, ...(op.fetch ? { fetch: op.fetch } : {}) })
+  const client = crearClienteClaude({ apiKey, maxRetries: 0, timeout: op.topeMs, ...(op.fetch ? { fetch: op.fetch } : {}), origen: 'guiones-mercado' })
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = [{ role: 'user', content: ['<ficha>', fichaParaIdeas(ficha), '</ficha>', 'Armá el análisis de mercado de este cliente.'].join('\n') }]
   const usage: Uso = { input_tokens: 0, output_tokens: 0 }
   let busquedas = 0, modelo = '', texto = ''

@@ -4,6 +4,7 @@
 // Mismo patrón que lib/fathomAnuncios/extraer.ts: streaming, fallback del servidor, stop_reason antes de leer.
 import 'server-only'
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude, viaMac } from '@/lib/ia/cliente'
 import { ARQUETIPOS, DESCRIPCION_ARQUETIPOS, type Angulo } from './catalogo'
 import type { AnalisisLlamada, AnalisisSetting } from './modelo'
 
@@ -15,8 +16,8 @@ const textoONull = { type: ['string', 'null'] }
 const fechaONull = { type: ['string', 'null'], description: 'YYYY-MM-DD o null' }
 
 async function claudeJSON<T>(system: string, user: string, schema: Record<string, unknown>): Promise<T> {
-  if (!process.env.ANTHROPIC_API_KEY?.trim()) throw new Error('falta ANTHROPIC_API_KEY')
-  const client = new Anthropic({ maxRetries: 1, timeout: TOPE_MS })
+  if (!viaMac() && !process.env.ANTHROPIC_API_KEY?.trim()) throw new Error('falta ANTHROPIC_API_KEY')
+  const client = crearClienteClaude({ maxRetries: 1, timeout: TOPE_MS, origen: 'trazabilidad' })
   const stream = client.beta.messages.stream(
     {
       model: modelo(),

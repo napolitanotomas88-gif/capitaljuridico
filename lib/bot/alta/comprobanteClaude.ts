@@ -13,6 +13,7 @@
 //   · Errores: 429, 5xx, 529 y conexión → ErrorTransitorio (el motor reintenta); el resto, Error común.
 //   · Sin reintentos del SDK (maxRetries 0) y con tope de 45 s.
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude, viaMac } from '@/lib/ia/cliente'
 import { ErrorTransitorio } from '../../fathomAnuncios/errores'
 import { MODELO_DIRECCION, claveClaudeDireccion } from './direccionClaude'
 import { SCHEMA_COMPROBANTE, SISTEMA_COMPROBANTE, formatoComprobante, leerSalida, type SalidaComprobante } from './comprobante'
@@ -50,12 +51,13 @@ export async function leerComprobanteConClaude(medio: Pick<MedioDescargado, 'bas
   const fmt = formatoComprobante(medio.mime, medio.bytes, null)
   if (!fmt.ok) throw new Error(`formato no soportado: ${fmt.motivo}`)
   const modelo = op.modelo ?? modeloComprobante()
-  const tope = op.topeMs ?? TOPE_COMPROBANTE_MS
+  // En la Mac tarda más (arranque de `claude -p`); si no llega, el motor reintenta y el puente reusa el mismo pedido
+  const tope = op.topeMs ?? (viaMac() ? 150_000 : TOPE_COMPROBANTE_MS)
   let cliente = op.cliente
   if (!cliente) {
     const apiKey = op.apiKey ?? claveClaudeDireccion()
     if (!apiKey) throw new Error('falta BOT_ANTHROPIC_API_KEY (o ANTHROPIC_API_KEY)')
-    cliente = new Anthropic({ apiKey, maxRetries: 0, timeout: tope }) as unknown as ClienteClaudeVision
+    cliente = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'alta-comprobante' }) as unknown as ClienteClaudeVision
   }
   const adjunto = fmt.tipo === 'image'
     ? { type: 'image', source: { type: 'base64', media_type: fmt.mime, data: medio.base64.replace(/\s/g, '') } }

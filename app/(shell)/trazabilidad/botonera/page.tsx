@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { viaMac } from '@/lib/ia/cliente'
 import { exigirAcceso } from '@/lib/auth/sesion'
 import { Cifra, SeccionTitulo } from '@/components/ui'
 import { clavesFathom } from '@/lib/trazabilidad/fathom'
@@ -30,7 +31,7 @@ export default async function BotoneraPage() {
         <Cifra tamano="media" etiqueta="Clave de la botonera" valor={ok(!!process.env.TRAZABILIDAD_KEY?.trim())} contexto="TRAZABILIDAD_KEY en Vercel" />
         <Cifra tamano="media" etiqueta="Fathom" valor={fathom.length ? `${fathom.length} cuenta${fathom.length > 1 ? 's' : ''}` : 'Falta'} contexto={errorFathom || (fathom.length ? fathom.join(', ') : 'FATHOM_API_KEYS (una clave por closer)')} />
         <Cifra tamano="media" etiqueta="ManyChat" valor={ok(manychatConfigurado())} contexto="MANYCHAT_API_KEY (etiquetas de cada cierre)" />
-        <Cifra tamano="media" etiqueta="Claude" valor={ok(!!process.env.ANTHROPIC_API_KEY?.trim())} contexto="ANTHROPIC_API_KEY" />
+        <Cifra tamano="media" etiqueta="Claude" valor={ok(viaMac() || !!process.env.ANTHROPIC_API_KEY?.trim())} contexto={viaMac() ? "en la Mac (plan)" : "ANTHROPIC_API_KEY"} />
         <Cifra tamano="media" etiqueta="Base de datos" valor={ok(configurada())} contexto="Neon (DATABASE_URL)" />
       </div>
 

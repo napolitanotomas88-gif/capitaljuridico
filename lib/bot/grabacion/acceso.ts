@@ -63,6 +63,6 @@ export function estadoVariables(env: Entorno): Record<string, boolean | string> 
     EDICION_EQUIPO_DRIVE: hay('EDICION_EQUIPO_DRIVE'),
     EDICION_FECHA_CORTE: /^\d{4}-\d{2}-\d{2}$/.test(env.EDICION_FECHA_CORTE?.trim() ?? '') ? env.EDICION_FECHA_CORTE!.trim() : false,
     DISCORD_WEBHOOK_EDICION: hay('DISCORD_WEBHOOK_EDICION'),
-    CLAUDE: hay('BOT_ANTHROPIC_API_KEY') || hay('ANTHROPIC_API_KEY'),
+    CLAUDE: hay('CLAUDE_VIA') || hay('BOT_ANTHROPIC_API_KEY') || hay('ANTHROPIC_API_KEY'),
   }
 }

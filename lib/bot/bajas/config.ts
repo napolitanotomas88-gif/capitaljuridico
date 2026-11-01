@@ -131,7 +131,7 @@ export function faltantesBajas(env: NodeJS.ProcessEnv = process.env): string[] {
   if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
   if (!c.aprobadores.length) f.push('BOT_ALTA_APROBADORES')
   if ((tiene('baja_mensaje_cliente') || tiene('baja_recontacto')) && !c.calendlyUrl) f.push('BAJA_CALENDLY_URL')
-  if (tiene('baja_fathom') && !(env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')
+  if (tiene('baja_fathom') && !(env.CLAUDE_VIA?.trim() === 'mac' || env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')
   if (tiene('baja_fathom') && !env.FATHOM_API_KEY_TOMAS?.trim()) f.push('FATHOM_API_KEY_TOMAS')
   if ((tiene('baja_aviso_skool') || tiene('baja_recontacto')) && !env.DISCORD_WEBHOOK_CLIENTES?.trim()) f.push('DISCORD_WEBHOOK_CLIENTES')
   if (tiene('baja_aviso_skool') && !env.DISCORD_ID_AYLU?.trim()) f.push('DISCORD_ID_AYLU')

@@ -102,7 +102,7 @@ export function faltantesExito(env: NodeJS.ProcessEnv = process.env): string[] {
   if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
   if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
   if (!c.aprobadores.length) f.push('BOT_ALTA_APROBADORES')
-  if (!(env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')
+  if (!(env.CLAUDE_VIA?.trim() === 'mac' || env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')
   if (c.capacidades.has('exito_testimonio') && !env.DISCORD_WEBHOOK_CLIENTES?.trim()) f.push('DISCORD_WEBHOOK_CLIENTES')
   if (c.capacidades.has('encuesta_mensual') && !env.SHEET_ID_CLIENTES?.trim()) f.push('SHEET_ID_CLIENTES')
   if (c.capacidades.has('encuesta_mensual') && !env.SHEET_ID_TYPEFORM?.trim()) f.push('SHEET_ID_TYPEFORM')

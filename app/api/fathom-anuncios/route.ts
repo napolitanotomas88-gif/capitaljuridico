@@ -1,4 +1,5 @@
 import { NextResponse, after } from 'next/server'
+import { viaMac } from '@/lib/ia/cliente'
 import { accesoMaquina } from '@/lib/auth/acceso'
 import { SECRETO_MAL_CONFIGURADO, verificarFirma } from '@/lib/fathomAnuncios/firma'
 import { validarReunion } from '@/lib/fathomAnuncios/tipos'
@@ -131,7 +132,7 @@ export async function GET(req: Request) {
   if (!accesoMaquina(req.headers)) return json({ error: 'no autorizado' }, 401)
   if (new URL(req.url).searchParams.get('reintentar') === '1') return cronReintentos()
   const configurado = {
-    anthropic: !!process.env.ANTHROPIC_API_KEY?.trim(),
+    anthropic: viaMac() || !!process.env.ANTHROPIC_API_KEY?.trim(),
     firma_fathom: !!process.env.FATHOM_WEBHOOK_SECRET?.trim(),
     discord: !!webhookDiscord(),
     valentino: !!idDiscord(process.env.DISCORD_ID_VALENTINO),

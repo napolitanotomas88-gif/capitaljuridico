@@ -6,6 +6,7 @@
 // La decisión de Claude NUNCA da de baja a nadie: "no_renueva" o "dudoso" abren un pedido de confirmación en Verificaciones.
 // Una "no_renueva" con confianza baja se trata como "dudoso".
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude } from '@/lib/ia/cliente'
 import { MODELO_DIRECCION, claveClaudeDireccion } from '@/lib/bot/alta/direccionClaude'
 import { MAX_TRANSCRIPCION } from './config'
 
@@ -76,7 +77,7 @@ export async function clasificarLlamadaConClaude(p: Parameters<ClasificarLlamada
   if (!cliente) {
     const apiKey = op.apiKey ?? claveClaudeDireccion()
     if (!apiKey) throw new Error('falta BOT_ANTHROPIC_API_KEY (o ANTHROPIC_API_KEY)')
-    cliente = new Anthropic({ apiKey, maxRetries: 0, timeout: tope })
+    cliente = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'bajas' })
   }
   const usuario = `<llamada cliente="${p.cliente.replace(/"/g, "'")}" fecha="${p.fecha}">\n${p.resumen ? `<resumen_fathom>\n${p.resumen.slice(0, 4_000)}\n</resumen_fathom>\n` : ''}<transcripcion>\n${transcripcion}\n</transcripcion>\n</llamada>`
   let msg: Awaited<ReturnType<Anthropic['messages']['create']>>
