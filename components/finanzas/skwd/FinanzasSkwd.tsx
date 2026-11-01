@@ -1,23 +1,20 @@
 'use client'
 // Finanzas SKWD dentro del Despacho (1/11/2026, pedido de Tomás: «va a ir todo dentro de finanzas»). Las pantallas son las
-// de la app original (React + Vite, base Supabase con permisos RLS por correo), con el verde de Finanzas. El acceso es el
-// de /finanzas (contraseña de Finanzas o administrador con Google) y la base entra con el correo de la sesión del Despacho:
-// el servidor firma el token (/api/finanzas/base, pedido de Tomás del 1/11: «no hace falta la contraseña»). Solo si falta
-// SUPABASE_JWT_SECRET se pide el usuario de la base, como en la app original.
+// de la app original; los datos, desde el 1/11 en Neon (esquema finanzas, misma base del Despacho): ./supabase.js manda
+// cada consulta a /api/finanzas/db, que firma con el correo de la sesión del Despacho. El acceso es el de /finanzas
+// (contraseña de Finanzas o administrador con Google); no hay otro inicio de sesión.
 // "Corregir" en cualquier pantalla lleva a /finanzas/correcciones?tabla=…&id=… con el registro ya elegido.
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { Session } from '@supabase/supabase-js'
 import { EstilosFinanzas } from '../Tema'
 import { NavFinanzas } from '../NavFinanzas'
 import { EstilosSkwd } from './estilos'
-import { prepararBase, supabase, supabaseConfigurado } from './supabase'
+import { prepararBase } from './supabase'
 import { VISTAS_SKWD, type VistaSkwd } from './vistas'
 import { SeccionTitulo } from '@/components/ui/SeccionTitulo'
 import { Boton } from '@/components/ui/Boton'
 
 const TITULOS = Object.fromEntries(VISTAS_SKWD) as Record<VistaSkwd, string>
-import Login from './Login'
 import Pagos from './Pagos'
 import Gastos from './Gastos'
 import Equipo from './Equipo'
@@ -34,26 +31,13 @@ const CorreccionesConObjetivo = Correcciones as unknown as (p: { objetivo: Objet
 export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
   const router = useRouter()
   const params = useSearchParams()
-  const [sesion, setSesion] = useState<Session | null>(null)
-  const [base, setBase] = useState<{ modo: 'token' | 'login' | 'sin_config'; correo: string | null } | null>(null)
-
+  const [base, setBase] = useState<{ modo: 'token' | 'sin_config' | 'sin_acceso'; correo: string | null } | null>(null)
   useEffect(() => {
     let vivo = true
-    let desuscribir = () => {}
-    prepararBase().then((b) => {
-      if (!vivo) return
-      // Solo en el modo login (falta SUPABASE_JWT_SECRET) hay sesión propia de la base
-      const cliente = supabase
-      if (b.modo === 'login' && cliente) {
-        cliente.auth.getSession().then(({ data }) => { if (vivo) { setSesion(data.session); setBase(b) } })
-        const { data } = cliente.auth.onAuthStateChange((_e, s) => setSesion(s))
-        desuscribir = () => data.subscription.unsubscribe()
-      } else setBase(b)
-    })
-    return () => { vivo = false; desuscribir() }
+    prepararBase().then((b) => { if (vivo) setBase(b) })
+    return () => { vivo = false }
   }, [])
-  const adentro = base?.modo === 'token' || (base?.modo === 'login' && !!sesion)
-  const correo = base?.modo === 'token' ? base.correo : sesion?.user.email ?? null
+  const correo = base?.correo ?? null
 
   const irACorregir = (o: Objetivo) => router.push(`/finanzas/correcciones?tabla=${encodeURIComponent(o.tabla)}&id=${encodeURIComponent(String(o.id))}`)
   const tabla = params.get('tabla'), id = params.get('id')
@@ -68,9 +52,6 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
         <SeccionTitulo etiqueta="Finanzas" titulo={TITULOS[vista]} acciones={
           <div className="fin-acciones no-print">
             {correo && <span className="cj-texto-2" style={{ fontSize: 13 }}>{correo}</span>}
-            {base?.modo === 'login' && sesion && supabase && (
-              <Boton variante="secundario" onClick={() => supabase?.auth.signOut()}>Salir de la base</Boton>
-            )}
             <form method="post" action="/api/finanzas/logout"><Boton variante="secundario" type="submit">Cerrar Finanzas</Boton></form>
           </div>
         } />
@@ -78,14 +59,12 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
         <NavFinanzas actual={vista} />
 
         <div className="fin-skwd">
-          {!supabaseConfigurado ? (
-            <div className="aviso-box">
-              Falta conectar la base de Finanzas: cargar <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_KEY</code> (clave publicable) en Vercel y volver a publicar.
-            </div>
-          ) : !base ? (
+          {!base ? (
             <p className="gris">Cargando…</p>
-          ) : !adentro ? (
-            <Login />
+          ) : base.modo === 'sin_config' ? (
+            <div className="aviso-box">Falta conectar la base de Finanzas (DATABASE_URL en Vercel).</div>
+          ) : base.modo === 'sin_acceso' ? (
+            <div className="aviso-box">No se pudo abrir la base de Finanzas: volvé a entrar a Finanzas.</div>
           ) : (
             <>
               {vista === 'pagos' && <Pagos onCorregir={irACorregir} />}
