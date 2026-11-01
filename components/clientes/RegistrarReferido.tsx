@@ -78,7 +78,7 @@ export function RegistrarReferido({ referidor, opciones = [], momentos, hoy }: P
             </div>
           )}
           {campo('nombre', 'Nombre del referido', { required: true, autoComplete: 'off', maxLength: 120 })}
-          {campo('telefono', 'Teléfono', { required: true, inputMode: 'tel', autoComplete: 'off', placeholder: '+54 9 351 555 1234' }, 'Con código de país si lo sabés. Sirve para no cargar dos veces a la misma persona.')}
+          {campo('telefono', 'Teléfono (opcional si todavía no lo tenés)', { inputMode: 'tel', autoComplete: 'off', placeholder: '+54 9 351 555 1234' }, 'Con código de país si lo sabés. Si no lo tenés, dejalo vacío y completalo después en la planilla. Sirve para no cargar dos veces a la misma persona.')}
           {campo('mail', 'Mail (opcional)', { type: 'email', autoComplete: 'off', maxLength: 120 })}
           {campo('estudio', 'Estudio del referido', { required: true, autoComplete: 'off', maxLength: 120 }, 'Tiene que ser distinto al del cliente que refiere.')}
           <div className="cj-formulario__campo">

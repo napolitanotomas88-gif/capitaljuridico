@@ -71,7 +71,7 @@ export function planillaReal(): Planilla {
         const id = String(f[0] ?? '').trim()
         if (id) {
           ultima = i + 1
-          existentes.push({ id, idReferidor: String(f[3] ?? '').trim().toUpperCase(), digitos: digitosDe(f[5]), fechaPedido: ymd(f[1]) as ReferidoExistente['fechaPedido'], momento: String(f[2] ?? '').trim(), idClienteNuevo: String(f[10] ?? '').trim().toUpperCase() })
+          existentes.push({ id, idReferidor: String(f[3] ?? '').trim().toUpperCase(), digitos: digitosDe(f[5]), fechaPedido: ymd(f[1]) as ReferidoExistente['fechaPedido'], momento: String(f[2] ?? '').trim(), idClienteNuevo: String(f[10] ?? '').trim().toUpperCase(), nombre: String(f[4] ?? '').trim() })
         }
       })
       return { existentes, primeraFilaLibre: ultima + 2 } // +1 por A2 (la fila 1 es el encabezado) y +1 por la siguiente

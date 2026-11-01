@@ -224,3 +224,14 @@ describe('privacidad, llave y entorno', () => {
     assert.match(sql, /fila\s+integer\s+NOT NULL UNIQUE/); assert.doesNotMatch(sql, /\b(nombre|telefono|mail|estudio|email)\b\s+(text|varchar)/i)
   })
 })
+
+describe('sin teléfono (vacío o de relleno): cada alta tiene su propia reserva', () => {
+  test('dos altas del mismo cliente sin teléfono no chocan en la base ni se toman como la misma persona', async () => {
+    const db = baseFalsa(), p = planillaFalsa()
+    const a = await alta(db, p, { ...base, telefono: '', nombre: 'Persona Uno', claveEnvio: 's1' })
+    const b = await alta(db, p, { ...base, telefono: '+54 000000000', nombre: 'Persona Dos', claveEnvio: 's2' })
+    assert.equal(a.estado, 'guardado'); assert.equal(b.estado, 'guardado'); assert.notEqual(a.id, b.id); assert.equal(p.escrituras.length, 2)
+    const c = await alta(db, p, { ...base, telefono: '+54 000000000', nombre: 'Persona Dos', claveEnvio: 's2' })   // reintento del mismo envío
+    assert.equal(c.id, b.id); assert.equal(p.escrituras.length, 2)
+  })
+})

@@ -46,8 +46,18 @@ export function normalizarTelefono(v: unknown): { telefono: string; digitos: str
   return { telefono: (crudo.startsWith('+') ? '+' : '') + digitos, digitos }
 }
 
-/** Los últimos 8 dígitos: sirven para reconocer el mismo número con o sin código de país (+54 9…). */
-export const claveTelefono = (digitos: string): string => (digitos.length >= 8 ? digitos.slice(-8) : '')
+/** Los últimos 8 dígitos: sirven para reconocer el mismo número con o sin código de país (+54 9…).
+ *  Un número de relleno (los últimos 8 dígitos iguales: "+54 000000000", "11111111") NO identifica a nadie: devuelve '' y no se compara. */
+export const claveTelefono = (digitos: string): string => {
+  const k = digitos.length >= 8 ? digitos.slice(-8) : ''
+  return /^(\d)\1{7}$/.test(k) ? '' : k
+}
+
+/** Sin teléfono o con uno de relleno: todavía no se sabe el número real (se carga igual y se completa después). */
+export const esTelefonoProvisorio = (digitos: string): boolean => digitos.length === 0 || (digitos.length >= 8 && claveTelefono(digitos) === '')
+
+/** Nombre comparable: sin mayúsculas, tildes ni espacios de más. Sirve para no duplicar un referido cargado sin teléfono. */
+const nombreComparable = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
 const MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 // Una celda de texto que empiece con estos caracteres se interpretaría como fórmula si alguien la copia a otra planilla
@@ -61,8 +71,11 @@ export function validarAlta(e: EntradaAlta, hoy: Ymd): { ok: true; alta: AltaLim
   const nombre = txt(e.nombre, 120)
   if (nombre.length < 3) errores.nombre = 'Escribí el nombre del referido (al menos 3 letras).'
 
-  const { telefono, digitos } = normalizarTelefono(e.telefono)
-  if (digitos.length < 8 || digitos.length > 15) errores.telefono = 'El teléfono tiene que tener entre 8 y 15 dígitos, con código de país si lo sabés.'
+  const normal = normalizarTelefono(e.telefono)
+  // Sin número todavía (vacío o de relleno, p. ej. "+54 000000000") se carga igual, sin teléfono, y se completa en la planilla después
+  const provisorio = esTelefonoProvisorio(normal.digitos)
+  const { telefono, digitos } = provisorio ? { telefono: '', digitos: '' } : normal
+  if (!provisorio && (digitos.length < 8 || digitos.length > 15)) errores.telefono = 'El teléfono tiene que tener entre 8 y 15 dígitos, con código de país si lo sabés. Si todavía no lo tenés, dejalo vacío.'
 
   const mail = txt(e.mail, 120).toLowerCase()
   if (mail && !MAIL.test(mail)) errores.mail = 'El mail no parece válido. Dejalo vacío si no lo tenés.'
@@ -90,7 +103,7 @@ export function validarAlta(e: EntradaAlta, hoy: Ymd): { ok: true; alta: AltaLim
 }
 
 // ── Lo que ya hay en la planilla (lo trae el escritor con una lectura fresca) ───────────────────────
-export interface ReferidoExistente { id: string; idReferidor: string; digitos: string; fechaPedido: Ymd | null; momento: string; idClienteNuevo?: string }
+export interface ReferidoExistente { id: string; idReferidor: string; digitos: string; fechaPedido: Ymd | null; momento: string; idClienteNuevo?: string; nombre?: string }
 export interface ClienteExistente { id: string; estado: string; digitos: string; mail: string }
 
 export type Decision =
@@ -114,6 +127,12 @@ export function decidirAlta(alta: AltaLimpia, referidos: ReferidoExistente[], cl
   const mismoNumero = referidos.filter(r => k !== '' && claveTelefono(r.digitos) === k)
   const propio = mismoNumero.find(r => r.idReferidor === alta.idReferidor)
   if (propio) return { tipo: 'duplicado', id: propio.id }
+  // Sin teléfono no hay con qué comparar: el mismo cliente que refiere con el mismo nombre se toma como la misma persona (doble envío)
+  if (k === '') {
+    const n = nombreComparable(alta.nombre)
+    const mismoNombre = referidos.find(r => r.idReferidor === alta.idReferidor && !!r.nombre && nombreComparable(r.nombre) === n)
+    if (mismoNombre) return { tipo: 'duplicado', id: mismoNombre.id }
+  }
   if (mismoNumero.length) {
     return { tipo: 'rechazado', codigo: 'otro_referidor', mensaje: `Ese teléfono ya fue presentado por otro cliente (${mismoNumero[0].id}). No se carga de nuevo; si corresponde, se resuelve a mano.` }
   }
