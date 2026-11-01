@@ -29,12 +29,20 @@ export function Entradas({ d }: P) {
         <Barra key={c.k} label={c.label} valor={e.porCuenta[c.k]} max={maxCta}
           texto={`${fmtUsd(e.porCuenta[c.k])} · ${e.cantPorCuenta[c.k]} pagos`} />
       ))}
+      {e.fuenteCuenta === 'app' && (
+        <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+          Según «quién recibió» cargado en la app de Finanzas. «Tomi y Gero» (efectivo) se reparte mitad y mitad; «Empresa» se muestra como Relay.
+        </p>
+      )}
       {e.fuenteCuenta === 'comprobantes' && (
         <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
           Según los comprobantes revisados de julio a septiembre de 2026 (el Registro no tiene este dato). “Otras cuentas” = Pagos Rio / LOHAS, efectivo, dLocal Go, Asociación Mutual de Escribanos y otras que no son de Tomi, de Gero ni Relay.
         </p>
       )}
-      {!e.fuenteCuenta && (
+      {!e.fuenteCuenta && d.fuente === 'app' && (
+        <Aviso>No se sabe a qué cuenta entraron los pagos de este mes: no tienen «quién recibió» cargado en la app de Finanzas (ni comprobante revisado).</Aviso>
+      )}
+      {!e.fuenteCuenta && d.fuente !== 'app' && (
         <Aviso>No se sabe a qué cuenta entraron los pagos de este mes: el Registro de Pagos no tiene ese dato (solo julio a septiembre de 2026 están revisados con los comprobantes). Falta decidir cómo registrarlo.</Aviso>
       )}
     </Seccion>

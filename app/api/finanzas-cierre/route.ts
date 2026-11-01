@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { leerDatosFinanzas, calcularMes, escribirEnGastos } from '@/lib/finanzas'
-import { armarMensajeCierre, esVisperaDeFinDeMes, gastosConPlan, planAnunciosMeta, type PlanMeta } from '@/lib/finanzasCierre'
+import { armarMensajeCierre, esVisperaDeFinDeMes, gastosAppConPlan, gastosConPlan, planAnunciosMeta, planAnunciosMetaApp, type PlanMeta, type PlanMetaApp } from '@/lib/finanzasCierre'
+import { cargarEstimadoMetaEnApp } from '@/lib/finanzasApp'
 import { sendDiscord } from '@/lib/discord'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,8 @@ export const maxDuration = 60
 // Automatización de fin de mes de Finanzas. Cron diario de Vercel (10:00 AR) que SOLO actúa cuando
 // mañana (hora AR) es el último día del mes:
 //   1) carga en Gastos el gasto de Meta del mes como estimado (sin duplicar; si ya hay anuncios reales, no carga);
+//      desde el 1/11/2026 («pasa todo a la app», Tomás) también en la app de Finanzas (finanzas.gastos, fila web firmada
+//      como el cierre), con su propio plan sobre los gastos de la app. Si una de las dos escrituras falla, la otra sigue;
 //   2) manda el aviso de cierre a Tomi y Gero por Discord (DISCORD_WEBHOOK_FINANZAS, canal privado #finanzas).
 // ?preview=1 → no escribe ni envía: devuelve lo que haría (también fuera del día de cierre).
 // ?forzar=1  → corre aunque no sea el día. ?mes=YYYY-MM solo se acepta con preview.
@@ -23,6 +26,14 @@ function textoMeta(plan: PlanMeta, escrito: { ok: boolean; error?: string } | nu
   if (escrito && !escrito.ok) return `⚠️ no pude cargar el estimado de Meta (${fmt(plan.monto)}) en Gastos: ${escrito.error}. Cargarlo a mano o con lo cobrado en Relay.`
   if (plan.accion === 'agregar') return `cargué el estimado de Meta ${fmt(plan.monto)} en la fila ${plan.fila} ("ADS" con fecha ${plan.fecha.split('-').reverse().join('/')}, marcada como estimado). Reemplazar el monto con el Facebook cobrado en Relay y dejar el concepto "ADS".`
   return `actualicé el estimado de Meta de la fila ${plan.fila}: ${fmt(plan.montoAnterior)} → ${fmt(plan.monto)}. Reemplazarlo con el Facebook cobrado en Relay.`
+}
+function textoMetaApp(plan: PlanMetaApp, escrito: { ok: boolean; error?: string; duplicado?: boolean } | null): string {
+  const fmt = (n: number) => `US$ ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (plan.accion === 'nada') return plan.motivo
+  if (escrito && !escrito.ok) return `⚠️ no pude cargar el estimado de Meta (${fmt(plan.monto)}) en la app: ${escrito.error}. Cargarlo a mano en la app.`
+  if (escrito?.duplicado) return `el estimado de Meta (${fmt(plan.monto)}) ya estaba cargado en la app.`
+  if (plan.accion === 'agregar') return `cargué en la app el estimado de Meta ${fmt(plan.monto)} (gasto "ADS" del ${plan.fecha.split('-').reverse().join('/')}, marcado como estimado). Reemplazarlo con el Facebook cobrado en Relay.`
+  return `actualicé en la app el estimado de Meta: ${fmt(plan.montoAnterior)} → ${fmt(plan.monto)}. Reemplazarlo con el Facebook cobrado en Relay.`
 }
 
 export async function GET(req: Request) {
@@ -45,8 +56,10 @@ export async function GET(req: Request) {
     const mesParam = url.searchParams.get('mes')
     const mes = preview && mesParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(mesParam) ? mesParam : datos.hoy.slice(0, 7)
 
-    // 1) Estimado de Meta en Gastos
-    const plan = planAnunciosMeta(datos.hojas.gastos, mes, datos.hoy, datos.metaSpend[mes])
+    // 1) Estimado de Meta en Gastos (planilla; si no se pudo leer, no se escribe a ciegas)
+    const plan: PlanMeta = datos.hojasOk
+      ? planAnunciosMeta(datos.hojas.gastos, mes, datos.hoy, datos.metaSpend[mes])
+      : { accion: 'nada', motivo: 'No se pudo leer la planilla: no se escribió el estimado en la pestaña Gastos.' }
     let escrito: { ok: boolean; error?: string; rango?: string } | null = null
     if (!preview && plan.accion !== 'nada') {
       try {
@@ -60,26 +73,45 @@ export async function GET(req: Request) {
         console.error('finanzas-cierre: no se pudo escribir en Gastos:', msg)
       }
     }
+    // 1b) El mismo estimado en la app de Finanzas (plan propio sobre los gastos de la app)
+    const planApp: PlanMetaApp | null = datos.app ? planAnunciosMetaApp(datos.app.gastos, mes, datos.hoy, datos.metaSpend[mes]) : null
+    let escritoApp: { ok: boolean; error?: string; id?: number | null; duplicado?: boolean } | null = null
+    if (!preview && planApp && planApp.accion !== 'nada') {
+      try {
+        const r = await cargarEstimadoMetaEnApp(planApp.accion === 'agregar'
+          ? { accion: 'agregar', fecha: planApp.fecha, concepto: planApp.concepto, monto: planApp.monto }
+          : { accion: 'actualizar', id: planApp.id, monto: planApp.monto })
+        escritoApp = { ok: true, ...r }
+      } catch (e) {
+        const msg = (e as Error).message ?? 'error'
+        escritoApp = { ok: false, error: msg.slice(0, 160) }
+        console.error('finanzas-cierre: no se pudo escribir en la app:', msg)
+      }
+    }
     // El mensaje se calcula con la fila ya cargada (en preview, simulada)
     const gastos = plan.accion !== 'nada' && (preview || escrito?.ok) ? gastosConPlan(datos.hojas.gastos, plan) : datos.hojas.gastos
-    const f = calcularMes(datos, mes, gastos)
+    const gastosApp = datos.app && planApp && planApp.accion !== 'nada' && (preview || escritoApp?.ok) ? gastosAppConPlan(datos.app.gastos, planApp) : undefined
+    const f = calcularMes(datos, mes, { gastosHoja: gastos, gastosApp })
 
     // 2) Aviso a Discord
     const ids = (process.env.DISCORD_MENTION_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean)
     const mencion = (ids.length ? ids : MENCIONES_POR_DEFECTO).map(i => `<@${i}>`).join(' ')
-    const partes = armarMensajeCierre(f, { mencion, resultadoMeta: textoMeta(plan, escrito), urlFinanzas: URL_FINANZAS, hoy: datos.hoy })
+    const resultadoMeta = planApp
+      ? `${textoMetaApp(planApp, escritoApp)} Planilla: ${textoMeta(plan, escrito)}`
+      : textoMeta(plan, escrito)
+    const partes = armarMensajeCierre(f, { mencion, resultadoMeta, urlFinanzas: URL_FINANZAS, hoy: datos.hoy, fuente: datos.fuente })
     const webhook = process.env.DISCORD_WEBHOOK_FINANZAS
-    const base = { hoy: datos.hoy, mes, tocaHoy, forzado: forzar && !tocaHoy, planMeta: plan, metaMes: datos.metaSpend[mes] ?? null, avisos: f.avisos }
+    const base = { hoy: datos.hoy, mes, tocaHoy, forzado: forzar && !tocaHoy, fuente: datos.fuente, planMeta: plan, planMetaApp: planApp, metaMes: datos.metaSpend[mes] ?? null, avisos: f.avisos }
 
     if (preview)
-      return NextResponse.json({ ...base, preview: true, escribiria: plan.accion !== 'nada', webhookConfigurado: !!webhook, mensaje: partes.join('\n\n') }, { headers })
+      return NextResponse.json({ ...base, preview: true, escribiria: plan.accion !== 'nada', escribiriaApp: !!planApp && planApp.accion !== 'nada', webhookConfigurado: !!webhook, mensaje: partes.join('\n\n') }, { headers })
 
     // Sin webhook propio NO se cae al canal general: el aviso tiene datos financieros
     const envio = webhook
       ? await sendDiscord(partes, webhook)
       : { enviado: false, mensajes: 0, error: 'Falta DISCORD_WEBHOOK_FINANZAS: el aviso no se envió (no se usa el canal general)' }
-    const ok = envio.enviado && (escrito == null || escrito.ok)
-    return NextResponse.json({ ...base, escrito, envio }, { status: ok ? 200 : 500, headers })
+    const ok = envio.enviado && (escrito == null || escrito.ok) && (escritoApp == null || escritoApp.ok)
+    return NextResponse.json({ ...base, escrito, escritoApp, envio }, { status: ok ? 200 : 500, headers })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500, headers })
   }
