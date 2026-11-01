@@ -165,6 +165,21 @@ test('si los chips no cambian, el Doc queda publicado y se avisa igual (se cambi
   const sin = publicador({ marcarChips: async () => { throw new Error('No debe llamarse sin guiones') } })
   await publicarParaEntrega(7, Date.now() + 1000, sin.deps); assert.deepEqual(sin.log, ['resolver', 'escribir', 'guardar', 'notificar'])
 })
+test('d05: con los chips en «Para grabar», los videos entran a Edición antes de avisar; si falla, se publica igual', async () => {
+  const altas = []
+  for (const altaEdicion of [async (f, doc, tanda) => { altas.push([f.id_crm, doc, tanda]); return { modo: 'real', altas: ['T2-V1'], actualizados: [], frenadas: 0, pospuestos: [], avisos: [] } }, async () => { throw new Error('Neon caído') }]) {
+    const a = publicador({ marcarChips: async () => { a.log.push('chips'); return { estado: 'ok', cambiados: 6 } }, altaEdicion: async (...x) => { a.log.push('edicion'); return altaEdicion(...x) } })
+    a.deps.leer = async () => ({ ...fila, guiones: { 1: {} }, ...(a.guardado ?? {}) })
+    const guardar = a.deps.guardar; a.deps.guardar = async (i, doc) => { await guardar(i, doc); a.guardado = { doc } }
+    await publicarParaEntrega(7, Date.now() + 1000, a.deps)
+    assert.deepEqual(a.log, ['resolver', 'escribir', 'guardar', 'chips', 'edicion', 'notificar'])
+  }
+  assert.deepEqual(altas, [['A149', ID, 2]])
+  const sinChips = publicador({ marcarChips: async () => ({ estado: 'pendiente', motivo: 'sin acción' }), altaEdicion: async () => { throw new Error('No debe llamarse sin los chips en «Para grabar»') } })
+  sinChips.deps.leer = async () => ({ ...fila, guiones: { 1: {} }, ...(sinChips.guardado ?? {}) })
+  const g = sinChips.deps.guardar; sinChips.deps.guardar = async (i, doc) => { await g(i, doc); sinChips.guardado = { doc } }
+  await publicarParaEntrega(7, Date.now() + 1000, sinChips.deps); assert.deepEqual(sinChips.log, ['resolver', 'escribir', 'guardar', 'notificar'])
+})
 test('sin reserva o con respuesta dudosa no publica ni entrega el link', async () => {
   const a = publicador({ reservar: async () => false }); await publicarParaEntrega(7, 1, a.deps); assert.equal(a.log.length, 0)
   const b = publicador({ escribir: async () => ({ estado: 'dudoso', motivo: 'timeout' }) }); await publicarParaEntrega(7, 1, b.deps); assert.deepEqual(b.log, ['resolver', 'dudoso'])
