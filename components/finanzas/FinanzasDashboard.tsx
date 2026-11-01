@@ -4,6 +4,8 @@ import type { FinanzasApi } from '@/lib/finanzas'
 import { EstilosFinanzas } from './Tema'
 import { Aviso, Tile, fmtPct, fmtUsd } from './ui'
 import { Comisiones, Entradas, Gastos, Monotributo, Reparto, Revisar } from './Secciones'
+import { NavFinanzas } from './NavFinanzas'
+import { EstilosSkwd } from './skwd/estilos'
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const etiquetaCorta = (mes: string) => `${MESES_CORTOS[Number(mes.slice(5, 7)) - 1]} ${mes.slice(2, 4)}`
@@ -61,6 +63,10 @@ export function FinanzasDashboard() {
             </form>
           </div>
         </header>
+
+        {/* Pestañas: Resumen y las pantallas de la base de Finanzas SKWD (1/11/2026) */}
+        <EstilosSkwd />
+        <NavFinanzas actual="resumen" />
 
         {/* Selector de mes */}
         {d && (
