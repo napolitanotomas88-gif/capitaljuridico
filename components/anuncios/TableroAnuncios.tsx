@@ -11,6 +11,7 @@ import { COLOR, colorDe, Corriendo, Enlaces, Estado, GuionEstado, NivelCPL, Sald
 import { nombreDia } from '@/lib/anuncios/feriados'
 import { RecuentoMeta } from './Recuento'
 import { PanelPorLanzar } from './PorLanzar'
+import { NotasCliente } from './NotasCliente'
 import { filasDelPeriodo, ordenarCPL, type PeriodoCPL, type OrdenCPL } from '@/lib/anuncios/vista'
 
 type FiltroEstado = 'sin_gasto' | 'todos' | 'error' | 'rojo' | 'amarillo' | 'verde'
@@ -254,6 +255,7 @@ export function TableroAnuncios() {
       <PanelCompetencia filas={datos.filas} alRevisar={() => void cargar(false)} />
       <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
       <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} />
+      <NotasCliente />
       <GuionesAGrabar filas={datos.filas} />
 
       {/* ── Avisos (Meta limita, token, sheets) ── */}

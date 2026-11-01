@@ -23,6 +23,7 @@ TANDA 2°
 HOOK: ¿Te deben horas extra?
 PROBLEMA: No te las pagan.
 CTA: Escribime.`
+const AMPLIO = 'Un lunes te llaman a la oficina y te dicen que no vuelvas.\nTe dan un papel con números que no entendés y te apuran para que firmes.\nLo que no te dicen es que muchas liquidaciones vienen mal hechas: antigüedad, preaviso, vacaciones, aguinaldo.\nUna firma apurada puede costarte meses de sueldo.\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes.'
 const COPY = '¿Te despidieron sin causa? ⬇️\nSi firmás la liquidación sin revisarla, podés perder plata que te corresponde por antigüedad, preaviso o sueldo.\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes algo que después no puedas reclamar.'
 
 describe('copys: qué guion es de qué video', () => {
@@ -45,15 +46,25 @@ describe('copys: qué guion es de qué video', () => {
     assert.equal(C.copyValido('Una sola línea sin flecha'), null)
     assert.equal(C.copyValido('Gancho sin flecha\nProblema largo que no sirve para nada en este caso concreto de prueba.\nEnviame un mensaje 💬 y te ayudo.'), null)
   })
-  test('videosConCopy: con doc arma cada copy; sin doc o si Claude falla, sin copy y con aviso', async () => {
-    const s = { numero: 1, videos: [{ id: 'a', nombre: 'Cliente 1.mp4' }, { id: 'b', nombre: 'Cliente 2.mp4' }] }
-    let r = await C.videosConCopy(s, 'doc', { exportarTexto: async () => DOC, escribir: async () => COPY })
-    assert.deepEqual(r.videos.map(v => [v.drive, v.guion, !!v.copy]), [['a', 'T1-V1', true], ['b', 'T1-V2', true]])
-    assert.equal(r.aviso, null)
-    r = await C.videosConCopy(s, null, { exportarTexto: async () => DOC, escribir: async () => COPY })
-    assert.match(r.aviso, /no encontré el doc/)
-    r = await C.videosConCopy(s, 'doc', { exportarTexto: async () => DOC, escribir: async () => { throw new Error('sin clave') } })
-    assert.equal(r.videos.filter(v => v.copy).length, 0); assert.match(r.aviso, /ningún video sin copy/)
+  test('3:2:2: textos válidos (amplio + directo, 2 títulos distintos)', () => {
+    assert.deepEqual(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), { textos: [AMPLIO, COPY], titulos: ['Escribime hoy', 'Vemos tu caso'] })
+    assert.equal(C.textosValidos({ amplio: COPY, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)   // el amplio no puede ser el directo
+    assert.equal(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'escribime hoy' }), null)
+    assert.equal(C.textosValidos({ amplio: AMPLIO, directo: 'sin molde', titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)
+  })
+  test('gruposConTextos: de a 3 en orden, un pedido por anuncio; sin doc o si Claude falla, sin textos y con aviso', async () => {
+    const s = { numero: 1, videos: [4, 2, 1, 3].map(i => ({ id: `v${i}`, nombre: `Cliente ${i}.mp4` })) }
+    const T = { textos: [AMPLIO, COPY], titulos: ['Escribime hoy', 'Vemos tu caso'] }
+    const pedidos = []
+    let r = await C.gruposConTextos(s, 'doc', { exportarTexto: async () => DOC, escribir: async gs => { pedidos.push(gs.map(g => g.ref)); return T } })
+    assert.deepEqual(r.grupos.map(g => g.videos.map(v => v.drive)), [['v1', 'v2', 'v3'], ['v4']])
+    assert.equal(pedidos.length, 1); assert.deepEqual(pedidos[0].slice(0, 2), ['T1-V1', 'T1-V2'])   // un pedido a Claude por anuncio; el video 4 no tiene guion
+    assert.match(r.aviso, /1 de 2 anuncios sin textos/)
+    assert.deepEqual(r.grupos[0].textos, T.textos)
+    r = await C.gruposConTextos(s, null, { exportarTexto: async () => DOC, escribir: async () => T })
+    assert.match(r.aviso, /no encontré el doc/); assert.equal(r.grupos.length, 2)
+    r = await C.gruposConTextos(s, 'doc', { exportarTexto: async () => DOC, escribir: async () => { throw new Error('sin clave') } })
+    assert.equal(r.grupos.filter(g => g.textos.length).length, 0); assert.match(r.aviso, /ningún anuncio sin textos/)
   })
 })
 
@@ -98,7 +109,8 @@ describe('armarLanzamiento', () => {
   }
   const pl = { cliente: 'Ana Pérez', acceso: 'si', kickoff }
   const s = { numero: 1, videos: [] }
-  const vids = [{ nombre: 'Ana 1.mp4', drive: 'd1', copy: COPY, guion: 'T1-V1' }, { nombre: 'Ana 2.mp4', drive: 'd2', copy: COPY, guion: 'T1-V2' }]
+  // 2 anuncios 3:2:2 (de un video cada uno, para probar la regla con 2 conjuntos)
+  const vids = [1, 2].map(i => ({ videos: [{ nombre: `Ana ${i}.mp4`, drive: `d${i}` }], textos: [AMPLIO, COPY], titulos: ['Escribime hoy', 'Vemos tu caso'], guiones: [`T1-V${i}`] }))
   function meta(o = {}) {
     const posts = [], tipos = {}; let n = 0
     const graph = {
@@ -125,7 +137,7 @@ describe('armarLanzamiento', () => {
     assert.equal(camp.status, 'PAUSED'); assert.equal(camp.objective, 'OUTCOME_ENGAGEMENT'); assert.equal(camp.is_adset_budget_sharing_enabled, false)
     assert.equal(camp.name, 'Laboral | DM-WPP | ABO | 28/10/26 [USD 300/MES]')
     const sets = m.posts.filter(p => p[0] === 'act_7/adsets').map(p => p[1])
-    assert.equal(sets.length, 2)   // 2 × 3,5 × 4 = 28 = 9 % de 300 → uno por video
+    assert.equal(sets.length, 2)   // 2 × 3,5 × 4 = 28 = 9 % de 300 → uno por anuncio
     for (const x of sets) {
       assert.equal(x.status, 'PAUSED'); assert.equal(x.daily_budget, String(Math.round(3.5 * 1500 * 100)))
       assert.equal(x.destination_type, 'WHATSAPP'); assert.equal(x.optimization_goal, 'CONVERSATIONS')
@@ -170,7 +182,7 @@ describe('armarLanzamiento', () => {
   })
   test('no arma: sin copy, cuenta inactiva, página ambigua o zona sin ubicar (y no crea nada)', async () => {
     for (const [o, v, re] of [
-      [{}, [{ ...vids[0], copy: null }], /falta el copy/],
+      [{}, [{ ...vids[0], textos: [], titulos: [] }], /faltan los textos/],
       [{ estado: 2 }, vids, /no está activa/],
       [{ paginas: [{ id: '1', name: 'A' }, { id: '2', name: 'B' }] }, vids, /qué página/],
     ]) {

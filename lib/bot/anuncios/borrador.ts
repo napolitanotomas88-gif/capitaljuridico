@@ -6,7 +6,8 @@
 //     activo que más gastó. Del conjunto se copian la zona, las edades, las ubicaciones, el objetivo y el destino; del
 //     anuncio, la página, Instagram, el botón de WhatsApp, el mensaje de bienvenida y las mejoras de Meta (sin
 //     standard_enhancements: Meta ya no lo acepta) y el copy (⚠️ es el del ganador: Valen lo ajusta al video).
-//   · Crea: los videos (por link de Drive), 1 conjunto nuevo con todos juntos y 1 anuncio por video, TODO con status PAUSED.
+//   · Crea: los videos (por link de Drive), los conjuntos (uno con todo o uno por anuncio) y 1 anuncio flexible por cada
+//     3 videos (método 3:2:2, copys.ts: 3 videos + 2 textos + 2 títulos, sin descripción), TODO con status PAUSED.
 //     Sin attribution_spec (con este objetivo Meta solo acepta la ventana por defecto).
 //   · APAGADO por defecto: solo con ANUNCIOS_BORRADOR=real; ANUNCIOS_BORRADOR_SOLO=<act_…,act_…> lo limita a esas cuentas.
 // Token: META_ANUNCIOS_TOKEN (usuario de Gero A en dashboard-skwd, con ads_management), en la cabecera, nunca en la URL ni
@@ -102,16 +103,20 @@ export interface Borrador {
   conjuntoId: string; conjunto: string; anuncios: string[]   // el primero (compatibilidad con el texto de una sola línea)
 }
 export interface DepsBorrador { graph: Graph; esperar(ms: number): Promise<void>; ahora(): number }
-/** Cómo se arma: un conjunto con todos los videos o uno por video (regla de Tomás, plan.ts) y el diario de CADA conjunto. */
-export interface EstructuraBorrador { porVideo: boolean; diarioUSD: number }
-/** Un video a cargar: el archivo de Drive y, si se pudo escribir desde el guion, su copy (copys.ts). */
-export interface VideoBorrador { nombre: string; drive: string; copy: string | null; guion: string | null }
+/** Cómo se arma: un conjunto con todos los anuncios o uno por anuncio (regla de Tomás, plan.ts) y el diario de CADA conjunto. */
+export interface EstructuraBorrador { porAnuncio: boolean; diarioUSD: number }
+/** Método 3:2:2: videos por anuncio. */
+export const TAMANO_322 = 3
+export const cantidadAnuncios = (videos: number) => Math.max(1, Math.ceil(videos / TAMANO_322))
+/** Un anuncio a cargar: sus videos de Drive (hasta 3) y, si se pudieron escribir desde los guiones, los 2 textos y los 2 títulos (copys.ts). */
+export interface GrupoBorrador { videos: { nombre: string; drive: string }[]; textos: string[]; titulos: string[]; guiones: string[] }
 
 const ddmm = (ms: number) => new Date(ms).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
 const ddmmaa = (ms: number) => new Date(ms).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: '2-digit' })
 export const sinExtension = (s: string) => s.replace(/\.[a-z0-9]{2,4}$/i, '')
 /** El nombre del anuncio = el gancho del copy (su primera línea, sin flechas ni emojis al final), como los nombra Valen. */
 export const nombreAnuncio = (copy: string, n: number) => `${n}- ${copy.split('\n')[0].replace(/[\s⬇️⚠️🚨💬👇]+$/u, '').trim().slice(0, 80)}`
+const numeroOVideo = (nombre: string) => sinExtension(nombre).match(/(\d{1,2})(?:\s*-\s*\d{1,2})?\s*$/)?.[1] ?? sinExtension(nombre)
 const usdTxt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 })
 
 /** El error de Meta cuando la página no tiene WhatsApp vinculado (pasó con dos clientes el 27/10). */
@@ -129,7 +134,7 @@ export interface PlantillaAnuncio { page_id: string; instagram_user_id?: string;
 export async function crearEnPausa(cuenta: string, x: {
   campana: { id: string; name: string } | { crear: string }
   conjunto: PlantillaConjunto; anuncio: PlantillaAnuncio
-  videos: VideoBorrador[]; estructura: EstructuraBorrador; tanda: number | null; diarioLocal: number
+  grupos: GrupoBorrador[]; estructura: EstructuraBorrador; tanda: number | null; diarioLocal: number
 }, deps: DepsBorrador, deadline: number): Promise<Borrador> {
   // Cada pedido respeta el tiempo que queda; un copy lento no puede iniciar escrituras fuera del plazo del cron.
   const conTiempo = () => { if (deps.ahora() + TOPE_PEDIDO_MS > deadline) throw new Error('se acabó el tiempo para armar el borrador en Meta') }
@@ -139,10 +144,10 @@ export async function crearEnPausa(cuenta: string, x: {
   }
   const faltan: string[] = []
   // 1) Videos (Meta los baja de Drive: la carpeta «Clientes» está compartida por enlace)
-  const vids: { nombre: string; id: string; v: VideoBorrador }[] = []
-  for (const v of x.videos) {
+  const vids: { nombre: string; id: string; grupo: number }[] = []
+  for (const [i, gr] of x.grupos.entries()) for (const v of gr.videos) {
     const r = await g.post(`${cuenta}/advideos`, { name: sinExtension(v.nombre), file_url: `https://drive.usercontent.google.com/download?id=${v.drive}&export=download&confirm=t` })
-    vids.push({ nombre: sinExtension(v.nombre), id: String(r.id), v })
+    vids.push({ nombre: sinExtension(v.nombre), id: String(r.id), grupo: i })
   }
   for (const v of vids) {
     for (;;) {
@@ -158,14 +163,15 @@ export async function crearEnPausa(cuenta: string, x: {
   const campana = 'crear' in x.campana
     ? { id: String((await g.post(`${cuenta}/campaigns`, { name: x.campana.crear, objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: [], buying_type: 'AUCTION', status: 'PAUSED', is_adset_budget_sharing_enabled: false })).id), name: x.campana.crear }
     : x.campana
-  // 3) Conjuntos en pausa: uno por video o uno con todos
+  // 3) Conjuntos en pausa: uno por anuncio o uno con todos
   const t = x.conjunto.targeting
-  const grupos = x.estructura.porVideo ? vids.map(v => [v]) : [vids]
+  const anunciosDe = x.grupos.map((gr, i) => ({ gr, vs: vids.filter(v => v.grupo === i) }))
+  const grupos = x.estructura.porAnuncio ? anunciosDe.map(a => [a]) : [anunciosDe]
   const edad = `${t.age_min ?? 18}-${t.age_max ?? 65}`
   const conjuntos: ConjuntoBorrador[] = []
   let n = 0
   for (const [i, grupo] of grupos.entries()) {
-    const nombre = `${x.estructura.porVideo ? `${i + 1}- ` : ''}Broad | ${x.conjunto.zona} | ${edad} | USD ${usdTxt(x.estructura.diarioUSD)}/día | Tanda ${x.tanda ?? '?'} | ${nueva ? ddmmaa(deps.ahora()) : ddmm(deps.ahora())}`
+    const nombre = `${x.estructura.porAnuncio ? `${i + 1}- ` : ''}Broad | ${x.conjunto.zona} | ${edad} | USD ${usdTxt(x.estructura.diarioUSD)}/día | Tanda ${x.tanda ?? '?'} | ${nueva ? ddmmaa(deps.ahora()) : ddmm(deps.ahora())}`
     let set: Json
     try {
       set = await g.post(`${cuenta}/adsets`, {
@@ -177,18 +183,32 @@ export async function crearEnPausa(cuenta: string, x: {
       if (sinWhatsApp(String((e as Error).message))) throw new Error(MOTIVO_SIN_WHATSAPP)
       throw e
     }
-    // 4) Un anuncio por video, en pausa: el copy del guion, o el del molde con aviso
+    // 4) Un anuncio flexible por cada grupo de videos, en pausa (3:2:2): los textos de los guiones, o el copy del molde con aviso
     const anuncios: string[] = []
-    for (const v of grupo) {
+    for (const { gr, vs } of grupo) {
       n++
-      const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
-      const uri = ((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri
-      const vd: Json = { ...x.anuncio.video_data, video_id: v.id, image_url: uri, ...(v.v.copy ? { message: v.v.copy } : {}) }
+      const miniaturas: string[] = []
+      for (const v of vs) {
+        const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
+        miniaturas.push(((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri)
+      }
+      // El directo (el molde de siempre) va de texto principal; el amplio y el segundo título, como variantes
+      const directo = gr.textos[1] ?? gr.textos[0]
+      const vd: Json = { ...x.anuncio.video_data, video_id: vs[0].id, image_url: miniaturas[0], ...(directo ? { message: directo } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
       delete vd.image_hash
-      const nombreAd = v.v.copy ? nombreAnuncio(v.v.copy, n) : v.nombre
+      delete vd.link_description   // 3:2:2: sin descripciones
+      const textos = gr.textos.length ? [directo, ...gr.textos.filter(z => z !== directo)] : vd.message ? [vd.message] : []
+      const titulos = gr.titulos.length ? gr.titulos : vd.title ? [vd.title] : []
+      const flexible = vs.length > 1 || textos.length > 1 || titulos.length > 1
+      const nombreAd = directo ? nombreAnuncio(directo, n) : vs.length === 1 ? vs[0].nombre : `${n}- ${vs.map(v => v.nombre).join(' + ').slice(0, 80)}`
       const cr = await g.post(`${cuenta}/adcreatives`, {
-        name: `${v.nombre} · Tanda ${x.tanda ?? '?'}`,
+        name: `${vs.map(v => v.nombre).join(' + ')} · Tanda ${x.tanda ?? '?'}`,
         object_story_spec: { page_id: x.anuncio.page_id, ...(x.anuncio.instagram_user_id ? { instagram_user_id: x.anuncio.instagram_user_id } : {}), video_data: vd },
+        ...(flexible ? { asset_feed_spec: {
+          videos: vs.map((v, i) => ({ video_id: v.id, thumbnail_url: miniaturas[i] })),
+          ...(textos.length ? { bodies: textos.map(text => ({ text })) } : {}), ...(titulos.length ? { titles: titulos.map(text => ({ text })) } : {}),
+          ad_formats: ['AUTOMATIC_FORMAT'], optimization_type: 'DEGREES_OF_FREEDOM',
+        } } : {}),
         degrees_of_freedom_spec: { creative_features_spec: x.anuncio.mejoras }, contextual_multi_ads: { enroll_status: 'OPT_OUT' },
       })
       const ad = await g.post(`${cuenta}/ads`, { name: nombreAd, adset_id: set.id, creative: { creative_id: cr.id }, status: 'PAUSED' })
@@ -205,10 +225,14 @@ export async function crearEnPausa(cuenta: string, x: {
     const chk = await g.get(c.id, { fields: 'status,ads{status}' })
     if (chk.status !== 'PAUSED' || ((chk.ads?.data ?? []) as Json[]).some(a => a.status !== 'PAUSED')) throw new Error(`¡el conjunto ${c.id} no quedó en pausa! Revisalo ya`)
   }
-  const sinCopy = vids.filter(v => !v.v.copy).map(v => v.nombre)
-  if (sinCopy.length) faltan.push(`${sinCopy.length === vids.length ? 'el copy' : `el copy de ${sinCopy.join(', ')}`} es el del anuncio ganador: ajustalo al video`)
-  const conGuion = vids.filter(v => v.v.copy && v.v.guion).map(v => `${v.nombre} ← ${v.v.guion}`)
-  if (conGuion.length) faltan.push(`copys escritos desde el guion (${conGuion.join(' · ')}): confirmá que cada guion sea el de su video`)
+  const nAd = (i: number) => `anuncio ${i + 1}`
+  const sinTextos = x.grupos.map((gr, i) => (gr.textos.length ? null : nAd(i))).filter(Boolean)
+  if (sinTextos.length) faltan.push(`${sinTextos.length === x.grupos.length ? 'el copy' : `el copy del ${sinTextos.join(', ')}`} es el del anuncio ganador: escribí los 2 textos y los 2 títulos`)
+  const cortos = x.grupos.map((gr, i) => (gr.videos.length < TAMANO_322 ? `el ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
+  if (cortos.length) faltan.push(`3:2:2 pide 3 videos por anuncio y ${cortos.join(', ')}: sumale de la próxima tanda o dejalo así`)
+  if (x.grupos.length) faltan.push(`agrupé los videos de a 3 en orden (${x.grupos.map((gr, i) => `${nAd(i)}: ${gr.videos.map(v => numeroOVideo(v.nombre)).join('-')}`).join(' · ')}): confirmá que cada anuncio junte videos de la misma idea`)
+  const conGuion = x.grupos.map((gr, i) => (gr.textos.length && gr.guiones.length ? `${nAd(i)} ← ${gr.guiones.join(', ')}` : null)).filter(Boolean)
+  if (conGuion.length) faltan.push(`textos escritos desde el guion (${conGuion.join(' · ')}): confirmá que sean los de sus videos`)
   const act = cuenta.replace(/^act_/, '')
   return {
     campana: campana.name, campanaId: campana.id, nueva, conjuntos, diarioLocal: x.diarioLocal, diarioUSD: x.estructura.diarioUSD, faltan,
@@ -218,7 +242,7 @@ export async function crearEnPausa(cuenta: string, x: {
 }
 
 /** Rotación: el molde es la propia cuenta (conjunto y anuncio que más gastan). */
-export async function armarBorrador(s: Subida, fila: FilaAnuncio, videos: VideoBorrador[], estructura: EstructuraBorrador, deps: DepsBorrador, deadline: number): Promise<Borrador> {
+export async function armarBorrador(s: Subida, fila: FilaAnuncio, grupos: GrupoBorrador[], estructura: EstructuraBorrador, deps: DepsBorrador, deadline: number): Promise<Borrador> {
   if (!fila.usdPor) throw new Error('no tengo la cotización de la moneda de la cuenta')
   const m = await leerMolde(deps.graph, fila.id)
   const c = m.conjunto, oss = m.anuncio.creative.object_story_spec
@@ -228,6 +252,6 @@ export async function armarBorrador(s: Subida, fila: FilaAnuncio, videos: VideoB
     campana: m.campana,
     conjunto: { billing_event: c.billing_event, optimization_goal: c.optimization_goal, destination_type: c.destination_type, bid_strategy: c.bid_strategy, promoted_object: c.promoted_object, targeting: c.targeting ?? {}, zona: zonaDeNombre(String(c.name ?? '')) ?? zonaDe(c.targeting) },
     anuncio: { page_id: oss.page_id, instagram_user_id: oss.instagram_user_id, video_data: oss.video_data, mejoras },
-    videos, estructura, tanda: s.numero, diarioLocal: montoMeta(estructura.diarioUSD, fila.usdPor, fila.moneda),
+    grupos, estructura, tanda: s.numero, diarioLocal: montoMeta(estructura.diarioUSD, fila.usdPor, fila.moneda),
   }, deps, deadline)
 }

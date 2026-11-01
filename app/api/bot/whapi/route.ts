@@ -4,6 +4,7 @@ import { clienteWhapiDesdeEntorno } from '@/lib/bot/whapi'
 import { reenviarGuionesReal } from '@/lib/bot/whapi/guiones'
 import { procesarExitoReal } from '@/lib/bot/exito/servidor'
 import { procesarBajasReal } from '@/lib/bot/bajas/servidor'
+import { procesarNotasReal } from '@/lib/bot/anuncios/notasServidor'
 import { FRENO_BARRIDO, atenderEstado, atenderWebhook } from '@/lib/bot/whapi/ruta'
 
 export const dynamic = 'force-dynamic'
@@ -21,11 +22,13 @@ export const runtime = 'nodejs'
 //     los pedidos de testimonio, en after(). Nace en seco (BOT_EXITO_MODO); BOT_EXITO=no la apaga del todo.
 //     Y la etapa Bajas (lib/bot/bajas/*, docs/BOT-BAJAS-CJ.md): los OK / NO citando sus pedidos en Verificaciones, en after().
 //     Nace en seco (BOT_BAJAS_MODO); BOT_BAJAS=no la apaga del todo.
+//     Y las notas del cliente para Anuncios (lib/bot/anuncios/notas.ts): lo que el cliente dice de sus anuncios en su grupo,
+//     SOLO lectura, a Anuncios → «Notas del cliente» y aviso a Valen en #📣-ads. ANUNCIOS_NOTAS=0 lo apaga.
 //   · GET con "Authorization: Bearer <CRON_SECRET>": modo, capacidades y los NOMBRES de las variables que faltan.
 // Sin la configuración explícita del modo real (BOT_ALTA_MODO y BOT_ALTA_PASOS_REALES), el motor corre en SECO: no escribe en
 // Sheets, Drive ni PandaDoc y no manda mensajes (la compuerta de lib/bot/whapi/compuerta.ts frena todo lo que sale).
 export async function POST(req: Request) {
-  return atenderWebhook(req, { crearMotor: crearMotorAltas, clienteWhapi: clienteWhapiDesdeEntorno, programar: (tarea) => after(tarea), frenoBarrido: FRENO_BARRIDO, reenviarGuiones: reenviarGuionesReal, procesarExito: procesarExitoReal, procesarBajas: procesarBajasReal })
+  return atenderWebhook(req, { crearMotor: crearMotorAltas, clienteWhapi: clienteWhapiDesdeEntorno, programar: (tarea) => after(tarea), frenoBarrido: FRENO_BARRIDO, reenviarGuiones: reenviarGuionesReal, procesarExito: procesarExitoReal, procesarBajas: procesarBajasReal, procesarNotasAnuncios: procesarNotasReal })
 }
 
 export async function GET(req: Request) {

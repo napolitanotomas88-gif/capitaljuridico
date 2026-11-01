@@ -16,14 +16,14 @@
 //     presupuesto, ficha).
 //   · Con ANUNCIOS_BORRADOR=real, en las rotaciones el aviso llega con el borrador YA ARMADO en Meta, en pausa (g03,
 //     borrador.ts): la propuesta se reemplaza por el link para revisarlo. Si no se pudo armar, va la propuesta y el motivo.
-//     Desde el 27/10: conjunto por video o todos juntos según la regla de Tomás, copy escrito desde el guion (copys.ts) y,
+//     Desde el 27/10 (3:2:2 desde el 1/11: anuncios flexibles de 3 videos): conjunto por anuncio o todos juntos según la regla de Tomás, copy escrito desde el guion (copys.ts) y,
 //     en los lanzamientos con ficha, la campaña nueva entera en pausa (lanzamiento.ts). Si la página no tiene WhatsApp, ⛔.
 // El texto se arma acá (puro); Drive, la base y Discord entran por deps. Con dry no escribe nada. Nunca tira.
 import type { FilaAnuncio, PorLanzar, Tablero } from '@/lib/anuncios/tablero'
 import type { KickoffPorLanzar } from '@/lib/anuncios/porLanzar'
 import { escaparDiscord } from '@/lib/fathomAnuncios/mensaje'
 import { RAMA_CORTA, decidirEstructura } from './plan'
-import { MOTIVO_SIN_WHATSAPP, type Borrador, type EstructuraBorrador } from './borrador'
+import { MOTIVO_SIN_WHATSAPP, cantidadAnuncios, type Borrador, type EstructuraBorrador } from './borrador'
 
 export const CIERRE_HORAS = 12
 export const DIAS_VENTANA = 14                 // más viejo que esto no se avisa nunca (la carpeta se cerró hace rato)
@@ -115,12 +115,12 @@ export function diarioConjunto(f: Pick<FilaAnuncio, 'presupuesto'>): { usd: numb
 }
 
 /**
- * Rotación: un conjunto por video o todos juntos, con la regla de Tomás (plan.ts; sin habitantes se toma la tarifa de
+ * Rotación: un conjunto por anuncio (3:2:2, de a 3 videos) o todos juntos, con la regla de Tomás (plan.ts; sin habitantes se toma la tarifa de
  * zona chica). Por video: cada conjunto a la tarifa de prueba. Juntos: el diario que deja cerrar el mes.
  */
 export function estructuraRotacion(f: Pick<FilaAnuncio, 'presupuesto'>, videos: number): EstructuraBorrador & { motivo: string } {
-  const d = decidirEstructura(f.presupuesto.mensualUSD, null, videos)
-  return d.estructura === 'por_video' ? { porVideo: true, diarioUSD: d.tarifa, motivo: d.motivo } : { porVideo: false, diarioUSD: diarioConjunto(f).usd, motivo: d.motivo }
+  const d = decidirEstructura(f.presupuesto.mensualUSD, null, cantidadAnuncios(videos), 'anuncios')
+  return d.estructura === 'por_video' ? { porAnuncio: true, diarioUSD: d.tarifa, motivo: d.motivo } : { porAnuncio: false, diarioUSD: diarioConjunto(f).usd, motivo: d.motivo }
 }
 
 /** El renglón del armado en Meta (rotación o lanzamiento), o el motivo por el que no se pudo. */
@@ -129,7 +129,7 @@ export function lineaBorrador(b: ResultadoBorrador, diarioUSD: number): { linea:
     ? { linea: `⛔ **No pude armarlo en Meta:** ${MOTIVO_SIN_WHATSAPP}.`, falta: null }
     : { linea: null, falta: `no pude armarlo en Meta (${b.error})` }
   const x = b.ok, n = x.anuncios.length
-  const sets = x.conjuntos.length === 1 ? `1 conjunto «${escaparDiscord(x.conjuntos[0].nombre)}» con ${plural(n, 'anuncio', 'anuncios')}` : `${x.conjuntos.length} conjuntos, uno por video`
+  const sets = x.conjuntos.length === 1 ? `1 conjunto «${escaparDiscord(x.conjuntos[0].nombre)}» con ${plural(n, 'anuncio', 'anuncios')}` : `${x.conjuntos.length} conjuntos, uno por anuncio`
   return { linea: `📝 **Armado en Meta, todo EN PAUSA:** ${x.nueva ? `campaña nueva «${escaparDiscord(x.campana)}»` : `en «${escaparDiscord(x.campana)}»`}, ${sets}, a ${usd(diarioUSD)}/día cada conjunto · [Abrir en el Administrador](<${x.link}>). Revisalo y prendelo vos${x.nueva ? '' : '; el ganador sigue como está'}.`, falta: null }
 }
 
@@ -191,13 +191,16 @@ export function textoVideos(s: Subida, fila: FilaAnuncio | null, porLanzar: PorL
     const mes = fila.presupuesto.mensualUSD
     if (!conBorrador(e.diarioUSD)) {
       const nombre = `Broad | <zona del conjunto activo> | Tanda ${s.numero ?? '?'} | ${ddmm(new Date(ahora).toISOString())}`
-      lineas.push(e.porVideo
-        ? `📋 **Propuesta:** en la misma campaña, ${n} conjuntos nuevos, uno por video («1- ${nombre}»…), a ${usd(e.diarioUSD)}/día cada uno, con la misma zona del conjunto activo; el ganador sigue como está.`
-        : `📋 **Propuesta:** en la misma campaña, 1 conjunto nuevo «${nombre}» con ${n === 1 ? 'el video' : `los ${n} videos juntos`}, a ${usd(e.diarioUSD)}/día, con la misma zona del conjunto activo; el ganador sigue como está${mes != null && d.calculado ? `; así el mes cierra en ~${usd(mes)}` : ''}.`)
+      const a = cantidadAnuncios(n)
+      const ads = a === 1 ? (n === 1 ? '1 anuncio con el video' : `1 anuncio flexible con los ${n} videos`) : `${a} anuncios flexibles de hasta 3 videos`
+      lineas.push(e.porAnuncio
+        ? `📋 **Propuesta:** en la misma campaña, ${a} conjuntos nuevos, uno por anuncio («1- ${nombre}»…), a ${usd(e.diarioUSD)}/día cada uno, con la misma zona del conjunto activo; el ganador sigue como está.`
+        : `📋 **Propuesta:** en la misma campaña, 1 conjunto nuevo «${nombre}» con ${ads}, a ${usd(e.diarioUSD)}/día, con la misma zona del conjunto activo; el ganador sigue como está${mes != null && d.calculado ? `; así el mes cierra en ~${usd(mes)}` : ''}.`)
+      lineas.push('🧩 **3:2:2:** cada anuncio con 3 videos + 2 textos (uno amplio y uno directo) + 2 títulos, sin descripción.')
     }
     lineas.push(`📐 ${escaparDiscord(e.motivo)}`)
     if (mes == null) faltan.push('sin presupuesto mensual cargado: va todo junto, al diario mínimo')
-    else if (!e.porVideo && !d.calculado) faltan.push('no pude medir el gasto del mes: el diario es el mínimo')
+    else if (!e.porAnuncio && !d.calculado) faltan.push('no pude medir el gasto del mes: el diario es el mínimo')
   } else if (porLanzar?.kickoff) {
     lineas.push(...lineasFicha(porLanzar.kickoff))
     if (borrador) conBorrador('ok' in borrador ? borrador.ok.diarioUSD : 0)
