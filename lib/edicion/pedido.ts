@@ -50,6 +50,7 @@ export type PedidoEdicion =
   | { accion: 'ronda_autorizar'; pedido_id: number; version: number }
   | { accion: 'marca_guardar'; id_crm: IdCrm; version: number | null; ficha: unknown }
   | { accion: 'vinculo_confirmar'; carpeta_id: string; id_crm: IdCrm }
+  | { accion: 'lectura_resolver'; lectura_id: number; version: number; estado: 'descartada' | 'usada' }
 
 export type AccionEdicion = PedidoEdicion['accion']
 
@@ -73,6 +74,7 @@ const CAMPOS: Record<AccionEdicion, readonly string[]> = {
   ronda_autorizar: ['accion', 'pedido_id', 'version'],
   marca_guardar: ['accion', 'id_crm', 'version', 'ficha'],
   vinculo_confirmar: ['accion', 'carpeta_id', 'id_crm'],
+  lectura_resolver: ['accion', 'lectura_id', 'version', 'estado'],
 }
 export const ACCIONES_EDICION = Object.keys(CAMPOS) as AccionEdicion[]
 
@@ -333,6 +335,12 @@ export function validarPedido(x: unknown): Validacion<PedidoEdicion> {
       const id = idCrmLimpio(c.id_crm)
       if (!id) return mal('id_crm', 'Falta el cliente (id del CRM).')
       return { ok: true, pedido: { accion, carpeta_id: carpeta, id_crm: id } }
+    }
+    case 'lectura_resolver': {
+      if (!esId(c.lectura_id)) return mal('lectura_id', 'Falta el mensaje del cliente.')
+      if (!esVersion(c.version)) return mal('version', 'Falta la versión que se vio: recargá la página.')
+      if (c.estado !== 'descartada' && c.estado !== 'usada') return mal('estado', 'El mensaje queda "descartada" o "usada".')
+      return { ok: true, pedido: { accion, lectura_id: c.lectura_id, version: c.version, estado: c.estado } }
     }
   }
 }

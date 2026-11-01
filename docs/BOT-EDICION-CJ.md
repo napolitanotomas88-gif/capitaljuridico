@@ -62,8 +62,8 @@ S=$(openssl rand -hex 32); printf '\nASSEMBLYAI_WEBHOOK_SECRETO=%s\n' "$S" >> $A
 7. **EDITOR edita (f01, f02).** Ve su cola (correcciones primero, después prioridad y lo más viejo), marca «Listo» (o acepta el editado que propone el bot) y le avisamos a COORDINACION por lote.
 8. **Correcciones (f03).** COORDINACION deja notas por segundo (17, 1:05 o 1,05) y «Pedir corrección», también con el video ya en el cliente (un error propio no gasta una ronda del cliente). EDITOR tilda cada nota y marca «Corregido».
 9. **Al cliente (f04).** «Está bien: al cliente», de a uno o **la tanda entera**, y **un solo** link final con todos los videos para copiar en el grupo Contenido, con su «Enviado».
-10. **Pedido del cliente (f05, P6).** COORDINACION pega el mensaje; Claude lo separa en notas (o se cargan a mano) y COORDINACION confirma cuáles van. La 3.ª ronda queda esperando el OK de RESPONSABLE_HUB y EDITOR no la ve. Un solo pedido puede esperar a RESPONSABLE_HUB por video.
-11. **OK del cliente (f06, P4).** «El cliente dio el OK», de a uno o para toda la tanda con una sola cita: pasa a *Aprobado* y le avisa a ADS en #ads con los links a los archivos editados.
+10. **Pedido del cliente (f05, P6).** Desde el 1/11 el bot lee el grupo Contenido y arma el pedido solo (`docs/edicion/ENCENDIDO.md`, interruptor `EDICION_LECTURA`); si no, COORDINACION pega el mensaje; Claude lo separa en notas (o se cargan a mano) y COORDINACION confirma cuáles van. La 3.ª ronda queda esperando el OK de RESPONSABLE_HUB y EDITOR no la ve. Un solo pedido puede esperar a RESPONSABLE_HUB por video.
+11. **OK del cliente (f06, P4).** Desde el 1/11 el bot detecta el OK en el grupo Contenido y lo deja para confirmar con un botón (`EDICION_LECTURA`). «El cliente dio el OK», de a uno o para toda la tanda con una sola cita: pasa a *Aprobado* y le avisa a ADS en #ads con los links a los archivos editados.
 
 ## Estados del video
 
@@ -162,7 +162,7 @@ Control: arriba de cada pantalla, "Último vigía hace X". Si pasan más de 2 ho
 
 ## Variables (solo los nombres)
 
-- **Modo:** `EDICION_MODO`, `EDICION_AVISOS`, `EDICION_FECHA_CORTE`.
+- **Modo:** `EDICION_MODO`, `EDICION_AVISOS`, `EDICION_FECHA_CORTE`, `EDICION_LECTURA` (f05/f06, lectura del grupo Contenido), `EDICION_WHATSAPP` y `EDICION_WHATSAPP_DESDE` (f04).
 - **Roles:** `EDICION_REVISOR_AYLU`, `EDICION_REVISOR_TOMAS` (o `KICKOFF_REVISOR_TOMI`), `EDICION_EDITOR_RENE`.
 - **Secretos propios:** `VIGIA_SECRETO`, `ASSEMBLYAI_WEBHOOK_SECRETO` (y `CRON_SECRET`, el de siempre).
 - **AssemblyAI:** `ASSEMBLYAI_API_KEY`, `ASSEMBLYAI_MODELO` (opcional; lista separada por comas, por defecto `universal-3-5-pro,universal-2`), `ASSEMBLYAI_BASE`, `ASSEMBLYAI_MAX_BYTES`.
@@ -256,7 +256,7 @@ Corregido, cada uno con su test (`describe('revisión de la integración, ronda 
 
 ```bash
 for t in test-edicion-estados test-edicion-db test-edicion-vista test-edicion-acciones test-edicion-avisos test-edicion-textos \
-  test-edicion-pedidos test-edicion-marca test-edicion-importar test-grabacion-vigia test-grabacion-guiones \
+  test-edicion-pedidos test-edicion-marca test-edicion-importar test-edicion-contenido test-grabacion-vigia test-grabacion-guiones \
   test-grabacion-transcripcion test-grabacion-comparar test-grabacion-diario test-puente-vigia test-rutas test-accesos test-nav; do
   node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/$t.mjs
 done

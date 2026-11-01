@@ -6,6 +6,9 @@ import { ID_CLIENTE_VALIDO } from '@/lib/clientes/ficha'
 import { baseConfigurada } from '@/lib/edicion/db/base'
 import { leerMarca } from '@/lib/edicion/operativo'
 import { lecturasDe, type PropuestaMarca } from '@/lib/edicion/db/marcaPropuestas'
+import { lecturasDelCliente, type LecturaGuardada } from '@/lib/edicion/db/lecturas'
+import { tienePermiso } from '@/lib/edicion/permisos'
+import { armarLecturas, lecturasAbiertas } from '@/lib/edicion/vistaLecturas'
 import { leerCliente, type DatosCliente } from '@/lib/edicion/operativo'
 import type { FichaMarca } from '@/lib/edicion/tipos'
 import { armarCliente, type EstadoCliente } from '@/lib/edicion/vista'
@@ -17,6 +20,7 @@ import { contextoEdicion, logLectura, type BusquedaPagina } from '../../_compone
 import { Encabezado } from '../../_componentes/Encabezado'
 import { conSufijo } from '../../_componentes/enlaces'
 import { FormMarca } from '../../_componentes/FormMarca'
+import { LecturasCliente } from '../../_componentes/LecturasCliente'
 import { ListaCrudos } from '../../_componentes/ListaCrudos'
 import { Paleta } from '../../_componentes/Paleta'
 import { TextoParaCopiar } from '../../_componentes/TextoParaCopiar'
@@ -44,6 +48,13 @@ const PROPUESTA_DEMO = (idCrm: string): PropuestaMarca => ({
   tipografias: [], nota: 'logo', modelo: '', creado: '2026-10-26T12:00:00Z',
 })
 
+// Modo demo: un OK leído del grupo Contenido (texto inventado)
+const LECTURA_DEMO = (idCrm: string, videoId: number): LecturaGuardada => ({
+  id: 0, id_crm: idCrm, texto: 'Quedó buenísimo, me encanta. Adelante con ese!', enviado: '2026-11-01T15:20:00Z', estado: 'propuesta_ok',
+  tipo: 'ok', sentido: 'razonable', motivo: '', resumen: 'Aprueba el video sin cambios.', video_ids: [videoId], por: 'unico', pedido_id: null,
+  version: 1, resuelta: null, resuelta_por: null, creado: '2026-11-01T15:20:05Z',
+})
+
 const TONO_CLIENTE: Record<EstadoCliente, 'verde' | 'amarillo' | 'rojo' | 'gris'> = { grabando: 'amarillo', en_revision: 'amarillo', en_edicion: 'amarillo', con_cliente: 'amarillo', al_dia: 'verde', pausado: 'gris' }
 
 export default async function EdicionClientePage({ params, searchParams }: Props) {
@@ -55,15 +66,19 @@ export default async function EdicionClientePage({ params, searchParams }: Props
   let datos: DatosCliente | null = null
   let marca: FichaMarca | null = null
   let lecturas: PropuestaMarca[] = []
+  let contenido: LecturaGuardada[] = []
   let falla: string | null = null
   if (c.demo) {
     const d = (await import('@/lib/edicion/demo')).datosDemo(new Date())
     datos = d.cliente(idCrm); marca = d.marcas.get(idCrm) ?? null
     if (!marca?.colores.length) lecturas = [PROPUESTA_DEMO(idCrm)]
+    const conCliente = datos?.videos.find(x => x.estado === 'con_cliente')
+    if (conCliente) contenido = [LECTURA_DEMO(idCrm, conCliente.id)]
   } else if (!baseConfigurada()) falla = 'La base del Despacho no está configurada (falta DATABASE_URL).'
   else {
     try {
-      ;[datos, marca, lecturas] = await Promise.all([leerCliente(idCrm), leerMarca(idCrm), lecturasDe(idCrm).catch(() => [] as PropuestaMarca[])])
+      ;[datos, marca, lecturas, contenido] = await Promise.all([leerCliente(idCrm), leerMarca(idCrm), lecturasDe(idCrm).catch(() => [] as PropuestaMarca[]),
+        lecturasDelCliente(idCrm).catch(() => [] as LecturaGuardada[])])
     } catch (e) {
       logLectura(`el cliente ${idCrm}`, e)
       falla = 'No se pudo leer la base del Despacho. Probá de nuevo en un minuto.'
@@ -82,6 +97,9 @@ export default async function EdicionClientePage({ params, searchParams }: Props
   const v = armarCliente(datos, marca, c.rol, c.veClientes)
   const vacio = !datos.videos.length && !datos.doc && !datos.archivos.length
   const titulo = v.cliente || `Cliente ${idCrm}`
+  // f05 / f06: René no ve lo que escribe el cliente (P6); solo aparece si hay algo leído o videos esperando su respuesta
+  const verLecturas = c.rol !== 'rene' && (contenido.length > 0 || datos.videos.some(x => x.estado === 'con_cliente'))
+  const vLecturas = verLecturas ? armarLecturas(contenido, datos.videos, h => conSufijo(h, c.sufijo)) : []
   const comun = { modo: c.modo, demo: c.demo, rol: c.rol, sufijo: c.sufijo, rutaActual: ruta, avisoRol: c.avisoRol }
 
   if (vacio) {
@@ -116,6 +134,13 @@ export default async function EdicionClientePage({ params, searchParams }: Props
           <h2 id="ed-regrabar">Pedido de regrabación <span className="ed-contador">{v.regrabar.items.length}</span></h2>
           <TextoParaCopiar key={v.regrabar.items.map(i => `${i.video_id}.${i.version}`).join('-')} texto={v.regrabar.texto} etiqueta="Texto para el grupo Contenido" demo={c.demo}
             envio={v.permisos.envio ? { cuerpo: { accion: 'envio_registrado', tipo: 'regrabar', items: v.regrabar.items }, boton: 'Enviado: vuelven a Esperando crudos' } : null} />
+        </section>
+      )}
+
+      {verLecturas && (
+        <section className="ed-seccion" id="lecturas" aria-labelledby="ed-lecturas">
+          <h2 id="ed-lecturas">Lo que dijo el cliente en Contenido <span className="ed-contador">{lecturasAbiertas(vLecturas).length}</span></h2>
+          <LecturasCliente lecturas={vLecturas} demo={c.demo} puede={c.rol !== 'lector' && tienePermiso(c.rol, 'pedido')} />
         </section>
       )}
 

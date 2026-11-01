@@ -44,6 +44,8 @@ import { candidatosBajas, sinCandidatosBajas } from '@/lib/bot/bajas/filtro'
 import type { ProcesarBajas } from '@/lib/bot/bajas/servidor'
 import { candidatosNotas } from '@/lib/bot/anuncios/notas'
 import type { ProcesarNotasAnuncios } from '@/lib/bot/anuncios/notasServidor'
+import { candidatosContenido } from '@/lib/edicion/contenido'
+import type { ProcesarContenidoEdicion } from '@/lib/edicion/contenidoServidor'
 import { clasificarEnvoltura, estadoDelCanal, resumenEventos, verificarSecreto } from './webhook'
 import { guardiaWhapi } from './salud'
 
@@ -79,6 +81,30 @@ export interface DepsRutaWhapi {
   procesarBajas?: ProcesarBajas
   /** Notas del cliente para Anuncios (lib/bot/anuncios/notasServidor.ts). Solo lee. Sin esto, no se procesa nada. */
   procesarNotasAnuncios?: ProcesarNotasAnuncios
+  /** Edición f05 / f06 (lib/edicion/contenidoServidor.ts): OK y cambios del cliente en su grupo Contenido. Solo lee. */
+  procesarContenidoEdicion?: ProcesarContenidoEdicion
+}
+
+/** Filtra (puro) lo que el cliente dice de sus videos editados (OK o cambios) y lo procesa en after(). Nunca tira. */
+function programarContenido(deps: DepsRutaWhapi, log: RegistroLog, env: NodeJS.ProcessEnv, datos: unknown, grupos: { ventas: string; verificaciones: string }, t0: number): number {
+  const procesar = deps.procesarContenidoEdicion
+  if (!procesar) return 0
+  let cands: ReturnType<typeof candidatosContenido>
+  try {
+    cands = candidatosContenido(datos, grupos, t0, personasDelEquipo(env), gruposEquipoExito(env))
+  } catch (e) {
+    log.error(`bot-whapi: edición — no se pudieron filtrar los mensajes: ${motivoDe(e)}`)
+    return 0
+  }
+  if (!cands.length) return 0
+  deps.programar(async () => {
+    try {
+      await procesar(cands, { env, log })
+    } catch (e) {
+      log.error(`bot-whapi: edición — el proceso tiró: ${motivoDe(e)}`)
+    }
+  })
+  return cands.length
 }
 
 /** Filtra (puro) lo que el cliente dice de sus anuncios y lo procesa en after(). Nunca tira ni demora la respuesta. */
@@ -273,10 +299,11 @@ export async function atenderWebhook(req: Request, deps: DepsRutaWhapi): Promise
   const aExito = programarExito(deps, log, env, datos, cfg.config.grupos, t0)
   const aBajas = programarBajas(deps, log, env, datos, cfg.config.grupos, t0)
   const aNotas = programarNotas(deps, log, env, datos, cfg.config.grupos, t0)
+  const aEdicion = programarContenido(deps, log, env, datos, cfg.config.grupos, t0)
   const descartados = Object.values(r.descartes).reduce((a, b) => a + (b ?? 0), 0)
   if (r.total) {
     const motivos = Object.entries(r.descartes).map(([k, v]) => `${k}:${v}`).join(' ')
-    log.info(`bot-whapi: ${r.total} mensaje(s) → eventos ${resumenEventos(r.eventos)}${descartados ? ` · descartados ${motivos}` : ''}${aGuiones ? ` · ${aGuiones} candidato(s) a Guiones` : ''}${aExito ? ` · ${aExito} candidato(s) a Éxito` : ''}${aBajas ? ` · ${aBajas} candidato(s) a Bajas` : ''}${aNotas ? ` · ${aNotas} candidato(s) a notas de Anuncios` : ''}`)
+    log.info(`bot-whapi: ${r.total} mensaje(s) → eventos ${resumenEventos(r.eventos)}${descartados ? ` · descartados ${motivos}` : ''}${aGuiones ? ` · ${aGuiones} candidato(s) a Guiones` : ''}${aExito ? ` · ${aExito} candidato(s) a Éxito` : ''}${aBajas ? ` · ${aBajas} candidato(s) a Bajas` : ''}${aNotas ? ` · ${aNotas} candidato(s) a notas de Anuncios` : ''}${aEdicion ? ` · ${aEdicion} candidato(s) a Edición` : ''}`)
   }
 
   let motor: MotorAltas

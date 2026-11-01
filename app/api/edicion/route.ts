@@ -7,6 +7,7 @@ import { avisarEventos } from '@/lib/edicion/avisos'
 import { modoEdicion } from '@/lib/edicion/config'
 import { vincularArchivo } from '@/lib/edicion/operativo'
 import { baseConfigurada } from '@/lib/edicion/db/base'
+import { resolverLectura } from '@/lib/edicion/db/lecturas'
 import { confirmarVinculo } from '@/lib/edicion/operativo'
 import { guardarMarca } from '@/lib/edicion/operativo'
 import { decidirPaso, marcarPaso } from '@/lib/edicion/operativo'
@@ -68,6 +69,7 @@ function deps(): DepsEdicion {
       autorizar: p => comoResultado(() => autorizarRonda(depsPedidos, p)),
       descartar: p => comoResultado(async () => { await descartarPedido(depsPedidos, p); return {} }),
     },
+    lecturas: { resolver: resolverLectura },
     modo: modoEdicion(),
   }
 }
