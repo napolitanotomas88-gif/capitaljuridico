@@ -72,8 +72,8 @@ export function decidirEstructura(mensualUSD: number | null, habitantes: number 
   const n = Math.max(1, videos)
   const testeo = r2(n * tarifa * DIAS_TESTEO)
   if (mensualUSD === null || mensualUSD <= 0) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: 'Sin presupuesto mensual en la ficha: no se puede calcular; por las dudas, todos juntos.' }
-  const [uno, varios] = unidad === 'anuncios' ? ['anuncio', 'anuncios'] : ['video', 'videos']
-  if (n === 1) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: `Un solo ${uno}: un solo conjunto.` }
+  const [uno, varios] = unidad === 'anuncios' ? ['idea', 'ideas'] : ['video', 'videos']
+  if (n === 1) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: `${unidad === 'anuncios' ? 'Una sola idea' : 'Un solo video'}: un solo conjunto.` }
   const pct = testeo / mensualUSD
   const zona = habitantes === null ? 'zona sin habitantes estimados (se toma como chica)' : `zona de ~${miles(habitantes)} de habitantes`
   const cuenta = `probar ${n} ${varios} ${DIAS_TESTEO} días a ${usd(tarifa)} por conjunto = ${usd(testeo)}, el ${Math.round(pct * 100)} % de ${usd(mensualUSD)}/mes (${zona})`

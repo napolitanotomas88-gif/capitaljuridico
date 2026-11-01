@@ -16,7 +16,7 @@
 //     presupuesto, ficha).
 //   · Con ANUNCIOS_BORRADOR=real, en las rotaciones el aviso llega con el borrador YA ARMADO en Meta, en pausa (g03,
 //     borrador.ts): la propuesta se reemplaza por el link para revisarlo. Si no se pudo armar, va la propuesta y el motivo.
-//     Desde el 27/10 (3:2:2 desde el 1/11: anuncios flexibles de 3 videos): conjunto por anuncio o todos juntos según la regla de Tomás, copy escrito desde el guion (copys.ts) y,
+//     Desde el 27/10 (3:2:2 desde el 1/11: ideas de 3 videos con los mismos 2 textos y 2 títulos): conjunto por idea o todos juntos según la regla de Tomás, copy escrito desde el guion (copys.ts) y,
 //     en los lanzamientos con ficha, la campaña nueva entera en pausa (lanzamiento.ts). Si la página no tiene WhatsApp, ⛔.
 // El texto se arma acá (puro); Drive, la base y Discord entran por deps. Con dry no escribe nada. Nunca tira.
 import type { FilaAnuncio, PorLanzar, Tablero } from '@/lib/anuncios/tablero'
@@ -115,7 +115,7 @@ export function diarioConjunto(f: Pick<FilaAnuncio, 'presupuesto'>): { usd: numb
 }
 
 /**
- * Rotación: un conjunto por anuncio (3:2:2, de a 3 videos) o todos juntos, con la regla de Tomás (plan.ts; sin habitantes se toma la tarifa de
+ * Rotación: un conjunto por idea (3:2:2, de a 3 videos) o todos juntos, con la regla de Tomás (plan.ts; sin habitantes se toma la tarifa de
  * zona chica). Por video: cada conjunto a la tarifa de prueba. Juntos: el diario que deja cerrar el mes.
  */
 export function estructuraRotacion(f: Pick<FilaAnuncio, 'presupuesto'>, videos: number): EstructuraBorrador & { motivo: string } {
@@ -129,7 +129,7 @@ export function lineaBorrador(b: ResultadoBorrador, diarioUSD: number): { linea:
     ? { linea: `⛔ **No pude armarlo en Meta:** ${MOTIVO_SIN_WHATSAPP}.`, falta: null }
     : { linea: null, falta: `no pude armarlo en Meta (${b.error})` }
   const x = b.ok, n = x.anuncios.length
-  const sets = x.conjuntos.length === 1 ? `1 conjunto «${escaparDiscord(x.conjuntos[0].nombre)}» con ${plural(n, 'anuncio', 'anuncios')}` : `${x.conjuntos.length} conjuntos, uno por anuncio`
+  const sets = x.conjuntos.length === 1 ? `1 conjunto «${escaparDiscord(x.conjuntos[0].nombre)}» con ${plural(n, 'anuncio', 'anuncios')}` : `${x.conjuntos.length} conjuntos, uno por idea`
   return { linea: `📝 **Armado en Meta, todo EN PAUSA:** ${x.nueva ? `campaña nueva «${escaparDiscord(x.campana)}»` : `en «${escaparDiscord(x.campana)}»`}, ${sets}, a ${usd(diarioUSD)}/día cada conjunto · [Abrir en el Administrador](<${x.link}>). Revisalo y prendelo vos${x.nueva ? '' : '; el ganador sigue como está'}.`, falta: null }
 }
 
@@ -192,11 +192,11 @@ export function textoVideos(s: Subida, fila: FilaAnuncio | null, porLanzar: PorL
     if (!conBorrador(e.diarioUSD)) {
       const nombre = `Broad | <zona del conjunto activo> | Tanda ${s.numero ?? '?'} | ${ddmm(new Date(ahora).toISOString())}`
       const a = cantidadAnuncios(n)
-      const ads = a === 1 ? (n === 1 ? '1 anuncio con el video' : `1 anuncio flexible con los ${n} videos`) : `${a} anuncios flexibles de hasta 3 videos`
+      const ads = a === 1 ? (n === 1 ? '1 anuncio con el video' : `los ${n} videos (1 idea, un anuncio por video)`) : `${a} ideas de hasta 3 videos (un anuncio por video)`
       lineas.push(e.porAnuncio
-        ? `📋 **Propuesta:** en la misma campaña, ${a} conjuntos nuevos, uno por anuncio («1- ${nombre}»…), a ${usd(e.diarioUSD)}/día cada uno, con la misma zona del conjunto activo; el ganador sigue como está.`
+        ? `📋 **Propuesta:** en la misma campaña, ${a} conjuntos nuevos, uno por idea de 3 videos («1- ${nombre}»…), a ${usd(e.diarioUSD)}/día cada uno, con la misma zona del conjunto activo; el ganador sigue como está.`
         : `📋 **Propuesta:** en la misma campaña, 1 conjunto nuevo «${nombre}» con ${ads}, a ${usd(e.diarioUSD)}/día, con la misma zona del conjunto activo; el ganador sigue como está${mes != null && d.calculado ? `; así el mes cierra en ~${usd(mes)}` : ''}.`)
-      lineas.push('🧩 **3:2:2:** cada anuncio con 3 videos + 2 textos (uno amplio y uno directo) + 2 títulos, sin descripción.')
+      lineas.push('🧩 **3:2:2:** cada idea son 3 videos (un anuncio cada uno) con los mismos 2 textos (uno amplio y uno directo) + 2 títulos, sin descripción.')
     }
     lineas.push(`📐 ${escaparDiscord(e.motivo)}`)
     if (mes == null) faltan.push('sin presupuesto mensual cargado: va todo junto, al diario mínimo')
