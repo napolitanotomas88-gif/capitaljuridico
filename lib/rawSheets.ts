@@ -176,11 +176,11 @@ export interface Call {
   date: Date
   closer: string       // persona dueña de la hoja: Juan | Fer | Ariel | Gero
   occurred: boolean    // la llamada ya ocurrió (fecha+hora <= ahora) — denominador de show up
-  qualified: boolean   // Lead Scoring ∈ {A, B, C}
+  qualified: boolean   // Lead Scoring ∈ {A+, A, B, C}
   presented: boolean   // ¿Se presentó Agenda/Call 1? = "Si" O ¿Se presentó REAGENDA CALL 1? = "Si"
   closed: boolean      // Situación = "Cerrado en llamada/seguimiento"
   channel: Canal
-  letra: 'A' | 'B' | 'C' | 'D' | 'E' | null   // Lead Scoring de la col Q del CRM de ventas
+  letra: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E' | null   // Lead Scoring de la col Q del CRM de ventas
   cash: number                          // FECCU del cliente (matcheado por nombre, dedup)
   noShow: boolean                       // ocurrida, no presentada y col R = No o S1..S4 (faltó, seguimiento N)
   cashTC: number                        // "Cash Collected Trato Cerrado" de la hoja del closer
@@ -218,12 +218,12 @@ export interface Enrutamiento {
 }
 
 // Lead Scoring = la letra que calcula la fórmula del propio CRM de ventas (col Q "Lead Scoring",
-// ARRAYFORMULA sobre urgencia col M + facturación col L). Desde oct-2026 la fórmula da 5 letras (A–E):
-// se lee tal cual para que el dashboard siempre coincida con lo que ven los closers.
-type LetraLead = 'A' | 'B' | 'C' | 'D' | 'E'
+// ARRAYFORMULA sobre urgencia col M + facturación col L). Desde el 1/11/2026 es por puntos y da 6 letras
+// (A+ a E): se lee tal cual para que el dashboard siempre coincida con lo que ven los closers.
+type LetraLead = 'A+' | 'A' | 'B' | 'C' | 'D' | 'E'
 function letraLead(scoring: unknown): LetraLead | null {
   const l = (scoring ?? '').toString().trim().toUpperCase()
-  return /^[A-E]$/.test(l) ? (l as LetraLead) : null
+  return /^(A\+|[A-E])$/.test(l) ? (l as LetraLead) : null
 }
 
 export interface RawData {
@@ -1750,7 +1750,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
         : CLOSER_TABS[tabIdx].tab === 'Closer 3' && dateTime >= YAMILA_DESDE ? 'Yami' : basePerson
 
       const scoring = (row[16] ?? '').toString().trim().toUpperCase()  // col Q = Lead Scoring
-      const qualified = scoring === 'A' || scoring === 'B' || scoring === 'C'
+      const qualified = scoring === 'A+' || scoring === 'A' || scoring === 'B' || scoring === 'C'
       const presentoRaw = (row[presCol] ?? '').toString().trim().toLowerCase()  // ¿Se presentó Agenda/Call 1?
       const reagendaRaw = reagCol >= 0 ? (row[reagCol] ?? '').toString().trim().toLowerCase() : ''
       const esSi = (x: string) => x === 'si' || x === 'sí'
