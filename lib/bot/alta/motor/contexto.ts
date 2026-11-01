@@ -9,6 +9,7 @@ import type { ResultadoEscrituraCrm } from '../crmEscribir'
 import type { OpcionesDrive, ResultadoDriveCliente } from '../driveCliente'
 import type { BorradorCreado } from '../pandadoc'
 import type { MepDiaAnterior } from '../mep'
+import type { CotizacionUsd } from '../cotizacion'
 import type { LecturaClaude } from '../comprobanteClaude'
 import type { SetterFuente } from '../setterFuente'
 import type { ClienteEncontrado } from '../altaLibre'
@@ -34,6 +35,8 @@ export interface DepsPasos {
   contrato?: DepsContrato
   mep?: (fechaPago: string) => Promise<MepDiaAnterior | null>
   vision?: (m: MedioDescargado) => Promise<LecturaClaude>
+  /** Comprobante en otra moneda: cotización de `iso` contra el USD del día `fecha` (cotizacion.ts). */
+  cotizacion?: (iso: string, fecha: string) => Promise<CotizacionUsd | null>
   /** Setter y UTM del lead en el CRM de ventas: por teléfono y, si no aparece, por el correo del #ALTA. */
   setterFuente?: (telefono: string, correo?: string | null) => Promise<SetterFuente | null>
   plantillaGuionesId?: () => string | null

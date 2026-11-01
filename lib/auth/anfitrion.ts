@@ -7,6 +7,10 @@
 // Sin imports de Next: se prueba con node:test.
 
 export const HOST_ANTIGUO = 'dashboard-metricas-eight.vercel.app'
+// 31/10/2026 (Tomás: «capitaljuridico.com.ar/software»): el Despacho pasa a software.capitaljuridico.com.ar. La dirección de
+// la etapa anterior (despacho-capital-juridico.vercel.app) se suma a las viejas: sigue sirviendo las rutas de máquina y manda
+// a la nueva solo las páginas que abre una persona (misma regla que la primera mudanza).
+export const HOSTS_ANTIGUOS: readonly string[] = [HOST_ANTIGUO, 'despacho-capital-juridico.vercel.app']
 
 // Lo que sigue funcionando en la dirección vieja aunque haya una nueva: archivos que no llevan datos y el video que descarga 2Chat.
 const SIN_REDIRIGIR = ['/v/', '/manifest.webmanifest', '/pwa/', '/marca/', '/favicon.ico', '/_next/']
@@ -14,8 +18,9 @@ const SIN_REDIRIGIR = ['/v/', '/manifest.webmanifest', '/pwa/', '/marca/', '/fav
 const sinPuerto = (host: string) => host.trim().toLowerCase().replace(/:\d+$/, '')
 
 export function destinoCanonico(e: { host: string | null; pathname: string; search?: string; method: string; baseUrl?: string; antiguo?: string }): string | null {
-  const antiguo = (e.antiguo ?? HOST_ANTIGUO).toLowerCase()
-  if (!e.host || sinPuerto(e.host) !== antiguo) return null
+  const antiguos = (e.antiguo ? [e.antiguo] : HOSTS_ANTIGUOS).map((h) => h.toLowerCase())
+  if (!e.host || !antiguos.includes(sinPuerto(e.host))) return null
+  const antiguo = sinPuerto(e.host)
   if (e.method !== 'GET' && e.method !== 'HEAD') return null   // un POST (Make, formularios, salir) nunca se redirige
   let base: URL
   try { base = new URL((e.baseUrl ?? '').trim()) } catch { return null }

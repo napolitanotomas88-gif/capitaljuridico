@@ -212,7 +212,15 @@ async function leerComprobante(ctx: CtxPaso, v: Validacion, a: AltaParseada, pri
   }
   // Un comprobante que llegó sin citar se compara además con el nombre del cliente y de sus socios (revisión del 24/10, ronda 2)
   const nombres = [a.nombre, ...leerSocios(a.socios).map((x) => x.nombre)]
-  return { comparacion: compararComprobante(salida.salida, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres }) }
+  // En otra moneda (guaraníes, etc.): la cotización del día del pago para compararlo con el USD del #ALTA (1/11/2026).
+  // Si falla, compararComprobante lo marca como diferencia y lo mira un humano
+  const sal = salida.salida
+  let cotizacion = null
+  if (sal.moneda === 'otra' && sal.moneda_iso && ctx.deps.cotizacion && ctx.modo !== 'seco') {
+    const fecha = esYmdValido(sal.fecha) && sal.fecha <= hoy ? sal.fecha : hoy
+    try { cotizacion = await ctx.deps.cotizacion(sal.moneda_iso, fecha) } catch { cotizacion = null }
+  }
+  return { comparacion: compararComprobante(sal, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres, cotizacion }) }
 }
 
 export async function pasoValidar(ctx: CtxPaso): Promise<SalidaPaso> {

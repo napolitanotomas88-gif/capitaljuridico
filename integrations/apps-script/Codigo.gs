@@ -105,10 +105,17 @@ function crearDoc_(p) {
     else if (b.tipo === 'lista') body.appendListItem(b.texto).setGlyphType(DocumentApp.GlyphType.BULLET);
     else body.appendParagraph(b.texto);
   });
+  // Identidad de Capital Jurídico (BienvenidaMarca.gs, 31/10/2026): solo con estilo 'cj'. Si falla, el doc queda creado
+  // igual, sin marca, y se avisa en avisoMarca
+  var marca = p.estilo === 'cj', avisoMarca = null;
+  if (marca) { try { marcaCjEnDoc_(doc); } catch (e) { avisoMarca = String(e).slice(0, 160); } }
   doc.saveAndClose();
   var archivo = DriveApp.getFileById(doc.getId());
   archivo.moveTo(carpeta);
-  return { ok: true, id: archivo.getId(), url: archivo.getUrl(), yaExistia: false };
+  if (marca && !avisoMarca) { try { marcaCjConApi_(doc.getId()); } catch (e) { avisoMarca = String(e).slice(0, 160); } }
+  var res = { ok: true, id: archivo.getId(), url: archivo.getUrl(), yaExistia: false };
+  if (avisoMarca) res.avisoMarca = avisoMarca;
+  return res;
 }
 
 // Manda un archivo a la papelera (se recupera 30 días). Solo si está en "Subidos" (los comprobantes: el bot deshace una

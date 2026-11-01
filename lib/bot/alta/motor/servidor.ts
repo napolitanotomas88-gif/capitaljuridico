@@ -14,6 +14,7 @@ import { escribirAltaCrm } from '../crmEscribir'
 import { plantillaGuionesDesdeEntorno, prepararDriveCliente } from '../driveCliente'
 import { BASE_PANDADOC, clavePandaDoc, crearBorradorContrato, estadoDocumento } from '../pandadoc'
 import { buscarMepDiaAnterior } from '../mep'
+import { buscarCotizacionUsd } from '../cotizacion'
 import { leerComprobanteConClaude, modeloComprobante } from '../comprobanteClaude'
 import { buscarSetterFuente } from '../setterFuente'
 import { buscarPersonaEnCrm } from '../crmServidor'
@@ -105,6 +106,7 @@ export function depsPasosServidor(base: Pick<DepsMotorBase, 'modo'>, env: NodeJS
       crm: (a, extras, op) => escribirAltaCrm(a, extras, { modo: op.modo }),
       mep: (fecha) => buscarMepDiaAnterior(fecha),
       vision: (m) => leerComprobanteConClaude(m),
+      cotizacion: (iso, fecha) => buscarCotizacionUsd(iso, fecha),
       setterFuente: (tel, correo) => buscarSetterFuente(tel, { correo }),
       clienteCrm: (p) => buscarPersonaEnCrm(p),   // ¿ya es cliente? (solo lectura)
       cuotasAnteriores: (p) => cuotasAnterioresFinanzas(p),   // pago de un cliente existente: qué cuota es (solo lectura)

@@ -110,7 +110,8 @@ export interface PuenteDriveCliente extends PuenteDrive {
   /** Cuenta que corre el puente y versión del Codigo.gs (null en las versiones anteriores al 24/10/2026). No cambia nada. */
   ping(): Promise<{ cuenta: string | null; version: string | null }>
   crearCarpeta(p: { padreId: string; nombre: string }): Promise<ArchivoSubido>
-  crearDoc(p: { carpetaId: string; nombre: string; bloques: BloqueDoc[] }): Promise<ArchivoSubido>
+  /** estilo 'cj': el Puente le pone la identidad de Capital Jurídico (encabezado, letras y colores; BienvenidaMarca.gs). */
+  crearDoc(p: { carpetaId: string; nombre: string; bloques: BloqueDoc[]; estilo?: 'cj' }): Promise<ArchivoSubido>
   /** El puente solo copia archivos cuyo nombre empieza con PREFIJO_PLANTILLA (si no, ErrorPuente codigo 'no_es_plantilla'). */
   copiarArchivo(p: { archivoId: string; carpetaId: string; nombre: string }): Promise<ArchivoSubido>
   /** Solo para las pruebas: el puente rechaza carpetas cuyo nombre no empieza con "PRUEBA BOT". */
@@ -307,9 +308,9 @@ export function puenteDriveReal(opciones: OpcionesPuente = {}): PuenteDriveClien
       exigirId(padreId, 'carpeta padre')
       return elemento(await llamar('crearCarpeta', { padreId, nombre }), 'crearCarpeta')
     },
-    async crearDoc({ carpetaId, nombre, bloques }) {
+    async crearDoc({ carpetaId, nombre, bloques, estilo }) {
       exigirId(carpetaId, 'carpeta del doc')
-      return elemento(await llamar('crearDoc', { carpetaId, nombre, bloques }), 'crearDoc')
+      return elemento(await llamar('crearDoc', { carpetaId, nombre, bloques, ...(estilo ? { estilo } : {}) }), 'crearDoc')
     },
     async copiarArchivo({ archivoId, carpetaId, nombre }) {
       exigirId(archivoId, 'archivo a copiar')
