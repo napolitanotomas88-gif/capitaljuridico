@@ -106,6 +106,7 @@ export interface FilaRegistroPagos {
   fechaLegible: string    // la misma fecha como 'dd/mm/aaaa', para la vista previa; '' si no sirve
   pendientes: string[]    // datos que el bot tiene que conseguir antes de cargar
   avisos: string[]        // los mira un humano
+  quienRecibio?: QuienRecibio | null   // para la app de Finanzas (quienRecibioApp); sin dato, la app queda "Sin asignar"
 }
 
 const TZ = 'America/Argentina/Buenos_Aires'
@@ -189,11 +190,14 @@ const num = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 
 //     Mutual de Escribanos o algo parecido a "Tecnos Ross": tecno/tecnos + ross/cross/ros, con o sin espacio o guion).
 //     De la Financiera se piden frases ("asociación mutual", "mutual de escribanos"): los clientes son abogados y
 //     escribanos, y un "transferencia del escribano Gómez" no es la Financiera.
+//   · La Financiera también recibe por Ágil Pagos, a nombre de «Diaz Rangel Rosanthony» (Tomás, 1/11/2026: «financiera»).
+const RE_FINANCIERA = /\bfinanciera\b|\basociacion mutual\b|\bmutual de escribanos\b|\btecnos?[\s.-]*c?ros{1,2}\b|\bagil\s*pagos?\b|\brosanthony\b/
 const REGLAS_CUENTA: { cuenta: CuentaRecibio; re: RegExp }[] = [
   { cuenta: 'Tomi', re: /\bnapolitano\b/ },
   { cuenta: 'Gero', re: /\bactis\b/ },
   { cuenta: 'Gero', re: /\bcripto|\bcrypto|\busdt\b|\busdc\b|\bbinance\b|\bbitcoin\b|\bbtc\b|\btether\b/ },
-  { cuenta: 'Empresa', re: /\bstripe\b|\brelay\b|\bpay\s*-?\s*pal\b|\bd\s*-?\s*local(?:\s*-?\s*go)?\b|\bfinanciera\b|\basociacion mutual\b|\bmutual de escribanos\b|\btecnos?[\s.-]*c?ros{1,2}\b/ },
+  { cuenta: 'Empresa', re: /\bstripe\b|\brelay\b|\bpay\s*-?\s*pal\b|\bd\s*-?\s*local(?:\s*-?\s*go)?\b/ },
+  { cuenta: 'Empresa', re: RE_FINANCIERA },
 ]
 
 /** Cuenta que recibió (col R) a partir de un texto: el destinatario del comprobante o el medio de pago del #ALTA.
@@ -204,6 +208,15 @@ export function cuentaPorMedio(texto: string | null | undefined): CuentaRecibio 
   const t = normal(texto)
   const halladas = new Set(REGLAS_CUENTA.filter((r) => r.re.test(t)).map((r) => r.cuenta))
   return halladas.size === 1 ? [...halladas][0] : null
+}
+
+/** Quién recibió, para la app de Finanzas (pago_quien_recibio): como la col R, pero la app separa la Financiera de la
+ *  Empresa (la planilla las junta en "Empresa"). Financiera = el destinatario o el medio de pago la nombran. */
+export type QuienRecibio = 'Tomi' | 'Gero' | 'Empresa' | 'Financiera'
+export function quienRecibioApp(cuenta: string, textos: (string | null | undefined)[]): QuienRecibio | null {
+  if (cuenta === 'Tomi' || cuenta === 'Gero') return cuenta
+  if (cuenta !== 'Empresa') return null
+  return textos.some((t) => t && RE_FINANCIERA.test(normal(t))) ? 'Financiera' : 'Empresa'
 }
 
 /** Monto como en la lista de programas: "$3300" sin separador de miles, "$6.000" con punto; decimales con coma. */
@@ -420,5 +433,6 @@ export function filaRegistroPagos(a: AltaParseada, extras: ExtrasRegistro): Fila
     fechaLegible: ymd ? ddmmaaaa(ymd) : '',
     pendientes,
     avisos,
+    quienRecibio: quienRecibioApp(cuenta, [extras.destinatario, a.medioPago]),
   }
 }

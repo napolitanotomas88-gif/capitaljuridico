@@ -46,6 +46,7 @@ import { google } from 'googleapis'
 import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
 import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, formulaMes, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
+import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
 import { CARPETA_COMPROBANTES, ErrorPuente, MAXIMO_BYTES_ARCHIVO, bytesDeBase64, noRepetirAntesDe, puenteDriveReal, type ArchivoSubido, type PuenteDrive } from './puenteDrive'
 
 export const PESTANA_REGISTRO = 'Registro de Pagos'
@@ -284,6 +285,8 @@ export interface Carga {
   sheetId: number | null
   /** Fila de arriba con el mismo pago (mismo cliente, fecha y monto): por eso no se carga. null si no hay. */
   repetido: { fila: number } | null
+  /** Copia en la app de Finanzas (solo carga real verificada). null si no corrió. */
+  app?: ResultadoPagoApp | null
 }
 
 export interface OpcionesCarga {
@@ -481,6 +484,9 @@ export function verificarCarga(carga: Carga, antes: Fila, l: FilasTrasCarga, chi
 export interface DepsCarga {
   planilla?: (modo: ModoFinanzas) => PlanillaFinanzas
   puente?: () => PuenteDrive
+  /** Copia a la app de Finanzas (Neon) después de una carga real verificada. Por defecto guardarPagoEnApp (sin
+   *  DATABASE_URL no hace nada); los tests la reemplazan. */
+  app?: (fila: FilaRegistroPagos, nombreArchivo: string | null) => Promise<ResultadoPagoApp>
 }
 export interface OpcionesCargaPago {
   modo: ModoFinanzas
@@ -548,7 +554,14 @@ function enCola<T>(f: () => Promise<T>): Promise<T> {
 }
 
 export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: ComprobantePago | null | undefined, opciones: OpcionesCargaPago): Promise<ResultadoCargaFinanzas> {
-  return enCola(() => cargar(fila, comprobante ?? null, opciones))
+  return enCola(async () => {
+    const r = await cargar(fila, comprobante ?? null, opciones)
+    if (!r.ok || r.modo !== 'real') return r
+    // La planilla quedó verificada: copia a la app (pedido de Tomás del 1/11). Si falla, el pago está igual en la planilla.
+    const app = await (opciones.deps?.app ?? guardarPagoEnApp)(fila, r.nombreArchivo)
+    const avisos = app.ok ? r.avisos : [...r.avisos, `No se pudo copiar el pago a la app de Finanzas (${app.motivo}): cargarlo a mano en Finanzas → Pagos.`]
+    return { ...r, app, avisos }
+  })
 }
 
 async function cargar(fila: FilaRegistroPagos, comprobante: ComprobantePago | null, opciones: OpcionesCargaPago): Promise<ResultadoCargaFinanzas> {

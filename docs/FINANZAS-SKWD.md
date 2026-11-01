@@ -44,3 +44,4 @@ como dueño, solo servidor; caché de 60 s, deduplicación y último valor bueno
   `finanzas.gastos` como fila web (sin duplicar por fecha + concepto + monto), firmado `cierre@finanzas.despacho`, con su
   propio plan sobre los gastos de la app.
 - Pruebas: `scripts/test-finanzas-app.mjs`.
+- Los pagos que carga el bot (y la tarjeta del cliente) se copian a la app: `lib/finanzasSkwd/pagoApp.ts` (ver docs/BOT-ALTA-CJ.md). Pruebas: `scripts/test-finanzas-pago-app.mjs`.
