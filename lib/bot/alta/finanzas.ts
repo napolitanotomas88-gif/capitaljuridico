@@ -22,12 +22,13 @@ export const OPCIONES_PROGRAMA = [
   'DFY | PP | $8.000', 'Fee',
 ] as const
 export const OPCIONES_SETTER = ['Tomi / Gero', 'Mai', 'ENRU / Mai'] as const
-export const OPCIONES_CONCEPTO = ['Fee', '1ra Cuota', '2da Cuota', 'PIF'] as const
+// 31/10/2026 (OK de Tomás): la columna J de Registro de Pagos quedó pareja con estas 7 opciones en todas las filas.
+export const OPCIONES_CONCEPTO = ['Fee', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota', 'PIF', 'Renovación'] as const
 
 // ── Pago de un cliente que ya existe (Tomás, 26/10/2026) ──
 // Va como "2da Cuota", "3ra Cuota", etc., según cuántas cuotas (o PIF) de ese cliente ya hay en "Registro de Pagos". Los Fee
-// no cuentan. OJO: hoy la lista desplegable de la columna J solo tiene hasta "2da Cuota": "3ra Cuota" y las siguientes hay
-// que sumarlas a la lista (si es estricta, Finanzas no carga la fila y queda a revisar).
+// no cuentan. La lista desplegable de la columna J llega hasta "4ta Cuota" (31/10/2026): de la 5ta en adelante hay que
+// sumarlas a la lista (si es estricta, Finanzas no carga la fila y queda a revisar).
 const ORDINALES = ['', '1ra', '2da', '3ra', '4ta', '5ta', '6ta', '7ma', '8va', '9na', '10ma', '11va', '12va']
 /** "2da Cuota", "3ra Cuota"… (n ≥ 1; más de 12, "Cuota 13"). */
 export const conceptoCuota = (n: number): string => (ORDINALES[n] ? `${ORDINALES[n]} Cuota` : `Cuota ${n}`)

@@ -273,6 +273,39 @@ describe('comprobante (parte pura)', () => {
     assert.equal(C.compararComprobante(lecturaOk({ es_comprobante: false }), a, { hoy }).resultado, 'no_es_comprobante')
     assert.equal(C.compararComprobante(lecturaOk({ legible: 'no' }), a, { hoy }).resultado, 'ilegible')
   })
+  // Tomás, 1/11/2026: Nadia Blanco, #ALTA de USD 1.299 con un comprobante de ₲ 3.107.995 (unos USD 500 por dLocal)
+  test('otra moneda: se pasa a USD con la cotización y se compara con el #ALTA', () => {
+    const pyg = { iso: 'PYG', porUsd: 5762.89, fecha: '2026-10-26', fuente: 'currency-api' }
+    const nadia = (usdAlta, extra = {}) => C.compararComprobante(C.leerSalida(lecturaOk({ moneda: 'otra', moneda_iso: 'PYG', monto_texto: '3.107.995' })),
+      parsearAlta(TEXTO.replace('Este pago: 1100 USD', `Este pago: ${usdAlta} USD`)), { hoy, cotizacion: pyg, ...extra })
+    const mal = nadia(1299)
+    assert.equal(mal.resultado, 'difiere')
+    assert.match(mal.diferencias[0], /PYG 3\.107\.995 \(≈ USD 539 al cambio del 26\/10\/2026\) y el #ALTA USD 1\.299/)
+    assert.equal(mal.extras.usdEstimado, 539)
+    const bien = nadia(500)   // dLocal cobró a ₲ 6.216: 8 % de diferencia con el mercado, dentro del margen
+    assert.equal(bien.resultado, 'coincide'); assert.match(bien.avisos.join(), /coincide con el #ALTA/)
+    // Sin cotización (o de otra moneda): no se puede comparar → lo mira un humano
+    assert.match(nadia(500, { cotizacion: null }).diferencias.join(), /no se pudo pasar a USD/)
+    assert.equal(nadia(500, { cotizacion: { ...pyg, iso: 'UYU' } }).resultado, 'difiere')
+  })
+  test('moneda_iso: solo con "otra" y si es un código válido; las lecturas viejas no lo traen', () => {
+    assert.equal(C.leerSalida(lecturaOk({ moneda: 'otra', moneda_iso: 'pyg' })).moneda_iso, 'PYG')
+    assert.equal(C.leerSalida(lecturaOk({ moneda: 'USD', moneda_iso: 'PYG' })).moneda_iso, '')
+    assert.equal(C.leerSalida(lecturaOk({ moneda: 'otra', moneda_iso: 'guaraní' })).moneda_iso, '')
+    const vieja = lecturaOk({ moneda: 'otra' }); delete vieja.moneda_iso
+    assert.equal(C.leerSalida(vieja).moneda_iso, '')
+  })
+  test('sin moneda visible: igual se compara el número', () => {
+    assert.match(C.compararComprobante(lecturaOk({ moneda: 'desconocida', monto_texto: '3.107.995' }), a, { hoy }).diferencias.join(), /sin moneda visible/)
+    assert.equal(C.compararComprobante(lecturaOk({ moneda: 'desconocida', monto_texto: '1100' }), a, { hoy }).resultado, 'coincide')
+  })
+  test('cotizacionDe: lee el JSON de currency-api', async () => {
+    const K = await import('../lib/bot/alta/cotizacion.ts')
+    assert.deepEqual(K.cotizacionDe({ date: '2026-10-26', usd: { pyg: 5762.89 } }, 'PYG'), { iso: 'PYG', porUsd: 5762.89, fecha: '2026-10-26', fuente: 'currency-api' })
+    assert.equal(K.cotizacionDe({ usd: { pyg: 0 } }, 'PYG'), null)
+    assert.equal(K.cotizacionDe({ usd: {} }, 'PYG'), null)
+    assert.equal(K.cotizacionDe({ usd: { pyg: 1 } }, 'pyg'), null)
+  })
   test('formatos: HEIC no; imagen de más de 5 MB no; PDF de más de 10 páginas no', () => {
     assert.equal(C.formatoComprobante('image/heic', 100, null).ok, false)
     assert.equal(C.formatoComprobante('image/jpeg', 6 * 1024 * 1024, null).ok, false)

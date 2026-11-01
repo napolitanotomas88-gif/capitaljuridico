@@ -42,3 +42,15 @@ test('el destino sale siempre de AUTH_BASE_URL: una ruta rara no lleva a otro si
   assert.equal(d({ pathname: '//evil.example/x' }), `${NUEVA}//evil.example/x`)
   assert.ok(d({ pathname: '/\\evil.example' }).startsWith(NUEVA))
 })
+
+import { HOSTS_ANTIGUOS } from '../lib/auth/anfitrion.ts'
+test('31/10: la dirección despacho-capital-juridico.vercel.app también manda las páginas a software.capitaljuridico.com.ar', () => {
+  const SOFT = 'https://software.capitaljuridico.com.ar'
+  assert.ok(HOSTS_ANTIGUOS.includes('despacho-capital-juridico.vercel.app'))
+  assert.equal(destinoCanonico({ host: 'despacho-capital-juridico.vercel.app', pathname: '/clientes', search: '?x=1', method: 'GET', baseUrl: SOFT }), `${SOFT}/clientes?x=1`)
+  assert.equal(destinoCanonico({ host: 'despacho-capital-juridico.vercel.app', pathname: '/api/raw', method: 'GET', baseUrl: SOFT }), null)
+  assert.equal(destinoCanonico({ host: 'dashboard-metricas-eight.vercel.app', pathname: '/', method: 'GET', baseUrl: SOFT }), `${SOFT}/`)
+  assert.equal(destinoCanonico({ host: 'software.capitaljuridico.com.ar', pathname: '/', method: 'GET', baseUrl: SOFT }), null)
+  // mientras AUTH_BASE_URL siga siendo despacho-capital-juridico, esa dirección no se redirige a sí misma
+  assert.equal(destinoCanonico({ host: 'despacho-capital-juridico.vercel.app', pathname: '/', method: 'GET', baseUrl: 'https://despacho-capital-juridico.vercel.app' }), null)
+})

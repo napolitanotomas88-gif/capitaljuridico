@@ -163,9 +163,9 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -18 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'var(--text-muted)' }} interval={4} />
-          <YAxis yAxisId="usd" tick={{ fontSize: 9, fill: 'var(--text-muted)' }} />
-          <YAxis yAxisId="ag" orientation="right" tick={{ fontSize: 9, fill: 'var(--text-muted)' }} width={28} />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} interval={4} />
+          <YAxis yAxisId="usd" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+          <YAxis yAxisId="ag" orientation="right" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} width={28} />
           <Tooltip
             contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', fontSize: 12 }}
             itemStyle={{ color: 'var(--text)' }}

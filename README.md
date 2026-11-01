@@ -33,4 +33,6 @@ Leer [CONTEXTO-HUB.md](docs/CONTEXTO-HUB.md) antes de tomar trabajo. Explica las
 
 El código y los documentos públicos no contienen la situación de los clientes. Para conocer el estado operativo vigente se necesitan las fuentes privadas autorizadas. Un chat compartido o una copia de Obsidian no fusiona conversaciones ni acredita que otra persona haya leído los cambios.
 
-No conectar automáticamente este repositorio a producción durante la importación. La versión productiva usa su configuración privada existente; la importación pública requiere configurar las integraciones antes de desplegarla.
+## Publicación
+
+Producción (`software.capitaljuridico.com.ar`, proyecto de Vercel `dashboard-metricas`) sale de `main`: cada merge a `main` se publica solo, y cada PR genera una vista previa. No se publica desde una carpeta local. La configuración privada vive en las variables de Vercel (ver `docs/CONFIGURACION-PRIVADA.md`). Los videos de `/v/` se sirven desde el proyecto estático `capitaljuridico-medios`, porque no van al repositorio público.

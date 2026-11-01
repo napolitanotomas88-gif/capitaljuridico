@@ -78,6 +78,8 @@ export function plantillaGuionesDesdeEntorno(): string | null {
 }
 
 export const SUFIJO_CARPETA = ' - C.J'
+/** La bienvenida sale con la identidad de Capital Jurídico (Tomás, 31/10/2026: "mejorá mucho la identidad visual"). */
+export const ESTILO_BIENVENIDA = 'cj' as const
 
 // ── Nombres (puro) ──────────────────────────────────────────────────────────────────────────────────────────────
 export interface NombresDrive {
@@ -397,7 +399,7 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
     if (!previo.editados) llamadas.push({ accion: 'crearCarpeta', datos: { padreId: nueva, nombre: nombres.editados } })
     if (!previo.marca) llamadas.push({ accion: 'crearCarpeta', datos: { padreId: nueva, nombre: nombres.marca } })
     if (!previo.guiones && !motivoSinPlantilla) llamadas.push({ accion: 'copiarArchivo', datos: { archivoId: plantilla, carpetaId: nueva, nombre: nombres.guiones } })
-    if (!previo.bienvenida) llamadas.push({ accion: 'crearDoc', datos: { carpetaId: nueva, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc } })
+    if (!previo.bienvenida) llamadas.push({ accion: 'crearDoc', datos: { carpetaId: nueva, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc, estilo: ESTILO_BIENVENIDA } })
     const sim = (k: Exclude<ClaveDrive, 'guiones'>) => (previo[k] ? deGuardado(nombres[k], previo[k]) : elemento(nombres[k], 'simulado'))
     return resultado({
       carpeta: sim('carpeta'),
@@ -536,8 +538,8 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
   }
   const docBienvenida = async () => {
     if (previo.bienvenida) return deGuardado(nombres.bienvenida, previo.bienvenida)
-    llamadas.push({ accion: 'crearDoc', datos: { carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc } })
-    return intentar(nombres.bienvenida, () => puente.crearDoc({ carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc }))
+    llamadas.push({ accion: 'crearDoc', datos: { carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc, estilo: ESTILO_BIENVENIDA } })
+    return intentar(nombres.bienvenida, () => puente.crearDoc({ carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc, estilo: ESTILO_BIENVENIDA }))
   }
 
   const [crudos, editados, marca, guiones, docB] = await Promise.all([subcarpeta('crudos'), subcarpeta('editados'), subcarpeta('marca'), copiarGuiones(), docBienvenida()])
