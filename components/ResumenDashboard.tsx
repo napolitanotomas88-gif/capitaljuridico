@@ -326,11 +326,11 @@ export default function Dashboard() {
     }
   }, [periodCalls, leadsVSL, leadsIG, isMonth, person, raw, rx, activeMonthIdx])
 
-  // ── CALIDAD DE LEADS (Lead Scoring A–E) — usa periodCalls (respeta mes/rango + persona) ──
+  // ── CALIDAD DE LEADS (Lead Scoring A+ a E) — usa periodCalls (respeta mes/rango + persona) ──
   const leadQuality = useMemo(() => {
     const init = () => ({ agendas: 0, cierres: 0, cash: 0 })
-    const stats: Record<'A' | 'B' | 'C' | 'D' | 'E', { agendas: number; cierres: number; cash: number }> = {
-      A: init(), B: init(), C: init(), D: init(), E: init(),
+    const stats: Record<'A+' | 'A' | 'B' | 'C' | 'D' | 'E', { agendas: number; cierres: number; cash: number }> = {
+      'A+': init(), A: init(), B: init(), C: init(), D: init(), E: init(),
     }
     let sinClasificar = 0
     for (const c of periodCalls) {
