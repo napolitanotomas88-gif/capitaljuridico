@@ -114,7 +114,7 @@ export const sinExtension = (s: string) => s.replace(/\.[a-z0-9]{2,4}$/i, '')
 export const nombreAnuncio = (copy: string, n: number) => `${n}- ${copy.split('\n')[0].replace(/[\s⬇️⚠️🚨💬👇]+$/u, '').trim().slice(0, 80)}`
 const usdTxt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 })
 
-/** El error de Meta cuando la página no tiene WhatsApp vinculado (pasó con Lucas Quiroga y Herchhoren el 27/10). */
+/** El error de Meta cuando la página no tiene WhatsApp vinculado (pasó con dos clientes el 27/10). */
 export const sinWhatsApp = (m: string) => /no est[aá] vinculada a una cuenta de WhatsApp|not (?:linked|connected) to a WhatsApp/i.test(m)
 export const MOTIVO_SIN_WHATSAPP = 'la página no está vinculada a WhatsApp: reconectá el WhatsApp de la página o armá los conjuntos desde el Administrador (los videos ya quedaron subidos)'
 
