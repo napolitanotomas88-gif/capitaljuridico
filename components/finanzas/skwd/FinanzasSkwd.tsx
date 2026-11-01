@@ -1,8 +1,9 @@
 'use client'
 // Finanzas SKWD dentro del Despacho (1/11/2026, pedido de Tomás: «va a ir todo dentro de finanzas»). Las pantallas son las
-// de la app original (React + Vite, base Supabase con permisos RLS por usuario), con el verde de Finanzas. El acceso a
-// /finanzas sigue igual (contraseña de Finanzas o administrador con Google) y, además, la base pide su propio inicio de
-// sesión (email y contraseña de Supabase): los permisos y los datos sensibles del equipo dependen de ese usuario.
+// de la app original (React + Vite, base Supabase con permisos RLS por correo), con el verde de Finanzas. El acceso es el
+// de /finanzas (contraseña de Finanzas o administrador con Google) y la base entra con el correo de la sesión del Despacho:
+// el servidor firma el token (/api/finanzas/base, pedido de Tomás del 1/11: «no hace falta la contraseña»). Solo si falta
+// SUPABASE_JWT_SECRET se pide el usuario de la base, como en la app original.
 // "Corregir" en cualquier pantalla lleva a /finanzas/correcciones?tabla=…&id=… con el registro ya elegido.
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -10,7 +11,7 @@ import type { Session } from '@supabase/supabase-js'
 import { EstilosFinanzas } from '../Tema'
 import { NavFinanzas } from '../NavFinanzas'
 import { EstilosSkwd } from './estilos'
-import { supabase, supabaseConfigurado } from './supabase'
+import { prepararBase, supabase, supabaseConfigurado } from './supabase'
 import type { VistaSkwd } from './vistas'
 import Login from './Login'
 import Pagos from './Pagos'
@@ -30,14 +31,25 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
   const router = useRouter()
   const params = useSearchParams()
   const [sesion, setSesion] = useState<Session | null>(null)
-  const [cargando, setCargando] = useState(supabaseConfigurado)
+  const [base, setBase] = useState<{ modo: 'token' | 'login' | 'sin_config'; correo: string | null } | null>(null)
 
   useEffect(() => {
-    if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => { setSesion(data.session); setCargando(false) })
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSesion(s))
-    return () => data.subscription.unsubscribe()
+    let vivo = true
+    let desuscribir = () => {}
+    prepararBase().then((b) => {
+      if (!vivo) return
+      // Solo en el modo login (falta SUPABASE_JWT_SECRET) hay sesión propia de la base
+      const cliente = supabase
+      if (b.modo === 'login' && cliente) {
+        cliente.auth.getSession().then(({ data }) => { if (vivo) { setSesion(data.session); setBase(b) } })
+        const { data } = cliente.auth.onAuthStateChange((_e, s) => setSesion(s))
+        desuscribir = () => data.subscription.unsubscribe()
+      } else setBase(b)
+    })
+    return () => { vivo = false; desuscribir() }
   }, [])
+  const adentro = base?.modo === 'token' || (base?.modo === 'login' && !!sesion)
+  const correo = base?.modo === 'token' ? base.correo : sesion?.user.email ?? null
 
   const irACorregir = (o: Objetivo) => router.push(`/finanzas/correcciones?tabla=${encodeURIComponent(o.tabla)}&id=${encodeURIComponent(String(o.id))}`)
   const tabla = params.get('tabla'), id = params.get('id')
@@ -55,11 +67,11 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
               Finanzas <span style={{ color: 'var(--brand-orange)' }}>Capital Jurídico</span>
             </h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {sesion ? `Base de Finanzas · ${sesion.user.email}` : 'Base de Finanzas'}
+              {correo ? `Base de Finanzas · ${correo}` : 'Base de Finanzas'}
             </p>
           </div>
           <div className="flex items-center gap-2 no-print">
-            {sesion && supabase && (
+            {base?.modo === 'login' && sesion && supabase && (
               <button type="button" onClick={() => supabase?.auth.signOut()} className="fin-sec text-xs font-semibold rounded-lg px-3 py-1.5" style={{ minHeight: 36 }}>
                 Salir de la base
               </button>
@@ -79,9 +91,9 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
             <div className="aviso-box">
               Falta conectar la base de Finanzas: cargar <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_KEY</code> (clave publicable) en Vercel y volver a publicar.
             </div>
-          ) : cargando ? (
+          ) : !base ? (
             <p className="gris">Cargando…</p>
-          ) : !sesion ? (
+          ) : !adentro ? (
             <Login />
           ) : (
             <>
