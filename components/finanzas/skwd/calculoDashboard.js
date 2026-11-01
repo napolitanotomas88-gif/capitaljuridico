@@ -18,7 +18,7 @@ export const REGLAS = {
 export const ALIAS_PAYROLL = {
   Fer: 'Fernando Dewey', Carlos: 'Carlos Roletto', Marcos: 'Marcos Alejandro Carlomagno', Juan: 'Juan Vasquez', Ariel: 'Ariel Arrollo', Mai: 'Maite Revel',
 }
-export const ORDEN_CONCEPTOS = ['Fee', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota', 'PIF']
+export const ORDEN_CONCEPTOS = ['Fee', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota', 'PIF', 'Renovación']
 export const NOMBRES_MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
