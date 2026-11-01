@@ -23,3 +23,7 @@ el rol `authenticated` y miran el correo del token (`auth.jwt() ->> 'email'`: da
 un token de 1 h con el correo de la sesión de Google, usando `SUPABASE_JWT_SECRET` (el JWT secret del proyecto, solo en
 el servidor), y `supabase-js` lo usa con `accessToken`. Sin Google (solo con la contraseña de Finanzas) va un correo
 genérico que no ve lo sensible. Si falta `SUPABASE_JWT_SECRET`, vuelve el inicio de sesión de la app original.
+
+## Estructura de la base
+
+`supabase/finanzas/esquema.sql`: tablas, vistas, funciones, disparadores y permisos (sin datos). Leída el 1/11/2026. Si se cambia algo en la base, se actualiza ese archivo en el mismo PR.
