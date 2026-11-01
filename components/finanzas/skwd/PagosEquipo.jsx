@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { OPCIONES_PAGADO_POR, validarLinea, armarLinea, totalDe, tipoRemuneracion, cierreDeMes, mesDe, mesAnterior, motivoBloqueoComision } from './calculoPayroll'
 import { calcularComision, nombresSinPersona, REGLAS_COMISION } from './calculoComisiones'
+import SopDelPuesto from './SopDelPuesto'
 
 const usd = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 2 })
 const ars = (n) => 'ARS ' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
@@ -283,6 +284,7 @@ export default function PagosEquipo({ onCorregir }) {
                 {personasParaElegir.map((p) => <option key={p.id} value={p.id}>{p.nombre}{p.activo ? '' : ' (inactiva)'}</option>)}
               </select>
             </label>
+            {form.persona_id && <SopDelPuesto puesto={form.puesto} puestoPersona={personaDe(form.persona_id)?.puesto} />}
             <label>Período (mes)<input type="month" name="mes" value={form.mes} onChange={cambiarForm} required /></label>
             <label>Rol (puesto)<input name="puesto" value={form.puesto} onChange={cambiarForm} /></label>
             <label>Área (departamento)<input name="departamento" value={form.departamento} onChange={cambiarForm} /></label>

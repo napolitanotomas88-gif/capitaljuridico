@@ -33,6 +33,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .form .check, .fin-skwd .filtros .check { flex-direction: row; align-items: center; gap: 6px; font-size: 14px; font-weight: 400; color: var(--text); }
 .fin-skwd .form .check input, .fin-skwd .filtros .check input { padding: 0; }
 .fin-skwd .form .acciones { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+.fin-skwd .form .sop-puesto { grid-column: 1 / -1; margin: 0; }
 .fin-skwd .filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
 .fin-skwd .filtros input, .fin-skwd .filtros select, .fin-skwd .filtros button { padding: 8px 10px; font-size: 14px; min-height: 40px; }
 .fin-skwd .subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
