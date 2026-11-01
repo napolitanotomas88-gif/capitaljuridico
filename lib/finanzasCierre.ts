@@ -2,8 +2,9 @@
 // La usa /api/finanzas-cierre. Corre todos los días (cron de Vercel) pero solo actúa cuando MAÑANA
 // (hora AR) es el último día del mes:
 //   1) carga en Gastos el gasto de Meta del mes como ESTIMADO (hasta leer lo cobrado en Relay), sin duplicar;
+//      desde el 1/11/2026 también en la app de Finanzas (finanzas.gastos), con su propio plan sobre los gastos de la app;
 //   2) arma el aviso para Tomi y Gero (Discord #finanzas).
-import { MARCA_ESTIMADO_META, esEstimadoMeta, etiquetaMes, parsearGastos, type Celda, type Fila, type Finanzas } from './finanzasCalc'
+import { MARCA_ESTIMADO_META, categoriaGasto, esEstimadoMeta, etiquetaMes, mesDe, parsearGastos, type Celda, type Fila, type Finanzas, type Gasto } from './finanzasCalc'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -62,8 +63,49 @@ export function planAnunciosMeta(gastos: Fila[], mes: string, hoy: string, metaM
   while (ultima > 1 && filaVacia(gastos[ultima - 1])) ultima--
   const fila = ultima + 1
   const fecha = ultimoDiaDelMes(mes)
-  const valores: (string | number)[] = [serialSheets(fecha), `ADS (${MARCA_ESTIMADO_META}; Meta al ${ddmm(hoy)})`, monto, 'Anuncios']
+  const valores: (string | number)[] = [serialSheets(fecha), conceptoEstimadoMeta(hoy), monto, 'Anuncios']
   return { accion: 'agregar', fila, rango: `Gastos!A${fila}:D${fila}`, valores, monto, fecha }
+}
+
+// Mismo concepto en la planilla y en la app (así se reconoce como estimado en las dos)
+export const conceptoEstimadoMeta = (hoy: string) => `ADS (${MARCA_ESTIMADO_META}; Meta al ${ddmm(hoy)})`
+
+// ── 1b) Lo mismo en la app de Finanzas (1/11/2026, «pasa todo a la app»): el plan se arma con los gastos de la APP,
+// porque desde ahora los gastos se cargan ahí y la planilla puede no tener los anuncios reales. Mismas reglas: si hay
+// anuncios reales del mes no se carga; si ya está el estimado con el mismo monto, nada; si cambió, se actualiza (solo
+// una fila web: las importadas de la planilla no se tocan); si no, UN gasto "ADS" con fecha del último día del mes.
+export type PlanMetaApp =
+  | { accion: 'nada'; motivo: string }
+  | { accion: 'agregar'; fecha: string; concepto: string; monto: number }
+  | { accion: 'actualizar'; id: number; montoAnterior: number; monto: number }
+
+export function planAnunciosMetaApp(gastos: Gasto[], mes: string, hoy: string, metaMes: number | null | undefined): PlanMetaApp {
+  if (!metaMes || metaMes <= 0) return { accion: 'nada', motivo: 'No hay dato de gasto de Meta para el mes (API sin respuesta o sin consumo).' }
+  const monto = r2(metaMes)
+  const anuncios = gastos.filter(g => g.mes === mes && g.cat === 'Anuncios')
+  const reales = anuncios.filter(g => !esEstimadoMeta(g.concepto))
+  if (reales.length) {
+    const total = reales.reduce((s, g) => s + g.monto, 0)
+    return { accion: 'nada', motivo: `Ya hay anuncios del mes cargados en la app (${usd(total)}): no se carga el estimado.` }
+  }
+  const est = anuncios.find(g => esEstimadoMeta(g.concepto))
+  if (est) {
+    if (Math.abs(est.monto - monto) < 0.5) return { accion: 'nada', motivo: `El estimado de Meta ya estaba cargado en la app (${usd(est.monto)}).` }
+    if (!est.web || est.id == null) return { accion: 'nada', motivo: `El estimado de Meta de la app (${usd(est.monto)}) es una fila importada: corregirlo a ${usd(monto)} con «Corregir dato».` }
+    return { accion: 'actualizar', id: est.id, montoAnterior: r2(est.monto), monto }
+  }
+  return { accion: 'agregar', fecha: ultimoDiaDelMes(mes), concepto: conceptoEstimadoMeta(hoy), monto }
+}
+
+// Aplica el plan de la app sobre una COPIA de los gastos (para el mensaje con el gasto ya cargado)
+export function gastosAppConPlan(gastos: Gasto[], plan: PlanMetaApp): Gasto[] {
+  if (plan.accion === 'actualizar') return gastos.map(g => (g.id === plan.id ? { ...g, monto: plan.monto } : g))
+  if (plan.accion !== 'agregar') return gastos
+  const { cat, inferida } = categoriaGasto('Anuncios', plan.concepto)
+  return [...gastos, {
+    fila: 0, ref: 'Gasto nuevo del cierre', web: true, fecha: plan.fecha, mes: mesDe(plan.fecha), concepto: plan.concepto,
+    monto: plan.monto, montoOrigen: 'USD', tipoTexto: 'Anuncios', cat, inferida, pagadoPorTexto: '', pagador: 'Empresa',
+  }]
 }
 
 // Aplica el plan sobre una COPIA de las filas (para calcular el mensaje con la fila ya cargada)
@@ -86,6 +128,7 @@ export interface ContextoMensaje {
   resultadoMeta: string           // qué pasó con la fila de Meta (ya redactado)
   urlFinanzas: string
   hoy: string
+  fuente?: 'app' | 'planilla'     // de dónde salieron pagos y gastos (1/11/2026: la app de Finanzas)
 }
 
 export function armarMensajeCierre(f: Finanzas, ctx: ContextoMensaje): string[] {
@@ -93,10 +136,12 @@ export function armarMensajeCierre(f: Finanzas, ctx: ContextoMensaje): string[] 
   const nombreMes = etiquetaMes(f.mes)
   const ultimo = ultimoDiaDelMes(f.mes)
   const enMes = ctx.hoy.slice(0, 7) === f.mes
+  const enApp = ctx.fuente === 'app'
+  const dondeGastos = enApp ? 'la app de Finanzas' : 'la pestaña Gastos'
 
   partes.push(`${ctx.mencion}\n📆 **CIERRE DE MES — ${nombreMes}**${enMes && sumarDias(ctx.hoy, 1) === ultimo ? ' _(mañana es el último día)_' : ''}\n` +
     `🏦 **Pendiente: entrar a Relay** para cargar los gastos del banco del mes (software, Facebook cobrado, devoluciones de Stripe, comisiones). ` +
-    `Iniciá sesión en Relay en Chrome y avisale al asistente: los carga en la pestaña Gastos.`)
+    `Iniciá sesión en Relay en Chrome y avisale al asistente: los carga en ${dondeGastos}.`)
 
   // Gastos cargados en la pestaña Gastos
   const lista = f.gastos.lista
@@ -114,7 +159,7 @@ export function armarMensajeCierre(f: Finanzas, ctx: ContextoMensaje): string[] 
       : '• Todos los gastos cargados tienen categoría ✅',
     `• Resultado del mes (con Payroll y comisiones): gastos ${usd(f.resultado.gastos)} · neto ${usd(f.resultado.neto)}${f.resultado.margen != null ? ` · margen ${pct(f.resultado.margen)}` : ''}${f.gastos.anunciosEstimado ? ' _(anuncios estimados)_' : ''}`,
   ]
-  partes.push(`🧾 **Gastos cargados en la pestaña Gastos: ${usd(totalCargado)}** (${lista.length} filas)\n${lineasG.join('\n')}`)
+  partes.push(`🧾 **Gastos cargados en ${dondeGastos}: ${usd(totalCargado)}** (${lista.length} ${enApp ? 'gastos' : 'filas'})\n${lineasG.join('\n')}`)
 
   // Payroll
   const pay = f.gastos.payroll
@@ -138,10 +183,10 @@ export function armarMensajeCierre(f: Finanzas, ctx: ContextoMensaje): string[] 
 
   // Devoluciones
   const devs = lista.filter(g => g.categoria === 'Devoluciones')
-  const devsRegistro = f.revisar.filter(r => r.tipo === 'devolucion' && r.fila?.startsWith('Registro'))
+  const devsRegistro = f.revisar.filter(r => r.tipo === 'devolucion' && (r.fila?.startsWith('Registro') || r.fila?.startsWith('Pago #')))
   partes.push(`↩️ **Devoluciones del mes: ${usd(f.resultado.devoluciones)}**\n` +
     (devs.length ? devs.slice(0, 10).map(g => `• ${g.concepto} ${usd(g.monto)}${g.inferida ? ' _(cargada como otro tipo)_' : ''}`).join('\n') : '• Ninguna cargada en Gastos (las de Stripe aparecen en Relay como "STRIPE ACH Pull").') +
-    (devsRegistro.length ? `\n• ⚠️ En el Registro de Pagos hay ${devsRegistro.length} pago(s) que parecen devolución: revisar en /finanzas.` : ''))
+    (devsRegistro.length ? `\n• ⚠️ En ${enApp ? 'los pagos de la app' : 'el Registro de Pagos'} hay ${devsRegistro.length} pago(s) que parecen devolución: revisar en /finanzas.` : ''))
 
   // Entradas por cuenta
   const e = f.entradas
@@ -150,6 +195,7 @@ export function armarMensajeCierre(f: Finanzas, ctx: ContextoMensaje): string[] 
   ]
   const sinDato = e.porCuenta['sin dato'], nSinDato = e.cantPorCuenta['sin dato']
   if (e.porCuenta.otra > 0) lineasE.push(`• Otras cuentas (Pagos Rio, efectivo, dLocal, etc.) ${usd(e.porCuenta.otra)} (${e.cantPorCuenta.otra})`)
+  if (e.fuenteCuenta === 'app') lineasE.push('• _Cuenta de cada pago según «quién recibió» de la app de Finanzas («Tomi y Gero» = mitad y mitad)._')
   if (e.fuenteCuenta === 'comprobantes') lineasE.push('• _Cuenta de cada pago según los comprobantes revisados (jul–sep 2026)._')
   if (!e.fuenteCuenta) lineasE.push(`• ⚠️ No se sabe a qué cuenta entraron los pagos del mes (${usd(sinDato)}, ${nSinDato} pagos): el Registro no tiene ese dato. Falta decidir cómo registrarlo.`)
   else if (nSinDato) lineasE.push(`• ⚠️ Sin cuenta (${nSinDato} pagos): ${usd(sinDato)} — ver "A revisar" en /finanzas.`)

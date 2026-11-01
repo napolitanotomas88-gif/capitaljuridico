@@ -1,4 +1,8 @@
-// ── Dashboard de Finanzas: lectura de datos (Sheets + Meta + dólar MEP) ────────────────────
+// ── Dashboard de Finanzas: lectura de datos (app de Finanzas + Sheets + Meta + dólar MEP) ────────────────────
+// Desde el 1/11/2026 («pasa todo a la app», pedido de Tomás) pagos, gastos y payroll salen de la app de Finanzas en Neon
+// (lib/finanzasApp.ts). La planilla queda para: el Estado de Resultados ("Cash Collected", la app no lo tiene), el respaldo
+// si Neon falla o falta DATABASE_URL (con aviso) y la escritura del cierre de mes. FINANZAS_FUENTE=planilla fuerza el
+// camino viejo sin tocar código (por si hay que volver atrás).
 // SOLO lo usan /api/finanzas (protegido con contraseña) y /api/finanzas-cierre (CRON_SECRET). No se expone nada de esto en /api/raw.
 // El cálculo está en lib/finanzasCalc.ts (puro, testeable sin red).
 //
@@ -6,8 +10,9 @@
 // caché de 60 s + deduplicación de requests concurrentes + último valor bueno ante un error (igual
 // criterio que lib/rawSheets.ts, pero con su propio caché para no tocar ese módulo).
 import { google } from 'googleapis'
-import { calcularFinanzas, type Fila } from './finanzasCalc'
+import { calcularFinanzas, type DatosAppCalculo, type Fila, type Gasto } from './finanzasCalc'
 import { leerComprobantes } from './finanzasCuentas'
+import { leerApp } from './finanzasApp'
 
 const ANIO_PLANILLAS = 2026   // Payroll y Estado de Resultados del sheet de Finanzas son de 2026
 
@@ -131,25 +136,58 @@ export function hoyArgentina(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })   // 'YYYY-MM-DD'
 }
 
-// Datos crudos de un mes de cálculo (Sheets + Meta + MEP). Lo usan /api/finanzas y /api/finanzas-cierre.
+const HOJAS_VACIAS: Hojas = { registro: [], gastos: [], er: [], payroll: [] }
+const motivo = (e: unknown) => ((e as Error)?.message ?? String(e)).slice(0, 120)
+
+// Datos crudos de un mes de cálculo (app o Sheets + Meta + MEP). Lo usan /api/finanzas y /api/finanzas-cierre.
+// La app y la planilla se leen en paralelo (la planilla es UN batchGet: sigue haciendo falta por el Estado de Resultados
+// y queda lista como respaldo). Solo se corta si no hay ninguna de las dos.
 export async function leerDatosFinanzas() {
   const hoy = hoyArgentina()
-  const [hojas, metaSpend, mep] = await Promise.all([leerHojas(), gastoMetaMensual(hoy), serieMep(hoy)])
-  return { hoy, hojas: hojas.data, avisosHojas: hojas.avisos, metaSpend, mep }
+  const forzarPlanilla = process.env.FINANZAS_FUENTE?.trim().toLowerCase() === 'planilla'
+  const [hojasR, appR, metaSpend, mep] = await Promise.all([
+    leerHojas().then(v => ({ ok: true as const, v }), e => ({ ok: false as const, e })),
+    forzarPlanilla
+      ? Promise.resolve({ ok: false as const, e: new Error('FINANZAS_FUENTE=planilla') })
+      : leerApp().then(v => ({ ok: true as const, v }), e => ({ ok: false as const, e })),
+    gastoMetaMensual(hoy), serieMep(hoy),
+  ])
+  const avisosHojas: string[] = []
+  let app: DatosAppCalculo | null = null
+  if (appR.ok) {
+    app = appR.v.data
+    avisosHojas.push(...appR.v.avisos)
+    if (hojasR.ok) avisosHojas.push(...hojasR.v.avisos.map(a => `${a} (solo afecta al control con el Estado de Resultados)`))
+    else avisosHojas.push('No se pudo leer el Estado de Resultados de la planilla: falta el control cruzado del cash.')
+  } else {
+    if (!hojasR.ok) throw new Error(`No se pudo leer la app de Finanzas (${motivo(appR.e)}) ni la planilla (${motivo(hojasR.e)})`)
+    avisosHojas.push(...hojasR.v.avisos)
+    if (!forzarPlanilla) {
+      console.error(`Finanzas: falló la lectura de la app (${motivo(appR.e)}) → uso la planilla`)
+      avisosHojas.push('No se pudo leer la app de Finanzas: se muestran los datos de la planilla (puede faltar lo cargado en la app).')
+    }
+  }
+  return {
+    hoy, fuente: (app ? 'app' : 'planilla') as 'app' | 'planilla', app,
+    hojas: hojasR.ok ? hojasR.v.data : HOJAS_VACIAS, hojasOk: hojasR.ok,
+    avisosHojas, metaSpend, mep,
+  }
 }
 export type DatosFinanzas = Awaited<ReturnType<typeof leerDatosFinanzas>>
 
-export function calcularMes(d: DatosFinanzas, mes: string, gastos: Fila[] = d.hojas.gastos) {
+// `ajuste`: solo el cierre de mes, para calcular el mensaje con la fila de Meta ya cargada (simulada en preview).
+export function calcularMes(d: DatosFinanzas, mes: string, ajuste: { gastosHoja?: Fila[]; gastosApp?: Gasto[] } = {}) {
   const f = calcularFinanzas({
     mes, hoy: d.hoy,
-    registro: d.hojas.registro, gastos, payroll: d.hojas.payroll, er: d.hojas.er,
+    registro: d.hojas.registro, gastos: ajuste.gastosHoja ?? d.hojas.gastos, payroll: d.hojas.payroll, er: d.hojas.er,
     anioPlanillas: ANIO_PLANILLAS, metaSpend: d.metaSpend, mep: d.mep,
     comprobantes: leerComprobantes(),   // cuenta que recibió cada pago de jul–sep 2026 (dato fijo, ver lib/finanzasCuentas.ts)
+    app: d.app ? { ...d.app, gastos: ajuste.gastosApp ?? d.app.gastos } : undefined,
   })
   const avisos = [...d.avisosHojas]
   if (!d.mep.length) avisos.push('No se pudo obtener el dólar MEP: los montos en ARS del monotributo quedan incompletos.')
   if (!Object.keys(d.metaSpend).length) avisos.push('No se pudo leer el gasto de Meta (sin estimado de anuncios).')
-  return { ...f, avisos, generado: new Date().toISOString() }
+  return { ...f, fuente: d.fuente, avisos, generado: new Date().toISOString() }
 }
 
 export async function obtenerFinanzas(mesPedido?: string | null) {

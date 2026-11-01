@@ -14,6 +14,13 @@
 //     comisión L (lo que se registró como pagado) solo para comparar; "Pagado por" por encabezado o col Q.
 //   · Estado de Resultados → fila "Cash Collected" (control cruzado del cash).
 //   · Pestaña Dashboard → sus fórmulas de comisiones se replican en comisionesDelMes().
+//
+// Desde el 1/11/2026 («pasa todo a la app», pedido de Tomás) pagos, gastos y payroll salen de la app de Finanzas
+// (Neon, esquema finanzas; lector en lib/finanzasApp.ts). Esos datos llegan YA TIPADOS en `app` (Pago / Gasto /
+// FilaPayroll, las mismas estructuras que arman los parsers de abajo) y el cálculo es el mismo. Las filas de la planilla
+// siguen sirviendo de respaldo (si Neon falla) y el Estado de Resultados sigue saliendo de la planilla (la app no tiene
+// el "Cash Collected"). La cuenta que recibió cada pago sale de «quién recibió» de la app; los comprobantes de jul–sep
+// quedan como respaldo para los pagos sin esa asignación.
 
 import type { PagoComprobante } from './finanzasCuentas'
 
@@ -53,7 +60,11 @@ export interface EntradaCalculo {
   metaSpend: Record<string, number> // 'YYYY-MM' → gasto Meta (API, por consumo)
   mep: [string, number][]           // [('YYYY-MM-DD', venta)] ordenado por fecha — dólar MEP (bolsa)
   comprobantes?: PagoComprobante[]  // cuenta que recibió cada pago, sacada de los comprobantes (jul–sep 2026)
+  app?: DatosAppCalculo             // pagos, gastos y payroll de la app de Finanzas (si está, registro/gastos/payroll no se leen)
 }
+
+// Datos de la app de Finanzas ya convertidos (lib/finanzasApp.ts). Payroll: 'YYYY-MM' → filas del mes.
+export interface DatosAppCalculo { pagos: Pago[]; gastos: Gasto[]; payroll: Map<string, FilaPayroll[]> }
 
 // ── utilidades ─────────────────────────────────────────────────────────────────────────
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
@@ -236,9 +247,11 @@ export interface Pago {
   concepto: string; categoria: 'FECCU' | 'FECCP' | 'BECC' | 'Sin categoría'
   comisionPlataforma: number
   cuenta: Cuenta; cuentaTexto: string
-  partes: { cuenta: Cuenta; monto: number }[]   // pago partido entre dos cuentas (comprobantes); si no, una sola parte
-  fuenteCuenta: 'columna' | 'comprobantes' | null
+  partes: { cuenta: Cuenta; monto: number }[]   // pago partido entre dos cuentas (comprobantes o «Tomi y Gero» de la app); si no, una sola parte
+  fuenteCuenta: 'columna' | 'comprobantes' | 'app' | null
+  ref?: string                                   // de dónde sale, para "A revisar" (app: "Pago #id"); sin ref = "Registro fila N"
 }
+export const refPago = (p: Pago) => p.ref ?? `Registro fila ${p.fila}`
 
 export function parsearRegistro(registro: Fila[]): { pagos: Pago[]; tieneColCuenta: boolean; colCuentaLetra: string | null } {
   const h = registro[0] ?? []
@@ -320,7 +333,10 @@ export interface Gasto {
   montoOrigen: 'USD' | 'ARS→MEP'; mepUsado?: { valor: number; fecha: string }
   tipoTexto: string; cat: CategoriaGasto; inferida: boolean
   pagadoPorTexto: string; pagador: Pagador
+  ref?: string                          // app: "Gasto #id"; sin ref = "Gastos fila N"
+  id?: number; web?: boolean            // solo app: id de finanzas.gastos y si es una fila web (id_origen null, editable)
 }
+export const refGasto = (g: Gasto) => g.ref ?? `Gastos fila ${g.fila}`
 export function parsearGastos(gastos: Fila[], mep: [string, number][]): { lista: Gasto[]; sinCotizacion: { fila: number; concepto: string; ars: number }[] } {
   const h = gastos[0] ?? []
   const cFecha = col(h, 0, 'fecha')
@@ -362,7 +378,9 @@ export function parsearGastos(gastos: Fila[], mep: [string, number][]): { lista:
 export interface FilaPayroll {
   fila: number; nombre: string; puesto: string; base: number; bonus: number; comision: number; total: number
   pagado: boolean; pagadoPorTexto: string; pagador: Pagador
+  ref?: string                          // app: "Pago al equipo #id"; sin ref = "Payroll fila N"
 }
+export const refPayroll = (f: FilaPayroll) => f.ref ?? `Payroll fila ${f.fila}`
 // Payroll: un bloque por mes. Fila de título con "CONTRATISTAS" y el mes en col J; la siguiente trae los encabezados.
 export function parsearPayroll(payroll: Fila[], anio: number): Map<string, FilaPayroll[]> {
   const out = new Map<string, FilaPayroll[]>()
@@ -488,10 +506,14 @@ export interface ItemRevisar { tipo: 'gasto' | 'pago' | 'devolucion' | 'comision
 
 export function calcularFinanzas(e: EntradaCalculo) {
   const { mes } = e
-  const { pagos, tieneColCuenta, colCuentaLetra } = parsearRegistro(e.registro)
+  // App de Finanzas (desde 1/11/2026): los datos llegan tipados; se copian los pagos porque los comprobantes los completan
+  const { pagos, tieneColCuenta, colCuentaLetra } = e.app
+    ? { pagos: e.app.pagos.map(p => ({ ...p, partes: p.partes.map(pt => ({ ...pt })) })), tieneColCuenta: false, colCuentaLetra: null }
+    : parsearRegistro(e.registro)
   const { sinUsar: comprobantesSinUsar } = e.comprobantes?.length ? asignarCuentasComprobantes(pagos, e.comprobantes) : { sinUsar: [] }
-  const { lista: gastos, sinCotizacion } = parsearGastos(e.gastos, e.mep)
-  const payroll = parsearPayroll(e.payroll, e.anioPlanillas)
+  const { lista: gastos, sinCotizacion } = e.app ? { lista: e.app.gastos, sinCotizacion: [] } : parsearGastos(e.gastos, e.mep)
+  const payroll = e.app ? e.app.payroll : parsearPayroll(e.payroll, e.anioPlanillas)
+  const origenPagos = e.app ? 'la app de Finanzas' : 'el Registro'
   const revisar: ItemRevisar[] = []
 
   // Meses con datos (para el selector): Registro, Gastos o Payroll con algo cargado, hasta el mes en curso
@@ -510,16 +532,17 @@ export function calcularFinanzas(e: EntradaCalculo) {
   const porCuenta: Record<Cuenta, number> = { Tomi: 0, Gero: 0, Relay: 0, Financiera: 0, 'sin dato': 0, otra: 0 }
   const cantPorCuenta: Record<Cuenta, number> = { Tomi: 0, Gero: 0, Relay: 0, Financiera: 0, 'sin dato': 0, otra: 0 }
   for (const p of pagosMes) if (p.montoEsNumero) for (const pt of p.partes) { porCuenta[pt.cuenta] += pt.monto; cantPorCuenta[pt.cuenta]++ }
-  const fuenteCuenta: 'columna' | 'comprobantes' | null = pagosMes.some(p => p.fuenteCuenta === 'comprobantes') ? 'comprobantes' : tieneColCuenta ? 'columna' : null
+  const fuenteCuenta: Pago['fuenteCuenta'] = pagosMes.some(p => p.fuenteCuenta === 'app') ? 'app'
+    : pagosMes.some(p => p.fuenteCuenta === 'comprobantes') ? 'comprobantes' : tieneColCuenta ? 'columna' : null
   const cashEr = cashER(e.er, mes, e.anioPlanillas)
   if (cashEr != null && Math.abs(cashEr - cash) > 0.5)
-    revisar.push({ tipo: 'dato', texto: `El Estado de Resultados dice Cash Collected $${cashEr.toFixed(2)} y el Registro suma $${cash.toFixed(2)} para el mes. Este dashboard usa el Registro (el ER tiene fórmulas con fechas mal puestas).` })
+    revisar.push({ tipo: 'dato', texto: `El Estado de Resultados dice Cash Collected $${cashEr.toFixed(2)} y ${origenPagos} suma $${cash.toFixed(2)} para el mes. Este dashboard usa ${origenPagos} (el ER tiene fórmulas con fechas mal puestas).` })
   for (const p of pagosMes.filter(x => !x.montoEsNumero))
-    revisar.push({ tipo: 'pago', texto: `Monto cargado como TEXTO ("${txt(p.montoCelda)}"): el sheet lo ignora en sus sumas — reingresarlo como número. ${p.cliente}`, monto: p.monto, fila: `Registro fila ${p.fila}` })
+    revisar.push({ tipo: 'pago', texto: `Monto cargado como TEXTO ("${txt(p.montoCelda)}"): el sheet lo ignora en sus sumas — reingresarlo como número. ${p.cliente}`, monto: p.monto, fila: refPago(p) })
   for (const p of pagosMes.filter(x => x.montoEsNumero && x.monto < 0))
-    revisar.push({ tipo: 'devolucion', texto: `Pago NEGATIVO en el Registro (${p.cliente}). Las devoluciones van como gasto "Devoluciones" en la pestaña Gastos.`, monto: p.monto, fila: `Registro fila ${p.fila}` })
+    revisar.push({ tipo: 'devolucion', texto: `Pago NEGATIVO en ${origenPagos} (${p.cliente}). Las devoluciones van como gasto "Devoluciones" en la pestaña Gastos.`, monto: p.monto, fila: refPago(p) })
   for (const p of pagosMes.filter(x => /devoluc|reembols|refund/.test(norm(x.concepto))))
-    revisar.push({ tipo: 'devolucion', texto: `Pago con concepto "${p.concepto}" (${p.cliente}): confirmar si es una devolución.`, monto: p.monto, fila: `Registro fila ${p.fila}` })
+    revisar.push({ tipo: 'devolucion', texto: `Pago con concepto "${p.concepto}" (${p.cliente}): confirmar si es una devolución.`, monto: p.monto, fila: refPago(p) })
   if (porCategoria['Sin categoría'] > 0)
     revisar.push({ tipo: 'pago', texto: `Pagos sin "Tipos de venta" (no se pueden clasificar FECCU/FECCP/BECC).`, monto: r2(porCategoria['Sin categoría']) })
   // "otra" = otras cuentas conocidas (Pagos Rio, efectivo, dLocal…): el usuario decidió no identificarlas → no es un faltante
@@ -529,7 +552,9 @@ export function calcularFinanzas(e: EntradaCalculo) {
     const conComprobantes = pagosMes.some(p => p.fuenteCuenta === 'comprobantes')
     revisar.push({
       tipo: 'pago',
-      texto: conComprobantes
+      texto: e.app
+        ? `${sinCuenta.length} pagos sin «quién recibió» en la app de Finanzas${conComprobantes ? ' ni comprobante revisado que coincida' : ''}: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)} (${refPago(p)})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
+        : conComprobantes
         ? `${sinCuenta.length} pagos sin cuenta: no coinciden (fecha + cliente) con ningún comprobante revisado: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)} (fila ${p.fila})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
         : tieneColCuenta
           ? `${sinCuenta.length} pagos sin "Cuenta que recibió" válida: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)}${p.cuentaTexto ? ` ("${p.cuentaTexto}")` : ''}`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
@@ -538,7 +563,7 @@ export function calcularFinanzas(e: EntradaCalculo) {
     })
   }
   for (const c of comprobantesSinUsar.filter(c => c[0].slice(0, 7) === mes))
-    revisar.push({ tipo: 'pago', texto: `Comprobante revisado que ya no coincide con ninguna fila del Registro: ${c[1]} $${c[2]} del ${c[0].split('-').reverse().join('/')} (¿se corrigió la fecha o el nombre?).`, monto: c[2] })
+    revisar.push({ tipo: 'pago', texto: `Comprobante revisado que ya no coincide con ningún pago de ${origenPagos}: ${c[1]} $${c[2]} del ${c[0].split('-').reverse().join('/')} (¿se corrigió la fecha o el nombre?).`, monto: c[2] })
 
   // ── Gastos ──
   const gastosMesTodos = gastos.filter(g => g.mes === mes)
@@ -575,13 +600,13 @@ export function calcularFinanzas(e: EntradaCalculo) {
   const gastoTotal = r2(categorias.reduce((s, c) => s + c.monto, 0))
 
   for (const g of gastosMes.filter(x => x.cat === 'Sin categoría'))
-    revisar.push({ tipo: 'gasto', texto: `Gasto sin categoría: "${g.concepto}"${g.tipoTexto ? ` (Tipo de Gasto = "${g.tipoTexto}", no es una de las 8)` : ' (Tipo de Gasto vacío)'}`, monto: r2(g.monto), fila: `Gastos fila ${g.fila}` })
+    revisar.push({ tipo: 'gasto', texto: `Gasto sin categoría: "${g.concepto}"${g.tipoTexto ? ` (Tipo de Gasto = "${g.tipoTexto}", no es una de las 8)` : ' (Tipo de Gasto vacío)'}`, monto: r2(g.monto), fila: refGasto(g) })
   for (const g of gastosMes.filter(x => x.cat === 'Devoluciones'))
-    revisar.push({ tipo: 'devolucion', texto: `Devolución a confirmar: "${g.concepto}"${g.inferida ? ` — cargada como "${g.tipoTexto || 'sin tipo'}", se tomó como Devolución por el concepto` : ''}`, monto: r2(g.monto), fila: `Gastos fila ${g.fila}` })
+    revisar.push({ tipo: 'devolucion', texto: `Devolución a confirmar: "${g.concepto}"${g.inferida ? ` — cargada como "${g.tipoTexto || 'sin tipo'}", se tomó como Devolución por el concepto` : ''}`, monto: r2(g.monto), fila: refGasto(g) })
   for (const s of sinCotizacion.filter(x => mesDe(fechaGastoFila(e.gastos, x.fila) ?? '') === mes))
     revisar.push({ tipo: 'gasto', texto: `Gasto en pesos sin cotización MEP disponible: "${s.concepto}" ($${s.ars} ARS) — no se sumó.`, fila: `Gastos fila ${s.fila}` })
   for (const g of estimadosSobrantes)
-    revisar.push({ tipo: 'gasto', texto: `Fila de estimado de Meta que ya no hace falta (el mes tiene anuncios cobrados en Relay cargados): borrarla. No se suma.`, monto: r2(g.monto), fila: `Gastos fila ${g.fila}` })
+    revisar.push({ tipo: 'gasto', texto: `Fila de estimado de Meta que ya no hace falta (el mes tiene anuncios cobrados en Relay cargados): borrarla. No se suma.`, monto: r2(g.monto), fila: refGasto(g) })
   if (soloEstimadoMeta)
     revisar.push({ tipo: 'gasto', texto: `Los anuncios del mes son el estimado de Meta que cargó la automatización: reemplazarlo con lo cobrado en Relay (Facebook).`, monto: r2(porCat.Anuncios) })
   if (anunciosEstimado && !soloEstimadoMeta)
@@ -607,11 +632,11 @@ export function calcularFinanzas(e: EntradaCalculo) {
   let gastosSinPagador = 0
   const gastosSinPagadorLista: string[] = []
   for (const g of gastosMes) {
-    if (g.pagador === 'Tomi' || g.pagador === 'Gero') { gastosSocio[g.pagador] += g.monto; detalleGastosSocio.push({ quien: g.pagador, concepto: g.concepto, monto: r2(g.monto), origen: `Gastos fila ${g.fila}` }) }
+    if (g.pagador === 'Tomi' || g.pagador === 'Gero') { gastosSocio[g.pagador] += g.monto; detalleGastosSocio.push({ quien: g.pagador, concepto: g.concepto, monto: r2(g.monto), origen: refGasto(g) }) }
     else if (g.pagador !== 'Empresa') { gastosSinPagador += g.monto; gastosSinPagadorLista.push(`${g.concepto}${g.pagadoPorTexto ? ` ("${g.pagadoPorTexto}")` : ''}`) }
   }
   for (const f of payrollMes ?? []) {
-    if (f.pagador === 'Tomi' || f.pagador === 'Gero') { gastosSocio[f.pagador] += f.total; detalleGastosSocio.push({ quien: f.pagador, concepto: `Payroll: ${f.nombre}`, monto: r2(f.total), origen: `Payroll fila ${f.fila}` }) }
+    if (f.pagador === 'Tomi' || f.pagador === 'Gero') { gastosSocio[f.pagador] += f.total; detalleGastosSocio.push({ quien: f.pagador, concepto: `Payroll: ${f.nombre}`, monto: r2(f.total), origen: refPayroll(f) }) }
     else if (f.pagador !== 'Empresa') { gastosSinPagador += f.total; gastosSinPagadorLista.push(`Payroll: ${f.nombre}${f.pagadoPorTexto ? ` ("${f.pagadoPorTexto}")` : ''}`) }
   }
   const saldoTomi = ingresosSocio.Tomi - gastosSocio.Tomi
