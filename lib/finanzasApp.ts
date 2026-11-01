@@ -31,6 +31,7 @@ export interface FilaGastoApp {
 export interface FilaEquipoApp {
   id: number; mes: string; nombre: string | null; puesto: string | null
   honorarios_base: number | string | null; bonuses: number | string | null; comision: number | string | null
+  extras?: number | string | null
   total_usd: number | string | null; pagado: boolean | null; pagado_por: string | null
 }
 
@@ -101,7 +102,8 @@ export function payrollDesdeApp(filas: FilaEquipoApp[]): Map<string, FilaPayroll
     if (!/^\d{4}-\d{2}$/.test(r.mes ?? '')) continue
     const nombre = txt(r.nombre)
     if (!nombre) continue
-    const base = num(r.honorarios_base), bonus = num(r.bonuses), comision = num(r.comision)
+    // Extras (lo que se paga aparte por hacer de más, 1/11/2026) cuentan como bonus: son sueldo, no comisión
+    const base = num(r.honorarios_base), bonus = num(r.bonuses) + num(r.extras), comision = num(r.comision)
     let total = base + bonus + comision
     if (!total) total = num(r.total_usd)
     const pagadoPorTexto = txt(r.pagado_por)   // Financiera / Tomi / Gero / Otro (Financiera = empresa, regla del 3/10)
@@ -126,7 +128,7 @@ export const CONSULTAS_APP = {
   gastos: `select id, fecha::text as fecha, concepto, monto_usd::float8 as monto_usd, tipo, cuenta, id_origen
     from finanzas.gastos_vigentes order by fecha, id`,
   equipo: `select e.id, to_char(e.mes, 'YYYY-MM') as mes, coalesce(nullif(btrim(pe.nombre), ''), e.nombre_original) as nombre, e.puesto,
-      e.honorarios_base::float8 as honorarios_base, e.bonuses::float8 as bonuses, e.comision::float8 as comision,
+      e.honorarios_base::float8 as honorarios_base, e.bonuses::float8 as bonuses, e.comision::float8 as comision, e.extras::float8 as extras,
       e.total_usd::float8 as total_usd, e.pagado, e.pagado_por
     from finanzas.pagos_equipo_vigentes e left join finanzas.personas pe on pe.id = e.persona_id order by e.mes, e.id`,
 }

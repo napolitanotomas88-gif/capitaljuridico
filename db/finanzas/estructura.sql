@@ -585,3 +585,10 @@ create policy "autorizados - editar sensibles" on finanzas.personas_sensibles fo
 create policy "autorizados - leer sensibles" on finanzas.personas_sensibles for SELECT to finanzas_app using (( SELECT finanzas_priv.es_autorizado_sensibles() AS es_autorizado_sensibles));
 create policy "solo con sesion - personas" on finanzas.personas for ALL to finanzas_app using (true) with check (true);
 create policy "solo con sesion - leer vocabularios" on finanzas.vocabularios_correccion for SELECT to finanzas_app using (true);
+
+-- 5) 1/11/2026: extras en Pagos del equipo (Tomás: «para poner extras, por si la persona hizo más cosas de lo que tenía
+--    que hacer»). Suman al total; el detalle cuenta qué hizo. La vista pagos_equipo_vigentes las agrega al final.
+alter table finanzas.pagos_equipo add column extras numeric not null default 0, add column extras_detalle text,
+  add constraint pagos_equipo_extras_no_negativo check (extras >= 0);
+-- create or replace view finanzas.pagos_equipo_vigentes ... , (jsonb_populate_record(null::finanzas.pagos_equipo, a.j)).extras as extras,
+--   (jsonb_populate_record(null::finanzas.pagos_equipo, a.j)).extras_detalle as extras_detalle
