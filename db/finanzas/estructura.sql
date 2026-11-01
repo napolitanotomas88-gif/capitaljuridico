@@ -114,7 +114,6 @@ CREATE INDEX pagos_equipo_mes_idx ON finanzas.pagos_equipo USING btree (mes);
 CREATE INDEX pagos_equipo_persona_idx ON finanzas.pagos_equipo USING btree (persona_id);
 CREATE INDEX personas_sensibles_historial_persona ON finanzas.personas_sensibles_historial USING btree (persona_id, cambiado_en DESC);
 CREATE UNIQUE INDEX conciliaciones_destino_unico ON finanzas.conciliaciones USING btree (destino_tipo, destino_id) WHERE (destino_tipo = ANY (ARRAY['pago'::text, 'gasto'::text]));
-CREATE UNIQUE INDEX sensibles_autorizados_un_solo_correo ON finanzas_priv.sensibles_autorizados USING btree ((true));
 
 -- 2) Funciones, disparadores y vistas
 set search_path to finanzas, finanzas_priv;
