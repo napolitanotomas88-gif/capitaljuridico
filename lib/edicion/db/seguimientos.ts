@@ -163,6 +163,13 @@ export async function soltarPasoBot(id: number, motivo: string): Promise<void> {
     WHERE id = ${k} AND hecho->>'quien' = ${QUIEN_BOT_WHATSAPP} AND hecho->>'nota' = ${NOTA_ENVIANDO}`)
 }
 
+/** El número del bot se cayó antes de mandar: el paso vuelve a «sin hacer» SIN anotar «No salió» (lo retoma el bot). */
+export async function devolverPasoBot(id: number): Promise<void> {
+  const k = idPositivo(id, 'paso_id')
+  await consulta('devolver paso (whatsapp)', q => q`UPDATE cj_grab_seguimientos SET hecho = NULL, version = version + 1, actualizado = now()
+    WHERE id = ${k} AND hecho->>'quien' = ${QUIEN_BOT_WHATSAPP} AND hecho->>'nota' = ${NOTA_ENVIANDO}`)
+}
+
 /** El bot no lo pudo mandar (sin grupo claro): queda sin hacer y con el motivo en el texto, para Aylu. No se reintenta. */
 export async function anotarNoSalioBot(id: number, version: number, motivo: string): Promise<void> {
   const k = idPositivo(id, 'paso_id')
