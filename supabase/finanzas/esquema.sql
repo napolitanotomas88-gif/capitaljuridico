@@ -64,7 +64,7 @@ begin
     raise exception 'El registro % de % no existe o no es una fila importada.', new.registro_id, new.tabla;
   end if;
 
-  -- 3) Valor original (siempre leído de la tabla original) y valor vigente justo antes
+  -- 3) Valor original (siempre le√≠do de la tabla original) y valor vigente justo antes
   execute format('select to_jsonb(t) -> %L from %I t where t.id = $1', new.campo, new.tabla) into v_original using new.registro_id;
   select c.valor_nuevo into v_anterior from correcciones c
    where c.tabla = new.tabla and c.registro_id = new.registro_id and c.campo = new.campo
@@ -76,16 +76,16 @@ begin
   new.corregido_por := coalesce(auth.jwt() ->> 'email', 'fuera de la app');   -- no se puede falsear desde el navegador
   new.corregido_en := now();
 
-  -- 4) Reversión: vuelve al valor original
+  -- 4) Reversi√≥n: vuelve al valor original
   if new.tipo_evento = 'reversion' then
     if v_anterior = v_original then
-      raise exception 'Ese dato ya está en su valor original.';
+      raise exception 'Ese dato ya est√° en su valor original.';
     end if;
     new.valor_nuevo := v_original;
     return new;
   end if;
 
-  -- 5) Corrección: validar el valor nuevo según el tipo del campo
+  -- 5) Correcci√≥n: validar el valor nuevo seg√∫n el tipo del campo
   if new.valor_nuevo is null then
     raise exception 'Falta el valor corregido.';
   end if;
@@ -95,24 +95,24 @@ begin
 
   if jsonb_typeof(new.valor_nuevo) = 'null' then
     if not v_admite_vacio then
-      raise exception 'El campo "%" no puede quedar vacío.', new.campo;
+      raise exception 'El campo "%" no puede quedar vac√≠o.', new.campo;
     end if;
   else
     if jsonb_typeof(new.valor_nuevo) in ('object', 'array') then
-      raise exception 'Valor no válido para el campo "%".', new.campo;
+      raise exception 'Valor no v√°lido para el campo "%".', new.campo;
     end if;
     v_texto := new.valor_nuevo #>> '{}';
     if v_tipo = 'text' then
       v_texto := btrim(v_texto);
       if v_texto = '' then
-        raise exception 'El texto no puede estar vacío (para borrar el dato usá el valor vacío).';
+        raise exception 'El texto no puede estar vac√≠o (para borrar el dato us√° el valor vac√≠o).';
       end if;
       new.valor_nuevo := to_jsonb(v_texto);
     else
       begin
         execute format('select %L::%s', v_texto, v_tipo);
       exception when others then
-        raise exception 'El valor "%" no es válido para el campo "%" (%).', v_texto, new.campo, v_tipo;
+        raise exception 'El valor "%" no es v√°lido para el campo "%" (%).', v_texto, new.campo, v_tipo;
       end;
       if v_tipo = 'numeric' then
         new.valor_nuevo := to_jsonb(v_texto::numeric);
@@ -121,14 +121,14 @@ begin
       end if;
     end if;
 
-    -- 6) Vocabularios cerrados (tabla vocabularios_correccion: ver cómo ampliarlos en el encabezado de este archivo)
+    -- 6) Vocabularios cerrados (tabla vocabularios_correccion: ver c√≥mo ampliarlos en el encabezado de este archivo)
     if exists (select 1 from vocabularios_correccion v where v.tabla = new.tabla and v.campo = new.campo)
        and not exists (select 1 from vocabularios_correccion v where v.tabla = new.tabla and v.campo = new.campo and v.valor = (new.valor_nuevo #>> '{}')) then
-      raise exception 'El valor "%" no está permitido para %.%. Valores válidos: %.', (new.valor_nuevo #>> '{}'), new.tabla, new.campo,
+      raise exception 'El valor "%" no est√° permitido para %.%. Valores v√°lidos: %.', (new.valor_nuevo #>> '{}'), new.tabla, new.campo,
         (select string_agg(v.valor, ', ' order by v.valor) from vocabularios_correccion v where v.tabla = new.tabla and v.campo = new.campo);
     end if;
 
-    -- 7) Reglas de montos y fechas (alineadas con las reglas de cada módulo)
+    -- 7) Reglas de montos y fechas (alineadas con las reglas de cada m√≥dulo)
     if v_tipo = 'numeric' then
       v_num := (new.valor_nuevo #>> '{}')::numeric;
       if (new.tabla, new.campo) in (('pagos', 'monto_usd'), ('gastos', 'monto_usd'), ('pagos', 'pesos_ars')) and v_num <= 0 then
@@ -144,16 +144,16 @@ begin
     if v_tipo = 'date' then
       v_fecha := (new.valor_nuevo #>> '{}')::date;
       if v_fecha < date '2000-01-01' or v_fecha > date '2100-12-31' then
-        raise exception 'La fecha % está fuera de rango.', v_fecha;
+        raise exception 'La fecha % est√° fuera de rango.', v_fecha;
       end if;
       if new.tabla = 'pagos_equipo' and new.campo = 'mes' and extract(day from v_fecha) <> 1 then
-        raise exception 'El mes de Payroll debe ser el día 1 del mes.';
+        raise exception 'El mes de Payroll debe ser el d√≠a 1 del mes.';
       end if;
     end if;
   end if;
 
   if new.valor_nuevo = v_anterior then
-    raise exception 'La corrección no cambia el valor vigente.';
+    raise exception 'La correcci√≥n no cambia el valor vigente.';
   end if;
   return new;
 end $function$
@@ -197,16 +197,16 @@ AS $function$
     end if;
     if tg_op = 'UPDATE' then
       if new.pago_id is distinct from old.pago_id then
-        raise exception 'No se puede cambiar el pago de una asignación (pago #%).', old.pago_id;
+        raise exception 'No se puede cambiar el pago de una asignaci√≥n (pago #%).', old.pago_id;
       end if;
       new.creado_por := old.creado_por;
       new.creado_en := old.creado_en;
       new.actualizado_en := now();
       return new;
     end if;
-    -- DELETE: la asignación de un pago importado se puede cambiar de opción, pero no quitar
+    -- DELETE: la asignaci√≥n de un pago importado se puede cambiar de opci√≥n, pero no quitar
     if exists (select 1 from public.pagos p where p.id = old.pago_id and p.id_origen is not null) then
-      raise exception 'La asignación de un pago importado no se puede borrar (pago #%): se puede cambiar de opción, no quitar.', old.pago_id;
+      raise exception 'La asignaci√≥n de un pago importado no se puede borrar (pago #%): se puede cambiar de opci√≥n, no quitar.', old.pago_id;
     end if;
     return old;
   end $function$
@@ -244,10 +244,10 @@ CREATE OR REPLACE FUNCTION private.personas_sensibles_proteger()
 AS $function$
   begin
     if tg_op = 'DELETE' then
-      raise exception 'Los datos sensibles de una persona no se borran: se editan (un campo se puede dejar vacío).';
+      raise exception 'Los datos sensibles de una persona no se borran: se editan (un campo se puede dejar vac√≠o).';
     end if;
     if jsonb_typeof(new.pendientes) is distinct from 'object' then
-      raise exception 'El campo «pendientes» debe ser un objeto {campo: motivo}.';
+      raise exception 'El campo ¬´pendientes¬ª debe ser un objeto {campo: motivo}.';
     end if;
     new.cuil_cuit := private.sensibles_limpiar(new.cuil_cuit);
     new.telefono := private.sensibles_limpiar(new.telefono);
@@ -294,26 +294,26 @@ begin
 
   -- UPDATE
   if old.id_origen is null then
-    return new;                                   -- fila creada en la web: edición libre
+    return new;                                   -- fila creada en la web: edici√≥n libre
   end if;
   v_old := to_jsonb(old);
   v_new := to_jsonb(new);
   if tg_nargs > 0 then
-    foreach v_col in array tg_argv loop           -- campos de trabajo que SÍ pueden cambiar
+    foreach v_col in array tg_argv loop           -- campos de trabajo que S√ç pueden cambiar
       v_old := v_old - v_col;
       v_new := v_new - v_col;
     end loop;
   end if;
-  -- Columnas GENERADAS (calculadas por la base a partir de otras): PostgreSQL las calcula DESPUÉS de los triggers BEFORE,
+  -- Columnas GENERADAS (calculadas por la base a partir de otras): PostgreSQL las calcula DESPU√âS de los triggers BEFORE,
   -- por eso dentro de este trigger no son comparables. Se excluyen todas (es_personal, sin_fecha, sin_periodo y las que se agreguen):
-  -- no se pierde protección, porque las columnas de las que derivan (tipo, fecha, periodo) sí se comparan.
+  -- no se pierde protecci√≥n, porque las columnas de las que derivan (tipo, fecha, periodo) s√≠ se comparan.
   for v_col in select a.attname::text from pg_attribute a where a.attrelid = tg_relid and a.attnum > 0 and not a.attisdropped and a.attgenerated <> '' loop
     v_old := v_old - v_col;
     v_new := v_new - v_col;
   end loop;
-  if tg_table_name = 'movimientos_cuenta' then    -- solo esta tabla tiene la regla de la fecha vacía
+  if tg_table_name = 'movimientos_cuenta' then    -- solo esta tabla tiene la regla de la fecha vac√≠a
     if (v_old ->> 'fecha') is null then           -- se lee por JSON: old.fecha no existe en pagos_equipo (esa tabla usa "mes")
-      v_old := v_old - 'fecha';                   -- completar una fecha vacía está permitido
+      v_old := v_old - 'fecha';                   -- completar una fecha vac√≠a est√° permitido
       v_new := v_new - 'fecha';
     end if;
   end if;
@@ -321,7 +321,7 @@ begin
     select string_agg(k, ', ' order by k) into v_dif
       from (select n.key as k from jsonb_each(v_new) n where n.value is distinct from v_old -> n.key
             union select o.key from jsonb_each(v_old) o where not (v_new ? o.key)) d;
-    raise exception 'La fila importada % #% no se puede modificar directamente: usá "Corregir dato" (los originales son intocables). Campos que se intentaron cambiar: %.', tg_table_name, old.id, coalesce(v_dif, '(ninguno identificable)');
+    raise exception 'La fila importada % #% no se puede modificar directamente: us√° "Corregir dato" (los originales son intocables). Campos que se intentaron cambiar: %.', tg_table_name, old.id, coalesce(v_dif, '(ninguno identificable)');
   end if;
   return new;
 end $function$
@@ -403,7 +403,7 @@ AS $function$
                   when r.n = 1 and exists (select 1 from comp c where c.campo = r.campo and c.v = r.v1) then 'valor compartido con otra persona'
                   when r.n = 1 and exists (select 1 from compl c where c.campo = r.campo and c.vl = r.vl1) then 'valor posiblemente compartido con otra persona'
                   when r.n = 1 and length(r.reciente) > case when r.campo in ('cuil_cuit', 'telefono') then 60 else 300 end then 'valor demasiado largo para el campo'
-                  when r.n = 0 then 'solo marcadores sin letras ni números'
+                  when r.n = 0 then 'solo marcadores sin letras ni n√∫meros'
              end as motivo
       from r
     )
