@@ -4,7 +4,10 @@
 //     textos (o el pie de una imagen / video) de un CLIENTE en un grupo que no es del equipo, con menos de 48 h. El filtro
 //     barato (pareceDeAnuncios) deja pasar lo que puede hablar de la campaña: consultas, zona, presupuesto, pagos, videos,
 //     pausas, tipo de caso… La charla corta («gracias», «dale») no pasa.
-//   · De qué cliente es el grupo lo dice el directorio de Éxito (General / Ventas - <cliente>); los de Contenido van a Guiones.
+//   · De qué cliente es el grupo lo dice el directorio de Éxito (General / Ventas / Contenido - <cliente>). En Contenido
+//     también se habla de la campaña («ese video no me trae nada»): Claude separa lo que es de grabación o guiones.
+//   · Clientes de prueba (esPrueba: nombre que empieza con «PRUEBA BOT» o los de BOT_CLIENTES_PRUEBA): se leen también
+//     los mensajes del equipo (el que prueba escribe desde su teléfono) y el aviso a Valen sale marcado «🧪 PRUEBA».
 //   · Claude (esfuerzo bajo) decide si es de los anuncios y lo resume: qué dijo, qué pide y si hay que avisarle a Valen.
 //   · Se guarda en Neon (cj_anuncios_notas, notasNeon.ts) y se ve en Anuncios → «Notas del cliente». Si hay que cambiar o
 //     tener en cuenta algo de la campaña, va un aviso a #📣-ads mencionando a Valen con el pedido y el link a la nota.
@@ -18,7 +21,14 @@ import { escaparDiscord } from '@/lib/fathomAnuncios/mensaje'
 export const MAX_TEXTO_NOTA = 1_500
 export const MAX_NOTAS_POR_ENVIO = 20
 
-export interface MensajeNota { mensajeId: string; chatId: string; texto: string; autor: AutorWhapi; enviadoEn: string }
+export interface MensajeNota { mensajeId: string; chatId: string; texto: string; autor: AutorWhapi; enviadoEn: string; delEquipo?: boolean }
+
+/** ¿Es un cliente de prueba? «PRUEBA BOT…» siempre; además los nombres de BOT_CLIENTES_PRUEBA (separados por coma). */
+export function esPrueba(cliente: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  const n = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
+  const c = n(cliente)
+  return c.startsWith('prueba bot') || (env.BOT_CLIENTES_PRUEBA ?? '').split(',').map(n).filter(Boolean).includes(c)
+}
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 /** Lo que puede ser de la campaña. Amplio a propósito: el que decide es Claude; esto solo ahorra llamadas con la charla. */
@@ -53,10 +63,11 @@ export function candidatosNotas(json: unknown, grupos: ConfigGrupos, ahora: numb
     vistos.add(m.id)
     if (ahora - Date.parse(m.enviadoEn) > ANTIGUEDAD_MAX_MS) continue
     if (!PATRON_GRUPO.test(m.chatId) || m.chatId === grupos.ventas || m.chatId === grupos.verificaciones || gruposEquipo.includes(m.chatId)) continue
-    if (m.deMi || esDelEquipo(m.autor, equipo)) continue
+    if (m.deMi) continue
+    const delEquipo = esDelEquipo(m.autor, equipo)   // se descarta en procesarNotas, salvo en un cliente de prueba
     const texto = TIPOS_TEXTO.has(m.tipo) ? m.texto : pieDe(x)
     if (!texto || !pareceDeAnuncios(texto)) continue
-    out.push({ mensajeId: m.id, chatId: m.chatId, texto: cortar(texto.trim(), MAX_TEXTO_NOTA), autor: m.autor, enviadoEn: m.enviadoEn })
+    out.push({ mensajeId: m.id, chatId: m.chatId, texto: cortar(texto.trim(), MAX_TEXTO_NOTA), autor: m.autor, enviadoEn: m.enviadoEn, ...(delEquipo ? { delEquipo: true } : {}) })
   }
   return out
 }
@@ -97,10 +108,10 @@ const ETIQUETA: Record<TipoNota, string> = { zona: 'Zona', presupuesto: 'Presupu
 export const etiquetaTipo = (t: TipoNota) => ETIQUETA[t] ?? 'Otro'
 
 /** El aviso a #📣-ads: a Valen, con el pedido concreto y el link a la nota. */
-export function textoAvisoNota(n: { cliente: string; dijo: string; pide: string; tipo: TipoNota; enviadoEn: string }, link: string, valentino: string | null): string {
+export function textoAvisoNota(n: { cliente: string; dijo: string; pide: string; tipo: TipoNota; enviadoEn: string; prueba?: boolean }, link: string, valentino: string | null): string {
   const fecha = new Date(n.enviadoEn).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
   return [
-    `${valentino ? `<@${valentino}> ` : ''}🗣️ **Nota del cliente** · ${escaparDiscord(n.cliente)} (${etiquetaTipo(n.tipo)}, ${fecha})`,
+    `${valentino ? `<@${valentino}> ` : ''}${n.prueba ? '🧪 **PRUEBA** · ' : ''}🗣️ **Nota del cliente** · ${escaparDiscord(n.cliente)} (${etiquetaTipo(n.tipo)}, ${fecha})`,
     `💬 ${escaparDiscord(n.dijo)}`,
     n.pide ? `👉 **Pide:** ${escaparDiscord(n.pide)}` : '👉 **Tenelo en cuenta** para la campaña.',
     `🔗 [Ver la nota en el Despacho](<${link}>)`,
@@ -113,6 +124,8 @@ export interface DepsNotas {
   /** De qué cliente es el grupo (directorio de Éxito). null = no es el grupo de un cliente. */
   deChat(chatId: string): Promise<{ idCrm: string | null; cliente: string; grupo: 'general' | 'ventas' | 'contenido' } | null>
   clienteOperativo?(idCrm: string | null, nombre: string): Promise<boolean>
+  /** Para los tests (por defecto esPrueba con process.env). */
+  esPrueba?(cliente: string): boolean
   /** Reclama el mensaje (INSERT … ON CONFLICT DO NOTHING). null = ya estaba (otro envío lo tomó). */
   reclamar(m: MensajeNota, c: { idCrm: string | null; cliente: string; grupo: string }): Promise<NotaGuardada | null>
   leer(texto: string): Promise<Lectura | null>
@@ -131,8 +144,10 @@ export async function procesarNotas(cands: readonly MensajeNota[], deps: DepsNot
   for (const m of cands) {
     let c: Awaited<ReturnType<DepsNotas['deChat']>>
     try { c = await deps.deChat(m.chatId) } catch (e) { r.errores.push(`directorio: ${motivo(e)}`); continue }
-    if (!c || c.grupo === 'contenido') continue
-    if (deps.clienteOperativo && !await deps.clienteOperativo(c.idCrm, c.cliente).catch(() => true)) continue
+    if (!c) continue
+    const prueba = (deps.esPrueba ?? esPrueba)(c.cliente)
+    if (m.delEquipo && !prueba) continue
+    if (!prueba && deps.clienteOperativo && !await deps.clienteOperativo(c.idCrm, c.cliente).catch(() => true)) continue
     let nota: NotaGuardada | null
     try { nota = await deps.reclamar(m, c) } catch (e) { r.errores.push(`base: ${motivo(e)}`); continue }
     if (!nota) continue
@@ -144,7 +159,7 @@ export async function procesarNotas(cands: readonly MensajeNota[], deps: DepsNot
     r.notas++
     if (!l.avisar) continue
     try {
-      const id = await deps.enviar(textoAvisoNota({ cliente: c.cliente, dijo: l.dijo, pide: l.pide, tipo: l.tipo, enviadoEn: m.enviadoEn }, deps.link(nota.id), deps.valentino))
+      const id = await deps.enviar(textoAvisoNota({ cliente: c.cliente, dijo: l.dijo, pide: l.pide, tipo: l.tipo, enviadoEn: m.enviadoEn, prueba }, deps.link(nota.id), deps.valentino))
       r.avisos++
       await deps.marcarAviso(nota.id, id || null, 'avisada').catch(e => { r.errores.push(`base: ${motivo(e)}`) })
     } catch (e) {
