@@ -8,6 +8,7 @@ import { listarPendientesE01 } from '@/lib/edicion/operativo'
 import { listarVideos, type FilaTablero } from '@/lib/edicion/operativo'
 import { puedePestana, pestanasDe } from '@/lib/edicion/permisos'
 import { cargarTarjetasEdicion } from '@/lib/edicion/tarjetasServidor'
+import { lecturasPendientes } from '@/lib/edicion/db/lecturas'
 import { ESTADOS_FINALES, ESTADOS_VIDEO, ETIQUETA_ESTADO, type Corrida, type FichaMarca, type IdCrm } from '@/lib/edicion/tipos'
 import { armarTablero, estadoVigia, pasosPorHacer } from '@/lib/edicion/vista'
 import { BotonAccion } from './_componentes/BotonAccion'
@@ -34,10 +35,19 @@ export default async function EdicionPage({ searchParams }: Props) {
   const c = await contextoEdicion(sp)
   const vista = uno(sp.vista)
   if (vista === 'tarjetas' || (!vista && !uno(sp.estado) && !uno(sp.cliente))) {
-    const inicial = c.demo ? undefined : await cargarTarjetasEdicion(c.sesion)
+    const [inicial, mensajes] = await Promise.all([
+      c.demo ? undefined : cargarTarjetasEdicion(c.sesion),
+      // f05 / f06: lo que el bot leyó del grupo Contenido y espera el check de Aylu (René no lo ve: P6)
+      c.demo || c.rol === 'rene' || !baseConfigurada() ? [] : lecturasPendientes().catch(() => []),
+    ])
     return <div className="ed-pila">
       <Encabezado etiqueta="Edición" titulo="Sistema de Edición" vigia={null} modo={c.modo} demo={c.demo} rol={c.rol}
         pestanas={pestanasDe(c.rol, c.socio)} actual="tarjetas" sufijo={c.sufijo} rutaActual="/clientes/edicion?vista=tarjetas" avisoRol={c.avisoRol} />
+      {mensajes.length > 0 && (
+        <p className="ed-interno" role="note"><strong>Grupo Contenido</strong>
+          {mensajes.map((m, i) => <span key={m.id_crm}>{i ? ' · ' : ''}<Link href={conSufijo(`/clientes/edicion/cliente/${encodeURIComponent(m.id_crm)}#lecturas`, c.sufijo)} className="ed-link">{m.cliente || m.id_crm}: {m.n} mensaje{m.n === 1 ? '' : 's'} para revisar</Link></span>)}
+        </p>
+      )}
       <TableroTarjetas key={`${c.demo}:${c.rol}`} demo={c.demo} rol={c.rol} inicial={inicial} />
     </div>
   }

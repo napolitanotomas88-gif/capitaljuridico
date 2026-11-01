@@ -12,7 +12,7 @@ import type { NeonQueryFunction } from '@neondatabase/serverless'
 
 type Sql = NeonQueryFunction<false, false>
 
-export const VERSION_ESQUEMA = 2
+export const VERSION_ESQUEMA = 3
 
 export const SENTENCIAS_ESQUEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS cj_edicion_esquema (
@@ -338,6 +338,31 @@ export const SENTENCIAS_ESQUEMA: readonly string[] = [
     creado timestamptz NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS cj_marca_propuestas_cliente ON cj_marca_propuestas (id_crm, creado DESC)`,
+
+  // v3 (1/11/2026) — Lecturas del grupo Contenido (f05 / f06): lo que el cliente escribió con videos «Con el cliente», cómo
+  // lo leyó el bot (OK, cambios, otro) y a qué videos va. Una fila por mensaje de WhatsApp (mensaje_id único: dedupe). Es
+  // una PROPUESTA: el OK lo confirma Aylu y los cambios van como pedido `propuesto`. Sin teléfonos ni nombres del autor.
+  `CREATE TABLE IF NOT EXISTS cj_edicion_lecturas (
+    id bigserial PRIMARY KEY,
+    mensaje_id text NOT NULL UNIQUE,
+    id_crm text NOT NULL,
+    texto text NOT NULL,
+    enviado timestamptz NOT NULL,
+    estado text NOT NULL DEFAULT 'leyendo',
+    tipo text,
+    sentido text,
+    motivo text NOT NULL DEFAULT '',
+    resumen text NOT NULL DEFAULT '',
+    video_ids bigint[] NOT NULL DEFAULT '{}',
+    por text,
+    pedido_id bigint,
+    modelo text,
+    version int NOT NULL DEFAULT 1,
+    resuelta timestamptz,
+    resuelta_por text,
+    creado timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS cj_edicion_lecturas_cliente ON cj_edicion_lecturas (id_crm, creado DESC)`,
 ]
 
 /** Tablas que crea esta migración (para el GET de estado y los tests). */

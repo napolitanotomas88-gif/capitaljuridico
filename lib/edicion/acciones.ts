@@ -76,6 +76,8 @@ export interface DepsEdicion {
     autorizar(p: { pedido_id: number; version: number; actor: Persona }): Promise<R<{ evento?: EventoVideo; eventos?: EventoVideo[] }>>
     descartar(p: { pedido_id: number; version: number; nota: string; actor: Persona }): Promise<R<{ evento?: EventoVideo; eventos?: EventoVideo[] }>>
   }
+  /** f05 / f06: cerrar lo que el bot leyó del grupo Contenido (db/lecturas.ts). false = otra persona ya lo cerró o cambió. */
+  lecturas?: { resolver(p: { id: number; version: number; quien: string; estado: 'descartada' | 'usada' }): Promise<boolean> }
   modo: 'dry' | 'real'
   ahora?: () => Date
   env?: Entorno
@@ -367,6 +369,14 @@ export async function atenderAccion(deps: DepsEdicion, cuerpo: unknown, sesion: 
         if (enDry) return dry('la carpeta quedaría vinculada al cliente', { carpeta_id: p.carpeta_id, id_crm: p.id_crm })
         const r = await deps.repo.carpetas.confirmarVinculo({ drive_id: p.carpeta_id, id_crm: p.id_crm, actor: persona })
         return deResultado(r, () => responder(200, true, `Listo: la carpeta quedó vinculada a ${p.id_crm}.`))
+      }
+
+      case 'lectura_resolver': {
+        if (!tienePermiso(rol, 'pedido')) return sinPermiso('pedido')
+        if (enDry) return dry(p.estado === 'descartada' ? 'el mensaje del cliente quedaría descartado' : 'el mensaje del cliente quedaría resuelto', { lectura_id: p.lectura_id })
+        if (!deps.lecturas) return responder(503, false, 'La lectura del grupo Contenido no está disponible.', { codigo: 'base' })
+        const ok = await deps.lecturas.resolver({ id: p.lectura_id, version: p.version, quien: persona.nombre, estado: p.estado })
+        return ok ? responder(200, true, p.estado === 'descartada' ? 'Listo: mensaje descartado.' : 'Listo: mensaje resuelto.') : responder(409, false, CONFLICTO, { codigo: 'conflicto' })
       }
     }
   } catch (e) {

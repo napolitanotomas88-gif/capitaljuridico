@@ -41,7 +41,7 @@ describe('migración versionada', () => {
     const ins = n.consultas.find(c => c.texto.startsWith('INSERT INTO cj_edicion_esquema'))
     assert.deepEqual(ins.valores, [M.VERSION_ESQUEMA])
     for (const t of ['cj_videos', 'cj_video_eventos', 'cj_video_notas', 'cj_grab_archivos', 'cj_grab_transcripciones', 'cj_grab_tandas', 'cj_grab_corridas',
-      'cj_grab_seguimientos', 'cj_grab_carpetas', 'cj_grab_guiones', 'cj_video_pedidos', 'cj_marca', 'cj_marca_propuestas', 'cj_edicion_avisos', 'cj_edicion_clientes']) assert.ok(M.TABLAS_EDICION.includes(t), t)
+      'cj_grab_seguimientos', 'cj_grab_carpetas', 'cj_grab_guiones', 'cj_video_pedidos', 'cj_marca', 'cj_marca_propuestas', 'cj_edicion_lecturas', 'cj_edicion_avisos', 'cj_edicion_clientes']) assert.ok(M.TABLAS_EDICION.includes(t), t)
     // Índices que hacen de candado / unicidad
     const ddl = M.SENTENCIAS_ESQUEMA.join('\n')
     assert.match(ddl, /UNIQUE INDEX IF NOT EXISTS cj_grab_tandas_abierta ON cj_grab_tandas \(id_crm, tipo\) WHERE estado = 'abierta'/)

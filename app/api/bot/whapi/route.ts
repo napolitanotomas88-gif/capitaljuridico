@@ -5,6 +5,7 @@ import { reenviarGuionesReal } from '@/lib/bot/whapi/guiones'
 import { procesarExitoReal } from '@/lib/bot/exito/servidor'
 import { procesarBajasReal } from '@/lib/bot/bajas/servidor'
 import { procesarNotasReal } from '@/lib/bot/anuncios/notasServidor'
+import { procesarContenidoReal } from '@/lib/edicion/contenidoServidor'
 import { FRENO_BARRIDO, atenderEstado, atenderWebhook } from '@/lib/bot/whapi/ruta'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,7 @@ export const runtime = 'nodejs'
 // Sin la configuración explícita del modo real (BOT_ALTA_MODO y BOT_ALTA_PASOS_REALES), el motor corre en SECO: no escribe en
 // Sheets, Drive ni PandaDoc y no manda mensajes (la compuerta de lib/bot/whapi/compuerta.ts frena todo lo que sale).
 export async function POST(req: Request) {
-  return atenderWebhook(req, { crearMotor: crearMotorAltas, clienteWhapi: clienteWhapiDesdeEntorno, programar: (tarea) => after(tarea), frenoBarrido: FRENO_BARRIDO, reenviarGuiones: reenviarGuionesReal, procesarExito: procesarExitoReal, procesarBajas: procesarBajasReal, procesarNotasAnuncios: procesarNotasReal })
+  return atenderWebhook(req, { crearMotor: crearMotorAltas, clienteWhapi: clienteWhapiDesdeEntorno, programar: (tarea) => after(tarea), frenoBarrido: FRENO_BARRIDO, reenviarGuiones: reenviarGuionesReal, procesarExito: procesarExitoReal, procesarBajas: procesarBajasReal, procesarNotasAnuncios: procesarNotasReal, procesarContenidoEdicion: procesarContenidoReal })
 }
 
 export async function GET(req: Request) {

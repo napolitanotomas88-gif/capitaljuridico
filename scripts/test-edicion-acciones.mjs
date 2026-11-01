@@ -453,3 +453,18 @@ describe('revisión (24/10)', () => {
     assert.equal((await pedir(deps(), { accion: 'mover_lote', transicion: 'ok_cliente', items: [{ video_id: 7, version: 5 }] })).status, 422, 'sin cita')
   })
 })
+
+describe('f05 / f06: cerrar lo que el bot leyó del grupo Contenido (lectura_resolver)', () => {
+  test('Aylu descarta; con otra versión, 409; René no puede; en modo prueba no escribe', async () => {
+    const llamados = []
+    const d = { ...deps(), lecturas: { resolver: async p => { llamados.push(p); return p.version === 1 } } }
+    const ok = await pedir(d, { accion: 'lectura_resolver', lectura_id: 4, version: 1, estado: 'descartada' })
+    assert.equal(ok.status, 200, ok.cuerpo.mensaje)
+    assert.equal(llamados[0].quien.length > 0, true)
+    assert.ok(!/@/.test(llamados[0].quien), 'guarda el nombre, nunca el mail')
+    assert.equal((await pedir(d, { accion: 'lectura_resolver', lectura_id: 4, version: 2, estado: 'usada' })).status, 409)
+    assert.equal((await pedir(d, { accion: 'lectura_resolver', lectura_id: 4, version: 1, estado: 'descartada' }, 'rene')).status, 403)
+    const seco = await pedir({ ...deps({ modo: 'dry' }), lecturas: { resolver: async () => { throw new Error('no debería escribir') } } }, { accion: 'lectura_resolver', lectura_id: 4, version: 1, estado: 'descartada' })
+    assert.equal(seco.cuerpo.dry, true)
+  })
+})
