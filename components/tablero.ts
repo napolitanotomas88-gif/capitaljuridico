@@ -34,6 +34,25 @@ export function baseOcurridas(calls: CallTasa[]): { ocurridas: number; sinRegist
 // Porcentaje con denominador: null (se muestra "—") si no hay denominador
 export const pct = (num: number, den: number): number | null => (den > 0 ? (num / den) * 100 : null)
 
+// Llamada del pre-call (col AI "Llamada pre-call", pedido de Tomás del 1/11/2026): de las agendas del período, cuántas
+// tuvieron llamada efectiva, no efectiva o nada cargado. Los tres porcentajes son sobre el total y suman 100;
+// "efectividad" es efectivas ÷ (efectivas + no efectivas), sin las que no tienen resultado.
+export interface CallPrecall { precall?: string }
+export function resumenPrecall(calls: CallPrecall[]) {
+  let efectivas = 0, noEfectivas = 0
+  for (const c of calls) {
+    if (c.precall === 'efectiva') efectivas++
+    else if (c.precall === 'no efectiva') noEfectivas++
+  }
+  const total = calls.length
+  const sinResultado = total - efectivas - noEfectivas
+  return {
+    total, efectivas, noEfectivas, sinResultado,
+    pctEfectiva: pct(efectivas, total), pctNoEfectiva: pct(noEfectivas, total), pctSinResultado: pct(sinResultado, total),
+    efectividad: pct(efectivas, efectivas + noEfectivas),
+  }
+}
+
 // ── WhatsApp ──
 // Normaliza el teléfono del CRM al formato de wa.me (código de país + número, sin '+'):
 // - 10 dígitos (AR sin código de país, ej. "11-2387-7976") → 549 + número
