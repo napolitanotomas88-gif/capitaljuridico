@@ -100,7 +100,7 @@ function Detalle({ persona, autorizado, onCerrar, onCambioActivo, onEditar }) {
         <li><strong>Puesto:</strong> {persona.puesto || '—'}</li>
         <li><strong>Departamento:</strong> {persona.departamento || '—'}</li>
         <li><strong>Estado:</strong> {persona.activo ? 'Activo' : 'Inactivo'}{' '}
-          <button type="button" onClick={() => onCambioActivo(persona)}>{persona.activo ? 'Marcar inactivo' : 'Marcar activo'}</button>{' '}
+          <button type="button" onClick={() => onCambioActivo(persona)}>{persona.activo ? 'Quitar' : 'Reactivar'}</button>{' '}
           <button type="button" onClick={() => onEditar(persona)}>Editar perfil</button>
         </li>
         <li><strong>Otros nombres en el Excel:</strong> {persona.apodos || '—'}</li>
@@ -334,21 +334,83 @@ export default function Equipo() {
     )
   }, [personas, filtro, buscar])
 
-  // Activo / Inactivo (baja lógica reversible: nunca se borra una persona). Al pasar a inactiva se avisa de sus líneas pendientes de pago.
-  async function cambiarActivo(p) {
+  // Agregar y quitar rápido (pedido de Tomás, 1/11/2026: «tiene que estar rápido para agregar o quitar personas»).
+  // Quitar: si la persona no tiene ningún pago cargado, se borra (fue un alta de más); si tiene, pasa a Inactiva y conserva
+  // su historial. Sin ventanas de confirmación: cada cambio deja un «Deshacer» en el mensaje.
+  const [deshacer, setDeshacer] = useState(null) // { texto, accion: () => Promise }
+  const [rapida, setRapida] = useState({ nombre: '', puesto: '', departamento: '' })
+  const [guardandoRapida, setGuardandoRapida] = useState(false)
+
+  async function agregarRapida(e) {
+    e.preventDefault()
+    if (guardandoRapida) return
     setError('')
     setMensaje('')
-    if (p.activo) {
-      const { data: pend, error: e1 } = await supabase.from('pagos_equipo_vigentes').select('id, total_usd').eq('persona_id', p.id).eq('pagado', false)
-      if (e1) return setError(`No se pudo comprobar si ${p.nombre} tiene pagos pendientes: ${e1.message}. No se cambió nada.`)
-      const total = pend.reduce((s, l) => s + Number(l.total_usd || 0), 0)
-      const aviso = pend.length ? `\n\nOJO: tiene ${pend.length} línea(s) de pago pendientes por ${usd(total)}. Siguen visibles y se pueden pagar igual.` : ''
-      if (!window.confirm(`¿Marcar a ${p.nombre} como inactiva?\n\nNo aparecerá al cargar pagos nuevos. Su historial se conserva y se puede reactivar cuando quieras.${aviso}`)) return
+    setDeshacer(null)
+    const v = validarPersona({ ...rapida, apodos: '', notas: '' }, personas, null)
+    if (v.errores.length) return setError(v.errores.join(' '))
+    setGuardandoRapida(true)
+    const datos = armarPersona({ ...rapida, apodos: '', notas: '' })
+    const { data, error } = await supabase.from('personas').insert({ ...datos, activo: true }).select('id')
+    setGuardandoRapida(false)
+    if (error) return setError(error.message)
+    if (!data || data.length !== 1) return setError('No se pudo confirmar que la persona se guardó. Recargá la página y revisá la lista antes de volver a cargarla.')
+    const id = data[0].id
+    setMensaje(`${datos.nombre} agregada (activa).`)
+    setDeshacer({ texto: 'Deshacer', accion: async () => supabase.from('personas').delete().eq('id', id) })
+    setRapida({ nombre: '', puesto: '', departamento: '' })
+    cargar()
+  }
+
+  async function quitar(p) {
+    setError('')
+    setMensaje('')
+    setDeshacer(null)
+    const { data: lineas, error: e1 } = await supabase.from('pagos_equipo').select('id, pagado, total_usd').eq('persona_id', p.id).limit(500)
+    if (e1) return setError(`No se pudo comprobar el historial de ${p.nombre}: ${e1.message}. No se cambió nada.`)
+    if (!lineas.length) {
+      const { data: copia } = await supabase.from('personas').select('*').eq('id', p.id)
+      const { error } = await supabase.from('personas').delete().eq('id', p.id)
+      if (error) {
+        // Tiene datos asociados (por ejemplo, datos sensibles): queda inactiva en vez de borrarse
+        return cambiarActivo(p)
+      }
+      const fila = copia?.[0]
+      setMensaje(`${p.nombre} quitada (no tenía pagos cargados).`)
+      if (fila) {
+        const { id: _id, creado_en: _c, ...resto } = fila
+        setDeshacer({ texto: 'Deshacer', accion: async () => supabase.from('personas').insert(resto) })
+      }
+      if (abiertoId === p.id) setAbiertoId(null)
+      return cargar()
     }
+    return cambiarActivo(p, lineas)
+  }
+
+  // Activo / Inactivo (baja lógica reversible). Al pasar a inactiva se avisa de sus líneas pendientes de pago.
+  async function cambiarActivo(p, lineas = null) {
+    setError('')
+    setDeshacer(null)
     const { data, error } = await supabase.from('personas').update({ activo: !p.activo }).eq('id', p.id).select('id')
-    if (error) setError(error.message)
-    else if (!data || data.length !== 1) setError('No se pudo cambiar el estado (no se modificó nada).')
-    else setMensaje(`${p.nombre} ahora está ${p.activo ? 'inactiva' : 'activa'}.`)
+    if (error) return setError(error.message)
+    if (!data || data.length !== 1) return setError('No se pudo cambiar el estado (no se modificó nada).')
+    let texto = `${p.nombre} ahora está ${p.activo ? 'inactiva (conserva su historial de pagos)' : 'activa'}.`
+    if (p.activo) {
+      const pend = (lineas ?? []).filter((l) => !l.pagado)
+      if (pend.length) texto += ` Ojo: tiene ${pend.length} pago(s) pendiente(s) por ${usd(pend.reduce((s, l) => s + Number(l.total_usd || 0), 0))}; se pueden pagar igual.`
+    }
+    setMensaje(texto)
+    setDeshacer({ texto: 'Deshacer', accion: async () => supabase.from('personas').update({ activo: p.activo }).eq('id', p.id) })
+    cargar()
+  }
+
+  async function hacerDeshacer() {
+    const d = deshacer
+    if (!d) return
+    setDeshacer(null)
+    const { error } = await d.accion()
+    if (error) setError(`No se pudo deshacer: ${error.message}`)
+    else setMensaje('Listo, se deshizo el último cambio.')
     cargar()
   }
 
@@ -358,11 +420,20 @@ export default function Equipo() {
     <>
       <h2>Equipo</h2>
       {error && <p className="error">Error: {error}</p>}
-      {mensaje && <p className="ok">{mensaje}</p>}
-      <p>
-        <button type="button" onClick={() => abrirForm()} disabled={!!form && !form.id}>+ Nueva persona</button>{' '}
-        <span className="aviso">Las personas no se borran: pasan a Inactivas y conservan su historial de pagos.</span>
-      </p>
+      {mensaje && (
+        <p className="ok">
+          {mensaje}{' '}
+          {deshacer && <button type="button" onClick={hacerDeshacer}>{deshacer.texto}</button>}
+        </p>
+      )}
+      <form onSubmit={agregarRapida} className="alta-rapida" aria-label="Agregar persona">
+        <input placeholder="Nombre y apellido" value={rapida.nombre} onChange={(e) => setRapida({ ...rapida, nombre: e.target.value })} aria-label="Nombre y apellido" />
+        <input placeholder="Rol" value={rapida.puesto} onChange={(e) => setRapida({ ...rapida, puesto: e.target.value })} aria-label="Rol" />
+        <input placeholder="Área" value={rapida.departamento} onChange={(e) => setRapida({ ...rapida, departamento: e.target.value })} aria-label="Área" />
+        <button type="submit" disabled={guardandoRapida || !rapida.nombre.trim()}>{guardandoRapida ? 'Agregando…' : '+ Agregar'}</button>
+        <button type="button" className="secundario" onClick={() => abrirForm()} disabled={!!form && !form.id}>Más datos…</button>
+      </form>
+      <p className="aviso">Quitar: si la persona no tiene pagos cargados se borra; si tiene, pasa a Inactiva y conserva su historial. Todo se puede deshacer.</p>
       {form && (
         <section className="detalle">
           <h3>{form.id ? `Editando el perfil de ${form.nombre || 'la persona'}` : 'Nueva persona'}</h3>
@@ -404,15 +475,14 @@ export default function Equipo() {
                 <td>{p.puesto}</td>
                 <td>{p.departamento}</td>
                 <td>{p.apodos}</td>
-                <td>
-                  <button type="button" onClick={() => cambiarActivo(p)} title="Cambiar estado">
-                    {p.activo ? '● Activo' : '○ Inactivo'}
-                  </button>
-                </td>
+                <td className="nowrap">{p.activo ? '● Activa' : '○ Inactiva'}</td>
                 {autorizado === true && <td>{p.id in marcas ? (marcas[p.id] > 0 ? `${marcas[p.id]} campo(s) pendiente(s)` : 'Con registro') : 'Sin registro'}</td>}
                 <td className="nowrap">
                   <button type="button" onClick={() => setAbiertoId(p.id)}>Ver detalle</button>{' '}
-                  <button type="button" onClick={() => abrirForm(p)}>Editar</button>
+                  <button type="button" onClick={() => abrirForm(p)}>Editar</button>{' '}
+                  {p.activo
+                    ? <button type="button" className="quitar" onClick={() => quitar(p)}>Quitar</button>
+                    : <button type="button" onClick={() => cambiarActivo(p)}>Reactivar</button>}
                 </td>
               </tr>
             ))}
@@ -420,7 +490,7 @@ export default function Equipo() {
         </table>
       </div>
 
-      {abierta && <Detalle persona={abierta} autorizado={autorizado} onCerrar={() => setAbiertoId(null)} onCambioActivo={cambiarActivo} onEditar={abrirForm} />}
+      {abierta && <Detalle persona={abierta} autorizado={autorizado} onCerrar={() => setAbiertoId(null)} onCambioActivo={(p) => (p.activo ? quitar(p) : cambiarActivo(p))} onEditar={abrirForm} />}
     </>
   )
 }

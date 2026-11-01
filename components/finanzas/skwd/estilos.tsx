@@ -47,6 +47,11 @@ export const ESTILOS_SKWD = `
 /* Mensajes */
 .fin-skwd .error { color: var(--fin-mal); font-weight: 600; }
 .fin-skwd .ok { color: var(--fin-bien); font-weight: 600; }
+.fin-skwd .alta-rapida { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 4px; }
+.fin-skwd .alta-rapida input { flex: 1 1 160px; min-width: 0; padding: 8px 10px; }
+.fin-skwd .alta-rapida input:first-child { flex-basis: 220px; }
+.fin-skwd .alta-rapida button.secundario { background: transparent; color: var(--text); border: 1.5px solid var(--fin-borde-control); }
+.fin-skwd button.quitar { color: var(--cj-borgona); border-color: var(--cj-borgona); background: transparent; }
 .fin-skwd .pos { color: var(--fin-bien); }
 .fin-skwd .neg { color: var(--fin-mal); }
 .fin-skwd .gris { color: var(--sk-texto-3); }
