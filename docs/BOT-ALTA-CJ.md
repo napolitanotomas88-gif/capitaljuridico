@@ -167,6 +167,8 @@ Con el número del bot suspendido, el alta funciona **sin WhatsApp** desde **Des
 
 Pestaña "Registro de Pagos" de "SKWD | Finanzas 2026". Cada pago entra como fila nueva en la fila 2, igual que con el "Formulario de Pagos" de COORDINACION.
 
+Copia en la app de Finanzas (1/11/2026, pedido de Tomás): con la fila ya verificada, `lib/finanzasSkwd/pagoApp.ts` guarda el mismo pago en `finanzas.pagos` (Neon) y su «quién recibió» (Tomi, Gero, Empresa o Financiera; la Financiera incluye Ágil Pagos / Diaz Rangel Rosanthony). No duplica: si ya está el mismo cliente, fecha y monto, no carga otro. Si la copia falla, el pago queda en la planilla y el aviso pide cargarlo a mano en Finanzas → Pagos.
+
 - **Programa (col B):** el closer no lo escribe; el bot lo deduce del tipo de pago y el total.
   - DFY = Done For You (agencia). DFY+R = renovación (no es un alta nueva).
   - PP = Payment Plan (en cuotas), PIF = pago completo.
