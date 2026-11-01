@@ -5,6 +5,7 @@
 // (filtro.ts: pareceResultado), el dedupe por mensaje y el tope por cliente: nunca se llama por cada "gracias".
 // Éxito = habla de resultados del estudio Y son buenos Y la confianza no es baja. La cita es un fragmento literal y corto.
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude } from '@/lib/ia/cliente'
 import { MODELO_DIRECCION, claveClaudeDireccion } from '@/lib/bot/alta/direccionClaude'
 
 export const TOPE_EXITO_MS = 15_000
@@ -67,7 +68,7 @@ export async function clasificarConClaude(texto: string, op: OpcionesClaudeExito
   if (!cliente) {
     const apiKey = op.apiKey ?? claveClaudeDireccion()
     if (!apiKey) throw new Error('falta BOT_ANTHROPIC_API_KEY (o ANTHROPIC_API_KEY)')
-    cliente = new Anthropic({ apiKey, maxRetries: 0, timeout: tope })
+    cliente = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'exito' })
   }
   let msg: Awaited<ReturnType<Anthropic['messages']['create']>>
   try {

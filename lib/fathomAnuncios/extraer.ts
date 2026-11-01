@@ -12,6 +12,7 @@
 //     tiempo queda. Los errores pasajeros (429, 5xx, 529 overloaded, error a mitad del stream, conexión) salen como
 //     ErrorTransitorio; un rechazo, max_tokens o un JSON roto, no.
 import Anthropic from '@anthropic-ai/sdk'
+import { crearClienteClaude, viaMac } from '@/lib/ia/cliente'
 import { ErrorTransitorio } from './errores'
 import { PROMPT_SISTEMA } from './prompt'
 import { RE_TIMESTAMP, TIPOS_CAMBIO, TIPOS_REUNION, acotar } from './tipos'
@@ -202,9 +203,9 @@ const motivoApi = (e: unknown): string => {
 }
 
 export async function extraerCambios(e: EntradaExtraccion, topeMs: number = TOPE_CLAUDE_MS): Promise<ResultadoExtraccion> {
-  if (!process.env.ANTHROPIC_API_KEY?.trim()) throw new Error('falta ANTHROPIC_API_KEY')
+  if (!viaMac() && !process.env.ANTHROPIC_API_KEY?.trim()) throw new Error('falta ANTHROPIC_API_KEY')
   const tope = Math.max(1_000, Math.min(TOPE_CLAUDE_MS, Math.round(topeMs)))
-  const client = new Anthropic({ maxRetries: 0, timeout: tope })
+  const client = crearClienteClaude({ maxRetries: 0, timeout: tope, origen: 'fathom-anuncios' })
   const corte = AbortSignal.timeout(tope)
   let msg: Anthropic.Beta.Messages.BetaMessage
   try {

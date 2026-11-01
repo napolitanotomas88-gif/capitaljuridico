@@ -13,6 +13,7 @@
 // · Tope: TOPE_DIRECCION_MS (8 s) y sin reintentos. Junto con los 30 s de PandaDoc (TOPE_ESTADO_MS) entra en una
 //   función de Vercel de 60 s; con 20 s y un reintento podía llegar a ~40 s solo acá.
 import Anthropic from '@anthropic-ai/sdk'
+import { claveOMac, crearClienteClaude, viaMac } from '@/lib/ia/cliente'
 import {
   combinarConClaude, faltantesDireccion, paisPorTelefono, reglasAlcanzan, separarDireccion, type DireccionSeparada,
 } from './direccion'
@@ -20,8 +21,9 @@ import {
 export const MODELO_DIRECCION = 'claude-haiku-5-5'
 export const TOPE_DIRECCION_MS = 8_000
 
+// Con CLAUDE_VIA=mac (1/11/2026) no hace falta clave: las llamadas van a la Mac de Tomás (lib/ia/puenteMac.ts)
 export const claveClaudeDireccion = (): string =>
-  process.env.BOT_ANTHROPIC_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim() || ''
+  claveOMac(process.env.BOT_ANTHROPIC_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim() || '')
 
 export interface OpcionesDireccionClaude {
   apiKey?: string                          // por defecto claveClaudeDireccion()
@@ -67,12 +69,13 @@ const limpiar = (v: unknown): string => (typeof v === 'string' ? v.replace(/\s+/
 export async function separarDireccionConClaude(texto: string, op: OpcionesDireccionClaude = {}): Promise<DireccionSeparada> {
   const entrada = texto.replace(/\s+/g, ' ').trim()
   if (!entrada) throw new Error('dirección vacía')
-  const tope = op.topeMs ?? TOPE_DIRECCION_MS
+  // En la Mac, `claude -p` tarda más en arrancar que la API: 60 s (si no llega, quedan las reglas)
+  const tope = op.topeMs ?? (viaMac() ? 60_000 : TOPE_DIRECCION_MS)
   let cliente = op.cliente
   if (!cliente) {
     const apiKey = op.apiKey ?? claveClaudeDireccion()
     if (!apiKey) throw new Error('falta BOT_ANTHROPIC_API_KEY (o ANTHROPIC_API_KEY)')
-    cliente = new Anthropic({ apiKey, maxRetries: 0, timeout: tope })
+    cliente = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'alta-direccion' })
   }
   const pista = op.paisTelefono ? `\nPaís del teléfono del cliente (solo pista): ${op.paisTelefono}` : ''
   const msg = await cliente.messages.create(

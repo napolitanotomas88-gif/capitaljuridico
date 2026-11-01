@@ -9,6 +9,7 @@
 // En `usage.input_tokens` va el equivalente en tokens de entrada (escritura de caché ×1,25 y lectura ×0,1) para el costo.
 import Anthropic from '@anthropic-ai/sdk'
 import { ErrorTransitorio } from '@/lib/fathomAnuncios/errores'
+import { crearClienteClaude } from '@/lib/ia/cliente'
 import { claveClaude, modeloConfigurado, esPasajero, motivoApi, TOPE_CLAUDE_MS, MAX_TOKENS, type Esfuerzo } from '../kickoff/claude'
 import type { Uso } from '../kickoff/tipos'
 
@@ -32,7 +33,7 @@ export async function llamarConCache(p: PedidoCache): Promise<{ json: unknown; m
   const apiKey = claveClaude()
   if (!apiKey) throw new Error('falta ANTHROPIC_API_KEY (o BOT_ANTHROPIC_API_KEY)')
   const tope = Math.max(1_000, Math.min(TOPE_CLAUDE_MS, Math.round(p.topeMs)))
-  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: tope })
+  const client = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'guiones' })
   const corte = AbortSignal.timeout(tope)
   let msg: Anthropic.Beta.Messages.BetaMessage
   try {

@@ -13,6 +13,7 @@
 // Clave: ANTHROPIC_API_KEY (local) o BOT_ANTHROPIC_API_KEY (así se llama en Vercel). Se pasa explícita al SDK.
 import Anthropic from '@anthropic-ai/sdk'
 import { ErrorTransitorio } from '@/lib/fathomAnuncios/errores'
+import { claveOMac, crearClienteClaude } from '@/lib/ia/cliente'
 import type { Uso } from './tipos'
 
 export const MODELO_POR_DEFECTO = 'claude-opus-5-5'
@@ -21,7 +22,8 @@ export const MAX_TOKENS = 32_000
 const ESFUERZOS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type Esfuerzo = (typeof ESFUERZOS)[number]
 
-export const claveClaude = (): string => process.env.ANTHROPIC_API_KEY?.trim() || process.env.BOT_ANTHROPIC_API_KEY?.trim() || ''
+// Con CLAUDE_VIA=mac (1/11/2026) no hace falta clave: las llamadas van a la Mac de Tomás (lib/ia/puenteMac.ts)
+export const claveClaude = (): string => claveOMac(process.env.ANTHROPIC_API_KEY?.trim() || process.env.BOT_ANTHROPIC_API_KEY?.trim() || '')
 export const modeloConfigurado = (): string => process.env.KICKOFF_MODELO?.trim() || MODELO_POR_DEFECTO
 /** El esfuerzo de esta llamada: KICKOFF_ESFUERZO si es válido (pisa los dos), si no el que pide cada paso. */
 export function esfuerzoDe(porDefecto: Esfuerzo): Esfuerzo {
@@ -67,7 +69,7 @@ export async function llamarClaude(p: PedidoClaude): Promise<RespuestaClaude> {
   const apiKey = claveClaude()
   if (!apiKey) throw new Error('falta ANTHROPIC_API_KEY (o BOT_ANTHROPIC_API_KEY)')
   const tope = Math.max(1_000, Math.min(TOPE_CLAUDE_MS, Math.round(p.topeMs)))
-  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: tope })
+  const client = crearClienteClaude({ apiKey, maxRetries: 0, timeout: tope, origen: 'kickoff' })
   const corte = AbortSignal.timeout(tope)
   let msg: Anthropic.Beta.Messages.BetaMessage
   try {
