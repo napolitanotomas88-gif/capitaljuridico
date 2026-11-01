@@ -118,6 +118,53 @@ No se procesan nunca:
 
 **Convive con el reenvío a Guiones.** Los dos procesos leen los mismos mensajes del grupo Contenido. Cada uno tiene su propio dedupe (`cj_guiones_reenvios` y `cj_exito_senales`) y su propio `after()`, así no se pisan ni se duplican. El reenvío a Guiones no cambió.
 
+## h01: medidor de éxito (1/11/2026)
+
+Pasos del tablero: **h01** medidor (contento + resultados; **5 días contento → pedir testimonio**), **h02** con el testimonio, la llamada de proyección con Actis (Calendly), **h03** encuesta mensual a activos. h02 y h03 son los pasos 3 a 5 del flujo de arriba; h01 cambia cuándo se pide el OK:
+
+- **Señal buena:** un mensaje del cliente que Claude marca como éxito (habla de resultados y son buenos), o un 8+ en su ronda vigente de la encuesta.
+- **Señal mala:** un mensaje que habla de resultados y **no** son buenos. Corta la racha.
+- **Contento desde** = la primera señal buena después de la última mala (ventana de 30 días). Con `EXITO_DIAS_CONTENTO` días contento (por defecto **5**) el cron diario (paso `medidor`) abre el pedido de OK en Verificaciones:
+  ```
+  🏆 Éxito de cliente: <cliente>
+  Contento hace 5 días (desde el 27/10/2026, 2 señales buenas, ninguna mala)
+  Última: en el grupo Contenido: "<cita>"
+
+  ¿Le mando el mensaje de testimonio? Respondé citando: OK / NO
+  ```
+- Siguen valiendo el bloqueo (pedido abierto, 60 / 30 días) y el vencimiento de 14 días. Una misma racha pide una sola vez.
+- `EXITO_DIAS_CONTENTO=0` vuelve al comportamiento anterior (pide en la primera señal).
+- `GET /api/bot/exito?estado=1` muestra `medidor`: cada cliente contento, cuántos días lleva y si ya toca pedir.
+- Código: `lib/bot/exito/medidor.ts` (puro) y `revisarMedidor` en `nucleo.ts`.
+
+## Corrida de PRUEBA con un cliente ficticio (`BOT_CLIENTES_PRUEBA`, 1/11/2026)
+
+Para recorrer el caminito completo con un cliente inventado sin tocar a nadie real. La lista es **común a todas las etapas** (`lib/bot/clientesPrueba.ts`): IDs del CRM separados por coma, por ejemplo `Z001`.
+
+- Con la lista cargada, la etapa arma **dos núcleos**: el **general** (con su `BOT_EXITO_MODO` de siempre) **ignora** a los clientes de prueba, y el de **prueba** corre **en real con todas las capacidades** pero **solo** para ellos. Con el modo general en `seco`, nadie más recibe nada (ni se lee nada de los demás).
+- `BOT_EXITO=no` sigue apagando todo, también la prueba.
+- Lo que va al **equipo** por un cliente de prueba (Verificaciones y Discord) sale con la marca `🧪 PRUEBA (cliente ficticio)`. Lo que va al cliente sale con el texto exacto, a **su** General.
+- Grupos del cliente de prueba: se arman a mano con el equipo ("General - <nombre del CRM>", "Contenido - <nombre>") y con el número del bot adentro. Se reconocen por el nombre del CRM del ID de prueba (o por el motor de altas, si se dio de alta por ahí).
+- La encuesta de prueba usa su propio lote (`<AAAA-MM>-prueba`), así no pisa la del mes: `GET /api/bot/exito?lista=prueba` la publica (solo con clientes de prueba activos en el CRM). `?lista=1` sigue siendo la del general.
+- Para acelerar la prueba: `EXITO_DIAS_CONTENTO_PRUEBA` (0 a 60; si falta, vale lo del general) y `EXITO_RECORDATORIO_HORAS_PRUEBA` (0 a 72; por defecto, los 3 días).
+- `?estado=1` muestra `prueba: { clientes, faltan, diasContento }`.
+
+### Rastros y limpieza
+
+- Cada mensaje que sale por un cliente de prueba (WhatsApp o Discord) queda en Neon, tabla `cj_prueba_rastros` (`lib/bot/rastrosPrueba.ts`, común a las etapas): etapa, ID, tipo, chat (o el **nombre** de la variable del webhook, nunca la URL) e id del mensaje. Un envío dudoso (sin id) también queda.
+- Las filas de la etapa (`cj_exito_pedidos`, `cj_exito_senales`, `cj_exito_testimonios`, `cj_exito_encuestas`, `cj_exito_lotes` con mes `-prueba`) se reconocen por la clave / ID de prueba.
+- Limpieza:
+  ```
+  node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/limpiar-cliente-prueba-exito.mjs            # --simular: solo dice qué borraría
+  node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/limpiar-cliente-prueba-exito.mjs --real     # borra
+  ```
+  Toma los IDs de `--id Z001` o de `BOT_CLIENTES_PRUEBA` y lee `DATABASE_URL`, `WHAPI_TOKEN` y `DISCORD_WEBHOOK_CLIENTES` del entorno. `--real` borra los mensajes del bot en WhatsApp (`DELETE /messages/{id}`, solo con `/health` en AUTH, de a uno y con pausa) y en Discord, después las filas de Neon y por último los rastros borrados. Lo que no pudo borrar queda anotado y listado (sale con código 2): se vuelve a correr cuando se pueda.
+  - **A mano:** el grupo de WhatsApp de prueba y los mensajes que escribió el "cliente" (el bot no los puede borrar). Si el cliente de prueba se cargó en el CRM, la fila del CRM.
+
+### WhatsApp seguro en la encuesta
+
+La encuesta del mes sale de a `EXITO_ENCUESTA_MAX_CORRIDA` clientes por corrida del cron (por defecto **10**, con 2 s entre mensajes); el resto sigue en la corrida del día siguiente. Nunca un lote grande de golpe desde un número no oficial.
+
 ## Saludo según la hora (ajuste documentado)
 
 El texto de RESPONSABLE_HUB empieza con "Buenas tardes". El bot cambia solo esas dos palabras según la hora de **Argentina** en el momento del envío:
@@ -212,6 +259,11 @@ Siguen el mismo criterio que el motor (`lib/bot/alta/motor/modo.ts`), con un int
 | `EXITO_CALENDLY_URL` | Link de "Reunion de Análisis y Proyecciones" (Capital Jurídico, uri `<ID_PRIVADO_CONFIGURADO>`). Se leyó el 25/10 con `CALENDLY_VENTAS_TOKEN` (solo lectura): `<URL_CONFIGURADA_PRIVADAMENTE>`. Ese mismo link es el valor por defecto en el código, así que la variable es opcional (solo para cambiarlo). |
 | `EXITO_TYPEFORM_URL` | Link de la encuesta. Por defecto, `<URL_CONFIGURADA_PRIVADAMENTE>` ("Encuesta mensual de satisfacción"). |
 | `EXITO_ENCUESTA_DIA` | Día del mes en que se publica la lista de la encuesta (1 a 28; por defecto 1). |
+| `EXITO_DIAS_CONTENTO` | h01: días contento antes de pedir el testimonio (0 a 60; por defecto 5; 0 = en la primera señal). |
+| `EXITO_ENCUESTA_MAX_CORRIDA` | Tope de encuestas por corrida del cron (por defecto 10). |
+| `BOT_CLIENTES_PRUEBA` | IDs del CRM de clientes ficticios: corren en real solo ellos (común a las etapas). |
+| `EXITO_DIAS_CONTENTO_PRUEBA` | Días contento para la corrida de prueba (si falta, el general). |
+| `EXITO_RECORDATORIO_HORAS_PRUEBA` | Horas hasta el recordatorio de la encuesta en la prueba (si falta, 3 días). |
 | `BOT_EXITO_MODELO` | Modelo de Claude (por defecto, el mismo del bot de altas: Haiku 5.5). |
 | `BOT_ANTHROPIC_API_KEY` o `ANTHROPIC_API_KEY` | Claude. |
 | `WHAPI_TOKEN`, `WHAPI_GRUPO_VERIFICACIONES`, `WHAPI_GRUPO_VENTAS` | Los mismos del bot de altas. |
@@ -234,7 +286,11 @@ Siguen el mismo criterio que el motor (`lib/bot/alta/motor/modo.ts`), con un int
 | `lib/bot/exito/directorio.ts` | De qué cliente es cada grupo (motor, o Whapi por nombre). |
 | `lib/bot/exito/rondas.ts` | Rondas de la encuesta y respuestas de la planilla con su hora y su cliente (puro). |
 | `lib/bot/exito/almacen.ts` / `almacenNeon.ts` | Estado: contrato y versión en memoria / Neon. Tablas: `cj_exito_senales` (mensajes evaluados y respuestas dudosas), `cj_exito_pedidos`, `cj_exito_testimonios`, `cj_exito_encuestas` (rondas) y `cj_exito_lotes` (la lista del mes y su OK). |
-| `lib/bot/exito/nucleo.ts` | La lógica: webhook (`procesarEventos`) y cron (`correrDiario`). |
+| `lib/bot/exito/nucleo.ts` | La lógica: webhook (`procesarEventos`) y cron (`correrDiario`), con el ámbito general / prueba. |
+| `lib/bot/exito/medidor.ts` | h01: días contento por cliente (puro). |
+| `lib/bot/clientesPrueba.ts` / `lib/bot/rastrosPrueba.ts` | **Compartidos:** la lista `BOT_CLIENTES_PRUEBA` y los rastros (`cj_prueba_rastros`). |
+| `scripts/limpiar-cliente-prueba-exito.mjs` | Borra todo rastro de la prueba (`--simular` por defecto, `--real`). |
+| `scripts/test-bot-exito-prueba.mjs` | Tests del medidor, la corrida de prueba y la limpieza. |
 | `lib/bot/exito/servidor.ts` | Las dependencias reales y lo que llaman la ruta del webhook y el cron. |
 | `lib/bot/exito/ruta.ts` / `app/api/bot/exito/route.ts` | `/api/bot/exito`. |
 | `lib/bot/exito/lectura.ts` | `leerEstadoExito()` para la cartera (ver abajo). |
@@ -248,6 +304,7 @@ Siguen el mismo criterio que el motor (`lib/bot/alta/motor/modo.ts`), con un int
 - **Cron** en `vercel.json`: `0 13 * * *`, que son las 10:00 de Argentina (en Hobby, en algún momento de esa hora). Corre todos los días, pero la lista de la encuesta solo se publica el día 1. Además vence pedidos, vincula las respuestas a su ronda, detecta éxito por la ronda vigente, consulta las respuestas dudosas, sigue un lote aprobado y manda los recordatorios.
 - `GET ?dry=1`: lee todo y devuelve lo que haría, sin mandar ni escribir.
 - `GET ?lista=1`: publica la lista de la encuesta del mes aunque no sea el día 1 (si todavía no se publicó).
+- `GET ?lista=prueba`: lo mismo, solo para los clientes de prueba (lote `<AAAA-MM>-prueba`).
 - `GET ?estado=1`: modo, capacidades, variables que faltan (nombres) y el estado de cada cliente.
 
 ## Estado en la cartera (para la sesión "Hub de Clientes")
@@ -265,6 +322,8 @@ Esta etapa **no toca** `app/(shell)/clientes/(cartera)/*`. Para mostrarlo:
 - Desde afuera: `GET /api/bot/exito?estado=1` con el Bearer.
 
 ## Checklist para encenderlo
+
+> Prueba con el cliente ficticio (antes de lo general): `BOT_CLIENTES_PRUEBA=<ID>` (y, para que sea rápida, `EXITO_DIAS_CONTENTO_PRUEBA=0` y `EXITO_RECORDATORIO_HORAS_PRUEBA=1`), con `BOT_EXITO_MODO` en `seco`. Ver "Corrida de PRUEBA".
 
 1. Crear las tablas:
    ```
@@ -284,6 +343,7 @@ Esta etapa **no toca** `app/(shell)/clientes/(cartera)/*`. Para mostrarlo:
 
 ```
 node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/test-bot-exito.mjs
+node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/test-bot-exito-prueba.mjs
 ```
 
 Corren sin red ni base, con Whapi, Claude y Discord falsos y el almacén en memoria (o un SQL falso para Neon). Cubren:

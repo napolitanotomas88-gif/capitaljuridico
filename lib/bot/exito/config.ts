@@ -53,6 +53,12 @@ export const VENTANA_TESTIMONIO_MS = 30 * 86_400_000     // el video cuenta si l
 export const RECORDATORIO_ENCUESTA_MS = 3 * 86_400_000   // recordatorio a los 3 días si no respondió
 export const MAX_CLAUDE_CLIENTE_DIA = 5                  // tope de evaluaciones con Claude por cliente y por día
 export const MAX_PEDIDOS_ENCUESTA_DIA = 5                // tope de pedidos por la encuesta en un día (el primer día no inunda Verificaciones)
+// h01 del tablero (1/11/2026): medidor de éxito. El cliente se cuenta "contento" desde su primera señal buena (un mensaje con
+// buenos resultados o un 8+ en la ronda vigente) que no fue seguida por una mala (un mensaje que habla de resultados MALOS).
+// Con EXITO_DIAS_CONTENTO días contento (por defecto 5) se pide el OK del testimonio. 0 = como antes (en la primera señal).
+export const DIAS_CONTENTO_POR_DEFECTO = 5
+export const MAX_ENCUESTAS_CORRIDA_POR_DEFECTO = 10       // WhatsApp seguro: nunca un lote grande de golpe desde un número no oficial
+export const VENTANA_MEDIDOR_MS = 30 * 86_400_000         // las señales de más de 30 días no cuentan para el medidor
 
 export const URL_CALENDLY_POR_DEFECTO = 'https://calendly.com/skywardconsultoriajuridica/analisisyproyeccion'   // "Reunion de Análisis y Proyecciones" (afcc9184-…), leída el 25/10/2026
 export const URL_TYPEFORM_POR_DEFECTO = 'https://form.typeform.com/to/bnvnMvVn'   // "Encuesta mensual de satisfacción", el único formulario (Tomás, 25/10/2026)
@@ -71,6 +77,12 @@ export interface ConfigExito {
   calendlyUrl: string
   typeformUrl: string
   diaEncuesta: number
+  /** Días contento antes de pedir el testimonio (h01). 0 = en la primera señal. */
+  diasContento: number
+  /** WhatsApp seguro (sin lotes grandes): cuántas encuestas salen como mucho por corrida del cron; el resto sigue al otro día. */
+  maxEncuestasCorrida: number
+  /** true = la corrida de los clientes de prueba (BOT_CLIENTES_PRUEBA): real con todas las capacidades, solo para ellos. */
+  prueba: boolean
 }
 
 /** "5491130009999, 123@lid" → lista (mismo criterio que listaPersonas del motor). */
@@ -82,6 +94,8 @@ export function configExito(env: NodeJS.ProcessEnv = process.env): ConfigExito {
   const modo = modoExito(env)
   const verif = env.WHAPI_GRUPO_VERIFICACIONES?.trim() ?? ''
   const dia = Number(env.EXITO_ENCUESTA_DIA)
+  const dc = (env.EXITO_DIAS_CONTENTO ?? '').trim()
+  const diasContento = /^\d{1,2}$/.test(dc) && Number(dc) <= 60 ? Number(dc) : DIAS_CONTENTO_POR_DEFECTO
   return {
     modo,
     capacidades: capacidadesExito(modo, env),
@@ -90,13 +104,25 @@ export function configExito(env: NodeJS.ProcessEnv = process.env): ConfigExito {
     calendlyUrl: urlHttps(env.EXITO_CALENDLY_URL, URL_CALENDLY_POR_DEFECTO),
     typeformUrl: urlHttps(env.EXITO_TYPEFORM_URL, URL_TYPEFORM_POR_DEFECTO),
     diaEncuesta: Number.isInteger(dia) && dia >= 1 && dia <= 28 ? dia : 1,
+    diasContento,
+    maxEncuestasCorrida: /^\d{1,3}$/.test((env.EXITO_ENCUESTA_MAX_CORRIDA ?? '').trim()) && Number(env.EXITO_ENCUESTA_MAX_CORRIDA) >= 1 ? Number(env.EXITO_ENCUESTA_MAX_CORRIDA) : MAX_ENCUESTAS_CORRIDA_POR_DEFECTO,
+    prueba: false,
   }
 }
 
+/** La config de la corrida de PRUEBA: real con TODAS las capacidades. Solo se usa para los clientes de BOT_CLIENTES_PRUEBA
+ *  (servidor.ts arma un núcleo aparte que ignora a todos los demás). EXITO_DIAS_CONTENTO_PRUEBA (0 a 60) acorta el medidor
+ *  para la prueba; si falta, vale lo mismo que el general. */
+export function configPruebaExito(env: NodeJS.ProcessEnv = process.env): ConfigExito {
+  const base = configExito(env)
+  const dc = (env.EXITO_DIAS_CONTENTO_PRUEBA ?? '').trim()
+  return { ...base, modo: 'real', capacidades: new Set(CAPACIDADES_EXITO), prueba: true, diasContento: /^\d{1,2}$/.test(dc) && Number(dc) <= 60 ? Number(dc) : base.diasContento }
+}
+
 /** Lo que falta para que algo salga de verdad (NOMBRES de variables, nunca valores). */
-export function faltantesExito(env: NodeJS.ProcessEnv = process.env): string[] {
+export function faltantesExito(env: NodeJS.ProcessEnv = process.env, prueba = false): string[] {
   const f: string[] = []
-  const c = configExito(env)
+  const c = prueba ? configPruebaExito(env) : configExito(env)
   if (!env.DATABASE_URL?.trim()) f.push('DATABASE_URL')
   if (c.modo === 'seco') return f
   if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')

@@ -151,6 +151,9 @@ export function almacenExitoNeon(): AlmacenExito {
     async evaluadasDesde(clave, desde) {
       return leer(async (q) => Number((await q`SELECT count(*) AS n FROM cj_exito_senales WHERE clave = ${clave} AND tipo = 'mensaje' AND estado IN ('exito', 'no', 'error') AND creado >= ${desde}`)[0]?.n ?? 0), 0)
     },
+    async senalesDesde(desde) {
+      return (await leer((q) => q`SELECT * FROM cj_exito_senales WHERE tipo IN ('mensaje', 'encuesta') AND estado IN ('exito', 'no') AND creado >= ${desde} ORDER BY creado LIMIT 5000` as Promise<Row[]>, [])).map(aSenal)
+    },
     async bloqueo(clave, ahora) {
       const filas = await leer((q) => q`SELECT * FROM cj_exito_pedidos WHERE clave = ${clave} AND (estado IN ('abierto', 'aprobado') OR COALESCE(resuelto, actualizado) > now() - interval '61 days') ORDER BY creado DESC LIMIT 20` as Promise<Row[]>, [])
       return bloqueoDe(filas.map(aPedido), ahora)

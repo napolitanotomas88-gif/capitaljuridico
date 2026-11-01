@@ -27,7 +27,7 @@ export async function atenderExito(q: URLSearchParams, deps: DepsRutaExito = {})
     }
     if (!env.DATABASE_URL?.trim() && !deps.almacen) return { status: 503, cuerpo: { error: 'falta DATABASE_URL' } }
     const { correrDiarioReal } = await import('./servidor')
-    const r = await correrDiarioReal({ env, almacen: deps.almacen, lectores: deps.lectores, ahora: deps.ahora, log: deps.log, dry: q.get('dry') === '1', forzarLista: q.get('lista') === '1' })
+    const r = await correrDiarioReal({ env, almacen: deps.almacen, lectores: deps.lectores, ahora: deps.ahora, log: deps.log, dry: q.get('dry') === '1', forzarLista: q.get('lista') === 'prueba' ? 'prueba' : q.get('lista') === '1' })
     return { status: 200, cuerpo: { ok: r.errores.length === 0, dry: q.get('dry') === '1', ...r, errores: r.errores.map(limpio) } }
   } catch (e) {
     return { status: 500, cuerpo: { ok: false, error: limpio(e) } }

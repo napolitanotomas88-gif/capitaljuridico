@@ -59,6 +59,8 @@ export interface AlmacenExito {
   reclamarSenal(s: Omit<Senal, 'creado' | 'estado'>, ahora: string): Promise<boolean>
   marcarSenal(id: string, estado: EstadoSenal, detalle?: Record<string, unknown>): Promise<void>
   evaluadasDesde(clave: string, desde: string): Promise<number>
+  /** Señales de mensajes y de la encuesta (no las dudosas) desde `desde` (ISO), para el medidor (h01). */
+  senalesDesde(desde: string): Promise<Senal[]>
   bloqueo(clave: string, ahora: number): Promise<Bloqueo>
   crearPedido(p: PedidoNuevo): Promise<boolean>
   /** Cambia un pedido si está en uno de `siEstado` (si se pasa). Devuelve si cambió. */
@@ -138,6 +140,9 @@ export function almacenExitoEnMemoria(): AlmacenExito & { _pedidos: Pedido[]; _s
     },
     async evaluadasDesde(clave, desde) {
       return senales.filter((s) => s.clave === clave && s.tipo === 'mensaje' && ['exito', 'no', 'error'].includes(s.estado) && s.creado >= desde).length
+    },
+    async senalesDesde(desde) {
+      return copia(senales.filter((s) => (s.tipo === 'mensaje' || s.tipo === 'encuesta') && s.creado >= desde))
     },
     async bloqueo(clave, ahora) {
       return bloqueoDe(pedidos.filter((p) => p.clave === clave), ahora)
