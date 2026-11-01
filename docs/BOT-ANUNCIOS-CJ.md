@@ -154,3 +154,20 @@ Valen, con el pedido y el link a la nota (`/anuncios?nota=<id>#notas`).
   la clave de Claude.
 - **Ojo (1/11):** el número del bot está conectado (AUTH) pero hoy está en 2 grupos y en ningún «General - X». Hasta
   que lo sumen a los grupos de los clientes no hay nada que leer.
+
+## Avisos al grupo ADS por WhatsApp (1/11/2026, Tomás vía CONSULTOR)
+
+Los avisos de Anuncios que salen por #📣-ads también le llegan a Valen por WhatsApp, en el grupo interno ADS
+(`WHAPI_GRUPO_ADS`), mencionándolo. Solo grupos del equipo: nunca escribe a un cliente. Código en
+`lib/bot/anuncios/whatsappEquipo.ts` (textos y reglas, puro) y `whatsappEquipoServidor.ts` (Whapi y candado).
+
+- **Encendido:** `ANUNCIOS_WHATSAPP_EQUIPO=real`. La mención usa `ANUNCIOS_WHATSAPP_TEL_VALENTINO` (solo dígitos); sin
+  esa variable, el mensaje sale sin mención.
+- **Alerta diaria (8:45):** UN solo mensaje con el resumen de lo que salió por Discord (cliente y tipo de aviso), nunca un
+  mensaje por aviso. El detalle sigue en Discord.
+- **Notas del cliente:** cuando el aviso a Valen sale por Discord, sale también por WhatsApp.
+- **WhatsApp seguro:** el cliente de Whapi mira `/health` antes de escribir (si el número no está en AUTH, no sale). Entre
+  dos mensajes pasan al menos 5 minutos y hay un tope por día (`ANUNCIOS_WHATSAPP_EQUIPO_MAX_DIA`, 6 por defecto), con el
+  candado en Neon (`cj_altas_recursos`, fila `anuncios_wa_equipo`). Sin turno, no se manda: ya está en Discord.
+- La alerta devuelve `whatsappEquipo: { estado }` (`enviado`, `apagado`, `nada`, `sin_turno` o `error`).
+- Tests: `scripts/test-bot-anuncios-whatsapp-equipo.mjs`.

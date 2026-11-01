@@ -4,6 +4,7 @@ import { obtenerTablero } from '@/lib/anuncios/tablero'
 import { alertaDiaria } from '@/lib/anuncios/discord'
 import { sendDiscord } from '@/lib/discord'
 import { correrSeguimiento, correrVideos } from '@/lib/bot/anuncios/servidor'
+import { resumenEquipoWhatsapp } from '@/lib/bot/anuncios/whatsappEquipoServidor'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300   // los borradores de g03 esperan que Meta procese los videos
@@ -15,6 +16,8 @@ export const maxDuration = 300   // los borradores de g03 esperan que Meta proce
 // alerta no tenga nada que mandar; si falla, la alerta no se entera. ANUNCIOS_SEGUIMIENTO=0 lo apaga.
 // Al final, los videos nuevos en «Editados - X» (g01, lib/bot/anuncios/videos.ts): un aviso a Valentino por subida.
 // ANUNCIOS_VIDEOS=0 lo apaga.
+// Y lo que salió por Discord va también, en UN solo mensaje, al grupo ADS de WhatsApp (whatsappEquipo.ts), solo con
+// ANUNCIOS_WHATSAPP_EQUIPO=real.
 // ?preview (con cualquier valor, también vacío) devuelve los textos sin mandar nada (tampoco registra ni reclama). Protegido con CRON_SECRET (Bearer o ?key=).
 export async function GET(req: Request) {
   if (!cronAutorizado(req)) return NextResponse.json({ error: 'no autorizado' }, { status: 401 })
@@ -41,7 +44,8 @@ export async function GET(req: Request) {
       }
     }
     const seg = await seguimiento(false)
-    return NextResponse.json({ ...alerta, seguimiento: seg, videos: await videos(false) }, { status })
+    const vid = await videos(false)
+    return NextResponse.json({ ...alerta, seguimiento: seg, videos: vid, whatsappEquipo: await resumenEquipoWhatsapp(seg, vid) }, { status })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }

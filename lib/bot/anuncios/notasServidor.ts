@@ -1,7 +1,7 @@
 // ── Notas del cliente: dependencias reales (directorio de Éxito, Claude, Neon, Discord) ─────────────────────────────────
 // La ruta del webhook de Whapi (lib/bot/whapi/ruta.ts) llama a procesarNotasReal en after(). Solo LEE WhatsApp: el único
-// envío es el aviso a #📣-ads (DISCORD_WEBHOOK_ANUNCIOS) mencionando a Valen (DISCORD_ID_VALENTINO). ANUNCIOS_NOTAS=0 lo
-// apaga. El log lleva conteos, nunca textos ni teléfonos. Solo servidor.
+// envío es el aviso a #📣-ads (DISCORD_WEBHOOK_ANUNCIOS) mencionando a Valen (DISCORD_ID_VALENTINO), con copia al grupo
+// ADS de WhatsApp si ANUNCIOS_WHATSAPP_EQUIPO=real (whatsappEquipo.ts). ANUNCIOS_NOTAS=0 lo apaga. El log lleva conteos, nunca textos ni teléfonos. Solo servidor.
 import { llamarClaude } from '@/lib/bot/kickoff/claude'
 import { directorioReal } from '@/lib/bot/exito/servidor'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
@@ -9,6 +9,7 @@ import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
 import { urlDespacho } from '@/lib/edicion/avisos/entorno'
 import { SCHEMA_NOTAS, SISTEMA_NOTAS, lecturaValida, procesarNotas, type DepsNotas, type MensajeNota, type ResultadoNotas } from './notas'
 import { guardarLectura, marcarAvisoNota, reclamarNota } from './notasNeon'
+import { avisoSueltoWhatsapp } from './whatsappEquipoServidor'
 
 export const TOPE_LECTURA_MS = 40_000
 export const notasEncendidas = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_NOTAS?.trim() !== '0'
@@ -33,7 +34,9 @@ export function depsNotas(env: NodeJS.ProcessEnv = process.env): DepsNotas {
     async enviar(texto) {
       if (!webhook) throw new Error('falta DISCORD_WEBHOOK_ANUNCIOS')
       const v = idDiscord(env.DISCORD_ID_VALENTINO)
-      return (await enviarDiscord(webhook, [texto], v ? [v] : []))[0] ?? ''
+      const id = (await enviarDiscord(webhook, [texto], v ? [v] : []))[0] ?? ''
+      await avisoSueltoWhatsapp(texto, env)   // copia al grupo ADS de WhatsApp si está encendido; nunca tira
+      return id
     },
     marcarAviso: marcarAvisoNota,
     link: id => `${urlDespacho(env)}/anuncios?nota=${id}#notas`,
