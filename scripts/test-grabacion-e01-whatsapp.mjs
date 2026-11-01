@@ -157,3 +157,35 @@ test('pantalla de pendientes: lo que manda el bot no se ofrece para copiar; lo q
   const apagado = V.armarPendientes(ps, 'aylu', { ahora: AHORA, loMandaElBot: p => W.loMandaElBot(p, W.configE01Whatsapp({})) })
   assert.ok(apagado.clientes.flatMap(c => c.pasos).every(f => !f.bot))
 })
+
+test('WhatsApp seguro: con el número caído la vuelta se pausa sin leer grupos ni tocar pasos, y sin aviso', async () => {
+  const j = juguete()
+  j.deps.salud = async () => ({ ok: false, motivo: 'número del bot desconectado o suspendido (Whapi /health: QR)' })
+  const r = await correr(j.deps)
+  assert.match(r.pausado, /desconectado/)
+  assert.equal(j.log.lecturasGrupos, 0)
+  assert.deepEqual([j.log.reclamados, j.log.anotados, j.log.enviados, r.avisar], [[], [], [], []])
+  const j2 = juguete()
+  j2.deps.salud = async () => { throw new Error('Whapi /health no respondió') }
+  assert.match((await correr(j2.deps)).pausado, /no respondió/)
+  assert.deepEqual(j2.log.enviados, [])
+  const j3 = juguete()
+  j3.deps.salud = async () => ({ ok: true, motivo: '' })
+  const r3 = await correr(j3.deps)
+  assert.equal(r3.pausado, null)
+  assert.equal(r3.enviados, 1)
+})
+
+test('WhatsApp seguro: si el número se cae en medio de la vuelta, el paso se devuelve (sin «No salió») y se corta', async () => {
+  const pasos = [paso({ id: 1 }), paso({ id: 2, id_crm: 'B2', cliente: 'Marta Quiroga' })]
+  const devueltos = []
+  const j = juguete({ pasos, grupos: [...GRUPOS, { id: '120363000000000002@g.us', nombre: 'Contenido - Marta Quiroga' }],
+    enviar: async () => { throw Object.assign(new Error('Whapi: número del bot desconectado o suspendido. No se mandó nada.'), { tipo: 'sin_numero', aplicado: false }) } })
+  j.deps.devolver = async id => { devueltos.push(id) }
+  const r = await correr(j.deps)
+  assert.deepEqual(devueltos, [1])
+  assert.deepEqual(j.log.soltados, [])
+  assert.deepEqual(r.avisar, [])
+  assert.equal(j.log.reclamados.length, 1, 'no sigue con el otro cliente')
+  assert.match(r.pausado, /desconectado/)
+})

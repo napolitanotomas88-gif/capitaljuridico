@@ -17,6 +17,10 @@
 //     seguro (aplicado false), se suelta con «No salió…»; si no se sabe (5xx, corte), queda hecho con «dudoso: revisar el
 //     grupo antes de reenviar» y aviso a Tomás. Un «enviando…» de más de MINUTOS_COLGADO se pasa a dudoso con aviso.
 //   · MAX_ENVIOS_POR_VUELTA cuenta envíos reales (los sin grupo no tapan a los demás).
+//   · WhatsApp seguro (1/11): si hay algo para mandar, primero se mira la salud del número (GET /health de Whapi). Si no
+//     está conectado, la vuelta se pausa sin leer grupos ni tocar pasos (sin aviso: la guardia de salud ya avisa una vez a
+//     Discord) y se reintenta en la vuelta siguiente. Si se cae en medio de la vuelta (ErrorWhapi 'sin_numero'), el paso se
+//     devuelve tal cual (sin «No salió»: lo vuelve a tomar el bot) y la vuelta se corta.
 import type { IdCrm, PasoSeguimiento, Ymd } from '@/lib/edicion/tipos'
 import { fechaSugeridaE01, nombreDeSaludo, textoE01 } from '@/lib/edicion/textos'
 import { linkDoc } from '@/lib/edicion/vista'
@@ -50,11 +54,17 @@ export interface DepsE01Whatsapp {
   soltar(id: number, motivo: string): Promise<void>
   anotarNoSalio(id: number, version: number, motivo: string): Promise<void>
   colgados(minutos: number): Promise<{ id: number; cliente: string }[]>
+  /** ¿El número del bot está conectado? (WhatsApp seguro). Sin esto no se mira y decide la guardia de cada envío. */
+  salud?(): Promise<{ ok: boolean; motivo: string }>
+  /** Devuelve un paso reclamado a «sin hacer» sin anotarlo (el número se cayó: lo vuelve a tomar el bot). */
+  devolver?(id: number): Promise<void>
   env: Record<string, string | undefined>
   esHabil(d: Ymd): boolean
 }
 export interface ResultadoE01Whatsapp {
   apagado: string | null
+  /** Por qué se pausó la vuelta (número del bot desconectado): se reintenta sola en la vuelta siguiente. */
+  pausado: string | null
   elegibles: number; enviados: number; sin_grupo: string[]; errores: string[]
   /** Lo que merece un aviso a Tomás (pasa una sola vez por paso). Leer los grupos puede fallar en cada vuelta: solo errores. */
   avisar: string[]
@@ -63,6 +73,7 @@ export interface ResultadoE01Whatsapp {
 const ymdAR = (d: Date): Ymd => new Date(d.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)
 const horaAR = (d: Date): number => Number(new Date(d.getTime() - 3 * 3_600_000).toISOString().slice(11, 13))
 const motivo = (e: unknown): string => ((e as Error)?.message ?? String(e)).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 160)
+const sinNumero = (e: unknown): boolean => (e as { tipo?: unknown })?.tipo === 'sin_numero' && (e as { aplicado?: unknown })?.aplicado === false
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 const palabras = (s: string) => normal(s).split(/[^a-z0-9ñ]+/).filter(Boolean)
 
@@ -126,7 +137,7 @@ export function grupoDe(cliente: string, grupos: readonly GrupoWhatsapp[]): Grup
 }
 
 export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 'dry' | 'real'; deadline: number }): Promise<ResultadoE01Whatsapp> {
-  const out: ResultadoE01Whatsapp = { apagado: null, elegibles: 0, enviados: 0, sin_grupo: [], errores: [], avisar: [] }
+  const out: ResultadoE01Whatsapp = { apagado: null, pausado: null, elegibles: 0, enviados: 0, sin_grupo: [], errores: [], avisar: [] }
   out.apagado = motivoApagado(deps.env, op.modo, op.ahora, deps.esHabil)
   if (out.apagado) return out
   const cfg = configE01Whatsapp(deps.env)!
@@ -139,6 +150,10 @@ export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 
   const xs = elegibles(await deps.pasosAbiertos(), hoy, cfg)
   out.elegibles = xs.length
   if (!xs.length) return out
+  if (deps.salud) {
+    const s = await deps.salud().catch(e => ({ ok: false, motivo: motivo(e) }))
+    if (!s.ok) { out.pausado = s.motivo.slice(0, 200); return out }
+  }
   let grupos: GrupoWhatsapp[]
   try { grupos = await deps.grupos() } catch (e) { out.errores.push(`no se pudieron leer los grupos de WhatsApp (${motivo(e)})`); return out }
   const docs = await deps.docs()
@@ -158,6 +173,12 @@ export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 
     try {
       r = await deps.enviar(g.id, t.texto)
     } catch (e) {
+      if (sinNumero(e) && deps.devolver) {
+        // El número se cayó en medio de la vuelta: no salió nada; el paso vuelve a estar disponible y se corta acá
+        out.pausado = motivo(e)
+        await deps.devolver(p.id).catch(() => undefined)
+        break
+      }
       out.errores.push(`${p.cliente}: ${motivo(e)}`)
       if ((e as { aplicado?: unknown })?.aplicado === false) {
         out.avisar.push(`e01 por WhatsApp: no salió el mensaje a ${p.cliente} (${motivo(e)}). Quedó para mandarlo a mano`)

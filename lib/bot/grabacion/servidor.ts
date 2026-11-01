@@ -34,6 +34,7 @@ import type { RepoMarca } from './marcaVigia'
 import type { DepsE01Whatsapp } from './e01Whatsapp'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
+import { guardiaWhapi } from '@/lib/bot/whapi/salud'
 import { retomarDiario, type DepsDiario } from './diario'
 import type { DepsTranscripcion } from './transcripcion'
 import { leerArchivados, excluirArchivados, exigirClienteNoArchivado, ClienteArchivadoError } from '@/lib/clientes/archivados'
@@ -85,7 +86,14 @@ export function e01WhatsappReal(env: Record<string, string | undefined>): DepsE0
       return { id: (r as { id?: string | null }).id ?? null }
     },
     reclamar: Seguimientos.reclamarPasoBot, confirmar: Seguimientos.confirmarPasoBot, soltar: Seguimientos.soltarPasoBot,
-    anotarNoSalio: Seguimientos.anotarNoSalioBot, colgados: Seguimientos.pasosBotColgados,
+    anotarNoSalio: Seguimientos.anotarNoSalioBot, colgados: Seguimientos.pasosBotColgados, devolver: Seguimientos.devolverPasoBot,
+    // WhatsApp seguro: la misma guardia que frena cada envío (GET /health con caché de 60 s), mirada una vez por vuelta
+    salud: async () => {
+      const token = tokenWhapi()
+      if (!token) return { ok: false, motivo: 'falta WHAPI_TOKEN' }
+      try { await guardiaWhapi().antesDeEscribir({ token, fetch, ahora: Date.now }); return { ok: true, motivo: '' } }
+      catch (e) { return { ok: false, motivo: (e as Error)?.message ?? String(e) } }
+    },
     env, esHabil: (d: Ymd) => esHabil(d),
   }
 }
