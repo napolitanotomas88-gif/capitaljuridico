@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react'
 import type { FinanzasApi } from '@/lib/finanzas'
 import { EstilosFinanzas } from './Tema'
-import { Aviso, Tile, fmtPct, fmtUsd } from './ui'
+import { Aviso, fmtPct, fmtUsd } from './ui'
+import { SeccionTitulo } from '@/components/ui/SeccionTitulo'
+import { Boton } from '@/components/ui/Boton'
+import { ChipFiltro } from '@/components/ui/ChipFiltro'
+import { Resumen } from '@/components/ui/Tarjetas'
 import { Comisiones, Entradas, Gastos, Monotributo, Reparto, Revisar } from './Secciones'
 import { NavFinanzas } from './NavFinanzas'
 import { EstilosSkwd } from './skwd/estilos'
@@ -37,54 +41,27 @@ export function FinanzasDashboard() {
   const d = datos
   const r = d?.resultado
   return (
-    <div className="fin-verde fin-fondo" data-theme="dark">
+    <div className="fin-verde fin-fondo">
       <EstilosFinanzas />
-      <div className="max-w-6xl mx-auto px-4 py-5 md:py-8">
-        {/* Header */}
-        <header className="flex items-start justify-between flex-wrap gap-3 mb-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">
-              Finanzas <span style={{ color: 'var(--brand-orange)' }}>Capital Jurídico</span>
-            </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {d ? d.etiqueta : 'Cargando…'}
-              {cargando && d && <span className="ml-2 text-xs">· actualizando…</span>}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 no-print">
-            <button onClick={() => setRecargas(n => n + 1)} className="fin-sec text-xs font-semibold rounded-lg px-3 py-1.5" style={{ minHeight: 36 }} aria-label="Actualizar datos">
-              ↻
-            </button>
+      <EstilosSkwd />
+      <div className="fin-pagina">
+        <SeccionTitulo etiqueta="Finanzas" titulo={d ? `Resumen · ${d.etiqueta}` : 'Resumen'} acciones={
+          <div className="fin-acciones no-print">
+            {cargando && d && <span className="cj-texto-2" style={{ fontSize: 13 }}>Actualizando…</span>}
+            <Boton variante="secundario" onClick={() => setRecargas(n => n + 1)} aria-label="Actualizar datos">Actualizar</Boton>
             {/* Cierra solo el acceso a Finanzas (la sesión de Google sigue): vuelve a pedir la contraseña */}
-            <form method="post" action="/api/finanzas/logout">
-              <button type="submit" className="fin-boton text-xs font-bold rounded-lg px-3 py-1.5" style={{ minHeight: 36 }}>
-                Cerrar Finanzas
-              </button>
-            </form>
+            <form method="post" action="/api/finanzas/logout"><Boton variante="secundario" type="submit">Cerrar Finanzas</Boton></form>
           </div>
-        </header>
+        } />
 
-        {/* Pestañas: Resumen y las pantallas de la base de Finanzas SKWD (1/11/2026) */}
-        <EstilosSkwd />
         <NavFinanzas actual="resumen" />
 
         {/* Selector de mes */}
         {d && (
-          <div className="flex flex-wrap gap-1.5 mb-5 no-print" role="tablist" aria-label="Mes">
-            {d.mesesDisponibles.map(m => {
-              const activo = m === d.mes
-              return (
-                <button key={m} role="tab" aria-selected={activo} onClick={() => setMes(m)}
-                  className="text-xs font-semibold rounded-full px-3 py-1"
-                  style={{
-                    border: `1.5px solid ${activo ? 'var(--brand-orange)' : 'var(--border)'}`,
-                    background: activo ? 'var(--brand-orange)' : 'transparent',
-                    color: activo ? 'var(--fin-sobre-dorado)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}>
-                  {etiquetaCorta(m)}
-                </button>
-              )
-            })}
+          <div className="fin-meses no-print" role="group" aria-label="Mes">
+            {d.mesesDisponibles.map(m => (
+              <ChipFiltro key={m} activo={m === d.mes} onClick={() => setMes(m)}>{etiquetaCorta(m)}</ChipFiltro>
+            ))}
           </div>
         )}
 
@@ -93,35 +70,33 @@ export function FinanzasDashboard() {
 
         {!d && !error && (
           <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mt-2">
-            {Array.from({ length: 5 }, (_, i) => <div key={i} className="glass-tile" style={{ height: 92, opacity: 0.6 }} />)}
+            {Array.from({ length: 5 }, (_, i) => <div key={i} className="cj-dato" style={{ height: 112, opacity: 0.5 }} />)}
           </div>
         )}
 
         {d && r && (
           <div style={{ opacity: cargando ? 0.6 : 1, transition: 'opacity .2s' }}>
-            {/* Resultado del mes */}
-            <div className="glass-board p-3 md:p-4 mt-2 mb-4">
-              <div className="grid grid-cols-2 xl:grid-cols-5 gap-2.5 md:gap-3">
-                <Tile label="Entró (cash)" valor={fmtUsd(r.ingresos)} nota={`${d.entradas.pagos} pagos`} />
-                <Tile label="Gastos" valor={fmtUsd(r.gastos)} nota={d.gastos.anunciosEstimado ? 'incluye anuncios estimados' : undefined} />
-                <Tile label="Ganancia neta" valor={fmtUsd(r.neto)} tono={r.neto >= 0 ? 'bien' : 'mal'} />
-                <Tile label="Margen" valor={fmtPct(r.margen)} tono={r.margen == null ? 'neutro' : r.margen >= 0 ? 'bien' : 'mal'} />
-                <Tile label="Devoluciones" valor={fmtUsd(r.devoluciones)} nota="gasto del mes" />
-              </div>
-            </div>
+            {/* Resultado del mes: las tarjetas de dato del Despacho */}
+            <Resumen titulo="Resultado del mes" className="fin-resumen" datos={[
+              { etiqueta: 'Entró (cash)', valor: fmtUsd(r.ingresos), contexto: `${d.entradas.pagos} pagos`, destacado: true },
+              { etiqueta: 'Gastos', valor: fmtUsd(r.gastos), contexto: d.gastos.anunciosEstimado ? 'Incluye anuncios estimados' : undefined },
+              { etiqueta: 'Ganancia neta', valor: fmtUsd(r.neto), estado: { tono: r.neto >= 0 ? 'ok' : 'alerta', texto: r.neto >= 0 ? 'Positiva' : 'Negativa' } },
+              { etiqueta: 'Margen', valor: fmtPct(r.margen), estado: r.margen == null ? undefined : { tono: r.margen >= 0 ? 'ok' : 'alerta', texto: r.margen >= 0 ? 'Sobre el cash' : 'En rojo' } },
+              { etiqueta: 'Devoluciones', valor: fmtUsd(r.devoluciones), contexto: 'Gasto del mes' },
+            ]} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Entradas d={d} />
               <Gastos d={d} />
             </div>
-            <div className="grid grid-cols-1 gap-4 mt-4">
+            <div className="grid grid-cols-1 gap-6 mt-6">
               <Comisiones d={d} />
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               <Reparto d={d} />
               <Monotributo d={d} />
             </div>
-            <div className="grid grid-cols-1 gap-4 mt-4">
+            <div className="grid grid-cols-1 gap-6 mt-6">
               <Revisar d={d} />
             </div>
             <p className="text-[11px] mt-6 text-center" style={{ color: 'var(--text-muted)' }}>

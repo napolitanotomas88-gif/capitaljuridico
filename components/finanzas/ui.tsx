@@ -1,5 +1,5 @@
 'use client'
-// Piezas visuales del dashboard de Finanzas (mismo look cristal que el dashboard principal)
+// Piezas visuales del dashboard de Finanzas, con los bloques y tarjetas del resto del Despacho (1/11/2026)
 import type { ReactNode } from 'react'
 
 export const fmtUsd = (n: number | null | undefined, dec = 0) =>
@@ -10,16 +10,17 @@ export const fmtPct = (n: number | null | undefined, dec = 1) =>
   n == null || !Number.isFinite(n) ? '—' : `${(n * 100).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec })}%`
 
 export function Seccion({ titulo, subtitulo, children, accion }: { titulo: string; subtitulo?: ReactNode; children: ReactNode; accion?: ReactNode }) {
+  // Mismo bloque que el resto del Despacho (components/ui/Tarjetas.tsx · cj-bloque): título Sitka, contexto en humo
   return (
-    <section className="card p-4 md:p-5" style={{ minWidth: 0 }}>
-      <div className="flex items-start justify-between flex-wrap gap-3 mb-3">
-        <div style={{ minWidth: 0 }}>
-          <h2 className="text-xs uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>{titulo}</h2>
-          {subtitulo && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{subtitulo}</p>}
+    <section className="cj-bloque" aria-label={titulo} style={{ minWidth: 0 }}>
+      <header className="cj-bloque__cab">
+        <div className="cj-bloque__titulos">
+          <h2 className="cj-bloque__titulo">{titulo}</h2>
+          {subtitulo && <p className="cj-texto-2" style={{ margin: 0, fontSize: 13.5 }}>{subtitulo}</p>}
         </div>
         {accion}
-      </div>
-      {children}
+      </header>
+      <div className="cj-bloque__cuerpo">{children}</div>
     </section>
   )
 }
@@ -27,7 +28,7 @@ export function Seccion({ titulo, subtitulo, children, accion }: { titulo: strin
 export function Tile({ label, valor, nota, tono }: { label: string; valor: string; nota?: ReactNode; tono?: 'bien' | 'mal' | 'neutro' }) {
   const color = tono === 'bien' ? 'var(--fin-bien)' : tono === 'mal' ? 'var(--fin-mal)' : 'var(--text)'
   return (
-    <div className="glass-tile p-3 md:p-4" style={{ minWidth: 0 }}>
+    <div className="cj-dato" style={{ minWidth: 0, padding: 16 }}>
       <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>{label}</p>
       <p className="text-xl md:text-2xl font-black mt-1 tabular-nums" style={{ color, overflowWrap: 'anywhere' }}>{valor}</p>
       {nota && <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{nota}</p>}
@@ -57,7 +58,7 @@ export function Etiqueta({ children, tono = 'neutro' }: { children: ReactNode; t
   const color = tono === 'aviso' ? 'var(--fin-aviso)' : tono === 'mal' ? 'var(--fin-mal)' : tono === 'bien' ? 'var(--fin-bien)' : 'var(--text)'
   // Fondo propio y más oscuro que el vidrio de la tarjeta: así el texto de la etiqueta no depende del brillo de atrás
   return (
-    <span className="inline-block text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 align-middle" style={{ backgroundColor: fondo, backgroundImage: 'linear-gradient(rgba(0,0,0,0.28), rgba(0,0,0,0.28))', color }}>
+    <span className="inline-block text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 align-middle" style={{ backgroundColor: fondo, color }}>
       {children}
     </span>
   )
