@@ -218,3 +218,26 @@ test('el código del alta no usa credenciales ni escribe fuera de Referidos', as
   const c = readFileSync(new URL('../components/clientes/RegistrarReferido.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(c, /process\.env|GOOGLE_|SHEET_ID/)
 })
+
+describe('teléfono provisorio: vacío o de relleno (caso R002, 1/11/2026)', () => {
+  const sinTel = (o = {}) => { const v = validarAlta({ ...base, ...o }, HOY); assert.ok(v.ok, JSON.stringify(v)); return v.alta }
+  test('vacío o de relleno se acepta y se guarda sin teléfono; un número corto real sigue siendo error', () => {
+    assert.deepEqual([sinTel({ telefono: '' }).telefono, sinTel({ telefono: '' }).digitos], ['', ''])
+    assert.equal(sinTel({ telefono: '+54 000000000' }).telefono, '')
+    assert.equal(sinTel({ telefono: '11111111' }).telefono, '')
+    assert.ok(validarAlta({ ...base, telefono: '123' }, HOY).errores.telefono)
+    assert.equal(sinTel().telefono, '+5493515551234')   // un número real no cambia
+  })
+  test('un número de relleno no identifica a nadie', () => {
+    assert.equal(claveTelefono('54000000000'), ''); assert.equal(claveTelefono('5493515551234'), '15551234')
+  })
+  test('dos referidos sin teléfono del mismo cliente son personas distintas; con el mismo nombre, el mismo (doble envío)', () => {
+    const existentes = [{ id: 'R002', idReferidor: 'A012', digitos: '54000000000', fechaPedido: '2026-10-05', momento: 'Primer win', nombre: 'Persona Uno' }]
+    const laura = sinTel({ nombre: 'Persona Dos', telefono: '+54 000000000' })
+    assert.equal(decidirAlta(laura, existentes, clientes).tipo, 'nuevo')
+    const otraVez = sinTel({ nombre: '  persona   UNO ', telefono: '' })
+    assert.deepEqual(decidirAlta(otraVez, existentes, clientes), { tipo: 'duplicado', id: 'R002' })
+    const otroCliente = sinTel({ idReferidor: 'a013', nombre: 'Persona Uno', telefono: '' })
+    assert.equal(decidirAlta(otroCliente, existentes, clientes).tipo, 'nuevo')
+  })
+})

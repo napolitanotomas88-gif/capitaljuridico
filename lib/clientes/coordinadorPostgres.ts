@@ -105,12 +105,13 @@ export function crearReservasPostgres(opciones: { conectar: () => Promise<Client
         const a = hmac(secreto, 'actor', p.actor.trim().toLowerCase())
         const k = hmac(secreto, 'clave', p.clave)
         const h = hmac(secreto, 'huella', p.huella)
-        const t = hmac(secreto, 'tel', p.telefonoClave)
+        // Sin teléfono (o de relleno) no hay persona que proteger por número: un hash propio de este envío, que no choca con ningún otro
+        const t = p.telefonoClave ? hmac(secreto, 'tel', p.telefonoClave) : hmac(secreto, 'sin-tel', `${p.actor.trim().toLowerCase()}|${p.clave}`)
 
         const porClave = (await q(SQL.porClave, [a, k])).rows[0]
         if (porClave) return porClave.huella === h ? ({ tipo: 'misma_clave', reserva: aReserva(porClave) } as SalidaReserva) : ({ tipo: 'conflicto_clave' } as SalidaReserva)
 
-        const porTel = (await q(SQL.porTelefono, [t])).rows[0]
+        const porTel = p.telefonoClave ? (await q(SQL.porTelefono, [t])).rows[0] : undefined
         if (porTel) return porTel.referidor === p.referidor ? ({ tipo: 'misma_persona', reserva: aReserva(porTel) } as SalidaReserva) : ({ tipo: 'conflicto_telefono' } as SalidaReserva)
 
         const m = (await q(SQL.maximos)).rows[0]
