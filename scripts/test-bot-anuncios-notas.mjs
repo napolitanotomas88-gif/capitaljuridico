@@ -7,7 +7,7 @@ globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const N = await import('../lib/bot/anuncios/notas.ts')
 
 const GRUPOS = { ventas: '120363000000000001@g.us', verificaciones: '120363000000000002@g.us' }
-const GENERAL = '120363000000000010@g.us', CONTENIDO = '120363000000000011@g.us', EQUIPO = '120363000000000020@g.us'
+const GENERAL = '120363000000000010@g.us', CONTENIDO = '120363000000000011@g.us', EQUIPO = '120363000000000020@g.us', PRUEBA = '120363000000000030@g.us'
 const CLIENTE_TEL = '5491155550099', TOMI = '5491100000001'
 const AHORA = Date.parse('2026-11-01T15:00:00Z')
 const TS = Math.floor(AHORA / 1000) - 30
@@ -24,7 +24,7 @@ describe('filtro barato', () => {
     assert.equal(N.pareceDeAnuncios('mañana grabo'), false)
     assert.equal(N.pareceDeAnuncios('qué lindo día hace hoy en la ciudad de mar'), true)   // amplio a propósito: decide Claude
   })
-  test('candidatos: solo clientes en grupos que no son del equipo, con menos de 48 h', () => {
+  test('candidatos: grupos que no son del equipo, con menos de 48 h; los del equipo pasan marcados', () => {
     const c = N.candidatosNotas(envio([
       msg({ text: { body: 'Me llegan consultas de otra provincia, no me sirven' } }),
       msg({ from_me: true, source: 'api', text: { body: 'Me llegan consultas de otra provincia' } }),
@@ -37,7 +37,7 @@ describe('filtro barato', () => {
       msg({ type: 'image', image: { id: 'i', mime_type: 'image/jpeg', caption: 'Miren este caso que me llegó por el anuncio' } }),
       msg({ type: 'voice', voice: { id: 'v' } }),
     ]), GRUPOS, AHORA, new Set([TOMI]), [EQUIPO])
-    assert.deepEqual(c.map(x => x.texto), ['Me llegan consultas de otra provincia, no me sirven', 'Miren este caso que me llegó por el anuncio'])
+    assert.deepEqual(c.map(x => [x.texto, !!x.delEquipo]), [['Me llegan consultas de otra provincia, no me sirven', false], ['Bajemos el presupuesto de los anuncios a 200', true], ['Miren este caso que me llegó por el anuncio', false]])
     assert.equal(c[0].chatId, GENERAL)
   })
 })
@@ -66,7 +66,8 @@ describe('procesarNotas', () => {
     const d = { guardadas: [], enviados: [], marcas: [], reclamados: new Set() }
     let id = 0
     return Object.assign(d, {
-      deChat: async c => (c === CONTENIDO ? { idCrm: 'A1', cliente: 'Ana Pérez', grupo: 'contenido' } : c === GENERAL ? { idCrm: 'A1', cliente: 'Ana Pérez', grupo: 'general' } : null),
+      deChat: async c => (c === CONTENIDO ? { idCrm: 'A1', cliente: 'Ana Pérez', grupo: 'contenido' } : c === GENERAL ? { idCrm: 'A1', cliente: 'Ana Pérez', grupo: 'general' } : c === PRUEBA ? { idCrm: null, cliente: 'PRUEBA BOT', grupo: 'ventas' } : null),
+      esPrueba: x => N.esPrueba(x, {}),
       reclamar: async x => (d.reclamados.has(x.mensajeId) ? null : (d.reclamados.add(x.mensajeId), { id: ++id })),
       leer: async t => (/pausar/.test(t) ? { esDeAnuncios: true, dijo: 'Quiere pausar en diciembre.', pide: 'Pausar del 20 al 31/12', avisar: true, tipo: 'pausa' }
         : /bien/.test(t) ? { esDeAnuncios: true, dijo: 'Dice que vienen bien las consultas.', pide: '', avisar: false, tipo: 'calidad_consultas' }
@@ -78,17 +79,17 @@ describe('procesarNotas', () => {
       valentino: '366',
     }, o)
   }
-  test('pedido → nota + aviso; comentario → nota sin aviso; lo que no es de anuncios se descarta; Contenido y grupos ajenos no', async () => {
+  test('pedido → nota + aviso; comentario → nota sin aviso; lo que no es de anuncios se descarta; grupos ajenos no', async () => {
     const d = deps()
     const pausa = m('¿Podemos pausar los anuncios del 20 al 31?')
-    const r = await N.procesarNotas([pausa, m('Vienen bien las consultas de los anuncios'), m('Mañana paso a pagar la tarjeta de la oficina'), m('Pausar los anuncios en enero', CONTENIDO), m('Pausar los anuncios', '120363000000000777@g.us')], d)
-    assert.deepEqual({ ...r, errores: r.errores.length }, { leidos: 3, notas: 2, avisos: 1, errores: 0 })
-    assert.deepEqual(d.guardadas, [[1, true], [2, true], [3, false]])
-    assert.equal(d.enviados.length, 1); assert.match(d.enviados[0], /Pausar del 20 al 31\/12/); assert.match(d.enviados[0], /nota=1#notas/)
-    assert.deepEqual(d.marcas, [[1, 'D1', 'avisada']])
+    const r = await N.procesarNotas([pausa, m('Vienen bien las consultas de los anuncios'), m('Mañana paso a pagar la tarjeta de la oficina'), m('¿Se pueden pausar los anuncios en enero?', CONTENIDO), m('Pausar los anuncios', '120363000000000777@g.us')], d)
+    assert.deepEqual({ ...r, errores: r.errores.length }, { leidos: 4, notas: 3, avisos: 2, errores: 0 })
+    assert.deepEqual(d.guardadas, [[1, true], [2, true], [3, false], [4, true]])   // Contenido también se lee
+    assert.equal(d.enviados.length, 2); assert.match(d.enviados[0], /Pausar del 20 al 31\/12/); assert.match(d.enviados[0], /nota=1#notas/)
+    assert.deepEqual(d.marcas, [[1, 'D1', 'avisada'], [4, 'D1', 'avisada']])
     // El mismo mensaje otra vez (Whapi reintenta): no se relee ni se re-avisa
     const r2 = await N.procesarNotas([pausa], d)
-    assert.equal(r2.leidos, 0); assert.equal(d.enviados.length, 1)
+    assert.equal(r2.leidos, 0); assert.equal(d.enviados.length, 2)
   })
   test('Discord falla: queda aviso_fallido; Claude falla: se guarda sin leer y no se avisa; cliente archivado: nada', async () => {
     const d = deps({ enviar: async () => { throw new Error('Discord 500') } })
@@ -99,5 +100,17 @@ describe('procesarNotas', () => {
     assert.deepEqual(d2.guardadas, [[1, null]]); assert.equal(r2.notas, 0); assert.match(r2.errores[0], /claude/)
     const d3 = deps({ clienteOperativo: async () => false })
     assert.equal((await N.procesarNotas([m('¿Podemos pausar los anuncios?')], d3)).leidos, 0)
+  })
+  test('cliente de prueba: se leen los mensajes del equipo, no mira el CRM y el aviso sale marcado; en un cliente real, el equipo no cuenta', async () => {
+    const d = deps({ clienteOperativo: async () => { throw new Error('no debería mirar el CRM') } })
+    const delEquipo = (texto, chatId) => ({ ...m(texto, chatId), delEquipo: true })
+    const r = await N.procesarNotas([delEquipo('¿Podemos pausar los anuncios?', PRUEBA), delEquipo('¿Podemos pausar los anuncios?', GENERAL)], d)
+    assert.equal(r.leidos, 1); assert.equal(d.enviados.length, 1)
+    assert.match(d.enviados[0], /^<@366> 🧪 \*\*PRUEBA\*\* · 🗣️ \*\*Nota del cliente\*\* · PRUEBA BOT/)
+  })
+  test('esPrueba: «PRUEBA BOT…» siempre y los de BOT_CLIENTES_PRUEBA', () => {
+    assert.equal(N.esPrueba('Prueba Bot 2', {}), true)
+    assert.equal(N.esPrueba('Ana Pérez', {}), false)
+    assert.equal(N.esPrueba('Ana  Pérez', { BOT_CLIENTES_PRUEBA: 'Juan, ana perez' }), true)
   })
 })

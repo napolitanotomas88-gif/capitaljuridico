@@ -142,8 +142,13 @@ Valen, con el pedido y el link a la nota (`/anuncios?nota=<id>#notas`).
 - **Solo lee.** El bot no escribe nada en los grupos (por el baneo del 26/10).
 - **De dónde sale:** el mismo webhook de Whapi que usa Éxito (`lib/bot/whapi/ruta.ts` → `programarNotas`), con las
   mismas exclusiones: sin equipo, sin grupos del equipo, sin mensajes propios y nada con más de 48 h. De qué cliente es
-  el grupo lo resuelve el directorio de Éxito (`directorioReal`). Cuentan los grupos General y Ventas; los de Contenido
-  van a Guiones. Los audios no se leen.
+  el grupo lo resuelve el directorio de Éxito (`directorioReal`). Cuentan los grupos General, Ventas y Contenido (en
+  Contenido Claude separa lo que es de grabación o guiones). Los audios no se leen.
+- **Clientes de prueba** (`esPrueba`): el nombre empieza con «PRUEBA BOT» o está en `BOT_CLIENTES_PRUEBA` (nombres
+  separados por coma). En esos se leen también los mensajes del equipo (el que prueba escribe desde su teléfono), no
+  se mira el CRM y el aviso a Valen sale marcado «🧪 PRUEBA». Para la prueba punta a punta, el número del bot tiene que
+  estar en los grupos del cliente de prueba (los que arma el motor de altas, o «General / Ventas / Contenido - PRUEBA
+  BOT»).
 - **Filtro + Claude** (`notas.ts`): un filtro barato de palabras de campaña y después Claude con esfuerzo bajo, que
   decide si el mensaje es de anuncios y lo resume (qué dijo, qué pide, si hay que avisar y el tema).
 - **Base:** `cj_anuncios_notas` (`notasNeon.ts`), con una fila por mensaje que se reclama antes de leerlo. Lo que no es
