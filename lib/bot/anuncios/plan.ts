@@ -66,18 +66,19 @@ export const CONFIGURACION = [
 ]
 
 /** La regla de Tomás: cuánto cuesta probar y si va un conjunto por video o todos juntos. */
-export function decidirEstructura(mensualUSD: number | null, habitantes: number | null, videos: number): { estructura: Estructura; ampliarZona: boolean; tarifa: number; testeoUSD: number | null; motivo: string } {
+export function decidirEstructura(mensualUSD: number | null, habitantes: number | null, videos: number, unidad: 'videos' | 'anuncios' = 'videos'): { estructura: Estructura; ampliarZona: boolean; tarifa: number; testeoUSD: number | null; motivo: string } {
   const tarifa = habitantes !== null && habitantes > ZONA_GRANDE ? TARIFA_CONJUNTO_USD.grande : TARIFA_CONJUNTO_USD.chica
   const ampliarZona = habitantes !== null && habitantes < MIN_HABITANTES
   const n = Math.max(1, videos)
   const testeo = r2(n * tarifa * DIAS_TESTEO)
   if (mensualUSD === null || mensualUSD <= 0) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: 'Sin presupuesto mensual en la ficha: no se puede calcular; por las dudas, todos juntos.' }
-  if (n === 1) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: 'Un solo video: un solo conjunto.' }
+  const [uno, varios] = unidad === 'anuncios' ? ['anuncio', 'anuncios'] : ['video', 'videos']
+  if (n === 1) return { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: null, motivo: `Un solo ${uno}: un solo conjunto.` }
   const pct = testeo / mensualUSD
   const zona = habitantes === null ? 'zona sin habitantes estimados (se toma como chica)' : `zona de ~${miles(habitantes)} de habitantes`
-  const cuenta = `probar ${n} videos ${DIAS_TESTEO} días a ${usd(tarifa)} por conjunto = ${usd(testeo)}, el ${Math.round(pct * 100)} % de ${usd(mensualUSD)}/mes (${zona})`
+  const cuenta = `probar ${n} ${varios} ${DIAS_TESTEO} días a ${usd(tarifa)} por conjunto = ${usd(testeo)}, el ${Math.round(pct * 100)} % de ${usd(mensualUSD)}/mes (${zona})`
   return pct <= TOPE_TESTEO
-    ? { estructura: 'por_video', ampliarZona, tarifa, testeoUSD: testeo, motivo: `Un conjunto por video: ${cuenta}, entra en el 25 %.` }
+    ? { estructura: 'por_video', ampliarZona, tarifa, testeoUSD: testeo, motivo: `Un conjunto por ${uno}: ${cuenta}, entra en el 25 %.` }
     : { estructura: 'todos_juntos', ampliarZona, tarifa, testeoUSD: testeo, motivo: `Todos juntos: ${cuenta}, pasa del 25 %: el presupuesto no alcanza para probarlos por separado.` }
 }
 

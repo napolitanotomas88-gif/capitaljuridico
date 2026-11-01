@@ -82,11 +82,14 @@ describe('textoVideos (formato aprobado con Carlos Oliva)', () => {
     assert.match(t, /Rotación, no lanzamiento/)
     assert.match(t, /USD 1,27 por mensaje en 7 días \(Laboral: normal hasta USD 1,5\)/)
     assert.match(t, /drive\.google\.com\/file\/d\/a\/view/)
-    // regla de Tomás: 3 videos × USD 3,5 × 4 días = 42, el 17 % de 250 → uno por video
-    assert.match(t, /3 conjuntos nuevos, uno por video .*a USD 3,5\/día cada uno/)
-    assert.match(t, /📐 Un conjunto por video: probar 3 videos/)
-    const juntos = V.textoVideos(s, fila({ presupuesto: { mensualUSD: 150, ajusteDiarioUSD: 11.27, realDiarioUSD: 8 } }), null, null, AHORA)
-    assert.match(juntos, /los 3 videos juntos, a USD 3\/día/)   // 42 de 150 = 28 %: pasa del 25 %
+    // 3:2:2: 3 videos = 1 anuncio flexible → un solo conjunto
+    assert.match(t, /1 conjunto nuevo .*1 anuncio flexible con los 3 videos, a USD 3\/día/)
+    assert.match(t, /📐 Un solo anuncio: un solo conjunto/)
+    assert.match(t, /🧩 \*\*3:2:2:\*\* cada anuncio con 3 videos \+ 2 textos/)
+    // 6 videos = 2 anuncios: 2 × 3,5 × 4 = 28, el 11 % de 250 → uno por anuncio; con 100/mes (28 %) van juntos
+    const seis = { ...s, videos: [1, 2, 3, 4, 5, 6].map(i => ({ id: `v${i}`, nombre: `Carlos Oliva ${i}.mp4`, creado: s.videos[0].creado })) }
+    assert.match(V.textoVideos(seis, fila(), null, null, AHORA), /2 conjuntos nuevos, uno por anuncio .*a USD 3,5\/día cada uno/)
+    assert.match(V.textoVideos(seis, fila({ presupuesto: { mensualUSD: 100, ajusteDiarioUSD: 11.27, realDiarioUSD: 8 } }), null, null, AHORA), /1 conjunto nuevo .*2 anuncios flexibles de hasta 3 videos/)
     assert.doesNotMatch(t, /⚠️/)
   })
   test('sin presupuesto: diario mínimo y alerta', () => {

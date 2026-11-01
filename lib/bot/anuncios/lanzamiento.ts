@@ -12,7 +12,7 @@
 //     copy desde el guion no arma (un cliente nuevo no tiene ganador del que copiar).
 import type { PorLanzar } from '@/lib/anuncios/tablero'
 import { DIAS_TESTEO, MIN_DIARIO_USD, decidirEstructura } from './plan'
-import { crearEnPausa, montoMeta, type Borrador, type DepsBorrador, type Graph, type VideoBorrador } from './borrador'
+import { crearEnPausa, montoMeta, type Borrador, type DepsBorrador, type Graph, type GrupoBorrador } from './borrador'
 import type { Subida } from './videos'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Payloads de Meta: la selección de página, país y zona valida los datos usados.
@@ -88,15 +88,15 @@ export interface DepsLanzamiento extends DepsBorrador {
   habitantes(pl: PorLanzar): Promise<number | null>
 }
 
-export async function armarLanzamiento(s: Subida, pl: PorLanzar, videos: VideoBorrador[], deps: DepsLanzamiento, deadline: number): Promise<Borrador> {
+export async function armarLanzamiento(s: Subida, pl: PorLanzar, grupos: GrupoBorrador[], deps: DepsLanzamiento, deadline: number): Promise<Borrador> {
   const k = pl.kickoff
   if (!k?.cuenta) throw new Error('la ficha no tiene la cuenta de Meta identificada')
   const pais = k.zona.pais?.trim().toUpperCase()
   if (!pais || !/^[A-Z]{2}$/.test(pais)) throw new Error('falta confirmar el país de la zona en la ficha')
   const mensual = mensualDeFicha(k.presupuesto.texto)
   if (!mensual || k.presupuesto.aConfirmar) throw new Error('falta confirmar el presupuesto mensual de la ficha')
-  const sinCopy = videos.filter(v => !v.copy).map(v => v.nombre)
-  if (sinCopy.length) throw new Error(`falta el copy de ${sinCopy.join(', ')} (no encontré su guion): un cliente nuevo no tiene anuncio del que copiar`)
+  const sinCopy = grupos.filter(g => !g.textos.length).map(g => g.videos.map(v => v.nombre).join(' + '))
+  if (sinCopy.length) throw new Error(`faltan los textos de ${sinCopy.join(', ')} (no encontré su guion): un cliente nuevo no tiene anuncio del que copiar`)
   const g = deps.graph, cuenta = k.cuenta.id
   const cta = await g.get(cuenta, { fields: 'currency,account_status' })
   if (cta.account_status !== 1) throw new Error(`la cuenta no está activa en Meta (estado ${cta.account_status})`)
@@ -116,7 +116,7 @@ export async function armarLanzamiento(s: Subida, pl: PorLanzar, videos: VideoBo
   if (!ubicados.length) throw new Error('no pude ubicar en Meta ningún lugar de la zona de la ficha')
   let habitantes: number | null = null
   try { habitantes = await deps.habitantes(pl) } catch { habitantes = null }
-  const d = decidirEstructura(mensual, habitantes, videos.length)
+  const d = decidirEstructura(mensual, habitantes, grupos.length, 'anuncios')
   const diarioUSD = d.estructura === 'por_video' ? d.tarifa : Math.max(MIN_DIARIO_USD, Math.ceil((mensual ?? 0) / 30))
   const hoy = new Date(deps.ahora()).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: '2-digit' })
   const zona = `${ubicados[0].replace(/\s*\(.*\)$/, '')}${ubicados.length > 1 ? ` +${ubicados.length - 1}` : ''}${k.zona.radioKm ? ` ${k.zona.radioKm} km` : ''}`
@@ -135,7 +135,7 @@ export async function armarLanzamiento(s: Subida, pl: PorLanzar, videos: VideoBo
       page_id: pagina.id, instagram_user_id: pagina.instagram_business_account?.id, mejoras: MEJORAS_APAGADAS,
       video_data: { title: 'Chatea con nosotros', call_to_action: { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP', link: 'https://api.whatsapp.com/send' } }, page_welcome_message: BIENVENIDA },
     },
-    videos, estructura: { porVideo: d.estructura === 'por_video', diarioUSD }, tanda: s.numero, diarioLocal: montoMeta(diarioUSD, usdPor, String(cta.currency ?? 'USD')),
+    grupos, estructura: { porAnuncio: d.estructura === 'por_video', diarioUSD }, tanda: s.numero, diarioLocal: montoMeta(diarioUSD, usdPor, String(cta.currency ?? 'USD')),
   }, deps, deadline)
   b.motivo = d.motivo
   if (d.estructura === 'por_video' && mensual) b.faltan.push(`después de los ${DIAS_TESTEO} días de prueba hay que bajar el gasto para cerrar el mes en USD ${mensual}`)

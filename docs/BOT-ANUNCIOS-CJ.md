@@ -111,3 +111,45 @@ Clave `tipo:campaña:fecha del ciclo`. Se reclama antes de mandar (`INSERT … O
 - Antes de cada pedido de Meta se comprueba que quede tiempo para completarlo dentro del plazo del cron.
 - Revisión completa: 3.464 tests, 3.459 aprobados, 5 omitidos y 0 fallos; ESLint y build local correctos. Ensayo con lectura real de CUENTA_QA y POST simulados: 3 conjuntos y 3 anuncios en PAUSED, cero escrituras reales.
 - La publicación habilita la preparación de borradores mediante ANUNCIOS_BORRADOR=real; los anuncios se crean en PAUSED y los revisa/enciende ADS. No se ejecuta manualmente el cron ni se envían mensajes como parte de esta revisión.
+
+## Método 3:2:2 en los anuncios de clientes (1/11/2026, Hub + Tomás)
+
+Reemplaza la regla de las 5 variaciones de copy. Cada anuncio que arma g03 (rotación o lanzamiento) es **uno solo en
+formato flexible**: 3 videos de la misma idea + 2 textos principales + 2 títulos, sin descripciones. Meta combina las 12
+variantes.
+
+- **Videos:** los que ya grabó el cliente, de a 3 en el orden de la tanda (1-2-3, 4-5-6…). No se le piden a Guiones 3
+  ejecuciones por concepto. Si sobran 1 o 2, van en un anuncio más chico, con aviso. El aviso le pide a Valen que
+  confirme que cada anuncio junte videos de la misma idea.
+- **Textos** (`copys.ts`, un solo pedido a Claude por anuncio con los guiones de sus videos): uno **directo** (el molde
+  de siempre: gancho ⬇️, problema, «Enviame un mensaje 💬…»), que va de texto principal, y uno **amplio/entretenido**
+  (una escena breve que termina con la misma llamada). Los títulos son 2, de hasta 40 caracteres. Si Claude falla, va el
+  copy del ganador con aviso (rotación) o no se arma (lanzamiento).
+- **En Meta** (`borrador.ts`): `object_story_spec.video_data` con el primer video, el directo y el primer título; los 3
+  videos, los 2 textos y los 2 títulos van en `asset_feed_spec` con `ad_formats: ["AUTOMATIC_FORMAT"]` y
+  `optimization_type: "DEGREES_OF_FREEDOM"`. Se valida sin crear nada con `execution_options: ["validate_only"]`; el
+  1/11 Meta lo aceptó con un conjunto de WhatsApp real.
+- **Estructura:** la regla de Tomás cuenta **anuncios**, no videos (6 videos = 2 anuncios → «un conjunto por anuncio» o
+  todos juntos).
+
+## Notas del cliente: WhatsApp → Despacho → Valen (1/11/2026, Hub + Tomás)
+
+Lo que el cliente dice de sus anuncios en su grupo de WhatsApp queda en **Anuncios → «Notas del cliente»** (fecha, lo
+que dijo, lo que pide). Si hay que cambiar o tener en cuenta algo de la campaña, sale un aviso a #📣-ads mencionando a
+Valen, con el pedido y el link a la nota (`/anuncios?nota=<id>#notas`).
+
+- **Solo lee.** El bot no escribe nada en los grupos (por el baneo del 26/10).
+- **De dónde sale:** el mismo webhook de Whapi que usa Éxito (`lib/bot/whapi/ruta.ts` → `programarNotas`), con las
+  mismas exclusiones: sin equipo, sin grupos del equipo, sin mensajes propios y nada con más de 48 h. De qué cliente es
+  el grupo lo resuelve el directorio de Éxito (`directorioReal`). Cuentan los grupos General y Ventas; los de Contenido
+  van a Guiones. Los audios no se leen.
+- **Filtro + Claude** (`notas.ts`): un filtro barato de palabras de campaña y después Claude con esfuerzo bajo, que
+  decide si el mensaje es de anuncios y lo resume (qué dijo, qué pide, si hay que avisar y el tema).
+- **Base:** `cj_anuncios_notas` (`notasNeon.ts`), con una fila por mensaje que se reclama antes de leerlo. Lo que no es
+  de anuncios queda «descartado», sin el texto.
+- **API:** `GET /api/anuncios/notas`, con el mismo acceso que el tablero. La sección se ve en
+  `components/anuncios/NotasCliente.tsx`.
+- **Interruptor:** `ANUNCIOS_NOTAS=0` lo apaga. Usa `DISCORD_WEBHOOK_ANUNCIOS`, `DISCORD_ID_VALENTINO`, `DATABASE_URL` y
+  la clave de Claude.
+- **Ojo (1/11):** el número del bot está conectado (AUTH) pero hoy está en 2 grupos y en ningún «General - X». Hasta
+  que lo sumen a los grupos de los clientes no hay nada que leer.

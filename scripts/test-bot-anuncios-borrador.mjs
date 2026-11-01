@@ -35,8 +35,8 @@ const subida = { clave: 'videos:T2:x', carpetaId: 'T2', carpetaCliente: 'Carlos 
   videos: [{ id: 'd1', nombre: 'Carlos Oliva 1.mp4', creado: '2026-10-27T11:00:00Z' }, { id: 'd2', nombre: 'Carlos Oliva 2.mp4', creado: '2026-10-27T12:00:00Z' }] }
 const fila = { id: 'act_9', cliente: 'Carlos Oliva', cuenta: 'CO', moneda: 'ARS', usdPor: 1563.9, pausado: false, gasto: { d7: 1 }, cpl: { d7: null }, rama: null, presupuesto: { mensualUSD: 250, ajusteDiarioUSD: 11.27, realDiarioUSD: 8 } }
 const AHORA = Date.parse('2026-10-28T12:00:00Z')
-const VIDS = subida.videos.map(v => ({ nombre: v.nombre, drive: v.id, copy: null, guion: null }))
-const JUNTOS = { porVideo: false, diarioUSD: 3 }
+const VIDS = [{ videos: subida.videos.map(v => ({ nombre: v.nombre, drive: v.id })), textos: [], titulos: [], guiones: [] }]   // 1 anuncio 3:2:2 con los 2 videos
+const JUNTOS = { porAnuncio: false, diarioUSD: 3 }
 const deps = m => ({ graph: m.graph, esperar: async () => {}, ahora: () => AHORA })
 
 describe('interruptor', () => {
@@ -67,7 +67,7 @@ describe('armarBorrador', () => {
     const m = metaFalso()
     const b = await B.armarBorrador(subida, fila, VIDS, JUNTOS, deps(m), AHORA + 60_000)
     const rutas = m.posts.map(p => p[0])
-    assert.deepEqual(rutas, ['act_9/advideos', 'act_9/advideos', 'act_9/adsets', 'act_9/adcreatives', 'act_9/ads', 'act_9/adcreatives', 'act_9/ads'])
+    assert.deepEqual(rutas, ['act_9/advideos', 'act_9/advideos', 'act_9/adsets', 'act_9/adcreatives', 'act_9/ads'])
     const set = m.posts[2][1]
     assert.equal(set.status, 'PAUSED'); assert.equal(set.campaign_id, 'C1'); assert.equal(set.daily_budget, '469170')
     assert.equal(set.attribution_spec, undefined)
@@ -79,8 +79,13 @@ describe('armarBorrador', () => {
     assert.equal(cr.object_story_spec.video_data.video_id, 'N1')
     assert.equal(cr.object_story_spec.video_data.image_hash, undefined)
     assert.equal(cr.object_story_spec.video_data.message, 'copy del ganador')
+    // 3:2:2: un solo anuncio flexible con los 2 videos y, sin textos del guion, el copy del ganador
+    assert.deepEqual(cr.asset_feed_spec.videos.map(v => v.video_id), ['N1', 'N2'])
+    assert.deepEqual(cr.asset_feed_spec.bodies, [{ text: 'copy del ganador' }])
+    assert.equal(cr.asset_feed_spec.optimization_type, 'DEGREES_OF_FREEDOM')
     assert.match(m.posts[0][1].file_url, /drive\.usercontent\.google\.com\/download\?id=d1/)
-    assert.equal(b.anuncios.length, 2)
+    assert.equal(b.anuncios.length, 1)
+    assert.ok(b.faltan.some(f => /3:2:2 pide 3 videos por anuncio y el anuncio 1 tiene 2/.test(f)))
     assert.match(b.link, /act=9&selected_adset_ids=N3/)
     assert.match(b.faltan[0], /copy es el del anuncio ganador/)
   })
@@ -96,7 +101,25 @@ describe('armarBorrador', () => {
     const m = metaFalso({ ads: { data: [{ id: 'AF', creative: { object_story_spec: { page_id: 'P' } } }] }, adsCuenta: { data: [{ id: 'A7', creative: { object_story_spec: { page_id: 'P', video_data: { ...VIDEO_DATA, message: 'otro copy' } } }, insights: { data: [{ spend: '5' }] } }] } })
     const b = await B.armarBorrador(subida, fila, VIDS, JUNTOS, deps(m), AHORA + 60_000)
     assert.equal(m.posts.find(p => p[0].endsWith('/adcreatives'))[1].object_story_spec.video_data.message, 'otro copy')
-    assert.equal(b.anuncios.length, 2)
+    assert.equal(b.anuncios.length, 1)
+  })
+  test('3:2:2: 3 videos, el directo de texto principal, el amplio de variante, 2 títulos y sin descripción', async () => {
+    const m = metaFalso({ ads: { data: [{ id: 'A1', creative: { object_story_spec: { page_id: 'P', video_data: { ...VIDEO_DATA, title: 'viejo', link_description: 'desc' } } }, insights: { data: [{ spend: '5' }] } }] } })
+    const DIRECTO = '¿Te despidieron? ⬇️\nProblema.\nEnviame un mensaje 💬 y te ayudo.', AMPLIO = 'Escena.\nHistoria.\nEnviame un mensaje 💬 y te ayudo.'
+    const g = { videos: [1, 2, 3].map(i => ({ nombre: `Carlos Oliva ${i}.mp4`, drive: `d${i}` })), textos: [AMPLIO, DIRECTO], titulos: ['Escribime hoy', 'Vemos tu caso'], guiones: ['T2-V1', 'T2-V2', 'T2-V3'] }
+    const b = await B.armarBorrador(subida, fila, [g], JUNTOS, deps(m), AHORA + 60_000)
+    const cr = m.posts.find(p => p[0].endsWith('/adcreatives'))[1]
+    assert.equal(cr.object_story_spec.video_data.message, DIRECTO)
+    assert.equal(cr.object_story_spec.video_data.title, 'Escribime hoy')
+    assert.equal(cr.object_story_spec.video_data.link_description, undefined)
+    assert.equal(cr.asset_feed_spec.videos.length, 3)
+    assert.deepEqual(cr.asset_feed_spec.bodies.map(x => x.text), [DIRECTO, AMPLIO])
+    assert.deepEqual(cr.asset_feed_spec.titles.map(x => x.text), ['Escribime hoy', 'Vemos tu caso'])
+    assert.equal(cr.asset_feed_spec.descriptions, undefined)
+    assert.equal(m.posts.find(p => p[0].endsWith('/ads'))[1].name, '1- ¿Te despidieron?')
+    assert.ok(b.faltan.some(f => /anuncio 1: 1-2-3/.test(f)))
+    assert.ok(b.faltan.some(f => /textos escritos desde el guion \(anuncio 1 ← T2-V1, T2-V2, T2-V3\)/.test(f)))
+    assert.ok(!b.faltan.some(f => /pide 3 videos/.test(f)))
   })
   test('sin tiempo para una petición de Meta: corta antes de subir videos o crear el conjunto', async () => {
     const m = metaFalso({ estadoVideo: 'processing' })
@@ -122,11 +145,11 @@ describe('en el aviso de g01', () => {
   const t = { filas: [fila], porLanzar: [] }
   test('con borrador: link y aviso del copy; se arma una vez, después de reclamar', async () => {
     let armados = 0
-    const r = await V.avisarVideosNuevos(t, base({ borrador: { permitido: () => true, armar: async (_s, _f, e) => { armados++; return { campana: 'Camp', campanaId: 'C1', nueva: false, conjuntos: e.porVideo ? [{ id: 'S1', nombre: '1- Broad', anuncios: ['a'] }, { id: 'S2', nombre: '2- Broad', anuncios: ['b'] }] : [{ id: 'S9', nombre: 'Broad | CABA | 25-64 | Tanda 2 | 28/10', anuncios: ['a', 'b'] }], conjuntoId: 'S9', conjunto: 'Broad', anuncios: ['a', 'b'], diarioLocal: 1, diarioUSD: e.diarioUSD, link: 'https://adsmanager/x', faltan: ['el copy es el del anuncio ganador: ajustalo al video'] } } } }), { desde: '2026-10-26T03:00:00Z' })
+    const r = await V.avisarVideosNuevos(t, base({ borrador: { permitido: () => true, armar: async (_s, _f, e) => { armados++; return { campana: 'Camp', campanaId: 'C1', nueva: false, conjuntos: e.porAnuncio ? [{ id: 'S1', nombre: '1- Broad', anuncios: ['a'] }, { id: 'S2', nombre: '2- Broad', anuncios: ['b'] }] : [{ id: 'S9', nombre: 'Broad | CABA | 25-64 | Tanda 2 | 28/10', anuncios: ['a', 'b'] }], conjuntoId: 'S9', conjunto: 'Broad', anuncios: ['a', 'b'], diarioLocal: 1, diarioUSD: e.diarioUSD, link: 'https://adsmanager/x', faltan: ['el copy es el del anuncio ganador: ajustalo al video'] } } } }), { desde: '2026-10-26T03:00:00Z' })
     assert.equal(armados, 1)
-    // USD 250/mes y 2 videos: probarlos sale 2 × 3,5 × 4 = 28 (11 %) → uno por video, a USD 3,5 cada uno
-    assert.match(r.avisos[0].texto, /📝 \*\*Armado en Meta, todo EN PAUSA:\*\* en «Camp», 2 conjuntos, uno por video, a USD 3,5\/día cada conjunto/)
-    assert.match(r.avisos[0].texto, /📐 Un conjunto por video/)
+    // 3:2:2: 2 videos = 1 anuncio → un solo conjunto, al diario que cierra el mes
+    assert.match(r.avisos[0].texto, /📝 \*\*Armado en Meta, todo EN PAUSA:\*\* en «Camp», 1 conjunto «Broad .*» con 2 anuncios, a USD 3\/día cada conjunto/)
+    assert.match(r.avisos[0].texto, /📐 Un solo anuncio/)
     assert.match(r.avisos[0].texto, /⚠️ El copy es el del anuncio ganador/)
     assert.doesNotMatch(r.avisos[0].texto, /📋 \*\*Propuesta/)
   })

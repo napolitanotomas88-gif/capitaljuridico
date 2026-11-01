@@ -11,7 +11,7 @@ import { anotarWhatsapp, avisoReciente, avisosRegistrados, marcarAvisoDudoso, ma
 import { leerEditados } from './editadosDrive'
 import { avisarVideosNuevos, type DepsVideos, type ResultadoVideos } from './videos'
 import { armarBorrador, borradorPermitido, crearGraph, type Borrador, type DepsBorrador } from './borrador'
-import { escribirCopy, videosConCopy } from './copys'
+import { escribirTextos, gruposConTextos } from './copys'
 import { armarLanzamiento } from './lanzamiento'
 import { estimarHabitantes } from './habitantes'
 import { lectorReal } from '@/lib/bot/grabacion/drive'
@@ -68,23 +68,23 @@ export function depsVideos(t?: Pick<Tablero, 'filas'>): DepsVideos {
       esperar: ms => new Promise<void>(r => setTimeout(r, ms)), ahora: () => Date.now(),
     }
   }
-  const copys = { exportarTexto: (id: string) => lectorReal().exportarTexto(id), escribir: escribirCopy }
+  const copys = { exportarTexto: (id: string) => lectorReal().exportarTexto(id), escribir: escribirTextos }
   const conAviso = (b: Borrador, aviso: string | null) => { if (aviso) b.faltan.push(aviso); return b }
   // La cotización de cada moneda: la que el tablero ya usa en las filas de esa moneda
   const usdPor = (m: string) => m.toUpperCase() === 'USD' ? 1 : t?.filas.find(f => f.moneda?.toUpperCase() === m.toUpperCase() && f.usdPor)?.usdPor ?? null
   const borrador: DepsVideos['borrador'] = token ? {
     permitido: c => borradorPermitido(c),
     armar: async (sub, fila, estructura, deadline) => {
-      const { videos, aviso } = await videosConCopy(sub, sub.guionesDoc ?? null, copys)
-      return conAviso(await armarBorrador(sub, fila, videos, estructura, base(fila.clienteCRM ?? fila.cliente), deadline), aviso)
+      const { grupos, aviso } = await gruposConTextos(sub, sub.guionesDoc ?? null, copys)
+      return conAviso(await armarBorrador(sub, fila, grupos, estructura, base(fila.clienteCRM ?? fila.cliente), deadline), aviso)
     },
   } : undefined
   const lanzar: DepsVideos['lanzar'] = token ? {
     armar: async (sub, pl, deadline) => {
-      const { videos, aviso } = await videosConCopy(sub, sub.guionesDoc ?? null, copys)
+      const { grupos, aviso } = await gruposConTextos(sub, sub.guionesDoc ?? null, copys)
       const z = pl.kickoff!.zona
       const habitantes = async () => (await estimarHabitantes({ descripcion: z.descripcion, lugares: z.lugares, radio_km: z.radioKm, pais: z.pais ?? null } as ZonaFicha, 40_000)).habitantes
-      return conAviso(await armarLanzamiento(sub, pl, videos, { ...base(pl.cliente), usdPor, habitantes }, deadline), aviso)
+      return conAviso(await armarLanzamiento(sub, pl, grupos, { ...base(pl.cliente), usdPor, habitantes }, deadline), aviso)
     },
   } : undefined
   return { clienteOperativo, borrador, lanzar, editados: leerEditados, avisadoHasta: videosAvisadosHasta, reclamar: reclamarAviso, marcarEnviado: marcarAvisoEnviado, marcarDudoso: marcarAvisoDudoso, soltar: soltarAviso, enviar: s.enviar, valentino: s.valentino, ahora: () => Date.now() }
