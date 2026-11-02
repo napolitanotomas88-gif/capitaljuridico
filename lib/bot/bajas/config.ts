@@ -18,6 +18,7 @@
 //                              "<Nombre> - C.J" (Puente Drive quitarAccesoCliente; la carpeta y el contenido quedan intactos)
 // Nombres desconocidos se ignoran (el log lo avisa con la cantidad, nunca con valores).
 import type { ModoMotor } from '@/lib/bot/alta/motor/modo'
+import { clientesPrueba } from './prueba'
 
 export type CapacidadBaja =
   | 'baja_aviso_fin' | 'baja_mensaje_cliente' | 'baja_fathom' | 'baja_quitar_grupos' | 'baja_aviso_skool' | 'baja_crm' | 'baja_recontacto'
@@ -87,6 +88,10 @@ export interface ConfigBajas {
   /** Link de Calendly de Tomi para la renovación (BAJA_CALENDLY_URL; por defecto, el que pasó Tomás). */
   calendlyUrl: string
   diaRecontacto: number
+  /** Modo prueba (BOT_CLIENTES_PRUEBA): esta config atiende SOLO a los clientes de prueba (ver configPruebaBajas). */
+  prueba?: boolean
+  /** IDs del CRM de BOT_CLIENTES_PRUEBA (la config general los excluye; la de prueba atiende solo a esos). */
+  clientesPrueba?: string[]
 }
 
 /** "5491130009999, 123@lid" → lista (mismo criterio que listaPersonas del motor). */
@@ -116,7 +121,30 @@ export function configBajas(env: NodeJS.ProcessEnv = process.env): ConfigBajas {
     verificaciones: /^\d[\d-]{9,30}@g\.us$/.test(verif) ? verif : null,
     calendlyUrl: urlHttps(env.BAJA_CALENDLY_URL, URL_CALENDLY_POR_DEFECTO),
     diaRecontacto: Number.isInteger(dia) && dia >= 1 && dia <= 28 ? dia : 1,
+    prueba: false,
+    clientesPrueba: clientesPrueba(env),
   }
+}
+
+// ── Modo PRUEBA (lista blanca común BOT_CLIENTES_PRUEBA, lib/bot/bajas/prueba.ts) ──
+// Con la lista cargada, la etapa corre en REAL solo para esos clientes (filas "PRUEBA BOT…"), aunque BOT_BAJAS_MODO esté en
+// seco: es la corrida punta a punta con un cliente ficticio. Al resto no lo toca nunca: el modo general sigue igual y los
+// excluye. Capacidades: BOT_BAJAS_PRUEBA_CAPACIDADES (por defecto todas). Meta NUNCA se toca en prueba: la búsqueda de
+// campañas es por nombre y un "PRUEBA BOT Juan Pérez" podría calzar con el Juan Pérez real.
+export const CAPACIDADES_NUNCA_EN_PRUEBA: readonly CapacidadBaja[] = ['baja_pausar_meta']
+
+export function capacidadesPruebaBajas(env: NodeJS.ProcessEnv = process.env): ReadonlySet<CapacidadBaja> {
+  const v = env.BOT_BAJAS_PRUEBA_CAPACIDADES?.trim()
+  const base = v ? v.split(',').map((s) => s.trim()).filter((s): s is CapacidadBaja => (CAPACIDADES_BAJA as readonly string[]).includes(s)) : [...CAPACIDADES_BAJA]
+  return new Set(base.filter((c) => !CAPACIDADES_NUNCA_EN_PRUEBA.includes(c)))
+}
+
+/** La config del modo prueba: real, solo para los clientes de BOT_CLIENTES_PRUEBA. null si la lista está vacía o BOT_BAJAS=no. */
+export function configPruebaBajas(env: NodeJS.ProcessEnv = process.env): ConfigBajas | null {
+  if (bajasApagado(env)) return null
+  const lista = clientesPrueba(env)
+  if (!lista.length) return null
+  return { ...configBajas(env), modo: 'real', capacidades: capacidadesPruebaBajas(env), prueba: true, clientesPrueba: lista }
 }
 
 /** Lo que falta para que algo salga de verdad (NOMBRES de variables, nunca valores). */
@@ -124,8 +152,10 @@ export function faltantesBajas(env: NodeJS.ProcessEnv = process.env): string[] {
   const f: string[] = []
   const c = configBajas(env)
   if (!env.DATABASE_URL?.trim()) f.push('DATABASE_URL')
-  if (c.modo === 'seco') return f
-  const tiene = (k: CapacidadBaja) => c.capacidades.has(k)
+  const p = configPruebaBajas(env)
+  if (c.modo === 'seco' && !p) return f
+  const caps = new Set([...(c.modo === 'seco' ? [] : c.capacidades), ...(p?.capacidades ?? [])])
+  const tiene = (k: CapacidadBaja) => caps.has(k)
   if (!env.SHEET_ID_CLIENTES?.trim()) f.push('SHEET_ID_CLIENTES')
   if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
   if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')

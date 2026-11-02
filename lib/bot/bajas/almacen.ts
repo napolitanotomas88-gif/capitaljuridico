@@ -50,6 +50,12 @@ export interface Llamada {
 
 export interface Recontacto { mes: string; estado: string; modo: string; cantidad: number; discordIds: string[]; creado: string }
 
+/** Modo prueba (BOT_CLIENTES_PRUEBA): cada acción EXTERNA sobre un cliente de prueba deja un rastro para poder borrarla
+ *  después (scripts/limpiar-cliente-prueba-bajas.mjs). `datos` lleva ids técnicos (mensaje, grupo, carpeta, fila del CRM y
+ *  sus valores anteriores), nunca textos al cliente. */
+export type TipoRastro = 'whatsapp' | 'discord' | 'crm' | 'drive' | 'grupos' | 'comunidad'
+export interface Rastro { idCrm: string; tipo: TipoRastro; datos: Record<string, unknown>; creado: string }
+
 export interface AlmacenBajas {
   crearPedido(p: PedidoNuevo): Promise<boolean>
   /** Cambia un pedido si está en uno de `siEstado` (si se pasa). Devuelve si cambió. */
@@ -75,17 +81,23 @@ export interface AlmacenBajas {
   actualizarRecontacto(mes: string, cambios: Partial<Recontacto>): Promise<void>
   listarPedidos(limite: number): Promise<Pedido[]>
   listarBajas(limite: number): Promise<Baja[]>
+  /** Modo prueba: anota una acción externa sobre un cliente de prueba (opcional: sin esto no se anota). */
+  registrarRastro?(r: Rastro): Promise<void>
+  /** Los rastros de esos IDs del CRM (para la limpieza). */
+  rastrosDe?(idsCrm: readonly string[]): Promise<Rastro[]>
 }
 
 export const PEDIDO_ABIERTO: readonly EstadoPedido[] = ['abierto', 'aprobado']
 const copia = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
-export function almacenBajasEnMemoria(): AlmacenBajas & { _pedidos: Pedido[]; _bajas: Baja[]; _llamadas: Llamada[]; _recontactos: Recontacto[] } {
-  const pedidos: Pedido[] = [], bajas: Baja[] = [], llamadas: Llamada[] = [], recontactos: Recontacto[] = []
+export function almacenBajasEnMemoria(): AlmacenBajas & { _pedidos: Pedido[]; _bajas: Baja[]; _llamadas: Llamada[]; _recontactos: Recontacto[]; _rastros: Rastro[] } {
+  const pedidos: Pedido[] = [], bajas: Baja[] = [], llamadas: Llamada[] = [], recontactos: Recontacto[] = [], rastros: Rastro[] = []
   const ahoraIso = () => new Date().toISOString()
   const una = <T>(x: T | undefined): T | null => (x ? copia(x) : null)
   return {
-    _pedidos: pedidos, _bajas: bajas, _llamadas: llamadas, _recontactos: recontactos,
+    _pedidos: pedidos, _bajas: bajas, _llamadas: llamadas, _recontactos: recontactos, _rastros: rastros,
+    async registrarRastro(r) { rastros.push(copia(r)) },
+    async rastrosDe(ids) { const s = new Set(ids.map((x) => x.toUpperCase())); return copia(rastros.filter((r) => s.has(r.idCrm.toUpperCase()))) },
     async crearPedido(p) {
       if (pedidos.some((x) => x.id === p.id || (x.clave === p.clave && x.tipo === p.tipo && PEDIDO_ABIERTO.includes(x.estado)))) return false
       pedidos.push({ ...copia(p), estado: 'abierto', por: null, respuesta: null, mensajeClienteId: null, resuelto: null, error: null, actualizado: p.creado })

@@ -46,14 +46,15 @@ export const esHistorico = (c: Pick<ClienteBaja, 'linea' | 'estado' | 'id'>): bo
 export interface HistoricoCandidato { cliente: ClienteBaja; seFue: Ymd; dias: number }
 
 /** i05: históricos que se fueron hace entre RECONTACTO_MIN_DIAS y RECONTACTO_MAX_DIAS. Se fue = Fecha de baja, o el fin real. */
-export function historicosParaRecontacto(clientes: readonly ClienteBaja[], hoy: Ymd): HistoricoCandidato[] {
+/** `minDias`: el modo prueba lo baja a 0 para ver la lista el mismo día de la baja de prueba. */
+export function historicosParaRecontacto(clientes: readonly ClienteBaja[], hoy: Ymd, minDias: number = RECONTACTO_MIN_DIAS): HistoricoCandidato[] {
   const out: HistoricoCandidato[] = []
   for (const c of clientes) {
     if (!esHistorico(c) || c.esNoCliente) continue
     const seFue = c.fechaBaja ?? finReal(c)
     if (!seFue) continue
     const dias = diasEntre(seFue, hoy)
-    if (dias >= RECONTACTO_MIN_DIAS && dias <= RECONTACTO_MAX_DIAS) out.push({ cliente: c, seFue, dias })
+    if (dias >= minDias && dias <= RECONTACTO_MAX_DIAS) out.push({ cliente: c, seFue, dias })
   }
   return out
 }

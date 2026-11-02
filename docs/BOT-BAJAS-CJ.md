@@ -184,6 +184,32 @@ Sigue el mismo criterio que el motor y que Éxito, con un interruptor propio.
 
 `BOT_BAJAS=no` apaga la etapa entera.
 
+### Modo prueba (01/11/2026): `BOT_CLIENTES_PRUEBA`
+
+Para hacer una corrida punta a punta con un **cliente ficticio** sin tocar a nadie más. Usa la variable **común** a todas las etapas, `BOT_CLIENTES_PRUEBA`; el código de esta etapa está en `lib/bot/bajas/prueba.ts` (propio, para no chocar con las otras etapas: se puede unificar después).
+
+- **Qué es:** IDs del CRM separados por coma (por ejemplo `Z001`). Con la lista cargada, la etapa corre en **real** solo para esos clientes, aunque `BOT_BAJAS_MODO` esté en `seco`.
+- **Doble seguro:** además de estar en la lista, la fila de Agencia tiene que llamarse **"PRUEBA BOT…"**. Si un ID de la lista es de otra fila, se ignora (y el log lo avisa). El CRM, en prueba, escribe **solo** filas "PRUEBA BOT…" aunque `BAJA_CRM_SOLO_PRUEBA` no esté.
+- **Al resto no lo toca:** el modo general sigue igual (en `seco` no hace nada) y **excluye** a los clientes de la lista. Un OK que cita un pedido del otro modo se ignora. Los vencimientos también van por separado.
+- **Capacidades de prueba:** `BOT_BAJAS_PRUEBA_CAPACIDADES` (por defecto, todas). **Meta nunca** se toca en prueba: la búsqueda de campañas es por nombre y "PRUEBA BOT Juan Pérez" podría calzar con el Juan Pérez real.
+- **Grupos:** en prueba solo se aceptan los del mismo cliente (por ID del motor o por nombre idéntico, "General - PRUEBA BOT …"), nunca uno "parecido".
+- **Discord:** los avisos de prueba salen con el prefijo "🧪 PRUEBA (cliente ficticio, no hay que hacer nada)" y sin mencionar a nadie.
+- **Recontacto:** la lista de prueba se guarda como `prueba:AAAA-MM` (no bloquea la real del mes) y no espera los 30 días: el cliente de prueba aparece el mismo día de su baja.
+- **Rastros:** cada acción externa sobre el cliente de prueba queda en `cj_bajas_rastros` (Neon): mensajes de WhatsApp (id), avisos de Discord (id), el cambio del CRM con los valores **anteriores**, Drive, grupos y comunidad.
+- `GET /api/bot/bajas?estado=1` muestra `prueba: { clientes, capacidades }`.
+
+**Limpieza** (`scripts/limpiar-cliente-prueba-bajas.mjs`, lógica en `lib/bot/bajas/limpieza.ts`):
+```
+node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/limpiar-cliente-prueba-bajas.mjs Z001            # simula (por defecto)
+node --env-file=.env.local --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/limpiar-cliente-prueba-bajas.mjs Z001 --real     # borra
+```
+- Si alguna fila de esos IDs **no** es "PRUEBA BOT…", no toca nada.
+- WhatsApp: mira `/health` y borra los mensajes del bot anotados (`DELETE /messages/{id}`); si el número no está sano no borra ninguno.
+- Discord: borra los avisos de prueba (DELETE del webhook; un 404 cuenta como borrado).
+- CRM: vuelve Estado, Fecha de baja y Notas renovación a lo de antes, solo si la fila sigue siendo esa y sigue en FINALIZADO/INACTIVO.
+- Neon: borra `cj_bajas_pedidos`, `cj_bajas_bajas`, `cj_bajas_llamadas` y `cj_bajas_rastros` de esos IDs y las listas `prueba:*`. Si algo externo falló, los rastros quedan para reintentar.
+- **No se deshace** (es el final de la baja y son recursos del cliente de prueba): sacarlo de sus grupos, eliminar su comunidad y quitarle el acceso a su carpeta. Los lista el informe; esos recursos los borra la limpieza del alta.
+
 ## CRM: Históricos (i04)
 
 El código está en `lib/bot/bajas/crm.ts` y sigue el criterio de `crmEscribir.ts`.
@@ -213,7 +239,9 @@ El código está en `lib/bot/bajas/crm.ts` y sigue el criterio de `crmEscribir.t
 |---|---|
 | `BOT_BAJAS_MODO` | `seco` (por defecto), `ensayo` o `real`. |
 | `BOT_BAJAS_CAPACIDADES` | Lista separada por coma con las capacidades de arriba. |
-| `BOT_BAJAS` | `no` apaga todo. |
+| `BOT_BAJAS` | `no` apaga todo (también el modo prueba). |
+| `BOT_CLIENTES_PRUEBA` | Lista blanca común de IDs del CRM de prueba (filas "PRUEBA BOT…"): real solo para ellos. Ver "Modo prueba". |
+| `BOT_BAJAS_PRUEBA_CAPACIDADES` | Opcional: recorta las capacidades del modo prueba (por defecto todas, menos Meta que nunca va). |
 | `BAJA_CALENDLY_URL` | Opcional. Por defecto, el Calendly de renovación que pasó RESPONSABLE_HUB el 25/10: `<URL_CONFIGURADA_PRIVADAMENTE>`. Está en el código; la variable sirve solo para cambiarlo. Ese evento no figura en la organización de `CALENDLY_VENTAS_TOKEN` (que tiene 4 eventos y ninguno de RESPONSABLE_HUB): es de su cuenta personal. |
 | `BAJA_APROBADORES_DESPEDIDA` | Opcional. Por defecto, el teléfono de COORDINACION que ya está en `BOT_ALTA_OPERACIONES` (1): no hay que cargar otra variable. Los aprobadores también pueden dar el OK. |
 | `BAJA_RECONTACTO_DIA` | Día del mes de la lista de recontacto (de 1 a 28; por defecto 1). |
@@ -303,6 +331,9 @@ Respondidas en la ronda 2: la comunidad se elimina, las campañas se pausan con 
 | `scripts/bot-bajas-migrar.mjs` | Crea las tablas (`--simular`, `--real`, `--real --confirmar`). |
 | `scripts/bot-baja-crm-prueba.mjs` | Prueba el paso del CRM contra la planilla real (simulación, o real solo en filas "PRUEBA BOT"). |
 | `scripts/test-bot-bajas.mjs` | Tests (sin red ni base). |
+| `lib/bot/bajas/prueba.ts` | La lista blanca `BOT_CLIENTES_PRUEBA` y el seguro "PRUEBA BOT…" (puro). |
+| `lib/bot/bajas/limpieza.ts` / `scripts/limpiar-cliente-prueba-bajas.mjs` | Limpieza del cliente de prueba (`--simular` por defecto, `--real`). |
+| `scripts/test-bot-bajas-prueba.mjs` | Tests del modo prueba y de la limpieza (sin red ni base). |
 
 ## Ruta `/api/bot/bajas` y cron
 
