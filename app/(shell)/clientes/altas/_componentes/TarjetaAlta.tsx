@@ -53,12 +53,20 @@ function OpcionesEquipo({ alta, espera }: { alta: string; espera: EsperaVista })
   const campo = (i: number, o: Extract<Opcion, { prefijo: string }> | Extract<Opcion, { tipo: 'no' }>, placeholder: string, tipo = 'text') => (
     <input className="cj-campo__entrada" type={tipo} inputMode={tipo === 'number' ? 'decimal' : undefined} aria-label={o.etiqueta} placeholder={placeholder} value={valores[i] ?? ''} onChange={(e) => setValores({ ...valores, [i]: e.target.value })} />
   )
+  // Pedido de cuenta Y fuente (prueba punta a punta 2/11/2026): el motor necesita las dos en la misma respuesta
+  // («OK Empresa Referido»). Se elige la fuente y el botón de la cuenta manda las dos juntas.
+  const iLista = espera.opciones.findIndex((o) => o.tipo === 'lista')
+  const conCuenta = iLista >= 0 && espera.opciones.some((o) => o.tipo === 'boton' && /^OK\s+\S/i.test(o.texto))
+  const fuente = iLista >= 0 ? valores[iLista] : undefined
   return (
     <>
       <div className="cj-altas__botones">
         {espera.opciones.map((o, i) => {
           switch (o.tipo) {
-            case 'boton': return <Boton key={i} variante={i === 0 ? 'marca' : 'secundario'} disabled={ocupado} onClick={() => responder(o.texto)}>{o.etiqueta}</Boton>
+            case 'boton': {
+              const junta = conCuenta && /^OK\s+\S/i.test(o.texto)
+              return <Boton key={i} variante={i === 0 ? 'marca' : 'secundario'} disabled={ocupado || (junta && !fuente)} onClick={() => responder(junta ? `${o.texto} ${fuente}` : o.texto)}>{junta && fuente ? `${o.etiqueta} · ${fuente}` : o.etiqueta}</Boton>
+            }
             case 'numero': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda, 'number')}<Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => responder(`OK ${valores[i]}`)}>OK {valores[i] ?? ''}</Boton></span>
             case 'lista': return (
               <span key={i} className="cj-altas__botones">
@@ -66,7 +74,9 @@ function OpcionesEquipo({ alta, espera }: { alta: string; espera: EsperaVista })
                   <option value="" disabled>Elegí la fuente</option>
                   {o.opciones.map((x) => <option key={x} value={x}>{x}</option>)}
                 </select>
-                <Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => responder(`OK ${valores[i]}`)}>OK con la fuente</Boton>
+                {conCuenta
+                  ? <small>Elegí la fuente y después la cuenta que recibió.</small>
+                  : <Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => responder(`OK ${valores[i]}`)}>OK con la fuente</Boton>}
               </span>
             )
             case 'nombre': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda)}<Boton variante="secundario" disabled={ocupado || !valores[i]?.trim()} onClick={() => responder(`OK ${valores[i].trim()}`)}>OK con este nombre</Boton></span>
