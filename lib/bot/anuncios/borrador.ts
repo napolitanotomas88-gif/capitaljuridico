@@ -106,6 +106,22 @@ export interface DepsBorrador { graph: Graph; esperar(ms: number): Promise<void>
 /** Cómo se arma: un conjunto con todo o uno por idea de 3 videos (regla de Tomás, plan.ts) y el diario de CADA conjunto. */
 export interface EstructuraBorrador { porAnuncio: boolean; diarioUSD: number }
 /** Método 3:2:2: videos por idea (cada video es su propio anuncio; los 3 comparten textos y títulos). */
+export function numeroVideo(nombre: string): number | null {
+  const m = nombre.replace(/\.[a-z0-9]{2,4}$/i, '').match(/(\d{1,2})(?:\s*-\s*\d{1,2})?\s*$/)
+  return m ? Number(m[1]) : null
+}
+
+/** Regla de Tomás (2/11): con USD 300 por mes o menos van 5 videos como máximo; con más, el presupuesto se diluye. */
+export const TOPE_VIDEOS_PRESUPUESTO_CHICO = 5
+export const PRESUPUESTO_CHICO_USD = 300
+export const topeVideos = (mensualUSD: number | null): number | null =>
+  mensualUSD != null && mensualUSD > 0 && mensualUSD <= PRESUPUESTO_CHICO_USD ? TOPE_VIDEOS_PRESUPUESTO_CHICO : null
+/** Los primeros `tope` videos por número (los demás quedan para la próxima rotación). */
+export function recortarVideos<V extends { nombre: string }>(videos: readonly V[], mensualUSD: number | null): { usar: V[]; fuera: V[] } {
+  const tope = topeVideos(mensualUSD)
+  const orden = [...videos].sort((a, b) => (numeroVideo(a.nombre) ?? 99) - (numeroVideo(b.nombre) ?? 99) || a.nombre.localeCompare(b.nombre))
+  return tope === null || orden.length <= tope ? { usar: orden, fuera: [] } : { usar: orden.slice(0, tope), fuera: orden.slice(tope) }
+}
 export const TAMANO_322 = 3
 export const cantidadAnuncios = (videos: number) => Math.max(1, Math.ceil(videos / TAMANO_322))
 /** Una idea a cargar: sus videos de Drive (hasta 3, un anuncio cada uno) y, si se pudieron escribir desde los guiones, los 2 textos y los 2 títulos (copys.ts). */

@@ -176,4 +176,15 @@ describe('en el aviso de g01', () => {
     const x = await V.avisarVideosNuevos({ filas: [{ ...fila, gasto: { d7: 0 } }], porLanzar: [] }, base({ borrador: { permitido: () => true, armar: async () => { throw new Error('PROHIBIDO') } } }), { desde: '2026-10-26T03:00:00Z' })
     assert.doesNotMatch(x.avisos[0].texto, /No pude armar|Armado en Meta/)
   })
+  test('presupuesto de hasta USD 300/mes: 5 videos como máximo, por número; el resto queda para la próxima rotación', async () => {
+    const vs = [7, 1, 3, 2, 6, 4, 5].map(n => ({ nombre: `Video ${n}.mp4`, id: `v${n}` }))
+    const r = B.recortarVideos(vs, 300)
+    assert.deepEqual(r.usar.map(v => v.id), ['v1', 'v2', 'v3', 'v4', 'v5']); assert.deepEqual(r.fuera.map(v => v.id), ['v6', 'v7'])
+    assert.equal(B.recortarVideos(vs, 301).usar.length, 7); assert.equal(B.recortarVideos(vs, null).usar.length, 7)
+    const ed7 = [{ carpetaCliente: 'Carlos Oliva', guionesDoc: null, tandas: [{ id: 'T7', nombre: '3', videos: vs.map(v => ({ ...v, creado: '2026-10-27T12:00:00Z' })) }] }]
+    let recibidos = null
+    const x = await V.avisarVideosNuevos(t, base({ editados: async () => ed7, borrador: { permitido: () => true, armar: async s2 => { recibidos = s2.videos.length; throw new Error('Meta #100: corto acá') } } }), { desde: '2026-10-26T03:00:00Z' })
+    assert.equal(recibidos, 5)
+    assert.match(x.avisos[0].texto, /hasta USD 300\/mes: van 5 videos; quedan para la próxima rotación Video 6\.mp4, Video 7\.mp4/)
+  })
 })

@@ -15,16 +15,13 @@
 import { llamarClaude } from '@/lib/bot/kickoff/claude'
 import { parsearDocGuiones } from '@/lib/bot/grabacion/guiones'
 import type { DocGuiones, GuionDoc } from '@/lib/edicion/tipos'
-import { TAMANO_322, type GrupoBorrador } from './borrador'
+import { TAMANO_322, numeroVideo, type GrupoBorrador } from './borrador'
+export { numeroVideo }
 import type { Subida } from './videos'
 
 export const TOPE_COPY_MS = 45_000
 
 /** El número del video en el nombre del archivo: «Carlos Oliva 2.mp4» → 2 · «Lucas Tapia 4-1.mp4» → 4 · sin número → null. */
-export function numeroVideo(nombre: string): number | null {
-  const m = nombre.replace(/\.[a-z0-9]{2,4}$/i, '').match(/(\d{1,2})(?:\s*-\s*\d{1,2})?\s*$/)
-  return m ? Number(m[1]) : null
-}
 
 /** El guion de este video: por número en la tanda; si no, el N-ésimo del doc. null si no aparece. */
 export function elegirGuion(doc: DocGuiones, tanda: number | null, nombre: string): GuionDoc | null {

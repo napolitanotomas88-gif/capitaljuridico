@@ -23,7 +23,8 @@ import type { FilaAnuncio, PorLanzar, Tablero } from '@/lib/anuncios/tablero'
 import type { KickoffPorLanzar } from '@/lib/anuncios/porLanzar'
 import { escaparDiscord } from '@/lib/fathomAnuncios/mensaje'
 import { RAMA_CORTA, decidirEstructura } from './plan'
-import { MOTIVO_SIN_WHATSAPP, cantidadAnuncios, type Borrador, type EstructuraBorrador } from './borrador'
+import { MOTIVO_SIN_WHATSAPP, PRESUPUESTO_CHICO_USD, cantidadAnuncios, recortarVideos, type Borrador, type EstructuraBorrador } from './borrador'
+import { mensualDeFicha } from './lanzamiento'
 
 export const CIERRE_HORAS = 12
 export const DIAS_VENTANA = 14                 // más viejo que esto no se avisa nunca (la carpeta se cerró hace rato)
@@ -38,6 +39,8 @@ export interface EditadosCliente { carpetaCliente: string; editadosId: string; g
 export interface Subida {
   clave: string; carpetaId: string; carpetaCliente: string; cliente: string; tanda: string; numero: number | null
   videos: VideoDrive[]; hasta: string; guionesDoc?: string | null
+  /** Los que no entraron por el tope de videos del presupuesto chico (recortarVideos). */
+  afuera?: string[]
 }
 
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -208,6 +211,7 @@ export function textoVideos(s: Subida, fila: FilaAnuncio | null, porLanzar: PorL
   } else if (!fila) {
     faltan.push(porLanzar ? 'sin ficha de kickoff: no tengo zona ni presupuesto para el plan' : 'no encontré a este cliente en el tablero de anuncios (ni corriendo ni por lanzar)')
   }
+  if (s.afuera?.length) faltan.push(`presupuesto de hasta USD ${PRESUPUESTO_CHICO_USD}/mes: van ${n} videos; quedan para la próxima rotación ${s.afuera.map(escaparDiscord).join(', ')}`)
   if (porLanzar && porLanzar.acceso === 'no') faltan.push('el token no ve su cuenta de Meta')
   const quien = fila?.cliente ?? porLanzar?.cliente
   if (quien && cruceParcial(s.carpetaCliente, quien)) faltan.unshift(`revisá que la carpeta «${escaparDiscord(s.carpetaCliente)}» sea de este cliente`)
@@ -252,10 +256,14 @@ export async function avisarVideosNuevos(t: Pick<Tablero, 'filas' | 'porLanzar'>
   let hasta: Map<string, string>
   try { hasta = await deps.avisadoHasta(carpetas) } catch (e) { return { carpetas: carpetas.length, avisos, errores: [`base: ${motivo(e)}`] } }
   const subidas = subidasNuevas(clientes, hasta, deps.ahora(), op.desde ?? desdeVideos())
-  for (const s of subidas.slice(0, MAX_AVISOS_VIDEOS)) {
+  for (let s of subidas.slice(0, MAX_AVISOS_VIDEOS)) {
     // Corriendo y por lanzar juntos: «Lucas Tapia» (por lanzar) no se tiene que cruzar con «Lucas Quiroga» (corriendo)
     const c = cruzarCliente(s.carpetaCliente, [...t.filas.map(f => ({ cliente: f.cliente, fila: f, pl: null })), ...t.porLanzar.map(p => ({ cliente: p.cliente, fila: null, pl: p }))])
     const fila = c?.fila ?? null, pl = c?.pl ?? null
+    // Presupuesto chico (≤ USD 300/mes): 5 videos como máximo; los demás quedan para la próxima rotación
+    const mensual = fila ? fila.presupuesto.mensualUSD : pl?.kickoff ? mensualDeFicha(pl.kickoff.presupuesto.texto) : null
+    const { usar, fuera } = recortarVideos(s.videos, mensual)
+    s = { ...s, videos: usar, ...(fuera.length ? { afuera: fuera.map(v => v.nombre) } : {}) }
     let texto = textoVideos(s, fila, pl, deps.valentino, deps.ahora())
     const cliente = fila?.cliente ?? pl?.cliente ?? s.cliente
     // Un cliente que no se puede cruzar con el CRM (nombre distinto, duplicado) queda afuera solo él: no corta la corrida
