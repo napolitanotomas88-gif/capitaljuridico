@@ -1,3 +1,4 @@
+import { whatsappBotEncendido } from '../whapi/corte'
 // ── Avisos de Anuncios al grupo ADS del equipo por WhatsApp (Whapi) ─────────────────────────────────
 // Pedido de Tomás (1/11/2026): además de #📣-ads en Discord, los avisos le llegan a Valen por WhatsApp, en el grupo
 // interno ADS (WHAPI_GRUPO_ADS), mencionándolo. Solo grupos del equipo: nunca escribe a un cliente.
@@ -34,7 +35,8 @@ export function conApodos(texto: string, env: NodeJS.ProcessEnv = process.env): 
   return t
 }
 
-export const equipoEncendido = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP_EQUIPO?.trim() === 'real'
+// Sin WhatsApp (2/11/2026): con el corte global (lib/bot/whapi/corte.ts) no sale aunque la variable siga en «real»
+export const equipoEncendido = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP_EQUIPO?.trim() === 'real' && whatsappBotEncendido(env)
 export const telValentino = (env: NodeJS.ProcessEnv = process.env): string | null => {
   const t = (env.ANUNCIOS_WHATSAPP_TEL_VALENTINO ?? '').replace(/\D/g, '')
   return t.length >= 7 && t.length <= 15 ? t : null

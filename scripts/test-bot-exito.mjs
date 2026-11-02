@@ -71,8 +71,11 @@ describe('config: nace en seco y las capacidades se respetan', () => {
     assert.equal(CFG.saleReal('exito_mensaje_cliente', 'real', caps), false)
   })
   test('faltantes: solo NOMBRES; EXITO_* inválidas caen a lo de por defecto', () => {
-    const env = { BOT_EXITO_MODO: 'real', BOT_EXITO_CAPACIDADES: 'exito_testimonio,encuesta_mensual', EXITO_CALENDLY_URL: 'http://inseguro', EXITO_ENCUESTA_DIA: '40' }
+    const env = { BOT_EXITO_MODO: 'real', BOT_EXITO_CAPACIDADES: 'exito_testimonio,encuesta_mensual', EXITO_CALENDLY_URL: 'http://inseguro', EXITO_ENCUESTA_DIA: '40', WHATSAPP_BOT: 'encendido' }
     const f = CFG.faltantesExito(env)
+    // Sin WhatsApp (2/11/2026): en vez de Whapi falta el webhook de ✅-verificaciones
+    const sinWa = CFG.faltantesExito({ ...env, WHATSAPP_BOT: undefined })
+    assert.ok(sinWa.includes('DISCORD_WEBHOOK_VERIFICACIONES') && !sinWa.includes('WHAPI_TOKEN') && !sinWa.includes('WHAPI_GRUPO_VERIFICACIONES'))
     for (const k of ['DATABASE_URL', 'WHAPI_TOKEN', 'WHAPI_GRUPO_VERIFICACIONES', 'BOT_ALTA_APROBADORES', 'BOT_ANTHROPIC_API_KEY', 'DISCORD_WEBHOOK_CLIENTES', 'SHEET_ID_CLIENTES', 'SHEET_ID_TYPEFORM']) assert.ok(f.includes(k), k)
     const c = CFG.configExito(env)
     assert.equal(c.calendlyUrl, CFG.URL_CALENDLY_POR_DEFECTO)
@@ -856,5 +859,63 @@ describe('documentación', () => {
   test('vercel.json tiene el cron diario de la etapa, sin query', () => {
     const c = JSON.parse(readFileSync(join(RAIZ, 'vercel.json'), 'utf8')).crons.find((x) => x.path.startsWith('/api/bot/exito'))
     assert.deepEqual(c, { path: '/api/bot/exito', schedule: '0 13 * * *' })
+  })
+})
+
+// ── Sin WhatsApp (2/11/2026): señal cargada a mano, OK en el Despacho y el mensaje «para enviar» ───────────────────────
+describe('sin WhatsApp: cargas y aprobaciones en el Despacho', () => {
+  const sinGrupo = { clave: 'B7', cliente: 'Bea Ruiz', idCrm: 'B7', grupos: {}, invitacionGeneral: null, origen: 'motor' }
+  const manual = (o = {}) => {
+    const a = armar({ fichas: [sinGrupo], ...o })
+    a.deps.salidaManual = true
+    a.deps.generalVirtual = (id) => (id ? `cliente:${id.toUpperCase()}:general` : null)
+    a.nucleo = N.crearNucleo(a.deps)
+    return a
+  }
+  test('señal cargada a mano → pedido de OK aunque el cliente no tenga grupo General conocido', async () => {
+    const { nucleo, al, enviados } = manual()
+    const r = await nucleo.senalManual({ idCrm: 'b7', cliente: 'Bea Ruiz', texto: 'Cerré 4 casos con los anuncios', por: 'Aylu', id: 'u1' })
+    assert.equal(r.detectados, 1)
+    assert.equal(r.pedidos, 1)
+    assert.equal(al._pedidos.length, 1)
+    assert.equal(al._pedidos[0].general, 'cliente:B7:general')
+    assert.equal(enviados[0].chatId, GRUPOS.verificaciones)
+    // la misma carga dos veces no duplica la señal
+    assert.equal((await nucleo.senalManual({ idCrm: 'B7', cliente: 'Bea Ruiz', texto: 'otra', por: 'Aylu', id: 'u1' })).ignorados, 1)
+  })
+  test('OK desde el Despacho → el testimonio queda «para enviar» (pieza h01), sin horario ni «Listo» en Verificaciones', async () => {
+    const { nucleo, al, enviados, reloj } = manual()
+    await nucleo.senalManual({ idCrm: 'B7', cliente: 'Bea Ruiz', texto: 'Cerré 4 casos', por: 'Aylu', id: 'u2' })
+    reloj.t = Date.parse('2026-10-25T02:00:00Z')   // 23 h de Argentina: con WhatsApp no habría salido
+    const r = await nucleo.resolverManual({ fuente: 'pedido', id: al._pedidos[0].id, veredicto: 'ok', resto: '', por: 'Tomás' })
+    assert.equal(r.aprobados, 1)
+    const alCliente = enviados.filter((e) => e.pieza === 'h01')
+    assert.equal(alCliente.length, 1)
+    assert.equal(alCliente[0].chatId, 'cliente:B7:general')
+    assert.equal(alCliente[0].idCrm, 'B7')
+    assert.equal(enviados.filter((e) => e.chatId === GRUPOS.verificaciones).length, 1)   // solo el pedido, sin «Listo: le mandé…»
+    assert.equal(al._pedidos[0].estado, 'enviado')
+    assert.equal(al._pedidos[0].por, 'Tomás')
+  })
+  test('NO desde el Despacho no manda nada al cliente; un pedido ya resuelto se ignora', async () => {
+    const { nucleo, al, enviados } = manual()
+    await nucleo.senalManual({ idCrm: 'B7', cliente: 'Bea Ruiz', texto: 'Cerré 4 casos', por: 'Aylu', id: 'u3' })
+    const id = al._pedidos[0].id
+    assert.equal((await nucleo.resolverManual({ fuente: 'pedido', id, veredicto: 'no', resto: '', por: 'Tomás' })).rechazados, 1)
+    assert.equal((await nucleo.resolverManual({ fuente: 'pedido', id, veredicto: 'ok', resto: '', por: 'Tomás' })).ignorados, 1)
+    assert.equal(enviados.filter((e) => e.pieza).length, 0)
+  })
+  test('«Llegó el testimonio» cargado a mano → agradecimiento para enviar (h02) y aviso a Gero M en Discord', async () => {
+    const { nucleo, al, enviados, discord } = manual()
+    await nucleo.senalManual({ idCrm: 'B7', cliente: 'Bea Ruiz', texto: 'Cerré 4 casos', por: 'Aylu', id: 'u4' })
+    await nucleo.resolverManual({ fuente: 'pedido', id: al._pedidos[0].id, veredicto: 'ok', resto: '', por: 'Tomás' })
+    const r = await nucleo.testimonioManual({ idCrm: 'B7', cliente: 'Bea Ruiz', por: 'Gero M', id: 'v1' })
+    assert.equal(r.testimonios, 1, JSON.stringify(r))
+    assert.equal(enviados.filter((e) => e.pieza === 'h02').length, 1)
+    assert.equal(discord.length, 1)
+    // una segunda carga no vuelve a agradecer (el pedido ya tiene su testimonio)
+    const otra = await nucleo.testimonioManual({ idCrm: 'B7', cliente: 'Bea Ruiz', por: 'Gero M', id: 'v2' })
+    assert.equal(otra.testimonios, 0)
+    assert.equal(enviados.filter((e) => e.pieza === 'h02').length, 1)
   })
 })

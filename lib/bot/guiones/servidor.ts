@@ -7,7 +7,7 @@
 //     link a /guiones/<id>: «lista para revisar» o «el cliente pidió cambios y ya están aplicados». Es un grupo INTERNO (no un
 //     cliente). Sin el grupo o sin WHAPI_TOKEN, va a Discord (DISCORD_WEBHOOK_GUIONES o #📝-kickoff) mencionando a Tomi y Faus.
 // Solo servidor.
-import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
+import { idDiscord } from '@/lib/fathomAnuncios/discord'
 import { ID_TOMAS } from '@/lib/fathomAnuncios/procesar'
 import { leerKickoff } from '../kickoff/registro'
 import { kbDeRama } from '../kickoff/kb/index'
@@ -16,6 +16,8 @@ import type { ExtraccionKickoff, IdeaGuion } from '../kickoff/tipos'
 import { analizarMercado } from './mercado'
 import * as reg from './registro'
 import type { DepsProceso, KickoffParaGuiones, Paso, TipoAviso } from './proceso'
+import { alertar } from '@/lib/alertas'
+import { whatsappBotEncendido } from '../whapi/corte'
 import { crearClienteWhapi } from '../whapi/cliente'
 import { tokenWhapi } from '../whapi/config'
 import type { FilaTanda } from './registro'
@@ -81,9 +83,8 @@ async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<string | 
   await exigirClienteNoArchivado(fila.id_crm, await leerArchivados({ forzar: true }))
   await notificarRevision(fila, tipo !== 'revisar').catch(e => console.error('Guiones: aviso del Hub pendiente —', (e as Error)?.name ?? 'error'))
   const grupo = grupoGuionesEquipo(), token = tokenWhapi()
-  if (grupo && token) {
-    // Si WhatsApp no sale (número del bot caído o suspendido: la guardia de "WhatsApp seguro" frena el envío), el aviso cae a
-    // Discord en vez de perderse (26/10/2026: el número quedó suspendido y Faus no se habría enterado de la tanda)
+  // Sin WhatsApp (2/11/2026, WHATSAPP_BOT distinto de «encendido»): el aviso va solo a ✍️-guiones de Discord
+  if (grupo && token && whatsappBotEncendido()) {
     try {
       const env = await crearClienteWhapi({ token }).enviarTexto({ chatId: grupo, texto: textoAviso(fila, tipo) })
       return `wa:${env.id ?? 'sin-id'}`
@@ -91,12 +92,14 @@ async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<string | 
       console.error('Guiones: el aviso por WhatsApp no salió, va a Discord:', (e as Error).message?.slice(0, 160))
     }
   }
-  const wh = webhookGuiones()
-  if (!wh) return null
-  const { tomi, faus } = revisoresGuiones()
-  const quienes = [`<@${tomi}>`, faus ? `<@${faus}>` : 'Faus'].join(' ')
-  const ids = await enviarDiscord(wh, [`${quienes} ${textoAviso(fila, tipo).replace(/(https:\/\/\S+)/, '<$1>')}`], [tomi, ...(faus ? [faus] : [])], { deadline: Date.now() + 15_000, reintentos429: 1 })
-  return ids[0] ? `dc:${ids[0]}` : null
+  const n = Object.keys(fila.guiones).length
+  const r = await alertar({
+    canal: 'guiones', tipo: tipo === 'revisar' ? 'guiones_revisar' : 'guiones_correcciones', clave: `guiones:${fila.id}:${tipo}:${fila.actualizado}`, idCrm: fila.id_crm,
+    emoji: tipo === 'revisar' ? '✍️' : '🔁', titulo: tipo === 'revisar' ? `Guiones listos para revisar (${n}, tanda ${fila.tanda})` : 'El cliente pidió cambios y el bot ya los aplicó',
+    cliente: fila.cliente ?? 'cliente sin nombre', lineas: ['Tomi o Faus: revisalos y dales el check final.'],
+    link: fila.id_crm ? `/guiones/${encodeURIComponent(fila.id_crm)}` : '/guiones', menciones: ['tomas', 'faus'],
+  })
+  return r.estado === 'enviado' ? `dc:${r.mensajeId ?? ''}` : null
 }
 
 export const motorGuiones = (): 'local' | 'api' => (process.env.GUIONES_MOTOR?.trim() === 'api' ? 'api' : 'local')

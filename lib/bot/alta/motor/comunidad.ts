@@ -39,7 +39,7 @@ import type { CtxPaso } from './contexto'
 import { restante } from './contexto'
 import type { SalidaPaso } from './estado'
 import { textoLinkCloser, textoPedidoEquipo } from './mensajes'
-import { altaParseada, revisarCon } from './pasos'
+import { altaParseada, pasoAManoSinWhatsapp, revisarCon } from './pasos'
 import type { GrupoWhapi } from './tipos'
 import { MOTIVO_SIN_NUMERO } from './tipos'
 
@@ -108,6 +108,8 @@ export async function pasoComunidad(ctx: CtxPaso): Promise<SalidaPaso> {
       }
     }
   }
+  // Sin WhatsApp (2/11/2026): crear los 3 grupos es una tarea humana (🛠️-operaciones) que se cierra con «Hecho a mano»
+  if (ctx.deps.tareaManual) return pasoAManoSinWhatsapp(ctx, 'comunidad')
   const cliente = nombreCliente(a.nombre) || 'Cliente'
   const telCliente = telefonoDelCliente(a)?.numero ?? null
   const socios = a.socios ? telefonos(a.socios).map((t) => t.numero).filter((n) => n !== telCliente) : []

@@ -15,13 +15,14 @@ export type PestanaClientes = { clave: Seccion; etiqueta: string; href: string; 
 
 /** Las pestañas del hub, en el orden en que se muestran. */
 export const PESTANAS_CLIENTES: readonly PestanaClientes[] = [
+  // «Cargar alta» (26/10/2026, PRIMERA desde el 2/11/2026: sin WhatsApp el alta arranca acá). Sección propia 'altas'. Igual
+  // «Clientes» del menú sigue llevando a Cartera (rutaClientes la saltea si hay otra pestaña).
+  { clave: 'altas', etiqueta: 'Cargar alta', href: '/clientes/altas', icono: 'tarea' },
   { clave: 'clientes', etiqueta: 'Cartera', href: '/clientes', icono: 'cartera' },
   { clave: 'guiones', etiqueta: 'Guiones', href: '/guiones', icono: 'guiones' },
   { clave: 'edicion', etiqueta: 'Edición', href: '/clientes/edicion', icono: 'edicion' },
   { clave: 'anuncios', etiqueta: 'Anuncios', href: '/anuncios', icono: 'anuncios' },
   { clave: 'referidos', etiqueta: 'Referidos', href: '/clientes/referidos', icono: 'referidos' },
-  // «Cargar alta» (26/10/2026): el bot de altas sin WhatsApp. Sección propia 'altas' (closers y quien la tenga asignada)
-  { clave: 'altas', etiqueta: 'Cargar alta', href: '/clientes/altas', icono: 'tarea' },
 ]
 
 /** Secciones que forman el hub (las que ya no van sueltas en el menú). */
@@ -39,7 +40,8 @@ export function veClientes(quien: Quien): boolean {
 
 /** Adónde lleva "Clientes" del menú: la primera pestaña permitida (nunca Cartera para quien no la tiene). Null sin ninguna. */
 export function rutaClientes(quien: Quien): string | null {
-  return pestanasVisibles(quien)[0]?.href ?? null
+  const v = pestanasVisibles(quien)
+  return (v.find((p) => p.clave !== 'altas') ?? v[0])?.href ?? null
 }
 
 function bajo(pathname: string, href: string): boolean {

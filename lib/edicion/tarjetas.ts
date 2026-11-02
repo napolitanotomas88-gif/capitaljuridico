@@ -67,7 +67,7 @@ export function planTarjeta(t: TarjetaGuardada, p: PedidoTarjetaEdicion, actor: 
     texto = `${t.etapa} → ${p.etapa}${p.comentario ? `\n${p.comentario}` : ''}${p.origen === 'cliente' ? '\nPedido del cliente.' : ''}${p.autorizarTercera ? '\nTomás autorizó la ronda adicional.' : ''}`
     if (p.etapa === 'para editar' || retroceso) { avisar('rene', `Para editar / corrección: ${texto}`); for (const a of avisos) a.tipo_aviso = retroceso ? 'correccion' : 'para_editar' }
     if (p.etapa === 'editado' || p.etapa === 'corregido') avisar('aylu', `${p.etapa}: revisar el video antes de enviarlo al cliente.`)
-    if (p.etapa === 'revisión') { avisos.push({ canal: 'cliente', destino: 'cliente', texto: 'Ya revisamos tu video y está listo. Te lo dejamos acá:', link: t.campos.editado }); avisar('aylu', 'Revisión aprobada: entrega al cliente en cola, sujeta a la conexión de WhatsApp.') }
+    if (p.etapa === 'revisión') { avisos.push({ canal: 'cliente', destino: 'cliente', texto: 'Ya revisamos tu video y está listo. Te lo dejamos acá:', link: t.campos.editado }); avisar('aylu', 'Revisión aprobada: la entrega queda en «Para enviar» (📤) para pegarla en el grupo Contenido.') }
     if (p.etapa === 'publicado') avisar('valen', `El cliente dio el OK. Cita: ${p.comentario}\nEditado: ${t.campos.editado}`)
   }
   for (const a of avisos) if (!a.tipo_aviso) a.tipo_aviso = p.accion === 'mover' ? p.etapa : 'comentario'

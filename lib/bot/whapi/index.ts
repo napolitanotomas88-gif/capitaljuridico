@@ -9,6 +9,7 @@ import type { ClienteWhapi, ClienteWhapiDesdeEntorno, ConfigGrupos } from '@/lib
 import { crearClienteWhapi } from './cliente'
 import { aplicarCompuerta, type ClienteConCompuerta } from './compuerta'
 import { tokenWhapi } from './config'
+import { MOTIVO_WHATSAPP_APAGADO, whatsappBotEncendido } from './corte'
 import { ErrorWhapi } from './errores'
 
 export { ErrorWhapi, esErrorWhapi } from './errores'
@@ -40,6 +41,8 @@ export function clienteWhapiDesdeEntorno(op: {
 }): ClienteConCompuerta {
   const { modo, capacidades, grupos } = op
   if (modo === 'seco') return aplicarCompuerta(clienteSinRed('modo seco: no sale nada'), { modo, capacidades, grupos })
+  // Corte global (2/11/2026): sin WHATSAPP_BOT=encendido, un cliente sin red (cada operación tira 'config')
+  if (!whatsappBotEncendido(op.env ?? process.env)) return aplicarCompuerta(clienteSinRed(MOTIVO_WHATSAPP_APAGADO), { modo, capacidades, grupos })
   const token = tokenWhapi(op.env ?? process.env)
   if (!token) {
     if (!avisoSinToken) {

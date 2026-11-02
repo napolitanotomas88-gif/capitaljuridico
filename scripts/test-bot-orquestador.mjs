@@ -141,6 +141,7 @@ function motorDe(over = {}) {
     entorno: 'test', produccion: over.produccion ?? true,
     dispararContinuacion: async (d) => { continuaciones.push(d) }, dispararDespertador: async (d) => { despertadores.push(d) }, despertador: true,
     dormir: async () => {}, log: { info: (m) => logs.push(m), warn: (m) => logs.push(m), error: (m) => logs.push(m) },
+    ...(over.extra ?? {}),
   })
   const op = () => ({ hasta: reloj.t + 285_000, invocacion: `inv-${Math.random().toString(36).slice(2, 8)}` })
   const correr = async (evs) => { const r = await motor.registrar(evs); return motor.procesar(r.nuevos, op()) }
@@ -3539,5 +3540,43 @@ describe('WhatsApp seguro (26/10/2026)', () => {
     assert.ok(pedido.mensajes.length || pedido.enviado, 'el pedido a Aylu terminó saliendo')
     assert.equal(m.whapi.llamadas.filter((x) => x.m === 'crearComunidad').length, 1)   // no se rehízo nada
     assert.equal(m.whapi.enviados.filter((x) => /^Pasale este link/.test(x.texto)).length, 1)
+  })
+})
+
+// ── Sin WhatsApp (2/11/2026): comunidad, bienvenida y Skool como tareas a mano; lo del equipo a ✅-verificaciones ─────────
+describe('sin WhatsApp: el alta desde el Despacho', () => {
+  test('carga Finanzas/CRM/Drive/contrato, deja comunidad y Skool a mano (con su alerta), la bienvenida «para enviar» y termina con «Alta completa»', async () => {
+    const tareas = [], equipo = [], pasosHechos = []
+    const caps = new Set(['reporte_verificaciones', 'finanzas', 'crm', 'drive', 'contrato'])
+    const m = motorDe({
+      capacidades: caps,
+      pasos: { tareaManual: async (t) => { tareas.push(t) } },
+      extra: { canal: () => 'despacho', equipoDiscord: async (d) => { equipo.push(d) }, alTerminarPaso: async (d) => { pasosHechos.push(d.paso) }, avisarEspera: async () => {} },
+    })
+    const ev = evAlta()
+    const id = `alta_${ev.mensajeId}`
+    const r1 = await m.correr([ev])
+    assert.deepEqual(r1.errores, [])
+    const p1 = await estadosPasos(m, id)
+    assert.deepEqual(p1, { validar: 'hecho', finanzas: 'hecho', crm: 'hecho', drive: 'hecho', comunidad: 'reintento', bienvenida: 'pendiente', skool: 'reintento', contrato: 'hecho' })
+    assert.match((await pasosDe(m, id)).comunidad.error, /a mano: crear los 3 grupos/)
+    assert.deepEqual(tareas.map((t) => t.paso).sort(), ['comunidad', 'skool'])
+    assert.ok(pasosHechos.includes('finanzas'))
+    // Nada salió por WhatsApp: ni al closer, ni a Verificaciones, ni grupos
+    assert.equal(m.whapi.enviados.length, 0)
+    assert.equal(m.whapi.llamadas.filter((x) => /crear|Grupo|Comunidad/i.test(x.m)).length, 0)
+    // Lo que iba al closer en Ventas C.J. («arranco el alta…») va a Verificaciones de Discord
+    assert.ok(equipo.some((d) => d.grupo === 'ventas' && /arranco el alta de Ana Pérez/.test(d.texto)))
+    // Una segunda vuelta no repite las tareas (la alerta tiene clave propia; acá se ve que el paso no vuelve a correr antes de 24 h)
+    await m.motor.avanzar(id, m.op())
+    assert.equal(tareas.length, 2)
+    // Aylu marca «Hecho a mano» la comunidad → sale la bienvenida «para enviar»
+    await m.motor.hechoAMano(id, 'comunidad', 'Aylu', m.op())
+    assert.ok(tareas.some((t) => t.paso === 'bienvenida' && t.copiar && t.adjuntos?.length))
+    await m.motor.hechoAMano(id, 'bienvenida', 'Aylu', m.op())
+    await m.motor.hechoAMano(id, 'skool', 'Aylu', m.op())
+    assert.equal((await m.almacen.leerAlta(id)).estado, 'lista')
+    assert.ok(equipo.some((d) => /terminada/.test(d.texto)))
+    assert.equal(m.whapi.enviados.length, 0)
   })
 })

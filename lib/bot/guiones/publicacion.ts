@@ -33,7 +33,9 @@ const reales: DepsPublicacion = {
     guiones: Object.values(fila.guiones).map(g => g.guion).filter(Boolean),
   }),
   exigirActivo: exigirClienteNoArchivado,
-  whatsapp: async (fila) => (await import('./whatsappCliente')).enviarGuionesAlCliente(fila),
+  // d02 sin WhatsApp (2/11/2026): el link queda «para enviar» (📤 en Discord + /clientes/para-enviar) y la entrega se confirma
+  // en /clientes/entregas o con «Enviado»; el aviso de la campanita (notificar) sigue igual
+  whatsapp: async (fila) => (await import('./whatsappCliente')).guionesParaEnviar(fila),
 }
 /** Una aprobación publica el Doc y, con GUIONES_WHATSAPP=real (d02), manda el link al grupo Contenido del cliente;
  *  si no sale por WhatsApp, deja el link para que Aylu/Gero lo entreguen (como antes). */
@@ -70,7 +72,7 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
       const w = deps.whatsapp ? await deps.whatsapp(publicada).catch((e): { estado: string; motivo?: string } => ({ estado: 'error', motivo: String((e as Error)?.message ?? e) })) : null
       if (w?.estado === 'enviado') console.log(`Guiones: publicación ${id}, link enviado al grupo Contenido del cliente (d02)`)
       else {
-        if (w && w.estado !== 'apagado') console.warn(`Guiones: publicación ${id}, el link no salió por WhatsApp (${w.estado}: ${(w.motivo ?? '').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)}); queda para Aylu/Gero`)
+        if (w && w.estado !== 'apagado' && w.estado !== 'manual') console.warn(`Guiones: publicación ${id}, el link no salió por WhatsApp (${w.estado}: ${(w.motivo ?? '').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)}); queda para Aylu/Gero`)
         await deps.notificar(publicada)
       }
     }

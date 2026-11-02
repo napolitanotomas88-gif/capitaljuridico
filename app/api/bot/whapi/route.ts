@@ -6,6 +6,7 @@ import { procesarExitoReal } from '@/lib/bot/exito/servidor'
 import { procesarBajasReal } from '@/lib/bot/bajas/servidor'
 import { procesarNotasReal } from '@/lib/bot/anuncios/notasServidor'
 import { procesarContenidoReal } from '@/lib/edicion/contenidoServidor'
+import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
 import { FRENO_BARRIDO, atenderEstado, atenderWebhook } from '@/lib/bot/whapi/ruta'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,11 @@ export const runtime = 'nodejs'
 //   · GET con "Authorization: Bearer <CRON_SECRET>": modo, capacidades y los NOMBRES de las variables que faltan.
 // Sin la configuración explícita del modo real (BOT_ALTA_MODO y BOT_ALTA_PASOS_REALES), el motor corre en SECO: no escribe en
 // Sheets, Drive ni PandaDoc y no manda mensajes (la compuerta de lib/bot/whapi/compuerta.ts frena todo lo que sale).
+// Sin WhatsApp (2/11/2026): con el corte global (WHATSAPP_BOT distinto de «encendido») el webhook no procesa nada y responde
+// 410: lo que antes se leía de los grupos (respuestas a guiones, correcciones, notas, señales de éxito) se carga a mano en el
+// Despacho, y los OK de Verificaciones se dan en /clientes/aprobaciones y /clientes/altas.
 export async function POST(req: Request) {
+  if (!whatsappBotEncendido()) return Response.json({ ok: false, motivo: 'El WhatsApp del bot está apagado: el sistema avisa por Discord y se aprueba en el Despacho.' }, { status: 410 })
   return atenderWebhook(req, { crearMotor: crearMotorAltas, clienteWhapi: clienteWhapiDesdeEntorno, programar: (tarea) => after(tarea), frenoBarrido: FRENO_BARRIDO, reenviarGuiones: reenviarGuionesReal, procesarExito: procesarExitoReal, procesarBajas: procesarBajasReal, procesarNotasAnuncios: procesarNotasReal, procesarContenidoEdicion: procesarContenidoReal })
 }
 

@@ -11,6 +11,8 @@ import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { guardiaWhapi } from '@/lib/bot/whapi/salud'
 import { enviarDiscord } from '@/lib/fathomAnuncios/discord'
 import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
+import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
+import { paraEnviar } from '@/lib/bot/canal/salidaCliente'
 import { mencionesEdicion, urlDespacho, webhookAds, webhookEdicion } from './avisos/entorno'
 import { mailsDelRol } from './permisos'
 import { modoEdicion, avisosReales } from './config'
@@ -27,6 +29,8 @@ export interface DepsAvisosTarjetas {
   validarCliente?(grupo: SalidaTarjeta[]): void
   revision?(grupo: SalidaTarjeta[], motivo: string): Promise<void>
   modo: 'dry' | 'real'
+  /** Lotes al cliente por pasada (por defecto MAX_LOTES_CLIENTE_POR_PASADA). Sin WhatsApp («para enviar») no hace falta frenar. */
+  maxLotesCliente?: number
 }
 export const MAX_ANTIGUEDAD_ENTREGA_MS = 24 * 60 * 60 * 1000
 export const MAX_LOTES_CLIENTE_POR_PASADA = 1
@@ -129,9 +133,44 @@ async function clienteReal(grupo: SalidaTarjeta[], texto: string): Promise<strin
   await registrarActividadInactivos({ idCrm, tipo: 'equipo', chatId: chat.id, origen: 'entrega-edicion' }).catch(() => {})
   return r.id
 }
+// ── f04 sin WhatsApp (2/11/2026) ─────────────────────────────────────────────────────────────────────────────────────
+// El bot ya no le escribe al cliente: el lote de videos revisados queda «para enviar» (📤 en Discord + /clientes/para-enviar)
+// para que Aylu lo pegue en el grupo Contenido. Con «Enviado» (lib/bot/canal/ganchos.ts) el video queda «enviado al cliente»
+// (envio_link), lo mismo que hacía el envío automático. Solo entregas desde EDICION_PARA_ENVIAR_DESDE (ISO UTC; por defecto,
+// el corte del 2/11/2026): las anteriores siguen pidiendo una revisión nueva, como antes.
+export const PARA_ENVIAR_DESDE_POR_DEFECTO = '2026-11-02T21:00:00Z'
+export function corteParaEnviar(env: Record<string, string | undefined> = process.env): number {
+  const v = Date.parse(env.EDICION_PARA_ENVIAR_DESDE?.trim() ?? '')
+  return Number.isFinite(v) ? v : Date.parse(PARA_ENVIAR_DESDE_POR_DEFECTO)
+}
+export function exigirEntregaManualHabilitada(grupo: SalidaTarjeta[], env: Record<string, string | undefined> = process.env, ahora = Date.now()): void {
+  if (!grupo.length || grupo.some(s => s.canal !== 'cliente' || !s.datos.id_crm || s.datos.id_crm !== grupo[0].datos.id_crm)) throw antesEnvio('Entrega en espera: el lote no corresponde a un único cliente.')
+  const corte = corteParaEnviar(env)
+  for (const s of grupo) {
+    const fecha = Date.parse(s.evento_fecha ?? '')
+    if (!Number.isFinite(fecha) || fecha < corte || fecha > ahora + 60_000) throw Object.assign(antesEnvio('Entrega anterior al cambio a Discord: requiere una nueva revisión de Aylu o Tomás. El aviso se conserva en espera.'), { requiereRevision: true })
+  }
+}
+async function clienteManual(grupo: SalidaTarjeta[], texto: string): Promise<string | null> {
+  exigirEntregaManualHabilitada(grupo)
+  const idCrm = grupo[0].datos.id_crm
+  await exigirClienteNoArchivado(idCrm, await leerArchivados({ forzar: true }))
+  for (const s of grupo) if (!salidaTarjetaVigente(s, await leerTarjeta(s.tarjeta_id))) throw antesEnvio('La revisión cambió antes de dejarla para enviar; se volverá a evaluar la cola.')
+  const cliente = (await leerClienteFresco(idCrm)).cliente
+  const ids = grupo.map(s => s.id).sort((a, b) => Number(a) - Number(b))
+  const r = await paraEnviar({
+    pieza: 'f04', idCrm, cliente: cliente.nombre, clave: createHash('sha256').update(ids.join('|')).digest('hex').slice(0, 24), texto,
+    abrir: `/clientes/edicion?tarjeta=${encodeURIComponent(grupo[0].tarjeta_id)}`,
+    datos: { outbox: ids, envios: grupo.map(s => ({ tarjeta: s.tarjeta_id, evento: s.evento_id, link: s.datos.link })) },
+  })
+  if (r.estado === 'error') throw antesEnvio(`No se pudo dejar la entrega para enviar: ${r.motivo}`)
+  return `manual:${r.id ?? 'sin-id'}`
+}
+
 const reales = (): DepsAvisosTarjetas => {
   let inicial: Promise<Set<string>> | null = null
-  return { tomar: tomarSalidasTarjetas, leer: leerTarjeta, cerrar: cerrarSalidaTarjeta, activo: async (id, forzar = false) => { if (forzar || !inicial) inicial = leerArchivados({ forzar: true }); await exigirClienteNoArchivado(id, await inicial) }, hub: notificarHub, discord: discordReal, cliente: clienteReal, validarCliente: exigirEntregaTarjetasHabilitada, revision: notificarRevisionEntrega, modo: modoEdicion() }
+  const manual = !whatsappBotEncendido()
+  return { tomar: tomarSalidasTarjetas, leer: leerTarjeta, cerrar: cerrarSalidaTarjeta, activo: async (id, forzar = false) => { if (forzar || !inicial) inicial = leerArchivados({ forzar: true }); await exigirClienteNoArchivado(id, await inicial) }, hub: notificarHub, discord: discordReal, cliente: manual ? clienteManual : clienteReal, validarCliente: manual ? exigirEntregaManualHabilitada : exigirEntregaTarjetasHabilitada, revision: notificarRevisionEntrega, modo: modoEdicion(), maxLotesCliente: manual ? 10 : MAX_LOTES_CLIENTE_POR_PASADA }
 }
 /** after() y vigía llaman al mismo dispatcher. No se reclaman filas en modo dry. */
 export async function despacharTarjetasPendientes(op: { deps?: DepsAvisosTarjetas; hasta?: number; incluirCliente?: boolean } = {}): Promise<{ enviados: number; pendientes: number; dudosos: number; descartados: number }> {
@@ -162,7 +201,7 @@ export async function despacharTarjetasPendientes(op: { deps?: DepsAvisosTarjeta
       if (primero.canal === 'cliente' && op.incluirCliente === false || hasta - Date.now() < (primero.canal === 'cliente' ? 90000 : 25000)) throw antesEnvio('El lote queda pendiente para el vigía con tiempo suficiente; no se inició ningún envío.')
       if (primero.canal === 'cliente') {
         d.validarCliente?.(grupo)
-        if (lotesCliente >= MAX_LOTES_CLIENTE_POR_PASADA) throw antesEnvio('Entrega en espera: se alcanzó el límite de un lote por pasada.')
+        if (lotesCliente >= (d.maxLotesCliente ?? MAX_LOTES_CLIENTE_POR_PASADA)) throw antesEnvio('Entrega en espera: se alcanzó el límite de un lote por pasada.')
         // También cuenta el intento dudoso: no habilita otro envío durante esta pasada.
         lotesCliente++
       }

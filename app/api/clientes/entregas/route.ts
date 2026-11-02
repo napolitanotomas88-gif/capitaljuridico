@@ -6,6 +6,7 @@ import { puedeEntregarGuiones, cerrarAvisosEntrega } from '@/lib/bot/guiones/ent
 import { leerTanda, marcarEntregaManual } from '@/lib/bot/guiones/registro'
 import { registrarActividadInactivos } from '@/lib/clientes/inactivos'
 import { exigirClienteNoArchivado } from '@/lib/clientes/archivados'
+import { cerrarPorPrefijo } from '@/lib/bot/canal/registro'
 export const dynamic = 'force-dynamic'
 const json = (status: number, cuerpo: Record<string, unknown>) => NextResponse.json(cuerpo, { status, headers: { 'cache-control': 'no-store' } })
 export async function POST(req: Request) {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     if (!fila?.id_crm) return json(404, { ok: false, mensaje: 'Tanda no encontrada.' })
     await exigirClienteNoArchivado(fila.id_crm)
     if (!(await marcarEntregaManual(id, { email: sesion.email, nombre: sesion.nombre || sesion.email }, b.previo))) return json(409, { ok: false, mensaje: 'La tanda cambió, ya fue entregada o todavía no está publicada. Recargá.' })
-    await Promise.all([cerrarAvisosEntrega(id, sesion.nombre || sesion.email), registrarActividadInactivos({ idCrm: fila.id_crm, tipo: 'equipo', origen: 'entrega-guiones' }).catch(e => console.error('Entrega: no se registró la actividad —', (e as Error)?.name ?? 'error'))])
+    await Promise.all([cerrarAvisosEntrega(id, sesion.nombre || sesion.email), registrarActividadInactivos({ idCrm: fila.id_crm, tipo: 'equipo', origen: 'entrega-guiones' }).catch(e => console.error('Entrega: no se registró la actividad —', (e as Error)?.name ?? 'error')), cerrarPorPrefijo(`d02:${id}:`, sesion.nombre || sesion.email).catch(() => 0)])
     return json(200, { ok: true, mensaje: 'Entrega al cliente registrada.' })
   } catch (e) {
     if ([409, 503].includes((e as { status?: number })?.status ?? 0)) return json((e as { status: number }).status, { ok: false, mensaje: (e as Error).message })

@@ -157,8 +157,11 @@ export function faltantesBajas(env: NodeJS.ProcessEnv = process.env): string[] {
   const caps = new Set([...(c.modo === 'seco' ? [] : c.capacidades), ...(p?.capacidades ?? [])])
   const tiene = (k: CapacidadBaja) => caps.has(k)
   if (!env.SHEET_ID_CLIENTES?.trim()) f.push('SHEET_ID_CLIENTES')
-  if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
-  if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
+  // Sin WhatsApp (2/11/2026, WHATSAPP_BOT distinto de «encendido»): los OK se dan en el Despacho y el aviso va a Discord
+  if (env.WHATSAPP_BOT?.trim().toLowerCase() === 'encendido') {
+    if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
+    if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
+  } else if (!env.DISCORD_WEBHOOK_VERIFICACIONES?.trim()) f.push('DISCORD_WEBHOOK_VERIFICACIONES')
   if (!c.aprobadores.length) f.push('BOT_ALTA_APROBADORES')
   if ((tiene('baja_mensaje_cliente') || tiene('baja_recontacto')) && !c.calendlyUrl) f.push('BAJA_CALENDLY_URL')
   if (tiene('baja_fathom') && !(env.CLAUDE_VIA?.trim() === 'mac' || env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')

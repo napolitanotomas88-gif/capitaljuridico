@@ -21,6 +21,7 @@ import { telefonoDelCliente, CONTRATO_SIN_ENVIAR, entradaCrmDesdeAlta } from '..
 import { CARPETA_CLIENTES_DRIVE, aprobarCarpetaExistente, nombresDriveCliente, plantillaGuionesDesdeEntorno, type GuardadoDrive, type IntentoCarpeta, type ResultadoDriveCliente } from '../driveCliente'
 import { ErrorBorrador, cuerpoBorrador, linkEdicion, nombreDocumento, textoAvisoBorrador } from '../pandadoc'
 import { armarBienvenida, VIDEO_BIENVENIDA } from '../bienvenida'
+import { nombreComunidad, nombreGrupo, NOMBRES_GRUPOS } from './comunidad'
 import { VERSION_COMPROBANTE, compararComprobante, formatoComprobante, MAXIMO_ARCHIVO_BYTES, mismaPersona, type ComparacionComprobante } from '../comprobante'
 import { esTransitorio } from '../../../fathomAnuncios/errores'
 import { diasEntre, esYmdValido, hoyArgentina } from '../../../clientes/fechas'
@@ -972,7 +973,30 @@ export async function pasoContrato(ctx: CtxPaso): Promise<SalidaPaso> {
 // ── Bienvenida (grupo General del cliente) ──────────────────────────────────────────────────────────────────────
 
 interface GruposComunidad { general?: { id: string } | null }
+/** Sin WhatsApp (2/11/2026): comunidad, bienvenida y Skool como tareas humanas. El paso queda en reintento (24 h) con el
+ *  motivo «a mano»: la pantalla del alta lo muestra con «Hecho a mano» y la bienvenida también se cierra con «Enviado» en
+ *  /clientes/para-enviar. La alerta tiene clave propia: el reintento diario no la repite. */
+export const REINTENTO_A_MANO_MS = 24 * 3600_000
+export async function pasoAManoSinWhatsapp(ctx: CtxPaso, paso: 'comunidad' | 'bienvenida' | 'skool'): Promise<SalidaPaso> {
+  const alta = ctx.alta, a = altaParseada(alta)
+  const cliente = alta.validacion?.nombreConfirmado ?? a.nombre ?? alta.nombreCliente ?? 'el cliente'
+  const b = armarBienvenida(a)
+  const correos = [a.correo, ...leerSocios(a.socios).map((x) => x.correo)].filter((x): x is string => !!x)
+  const t = paso === 'comunidad'
+    ? { titulo: 'Crear los 3 grupos de WhatsApp', lineas: [`Comunidad «${nombreComunidad(cliente)}» con ${NOMBRES_GRUPOS.map((g) => `«${nombreGrupo(g, cliente)}»`).join(', ')}.`, 'Sumá al equipo y al cliente (el teléfono está en el Despacho, no acá).', 'Cuando estén, marcá «Hecho a mano» en el alta: recién ahí sale la bienvenida.'], motivo: 'crear los 3 grupos de WhatsApp' }
+    : paso === 'bienvenida'
+      ? { titulo: 'Bienvenida', lineas: ['Mandá el video de bienvenida y este texto en el grupo General.', ...b.avisos], motivo: 'pegar la bienvenida en el General (📤)' }
+      : { titulo: 'Invitalo a Skool', lineas: [correos.length ? `Invitación por correo desde Skool: ${correos.join(', ')}` : 'Falta el correo del cliente para invitarlo a Skool: pedíselo al closer.'], motivo: 'invitarlo a Skool' }
+  if (ctx.real) {
+    try {
+      await ctx.deps.tareaManual!({ paso, altaId: alta.id, cliente, titulo: t.titulo, lineas: t.lineas, ...(paso === 'bienvenida' ? { copiar: b.mensajeGrupo, adjuntos: [VIDEO_BIENVENIDA.url] } : {}) })
+    } catch { /* la alerta nunca frena el alta: el paso queda a mano igual */ }
+  } else return { estado: 'simulado', registro: [`a mano: ${t.motivo}`] }
+  return { estado: 'reintento', noAntesDe: iso(ctx.ahora() + REINTENTO_A_MANO_MS), error: `a mano: ${t.motivo} (se cierra con «Hecho a mano»)` }
+}
+
 export async function pasoBienvenida(ctx: CtxPaso): Promise<SalidaPaso> {
+  if (ctx.deps.tareaManual) return pasoAManoSinWhatsapp(ctx, 'bienvenida')
   const alta = ctx.alta, a = altaParseada(alta)
   const com = ctx.pasos.comunidad
   if (com.estado === 'omitido') return { estado: 'omitido', resultado: { motivo: 'sin comunidad' } }
@@ -1027,6 +1051,7 @@ export async function pasoBienvenida(ctx: CtxPaso): Promise<SalidaPaso> {
 // ── Skool (aviso a Aylu en Verificaciones: depende del pago, no de la bienvenida) ───────────────────────────────────
 
 export async function pasoSkool(ctx: CtxPaso): Promise<SalidaPaso> {
+  if (ctx.deps.tareaManual) return pasoAManoSinWhatsapp(ctx, 'skool')
   const a = altaParseada(ctx.alta)
   const b = armarBienvenida(a)
   const simulado: SalidaPaso = { estado: 'simulado', resultado: { aviso: b.avisoVerificaciones }, registro: [`avisaría a Aylu en Verificaciones: ${b.avisoVerificaciones}`] }

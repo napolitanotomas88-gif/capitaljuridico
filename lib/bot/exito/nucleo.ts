@@ -17,7 +17,7 @@ import { conPrefijoEnsayo } from '@/lib/bot/whapi/compuerta'
 import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
 import { conPrefijoPrueba } from '@/lib/bot/clientesPrueba'
 import type { AutorWhapi } from '@/lib/bot/alta/motor/tipos'
-import type { AlmacenExito, ClienteLote, Lote, Pedido } from './almacen'
+import type { AlmacenExito, ClienteLote, Lote, Pedido, Senal } from './almacen'
 import type { ClasificarExito } from './claude'
 import {
   MAX_CLAUDE_CLIENTE_DIA, MAX_PEDIDOS_ENCUESTA_DIA, PUNTAJE_EXITO, RECORDATORIO_ENCUESTA_MS, VENCE_PEDIDO_MS, VENTANA_MEDIDOR_MS, VENTANA_TESTIMONIO_MS,
@@ -40,7 +40,14 @@ export interface DepsExito {
   almacen: AlmacenExito
   directorio: Directorio
   /** El cliente real de Whapi (solo se llama cuando el modo y la capacidad lo permiten). Tira ErrorWhapi. */
-  enviarTexto(p: { chatId: string; texto: string; citar?: string | null }): Promise<{ id: string | null }>
+  enviarTexto(p: { chatId: string; texto: string; citar?: string | null; pieza?: 'h01' | 'h02' | 'h03'; idCrm?: string | null; cliente?: string | null; clave?: string | null }): Promise<{ id: string | null }>
+  /** Sin WhatsApp (2/11/2026): lo que va al cliente queda «para enviar» a mano. Sin horario de WhatsApp, sin «Listo: le mandé…»
+   *  en Verificaciones (la pantalla lo muestra) y, si no se conoce el grupo General, se usa uno virtual por ID del CRM. */
+  salidaManual?: boolean
+  /** El «grupo General» virtual de un cliente sin grupo conocido (`cliente:<ID>:general`), o null. */
+  generalVirtual?(idCrm: string | null): string | null
+  /** El nombre del cliente en el CRM por su ID (para las fichas virtuales). */
+  nombreDeId?(idCrm: string): Promise<string | null>
   /** Claude (solo en ensayo y real). */
   clasificar?: ClasificarExito
   /** Discord #🤝-exito-y-bajas: devuelve el id del mensaje. */
@@ -94,6 +101,16 @@ export function crearNucleo(d: DepsExito) {
   const SUFIJO_LOTE = '-prueba'
   const loteMio = (mes: string): boolean => (esNucleoPrueba ? mes.endsWith(SUFIJO_LOTE) : !mes.endsWith(SUFIJO_LOTE))
   const recordatorioMs = d.recordatorioMs ?? RECORDATORIO_ENCUESTA_MS
+  const manual = !!d.salidaManual
+  /** Confirmaciones cortas en Verificaciones («Listo: le mandé…»): sin WhatsApp no hacen falta (lo muestra el Despacho). */
+  const avisarVerif = (cap: CapacidadExito) => real(cap) && !manual
+  /** La ficha del cliente o, sin WhatsApp, una virtual por ID del CRM (para pedir el OK y dejar el mensaje para enviar). */
+  const fichaOVirtual = (f: FichaCliente | null, cli: { id: string | null; nombre: string }): FichaCliente | null => {
+    if (f?.grupos.general) return f
+    const g = d.generalVirtual?.(cli.id ?? f?.idCrm ?? null) ?? null
+    if (!g) return f
+    return f ? { ...f, grupos: { ...f.grupos, general: g } } : { clave: (cli.id ?? '').toUpperCase(), cliente: cli.nombre, idCrm: cli.id ? cli.id.toUpperCase() : null, grupos: { general: g }, invitacionGeneral: null, origen: 'motor' }
+  }
   /** El texto tal cual sale: al equipo, con la marca de PRUEBA (si es la corrida de prueba); en ensayo, con SIMULACIÓN. */
   const paraSalir = (texto: string, chatId: string | null): string => {
     const t = c.prueba && chatId !== null && chatId === c.verificaciones ? conPrefijoPrueba(texto) : texto
@@ -101,11 +118,12 @@ export function crearNucleo(d: DepsExito) {
   }
 
   /** Manda un texto si `permitido`; en ensayo, con el prefijo SIMULACIÓN. Nunca tira. */
-  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null): Promise<Salida & { texto: string }> {
+  type Meta = { pieza: 'h01' | 'h02' | 'h03'; idCrm: string | null; cliente: string; clave: string }
+  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null, meta: Meta | null = null): Promise<Salida & { texto: string }> {
     const final = paraSalir(texto, chatId)
     if (!permitido || !chatId) return { estado: 'simulado', texto: final }
     try {
-      const r = await d.enviarTexto({ chatId, texto: final, citar })
+      const r = await d.enviarTexto({ chatId, texto: final, citar, ...(meta ?? {}) })
       return { estado: 'enviado', id: r.id, texto: final }
     } catch (e) {
       const ap = (e as { aplicado?: boolean | null })?.aplicado
@@ -117,7 +135,7 @@ export function crearNucleo(d: DepsExito) {
   async function abrirPedido(r: ResumenExito, ficha: FichaCliente, motivo: MotivoExito, origen: string, idCrm: string | null = ficha.idCrm): Promise<boolean> {
     if (!mio(idCrm)) { r.ignorados++; return false }
     if (d.clienteOperativo && !await d.clienteOperativo(idCrm, ficha.cliente)) { r.ignorados++; return false }
-    const general = ficha.grupos.general
+    const general = ficha.grupos.general ?? d.generalVirtual?.(idCrm) ?? null
     if (!general) { r.registro.push(`${ficha.cliente}: éxito detectado, pero no se conoce su grupo General: no se pide el OK`); return false }
     const b = await almacen.bloqueo(ficha.clave, d.ahora())
     if (b) { r.registro.push(`${ficha.cliente}: éxito detectado, sin pedir (${b.motivo})`); r.ignorados++; return false }
@@ -168,9 +186,15 @@ export function crearNucleo(d: DepsExito) {
     }
     if (!mio(p.idCrm)) return   // lo atiende el otro núcleo (cliente de prueba o no)
     if (!enLista(x.autor, c.aprobadores)) { r.ignorados++; r.registro.push(`respuesta a ${p.cliente} de alguien que no es aprobador: se ignora`); return }
+    const por = x.autor.nombre ?? x.autor.telefono ?? x.autor.lid ?? 'aprobador'
+    await resolverPedido(r, p, x.veredicto, x.resto, por, x.mensajeId)
+  }
+
+  /** El OK / NO a un pedido de testimonio (por WhatsApp citando, o en el Despacho: /clientes/aprobaciones). */
+  async function resolverPedido(r: ResumenExito, p: Pedido, veredicto: 'ok' | 'no', resto: string, por: string, mensajeId: string | null) {
+    const x = { veredicto, resto, mensajeId }
     if (p.estado !== 'abierto') { r.ignorados++; return }
     if (d.clienteOperativo && !await d.clienteOperativo(p.idCrm, p.cliente)) { r.ignorados++; return }
-    const por = x.autor.nombre ?? x.autor.telefono ?? x.autor.lid ?? 'aprobador'
     const ahora = iso(d.ahora())
     if (x.veredicto === 'no') {
       if (await almacen.actualizarPedido(p.id, { estado: 'rechazado', por, respuesta: `NO ${x.resto}`.trim(), resuelto: ahora }, ['abierto'])) { r.rechazados++; r.registro.push(`NO al testimonio de ${p.cliente}`) }
@@ -184,7 +208,8 @@ export function crearNucleo(d: DepsExito) {
       return
     }
     // WhatsApp seguro: al cliente solo de 9 a 20 h de Argentina. Fuera de horario el pedido sigue abierto y se avisa.
-    if (!enHorario(d.ahora())) {
+    // (Sin WhatsApp el mensaje queda «para enviar»: lo manda una persona, así que no hay horario.)
+    if (!manual && !enHorario(d.ahora())) {
       r.ignorados++
       r.registro.push(`OK al testimonio de ${p.cliente} fuera de horario: el pedido sigue abierto`)
       if (real('exito_pedido_ok')) await salir(true, c.verificaciones, `Es fuera del horario de WhatsApp (9 a 20 h): no le escribí a ${p.cliente}. Respondé OK de nuevo citando el pedido dentro del horario.`, x.mensajeId)
@@ -192,19 +217,19 @@ export function crearNucleo(d: DepsExito) {
     }
     if (!(await almacen.actualizarPedido(p.id, { estado: 'aprobado', por, respuesta: `OK ${x.resto}`.trim() }, ['abierto']))) return
     r.aprobados++
-    const s = await salir(true, p.general, textoTestimonio(p.cliente, d.ahora()))
+    const s = await salir(true, p.general, textoTestimonio(p.cliente, d.ahora()), null, { pieza: 'h01', idCrm: p.idCrm, cliente: p.cliente, clave: p.id })
     if (s.estado === 'enviado') {
       await almacen.actualizarPedido(p.id, { estado: 'enviado', mensajeClienteId: s.id, resuelto: iso(d.ahora()) })
-      r.registro.push(`mensaje de testimonio enviado a ${p.cliente}`)
-      if (real('exito_pedido_ok')) await salir(true, c.verificaciones, `Listo: le mandé el mensaje de testimonio a ${p.cliente}.`, x.mensajeId)
+      r.registro.push(manual ? `mensaje de testimonio para ${p.cliente}: quedó para enviar (📤)` : `mensaje de testimonio enviado a ${p.cliente}`)
+      if (avisarVerif('exito_pedido_ok')) await salir(true, c.verificaciones, `Listo: le mandé el mensaje de testimonio a ${p.cliente}.`, x.mensajeId)
     } else if (s.estado === 'error' && s.dudoso) {
       await almacen.actualizarPedido(p.id, { estado: 'dudoso', error: s.motivo, resuelto: iso(d.ahora()) })
       r.errores.push(`${p.cliente}: Whapi no confirmó el mensaje de testimonio (puede haber salido: revisar el General)`)
-      if (real('exito_pedido_ok')) await salir(true, c.verificaciones, `No sé si le llegó el mensaje de testimonio a ${p.cliente} (WhatsApp no confirmó). Revisen el grupo General antes de mandarlo a mano.`, x.mensajeId)
+      if (avisarVerif('exito_pedido_ok')) await salir(true, c.verificaciones, `No sé si le llegó el mensaje de testimonio a ${p.cliente} (WhatsApp no confirmó). Revisen el grupo General antes de mandarlo a mano.`, x.mensajeId)
     } else {
       await almacen.actualizarPedido(p.id, { estado: 'error', error: s.estado === 'error' ? s.motivo : 'no salió', resuelto: iso(d.ahora()) })
       r.errores.push(`${p.cliente}: no salió el mensaje de testimonio (${s.estado === 'error' ? s.motivo : 'simulado'})`)
-      if (real('exito_pedido_ok')) await salir(true, c.verificaciones, `No pude mandarle el mensaje de testimonio a ${p.cliente}. Se puede mandar a mano.`, x.mensajeId)
+      if (avisarVerif('exito_pedido_ok')) await salir(true, c.verificaciones, `No pude mandarle el mensaje de testimonio a ${p.cliente}. Se puede mandar a mano.`, x.mensajeId)
     }
   }
 
@@ -214,7 +239,13 @@ export function crearNucleo(d: DepsExito) {
     if (!dud || dud.estado !== 'consultada') return
     if (!enLista(x.autor, c.aprobadores)) { r.ignorados++; return }
     const por = x.autor.nombre ?? x.autor.telefono ?? x.autor.lid ?? 'aprobador'
-    const puedeResponder = real('encuesta_mensual') || real('exito_pedido_ok')
+    await resolverDudosa(r, dud, x.veredicto, x.resto, por, x.mensajeId)
+  }
+
+  async function resolverDudosa(r: ResumenExito, dud: Senal, veredicto: 'ok' | 'no', resto: string, por: string, mensajeId: string | null) {
+    const x = { veredicto, resto, mensajeId }
+    if (dud.estado !== 'consultada') { r.ignorados++; return }
+    const puedeResponder = (real('encuesta_mensual') || real('exito_pedido_ok')) && !manual
     if (x.veredicto === 'no') { await almacen.marcarSenal(dud.id, 'descartada', { por }); r.registro.push('respuesta dudosa de la encuesta descartada'); return }
     const id = /(?:^|\s)([A-Za-z]\d{1,5})(?=\s|$|[.,;!])/.exec(x.resto)?.[1]?.toUpperCase()
     if (!id) {
@@ -268,6 +299,7 @@ export function crearNucleo(d: DepsExito) {
       let ficha: FichaCliente | null = fichaConocida?.clave === m.clave ? fichaConocida : null
       if (!ficha) { todas ??= await d.directorio.todas(); ficha = todas.find((f) => f.clave === m.clave) ?? null }
       if (!ficha && m.chatId) ficha = (await d.directorio.deChat(m.chatId))?.ficha ?? null
+      if (!ficha && d.generalVirtual && /^[A-Za-z]\d{1,6}$/.test(m.clave)) ficha = fichaOVirtual(null, { id: m.clave.toUpperCase(), nombre: (await d.nombreDeId?.(m.clave.toUpperCase()).catch(() => null)) ?? m.clave.toUpperCase() })
       if (!ficha || ficha.clave !== m.clave) { r.registro.push(`medidor: ${m.clave} listo, pero no se encuentra su grupo General`); continue }
       await abrirPedido(r, ficha, motivoMedidor(m), `med_${m.clave}_${diaAR(Date.parse(m.desde))}`)
     }
@@ -294,7 +326,7 @@ export function crearNucleo(d: DepsExito) {
   async function agradecer(r: ResumenExito, p: Pedido, mensajeId: string, chatId: string, grupo: GrupoCliente, enviadoEn: string) {
     if (real('exito_testimonio')) {
       const citar = chatId === p.general ? mensajeId : null
-      const s = await salir(true, p.general, textoAgradecimiento(p.cliente, c.calendlyUrl), citar)
+      const s = await salir(true, p.general, textoAgradecimiento(p.cliente, c.calendlyUrl), citar, { pieza: 'h02', idCrm: p.idCrm, cliente: p.cliente, clave: `${p.id}:${mensajeId}` })
       let discordId: string | null = null
       if (d.discord) {
         try {
@@ -391,8 +423,8 @@ export function crearNucleo(d: DepsExito) {
       if (abiertos >= MAX_PEDIDOS_ENCUESTA_DIA) { r.registro.push(`tope de ${MAX_PEDIDOS_ENCUESTA_DIA} pedidos por la encuesta en el día: el resto sigue mañana`); break }
       const id = ronda.idCrm ?? ronda.clave
       const cli = clientes.find((k) => k.id.toUpperCase() === id.toUpperCase()) ?? { id, nombre: ronda.cliente, mail: '', celular: '' }
-      const ficha = fichaDeCliente(cli, fichas)
-      if (!ficha) { r.registro.push(`${cli.nombre}: encuesta ${ronda.puntaje}/10, pero no se conoce su grupo General`); continue }
+      const ficha = fichaOVirtual(fichaDeCliente(cli, fichas), { id: cli.id, nombre: cli.nombre })
+      if (!ficha?.grupos.general) { r.registro.push(`${cli.nombre}: encuesta ${ronda.puntaje}/10, pero no se conoce su grupo General`); continue }
       if (await almacen.bloqueo(ficha.clave, d.ahora())) continue
       const sid = `ronda:${idSeguro(ronda.id)}`
       if (!(await almacen.reclamarSenal({ id: sid, tipo: 'encuesta', clave: ficha.clave, chatId: ficha.grupos.general ?? null, detalle: { ronda: ronda.id, valor: ronda.puntaje } }, iso(d.ahora())))) continue
@@ -437,7 +469,7 @@ export function crearNucleo(d: DepsExito) {
     const dia = Number(hoy.slice(8, 10))
     // 1. La lista para el OK (la de prueba, solo si hay algún cliente de prueba activo)
     if ((dia === c.diaEncuesta || forzarLista) && !(esNucleoPrueba && !clientes.length) && !(await almacen.lote(mes))) {
-      const conGrupo = clientes.map((k) => ({ k, f: fichaDeCliente(k, fichas) }))
+      const conGrupo = clientes.map((k) => ({ k, f: fichaOVirtual(fichaDeCliente(k, fichas), { id: k.id, nombre: k.nombre }) }))
       const van = conGrupo.filter((x) => x.f?.grupos.general).map((x) => ({ id: x.k.id.toUpperCase(), nombre: x.k.nombre, general: x.f!.grupos.general! }))
       const sinGrupo = conGrupo.filter((x) => !x.f?.grupos.general).map((x) => x.k.nombre)
       const permitido = real('encuesta_mensual') || ensayo('encuesta_mensual')
@@ -464,7 +496,7 @@ export function crearNucleo(d: DepsExito) {
       if (d.clienteOperativo && !await d.clienteOperativo(e.idCrm, e.cliente)) { r.ignorados++; continue }
       if (!real('encuesta_mensual')) { r.registro.push(`haría: recordarle la encuesta a ${e.cliente}`); continue }
       await almacen.actualizarEncuesta(e.id, { recordatorioEn: iso(ahora), recordatorioEstado: 'enviando' })
-      const s = await salir(true, e.general, textoRecordatorio(e.cliente, c.typeformUrl))
+      const s = await salir(true, e.general, textoRecordatorio(e.cliente, c.typeformUrl), null, { pieza: 'h03', idCrm: e.idCrm, cliente: e.cliente, clave: `${e.id}:rec` })
       await almacen.actualizarEncuesta(e.id, { recordatorioEstado: s.estado === 'enviado' ? 'enviado' : s.estado === 'error' && s.dudoso ? 'dudoso' : 'error' })
       if (s.estado === 'enviado') r.recordatorios++
       else r.errores.push(`${e.cliente}: no salió el recordatorio de la encuesta`)
@@ -485,7 +517,7 @@ export function crearNucleo(d: DepsExito) {
       if (!(await almacen.reclamarEncuesta({ id, mes: lote.mes, clave: k.id, idCrm: k.id, cliente: k.nombre, general: k.general, estado: 'enviando', enviadaEn: null, mensajeId: null, recordatorioEn: null, recordatorioEstado: null, respondida: false }, iso(d.ahora())))) continue
       // La fecha de envío se fija ANTES de mandar: una respuesta no puede quedar antes del envío de su propia ronda
       const enviada = iso(d.ahora())
-      const s = await salir(true, k.general, textoEncuesta(k.nombre, c.typeformUrl))
+      const s = await salir(true, k.general, textoEncuesta(k.nombre, c.typeformUrl), null, { pieza: 'h03', idCrm: k.id, cliente: k.nombre, clave: id })
       await almacen.actualizarEncuesta(id, { estado: s.estado === 'enviado' ? 'enviada' : s.estado === 'error' && s.dudoso ? 'dudosa' : 'error', enviadaEn: s.estado === 'enviado' || (s.estado === 'error' && s.dudoso) ? enviada : null, mensajeId: s.estado === 'enviado' ? s.id : null })
       salieron++
       if (s.estado === 'enviado') r.encuestas++
@@ -499,15 +531,22 @@ export function crearNucleo(d: DepsExito) {
   /** OK / NO a la lista de la encuesta del mes. "OK sin X" / "OK menos X, Y" deja afuera a esos clientes. */
   async function aplicarRespuestaLote(r: ResumenExito, x: CandidatosExito['respuestas'][number], lote: Lote) {
     if (!enLista(x.autor, c.aprobadores)) { r.ignorados++; return }
-    if (lote.estado !== 'pedido') { r.ignorados++; return }
     const por = x.autor.nombre ?? x.autor.telefono ?? x.autor.lid ?? 'aprobador'
-    const puedeResponder = real('encuesta_mensual')
+    await resolverLote(r, lote, x.veredicto, x.resto, por, x.mensajeId)
+  }
+
+  /** OK / NO a la lista de la encuesta (por WhatsApp o en el Despacho). `resto`: «sin Nombre, A123» deja afuera a esos. */
+  async function resolverLote(r: ResumenExito, lote: Lote, veredicto: 'ok' | 'no', resto: string, por: string, mensajeId: string | null) {
+    const x = { veredicto, resto, mensajeId }
+    if (lote.estado !== 'pedido') { r.ignorados++; return }
+    const puedeResponder = real('encuesta_mensual') && !manual
     if (x.veredicto === 'no') {
       if (await almacen.actualizarLote(lote.mes, { estado: 'rechazado', por }, ['pedido'])) r.registro.push(`NO a la encuesta de ${lote.mes}: no se manda`)
       return
     }
     const ex = exclusionesDe(x.resto, lote.clientes)
     if (ex.noEncontrados.length) {
+      if (manual) r.errores.push(`No encontré a ${ex.noEncontrados.join(', ')} en la lista (o hay más de uno con ese nombre)`)
       if (puedeResponder) await salir(true, c.verificaciones, `No encontré a ${ex.noEncontrados.join(', ')} en la lista (o hay más de uno con ese nombre). Respondé de nuevo citando la lista, por ejemplo "OK sin Nombre Apellido".`, x.mensajeId)
       r.registro.push(`OK a la encuesta de ${lote.mes} con exclusiones que no se entienden: no se manda todavía`)
       return
@@ -522,7 +561,69 @@ export function crearNucleo(d: DepsExito) {
     await enviarLote(r, { ...lote, estado: 'aprobado', excluidos: ex.ids })
   }
 
-  return { procesarEventos, correrDiario, abrirPedido }
+  // ── Despacho (2/11/2026): lo que antes se respondía citando en Verificaciones C.J. o se leía de los grupos del cliente ──
+  /** OK / NO desde /clientes/aprobaciones. fuente 'pedido' (id del pedido), 'lote' (mes) o 'dudosa' (id de la señal). */
+  async function resolverManual(p: { fuente: 'pedido' | 'lote' | 'dudosa'; id: string; veredicto: 'ok' | 'no'; resto: string; por: string }): Promise<ResumenExito> {
+    const r = vacio(c.modo)
+    try {
+      if (p.fuente === 'pedido') {
+        const ped = await almacen.pedido(p.id)
+        if (!ped) r.errores.push('no existe el pedido')
+        else if (mio(ped.idCrm)) await resolverPedido(r, ped, p.veredicto, p.resto, p.por, null)
+      } else if (p.fuente === 'lote') {
+        const lote = await almacen.lote(p.id)
+        if (!lote) r.errores.push('no existe la lista de ese mes')
+        else if (loteMio(lote.mes)) await resolverLote(r, lote, p.veredicto, p.resto, p.por, null)
+      } else {
+        const dud = (await almacen.senalesDesde(iso(d.ahora() - 120 * DIA_MS))).find((x) => x.id === p.id && x.tipo === 'dudosa')
+        if (!dud) r.errores.push('no existe esa respuesta dudosa')
+        else await resolverDudosa(r, dud, p.veredicto, p.resto, p.por, null)
+      }
+    } catch (e) { r.errores.push(motivoDe(e)) }
+    return r
+  }
+
+  /** «Señal de éxito» cargada a mano en la tarjeta del cliente (lo que antes leía el bot de sus 3 grupos). */
+  async function senalManual(p: { idCrm: string; cliente: string; texto: string; por: string; id: string }): Promise<ResumenExito> {
+    const r = vacio(c.modo)
+    try {
+      const idCrm = p.idCrm.toUpperCase()
+      if (!mio(idCrm)) return r
+      const ficha = fichaOVirtual((await d.directorio.todas()).find((f) => f.idCrm?.toUpperCase() === idCrm) ?? null, { id: idCrm, nombre: p.cliente })
+      if (!ficha) { r.errores.push('no se conoce el grupo General del cliente'); return r }
+      const sid = `manual:${idSeguro(p.id)}`
+      if (!(await almacen.reclamarSenal({ id: sid, tipo: 'mensaje', clave: ficha.clave, chatId: ficha.grupos.general ?? null, detalle: { grupo: 'general', manual: true, por: p.por } }, iso(d.ahora())))) { r.ignorados++; return r }
+      const cita = p.texto.replace(/\s+/g, ' ').trim().slice(0, 300)
+      await almacen.marcarSenal(sid, 'exito', { confianza: 1, motivo: `cargada a mano por ${p.por}`, habla: true, buenos: true, grupo: 'general', cita })
+      r.detectados++
+      if (c.diasContento <= 0) await abrirPedido(r, ficha, { tipo: 'mensaje', cita, grupo: 'general' }, `man_${p.id}`, idCrm)
+      else await revisarMedidor(r, [ficha.clave], ficha)
+    } catch (e) { r.errores.push(motivoDe(e)) }
+    return r
+  }
+
+  /** «Llegó el testimonio» cargado a mano (antes el bot veía el video en el grupo): agradecimiento para enviar + Discord. */
+  async function testimonioManual(p: { idCrm: string; cliente: string; por: string; id: string }): Promise<ResumenExito> {
+    const r = vacio(c.modo)
+    try {
+      const idCrm = p.idCrm.toUpperCase()
+      if (!mio(idCrm)) return r
+      const ficha = (await d.directorio.todas()).find((f) => f.idCrm?.toUpperCase() === idCrm) ?? null
+      const claves = [...new Set([ficha?.clave, idCrm].filter((x): x is string => !!x))]
+      let ped: Pedido | null = null
+      for (const k of claves) { ped = await almacen.pedidoParaTestimonio(k, iso(d.ahora() - VENTANA_TESTIMONIO_MS)); if (ped) break }
+      if (!ped) { r.errores.push('no hay un pedido de testimonio enviado en los últimos 30 días para este cliente'); return r }
+      const mensajeId = `manual:${idSeguro(p.id)}`
+      if (!(await almacen.reclamarTestimonio(ped.id, mensajeId, iso(d.ahora())))) { r.ignorados++; return r }
+      r.testimonios++
+      const enviadoEn = iso(d.ahora())
+      await almacen.guardarTestimonio({ mensajeId, pedidoId: ped.id, clave: ped.clave, chatId: ped.general, grupo: 'general', medio: { manual: true, por: p.por }, enviadoEn, estado: 'recibido', agradecimientoId: null, discordId: null, creado: enviadoEn })
+      await agradecer(r, ped, mensajeId, `manual:${idCrm}`, 'general', enviadoEn)
+    } catch (e) { r.errores.push(motivoDe(e)) }
+    return r
+  }
+
+  return { procesarEventos, correrDiario, abrirPedido, resolverManual, senalManual, testimonioManual }
 }
 
 export interface ClienteActivo { id: string; nombre: string; mail: string; celular: string }

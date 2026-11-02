@@ -34,7 +34,8 @@ export const MATRIZ_ROLES: Record<Rol, readonly Seccion[]> = {
   socio: SECCIONES,
   closer: ['ventas', 'cuotas'],
   setter: ['ventas'],
-  csm: ['clientes', 'referidos'],
+  // 2/11/2026: sin WhatsApp el alta arranca en «Cargar alta»: la carga el equipo de CSM (Aylu, Gero M) además de los socios
+  csm: ['clientes', 'referidos', 'altas'],
   acceso: [],
 }
 

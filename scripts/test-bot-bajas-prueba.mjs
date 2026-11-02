@@ -10,6 +10,9 @@ for (const k of Object.keys(process.env)) {
 }
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 
+// El corte global (2/11/2026, lib/bot/whapi/corte.ts) frena toda escritura a Whapi: estos tests prueban el cliente de Whapi con
+// un fetch falso, así que abren la puerta SOLO en este proceso
+;(await import('../lib/bot/whapi/corte.ts')).permitirWhatsappEnPruebas()
 const CP = await import('../lib/bot/bajas/prueba.ts')
 const CFG = await import('../lib/bot/bajas/config.ts')
 const A = await import('../lib/bot/bajas/almacen.ts')
@@ -70,7 +73,7 @@ function redFalsa() {
   return { f, llamadas, enviosA: (chat) => llamadas.filter((x) => x.url.includes('/messages/text') && x.cuerpo?.to === chat) }
 }
 
-const ENV_BASE = { BOT_ALTA_APROBADORES: TOMI, BAJA_APROBADORES_DESPEDIDA: AYLU, WHAPI_GRUPO_VERIFICACIONES: VERIF, WHAPI_TOKEN: 'token-falso-de-prueba-123', BAJA_CALENDLY_URL: 'https://calendly.com/x/renovacion', DISCORD_WEBHOOK_CLIENTES: WEBHOOK }
+const ENV_BASE = { WHATSAPP_BOT: 'encendido', BOT_ALTA_APROBADORES: TOMI, BAJA_APROBADORES_DESPEDIDA: AYLU, WHAPI_GRUPO_VERIFICACIONES: VERIF, WHAPI_TOKEN: 'token-falso-de-prueba-123', BAJA_CALENDLY_URL: 'https://calendly.com/x/renovacion', DISCORD_WEBHOOK_CLIENTES: WEBHOOK }
 
 describe('lista blanca común BOT_CLIENTES_PRUEBA', () => {
   test('parseo: IDs del CRM en mayúsculas, sin repetidos; lo demás se ignora', () => {
@@ -103,7 +106,8 @@ describe('config del modo prueba', () => {
     assert.deepEqual([...c.capacidades], ['baja_aviso_fin'])
   })
   test('faltantes: con la lista, se miran las variables de las capacidades de prueba aunque el general esté en seco', () => {
-    const f = CFG.faltantesBajas({ BOT_CLIENTES_PRUEBA: 'Z001' })
+    const f = CFG.faltantesBajas({ BOT_CLIENTES_PRUEBA: 'Z001', WHATSAPP_BOT: 'encendido' })
+    assert.ok(CFG.faltantesBajas({ BOT_CLIENTES_PRUEBA: 'Z001' }).includes('DISCORD_WEBHOOK_VERIFICACIONES'))
     assert.ok(f.includes('WHAPI_TOKEN')); assert.ok(f.includes('DISCORD_WEBHOOK_CLIENTES'))
     assert.ok(!f.includes('META_ANUNCIOS_TOKEN'))
   })

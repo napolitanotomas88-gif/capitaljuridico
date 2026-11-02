@@ -19,6 +19,9 @@ for (const k of Object.keys(process.env)) {
 const RED_BLOQUEADA = async () => { throw new Error('red bloqueada en los tests') }
 globalThis.fetch = RED_BLOQUEADA
 
+// El corte global (2/11/2026, lib/bot/whapi/corte.ts) frena toda escritura a Whapi: estos tests prueban el cliente de Whapi con
+// un fetch falso, así que abren la puerta SOLO en este proceso
+;(await import('../lib/bot/whapi/corte.ts')).permitirWhatsappEnPruebas()
 const W = await import('../lib/bot/whapi/webhook.ts')
 const R = await import('../lib/bot/whapi/ruta.ts')
 const C = await import('../lib/bot/whapi/cliente.ts')

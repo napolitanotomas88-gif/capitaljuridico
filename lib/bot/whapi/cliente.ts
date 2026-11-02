@@ -21,6 +21,7 @@
 //   · buscarComunidades: GET /communities paginado (100 por página, hasta 5 páginas) filtrando por nombre exacto y fecha
 //     (GET /groups no filtra por nombre: revisión 5).
 // El registro guarda lo que salió, con los textos recortados a 120 caracteres; nunca el token ni los archivos.
+import { MOTIVO_WHATSAPP_APAGADO, whatsappBotEncendido } from './corte'
 import type {
   ClienteWhapi, EnvioWhapi, FotoGrupo, GrupoWhapi, LlamadaWhapi, MedioDescargado, ParticipanteGrupo, RefMedio, ResultadoParticipantes,
   ResultadoQuitar,
@@ -160,6 +161,8 @@ export function crearClienteWhapi(op: OpcionesClienteWhapi): ClienteWhapiReal {
     if (!(restante >= MARGEN_MIN_MS)) throw new ErrorWhapi('pasajero', `Whapi ${p.metodo}: no queda tiempo para llamar (no se mandó nada)`, null, false)
     // WhatsApp seguro: con el número caído o suspendido no sale nada que no sea un GET: ni las escrituras, ni la subida de
     // un video (POST /media) ni la verificación de números (POST /contacts, que también toca WhatsApp). Tira 'sin_numero'
+    // Corte global (2/11/2026): sin WHATSAPP_BOT=encendido ninguna escritura sale a Whapi, aunque el número esté conectado
+    if (p.verbo !== 'GET' && !whatsappBotEncendido()) throw new ErrorWhapi('config', `Whapi ${p.metodo}: ${MOTIVO_WHATSAPP_APAGADO}`, null, false)
     if (p.verbo !== 'GET' && salud) await salud.antesDeEscribir(ctxSalud)
     const d = describir(p.metodo, p.args)
     registro.push(llamada(p.verbo, p.ruta, d.resumen, false, inicio))

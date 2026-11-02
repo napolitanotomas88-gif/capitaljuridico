@@ -31,7 +31,7 @@ import { palabrasClave } from './palabrasClave'
 import { vinculosDeAltas } from './fuenteAltas'
 import { compararTanda, type RepoGrabacion } from './vigia'
 import type { RepoMarca } from './marcaVigia'
-import type { DepsE01Whatsapp } from './e01Whatsapp'
+import type { DepsE01ParaEnviar, DepsE01Whatsapp } from './e01Whatsapp'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { guardiaWhapi } from '@/lib/bot/whapi/salud'
@@ -95,6 +95,19 @@ export function e01WhatsappReal(env: Record<string, string | undefined>): DepsE0
       catch (e) { return { ok: false, motivo: (e as Error)?.message ?? String(e) } }
     },
     env, esHabil: (d: Ymd) => esHabil(d),
+  }
+}
+
+// e01 sin WhatsApp (2/11/2026): el día 0 y los recordatorios quedan «para enviar» (📤, Gero M). Usa la misma vigencia.
+export function e01ParaEnviarReal(env: Record<string, string | undefined>): DepsE01ParaEnviar {
+  const w = e01WhatsappReal(env)
+  return {
+    pasosAbiertos: w.pasosAbiertos, docs: w.docs, vigente: w.vigente, env, esHabil: w.esHabil,
+    paraEnviar: async (p, texto) => {
+      const { paraEnviar } = await import('@/lib/bot/canal/salidaCliente')
+      const r = await paraEnviar({ pieza: 'e01', idCrm: p.id_crm, cliente: p.cliente, clave: String(p.id), texto, abrir: '/clientes/edicion/pendientes', datos: { paso: p.id } })
+      return r.estado !== 'error'
+    },
   }
 }
 
@@ -167,6 +180,7 @@ export function depsReales(op: { inicio?: number; dry?: boolean; env?: Record<st
     listarDocs: Guiones.listarDocs,
     marca: REPO_MARCA,
     e01Whatsapp: e01WhatsappReal(env),
+    e01ParaEnviar: e01ParaEnviarReal(env),
   }
   deps.retomar = o => retomarDiario(deps, o)
   // Webhook: con la transcripción guardada, si la tanda ya cerró y no espera otra, cruce simple (Claude lo hace el vigía)

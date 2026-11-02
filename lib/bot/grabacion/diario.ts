@@ -17,12 +17,14 @@ import type * as Guiones from '@/lib/edicion/db/guiones'
 import { calcularE01, habilesEntre } from './seguimiento'
 import { correrVigia, pasadaCompleta, ymdAR, type DepsVigia, type OpcionesFase, type ResultadoFases, type ResultadoVigia } from './vigia'
 import { barrerColgadas, inicioDelDiaAR } from './transcripcion'
-import { enviarE01, type DepsE01Whatsapp } from './e01Whatsapp'
+import { enviarE01, paraEnviarE01, type DepsE01ParaEnviar, type DepsE01Whatsapp } from './e01Whatsapp'
 
 export interface DepsDiario extends DepsVigia {
   listarDocs: typeof Guiones.listarDocs
   /** e01 por WhatsApp (e01Whatsapp.ts). Sin él (los fakes de los tests) no se manda nada; con él, solo si E01_WHATSAPP=real. */
   e01Whatsapp?: DepsE01Whatsapp
+  /** e01 sin WhatsApp (2/11/2026): el día 0 y los recordatorios quedan «para enviar» (📤). Sin él, nada. */
+  e01ParaEnviar?: DepsE01ParaEnviar
 }
 
 const motivo = (e: unknown): string => ((e as Error)?.message ?? String(e)).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 200)
@@ -195,6 +197,13 @@ export async function retomarDiario(deps: DepsDiario, op: OpcionesFase & { corri
       const w = await enviarE01(deps.e01Whatsapp, { ahora, modo: deps.modo, deadline: op.deadline })
       for (const a of w.avisar) out.extra.push({ tipo: 'error', proceso: 'e01 por WhatsApp', motivo: a })
     } catch (e) { errores.push(`e01 por WhatsApp: ${motivo(e)}`) }
+  }
+  // e01 sin WhatsApp: el texto queda «para enviar» (idempotente por paso, corre en cada vuelta)
+  if (deps.e01ParaEnviar && hecha('e01') && queda() > 15_000) {
+    try {
+      const w = await paraEnviarE01(deps.e01ParaEnviar, { ahora, modo: deps.modo, deadline: op.deadline })
+      for (const e of w.errores.slice(0, 3)) out.extra.push({ tipo: 'error', proceso: 'e01 para enviar', motivo: e })
+    } catch (e) { errores.push(`e01 para enviar: ${motivo(e)}`) }
   }
   // resumen (necesita el e01 del día)
   if (!hecha('resumen') && hecha('e01') && esDiaDeDaily(hoy, deps.esHabil) && yaEsHoraDelResumen(ahora) && queda() > 10_000) {

@@ -7,7 +7,8 @@ import { baseConfigurada } from '@/lib/edicion/db/base'
 import { corridasDesde, ultimaCorrida } from '@/lib/edicion/db/corridas'
 import { listarVideos } from '@/lib/edicion/operativo'
 import { conArchivadosActuales } from '@/lib/clientes/archivados'
-import { despacharNotifWhatsappReal } from '@/lib/notificaciones/whatsapp/servidor'
+import { despacharNotifDiscordReal } from '@/lib/notificaciones/discord/servidor'
+import { recordarParaEnviar } from '@/lib/bot/canal/salidaCliente'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -42,7 +43,9 @@ export async function POST(req: Request) {
   }
   // Salida única de WhatsApp de la bandeja (docs/NOTIF-WHATSAPP.md): el vigía corre cada 15 min de 8 a 22 y es su reloj.
   // Con NOTIF_WHATSAPP apagado no hace nada. Va aparte del modo de Edición y nunca frena al vigía.
-  after(() => despacharNotifWhatsappReal().then(() => undefined).catch(e => { console.error('notif-whatsapp: falla inesperada —', motivo(e)) }))
+  // Sin WhatsApp (2/11/2026): la bandeja central sale por Discord y se recuerdan los mensajes «para enviar» sin marcar
+  after(() => despacharNotifDiscordReal().then(() => undefined).catch(e => { console.error('notif-discord: falla inesperada —', motivo(e)) }))
+  after(() => recordarParaEnviar().then(() => undefined).catch(e => { console.error('para-enviar: falla inesperada —', motivo(e)) }))
   if (modoEdicion() !== 'real') return json({ ok: true, dry: true, nada: 'EDICION_MODO no es real: el vigía no corre (probá con ?dry=1)' }, 202)
   after(async () => {
     try {
