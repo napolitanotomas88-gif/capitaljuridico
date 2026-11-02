@@ -26,13 +26,21 @@ export interface GuionChip { numero: number; parrafos: ParrafoChip[] }
 
 /** Cada guion como va debajo de su chip «Video:»: por sección, «HOOK» (negrita), «Velocidad N», «(indicación)» (resaltada),
  *  el texto y un renglón vacío. Sin título ni «para tener a mano»: los Docs de los clientes no los llevan. */
+/** La indicación ya puede venir entre paréntesis (una edición a mano): se sacan los de afuera para no dejar «((…))». */
+export function sinParentesis(t: string): string {
+  let x = t.trim()
+  const envuelve = (y: string) => { if (!y.startsWith('(') || !y.endsWith(')')) return false; let n = 0; for (let i = 0; i < y.length; i++) { n += y[i] === '(' ? 1 : y[i] === ')' ? -1 : 0; if (n === 0 && i < y.length - 1) return false } return n === 0 }
+  while (envuelve(x)) x = x.slice(1, -1).trim()
+  return x
+}
+
 export function guionesParaChips(fila: FilaTanda): GuionChip[] {
   return Object.values(fila.guiones).map(g => g.guion).sort((a, b) => a.numero - b.numero).map(g => ({
     numero: g.numero,
     parrafos: g.secciones.flatMap((s): ParrafoChip[] => [
       { tipo: 'seccion', texto: NOMBRE_SECCION[s.seccion] },
       { tipo: 'velocidad', texto: `Velocidad ${s.velocidad}` },
-      { tipo: 'indicacion', texto: `(${s.indicacion})` },
+      { tipo: 'indicacion', texto: `(${sinParentesis(s.indicacion)})` },
       { tipo: 'texto', texto: s.texto },
       { tipo: 'vacio', texto: '' },
     ]),
