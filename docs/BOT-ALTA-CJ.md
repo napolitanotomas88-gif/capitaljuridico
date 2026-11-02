@@ -460,6 +460,9 @@ Decisión de RESPONSABLE_HUB del 24/10: **los socios del cliente también recibe
 
 ## Carpeta de Drive del cliente (paso 4, 24/10/2026)
 
+> **REGLA (RESPONSABLE_HUB, 2/11/2026): toda alta y todo cliente activo tiene los 5 elementos.** Adentro de la carpeta «<Nombre> - C.J» (en Clientes) van siempre **Crudos - X**, **Editados - X**, **Marca - X**, el Doc **Guiones - X** (copia de la plantilla oficial) y **Bienvenida - <Nombre>**, registrados en el Despacho (Doc de guiones «listo», Crudos / Editados / Marca en el registro del vigía con el ID, carpeta del cliente vinculada). Cada vez que se carga un alta, el paso Drive arma todo eso; si la carpeta ya existía (armada a mano), la reutiliza y completa lo que falte, sin duplicar. Y la revisión diaria **«Drive completo»** (más abajo) se lo completa a los clientes activos a los que les falte algo. La bienvenida es parte del alta: la revisión diaria solo se la agrega a los clientes de 7 días o menos (a uno de hace meses no se le arma una).
+
+
 Código: `lib/bot/alta/driveCliente.ts`, con `prepararDriveCliente(a, { modo: 'real' | 'simulacion', plantillaGuionesId, guardado?, nombreConfirmado? })`. Los nombres salen de `lib/bot/alta/nombreCliente.ts`, el mismo normalizador que usa la bienvenida. Tests: `scripts/test-bot-drive.mjs`. Prueba: `scripts/bot-drive-prueba-real.mjs` (con `lib/bot/alta/drivePrueba.ts`).
 
 **Convención real** (revisada el 24/10 en las carpetas que arma COORDINACION dentro de "Clientes", `<ID_PRIVADO_CONFIGURADO>`: CUENTA_QA CUENTA_QA, CUENTA_QA, CUENTA_QA, CUENTA_QA CUENTA_QA, Bárbara B., Marti F.):
@@ -483,9 +486,11 @@ Clientes / CUENTA_QA CUENTA_QA - C.J
 **Qué hace en modo real:**
 1. Carpeta "<Nombre> - C.J" en Clientes. Sin esa carpeta no sigue.
    - **Primera corrida** (sin ids guardados): `crearCarpeta`. Si el puente devuelve una carpeta que **ya existía** (un homónimo, una que armó COORDINACION con ese nombre exacto o un intento anterior que no llegó a responder), **no crea nada adentro**: la carpeta queda pendiente con su link y un aviso en Verificaciones C.J (`esperaOk: 'carpeta_existente'`). Con el OK, el webhook guarda ese id con `aprobarCarpetaExistente(resultado)` y reintenta; si es de otro cliente, se responde con otro nombre (`nombreConfirmado`).
+   - **Carpeta armada a mano (2/11/2026):** si la carpeta que ya estaba es de **este** cliente, el alta sigue en esa **sin esperar el OK** y completa lo que falte. Lo decide `carpetaEsDelCliente()` (`lib/bot/alta/driveCompletoServidor.ts`): el CRM ya le dio el ID, la carpeta no está registrada a **otro** ID en el Despacho y en el CRM no hay otro cliente (de ningún estado) con el mismo nombre. Ante cualquier duda (o si no puede leer), espera el OK como antes.
    - **Intento dudoso:** si se perdió la respuesta de `crearCarpeta` (5xx, corte por tiempo), la carpeta que aparece después se acepta como del bot solo si su fecha de creación lo confirma (ver "Puente Drive" → "Reintentos"). Así un 500 no deja el alta esperando un OK por una carpeta que creó el propio bot, y un homónimo real sigue frenando.
    - **Reintentos:** trabaja con el id guardado en `cj_altas` (`guardado.carpeta`) y **no busca por nombre** en Clientes.
-2. En paralelo, adentro de esa carpeta: `crearCarpeta` Crudos y Editados, `copiarArchivo` de la plantilla como "Guiones - X" y `crearDoc` "Bienvenida - <Nombre>". Lo que ya tiene id guardado no se vuelve a pedir; lo demás se busca por nombre solo adentro de la carpeta del cliente, así que no se duplica.
+2. **Lo que ya hay adentro (2/11/2026):** si la carpeta no es nueva, la cuenta de servicio lista lo que tiene y lo reconoce por el **prefijo**, con cualquier sufijo (`clasificarHijos`: carpetas `crudo…`, `editad…`, `Marca…`; Docs `…guion…` y `Bienvenida…`, sin contar "Plantilla…"). Así un "Guiones - Apodo Apellido" puesto a mano no se duplica con el "Guiones - NombreA" del bot. Si no puede listar, sigue como antes (el puente busca por el nombre exacto).
+3. En paralelo, adentro de esa carpeta: `crearCarpeta` Crudos, Editados y Marca, `copiarArchivo` de la plantilla como "Guiones - X" y `crearDoc` "Bienvenida - <Nombre>". Lo que ya tiene id guardado no se vuelve a pedir; lo demás se busca por nombre solo adentro de la carpeta del cliente, así que no se duplica.
 - **Ids en `cj_altas`:** cada corrida devuelve `resultado.guardar` (los ids y links de la carpeta y de cada elemento: los de antes más lo que creó o reutilizó). El webhook lo guarda en el registro del paso Drive y lo pasa como `guardado` en el reintento. Una carpeta que espera el OK no entra en `guardar` hasta que se apruebe. Junto a `guardar` se guarda `resultado.intentoCarpeta` (la marca de un intento dudoso de la carpeta principal, o `null`) y vuelve como `intentoCarpeta`. Si el resultado trae `noReintentarAntesDe`, el paso no se repite antes de esa hora.
 - Si el puente todavía no tiene `copiarArchivo`, si no hay plantilla o si la plantilla no se llama "Plantilla…", los guiones quedan como **pendiente** (copiar la plantilla a mano) y el resto se hace igual.
 - No tira excepciones: devuelve el estado de cada elemento, con ids, links, pendientes y errores.
@@ -508,6 +513,25 @@ Clientes / CUENTA_QA CUENTA_QA - C.J
   - Si al empezar ya había una carpeta de prueba (de una corrida que no se limpió), el freno de homónimos no crea nada: la prueba la manda a la papelera y pide volver a correr.
   - `/clientes` y `/guiones` guardan Drive en caché 30 minutos: si alguien los abre durante la prueba, la carpeta puede aparecer ahí un rato.
 - **Corrida real del 24/10/2026: todo OK** (puente versión 3; plantilla `PLANTILLA_GUIONES_ID`). Comando: `node --experimental-strip-types --import ./scripts/ts-resolve.mjs --no-warnings scripts/bot-drive-prueba-real.mjs --real --plantilla="$PLANTILLA_GUIONES_ID"` (con `.env.local` cargado). Si el puente publicado no tiene `copiarArchivo` y `aPapeleraCarpeta`, el sondeo aborta y no se crea nada.
+
+## Drive completo: revisión diaria (2/11/2026)
+
+Regla: **todo cliente activo tiene su carpeta «<Nombre> - C.J» con Crudos, Editados, Marca y Guiones** (y la Bienvenida si arrancó hace 7 días o menos). Código: `lib/bot/alta/driveCompleto.ts` (núcleo, sin red) y `lib/bot/alta/driveCompletoServidor.ts` (dependencias reales). Ruta `/api/bot/drive-completo` (regla `propio`: solo `Bearer CRON_SECRET`), cron de `vercel.json` `30 12 * * *` = **9:30 de Argentina**. Tests: `scripts/test-bot-drive-completo.mjs`.
+
+**Qué hace, cliente por cliente** (ACTIVO en el CRM, línea agencia, con ID; sin archivados, sin «PRUEBA…», sin los «no cliente»; los más nuevos primero):
+1. **Busca su carpeta** en la raíz de Clientes: por el vínculo registrado (registro del vigía `cj_grab_carpetas` con vínculo alta / aylu / tomas / bot, Doc de guiones `cj_guiones_documentos`, `cj_altas`) o por el nombre exacto (normalizado, sin «- C.J» / «- SKWD»).
+2. **Una sola carpeta → la revisa**: lista lo que tiene (cuenta de servicio, solo lectura), lo reconoce por el prefijo y crea **solo lo que falta** con `prepararDriveCliente` (las mismas funciones del alta, idempotente: el puente busca por nombre adentro de la carpeta).
+3. **Ninguna carpeta y ningún parecido → la crea completa** (carpeta + Crudos, Editados, Marca, Guiones y, si es reciente, Bienvenida). Solo si arrancó hace **21 días o menos**: un cliente más viejo sin carpeta casi seguro tiene una con otro nombre.
+4. **Ambigüedad → no toca nada y avisa en 🛠️-operaciones** mencionando a COORDINACION y Gero M (una vez por situación, hasta 8 avisos por corrida): dos carpetas posibles; una carpeta registrada **fuera** de Clientes (suelta en Mi unidad o en Ex clientes: la cuenta de servicio no ve Mi unidad, así que las sueltas se detectan por el vínculo registrado); un homónimo en el CRM; la carpeta con su nombre registrada a otro ID; una carpeta con nombre parecido o que comparte parte del nombre (un apodo, solo el primer nombre, una dupla); o un cliente viejo sin carpeta. Cuando quede una sola carpeta en Clientes con su nombre (o vinculada en `/clientes/edicion`), la revisión la completa sola.
+5. **Alta en curso → no se mete**: si el cliente tiene un alta del motor sin terminar (incluidas las en **Fee**: el alta completa, con Drive, sigue con la primera cuota) y su paso Drive no está hecho, la carpeta la arma el alta (el puente busca y crea sin bloqueo: dos corridas a la vez podrían duplicar).
+6. **Registra en el Despacho**: Crudos / Editados / Marca (y la carpeta del cliente) en el registro del vigía con el ID (Crudos y Editados vigiladas; un vínculo de una persona no se pisa) y el Doc de guiones como «listo» si lo creó esta corrida o el cliente es de 7 días o menos y no tiene otro Doc vinculado (en Guiones ni en Edición).
+7. **Resumen**: un solo mensaje por día en 🧰-sistema-bot, y solo si completó, creó, registró algo o falló.
+
+**Tope:** 10 clientes con llamadas al Puente por corrida (`?tope=N`, máximo 25); el resto queda para el día siguiente. Corta a los 240 s.
+
+**Modos (`BOT_DRIVE_COMPLETO_MODO`):** `ensayo` (por defecto: lee todo y devuelve el plan, sin escribir en Drive ni en la base y sin avisar), `real`, `apagado`. `GET /api/bot/drive-completo?dry=1` es siempre un ensayo.
+
+**Primer ensayo contra producción (2/11/2026, 101 activos):** 6 sin nada que hacer, 2 con el alta en curso o en Fee (no se tocan), 13 ambiguos (aviso para revisar a mano), ninguna carpeta para crear y 80 con faltantes: 74 solo la carpeta **Marca** (no existía antes del 26/10), 5 Marca + Bienvenida (clientes de 7 días o menos que no pasaron por el bot) y 1 Marca + Guiones. Con el tope de 10 por día se completan en unas 8 corridas. Quedó en `real` ese mismo día.
 
 ## Contrato en PandaDoc (paso 9, 24/10/2026)
 

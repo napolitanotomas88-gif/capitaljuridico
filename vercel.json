@@ -75,6 +75,10 @@
     {
       "path": "/api/clientes/inactivos/cron",
       "schedule": "15 12 * * *"
+    },
+    {
+      "path": "/api/bot/drive-completo",
+      "schedule": "30 12 * * *"
     }
   ]
 }

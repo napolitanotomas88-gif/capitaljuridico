@@ -853,7 +853,9 @@ export async function pasoDrive(ctx: CtxPaso): Promise<SalidaPaso> {
   }
   const modo = ctx.real ? 'real' : 'simulacion'
   const plantilla = (ctx.deps.plantillaGuionesId ?? plantillaGuionesDesdeEntorno)()
-  const opciones = { modo, plantillaGuionesId: plantilla, guardado, nombreConfirmado, intentoCarpeta, hasta: ctx.hasta } as const
+  const crmPaso = ctx.pasos.crm
+  const idCrmAlta = ((crmPaso?.parcial?.id ?? (crmPaso?.resultado as { id?: string } | null)?.id) as string | undefined) ?? null
+  const opciones = { modo, plantillaGuionesId: plantilla, guardado, nombreConfirmado, intentoCarpeta, hasta: ctx.hasta, idCrm: idCrmAlta } as const
   let r: ResultadoDriveCliente
   try {
     if (!ctx.deps.drive) throw new Error('sin la dependencia de Drive')
