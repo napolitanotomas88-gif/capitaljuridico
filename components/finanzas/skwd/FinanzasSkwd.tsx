@@ -28,7 +28,8 @@ type Objetivo = { tabla: string; id: string | number }
 // Correcciones.jsx declara sus props con valores por defecto null (JavaScript): se le da el tipo real
 const CorreccionesConObjetivo = Correcciones as unknown as (p: { objetivo: Objetivo | null; onConsumido: () => void }) => React.ReactElement
 
-export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
+// base: dónde viven las pantallas (/finanzas; la prueba del diseño de cristal las monta en /finanzas/prueba)
+export function FinanzasSkwd({ vista, base: rutaBase = '/finanzas' }: { vista: VistaSkwd; base?: string }) {
   const router = useRouter()
   const params = useSearchParams()
   const [base, setBase] = useState<{ modo: 'token' | 'sin_config' | 'sin_acceso'; correo: string | null } | null>(null)
@@ -39,7 +40,7 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
   }, [])
   const correo = base?.correo ?? null
 
-  const irACorregir = (o: Objetivo) => router.push(`/finanzas/correcciones?tabla=${encodeURIComponent(o.tabla)}&id=${encodeURIComponent(String(o.id))}`)
+  const irACorregir = (o: Objetivo) => router.push(`${rutaBase}/correcciones?tabla=${encodeURIComponent(o.tabla)}&id=${encodeURIComponent(String(o.id))}`)
   const tabla = params.get('tabla'), id = params.get('id')
   // Mismo objeto mientras no cambie la dirección (Correcciones reacciona a cada objetivo nuevo)
   const objetivo = useMemo<Objetivo | null>(() => (vista === 'correcciones' && tabla && id ? { tabla, id: /^\d+$/.test(id) ? Number(id) : id } : null), [vista, tabla, id])
@@ -71,7 +72,7 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
               {vista === 'gastos' && <Gastos onCorregir={irACorregir} />}
               {vista === 'equipo' && <Equipo />}
               {vista === 'pagos-equipo' && <PagosEquipo onCorregir={irACorregir} />}
-              {vista === 'correcciones' && <CorreccionesConObjetivo objetivo={objetivo} onConsumido={() => router.replace('/finanzas/correcciones')} />}
+              {vista === 'correcciones' && <CorreccionesConObjetivo objetivo={objetivo} onConsumido={() => router.replace(`${rutaBase}/correcciones`)} />}
               {vista === 'estado' && <EstadoResultados />}
               {vista === 'tablero' && <Dashboard />}
               {vista === 'personales' && <GastosPersonales />}
