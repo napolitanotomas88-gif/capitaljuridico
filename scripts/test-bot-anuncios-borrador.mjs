@@ -24,7 +24,7 @@ function metaFalso(o = {}) {
       if (ruta.endsWith('/ads')) return o.ads ?? { data: [{ id: 'A1', creative: { object_story_spec: { page_id: 'P', instagram_user_id: 'IG', video_data: VIDEO_DATA }, degrees_of_freedom_spec: { creative_features_spec: { standard_enhancements: { enroll_status: 'OPT_OUT' }, video_auto_crop: { enroll_status: 'OPT_OUT' } } } }, insights: { data: [{ spend: '500' }] } }] }
       if (q?.fields === 'status') return { status: { video_status: o.estadoVideo ?? 'ready' } }
       if (ruta.endsWith('/thumbnails')) return { data: [{ uri: 'https://mini', is_preferred: true }] }
-      if (q?.fields === 'status,ads{status}') return o.chequeo ?? { status: 'PAUSED', ads: { data: [{ status: 'PAUSED' }, { status: 'PAUSED' }] } }
+      if (q?.fields === 'status,effective_status') { const r = o.chequeo?.(ruta, posts); return r ?? { status: 'PAUSED', effective_status: 'PAUSED' } }
       throw new Error(`GET inesperado ${ruta}`)
     },
     async post(ruta, cuerpo) { posts.push([ruta, cuerpo]); return { id: `N${++n}` } },
@@ -137,9 +137,51 @@ describe('armarBorrador', () => {
     await assert.rejects(B.armarBorrador(subida, fila, VIDS, JUNTOS, { graph: m.graph, ahora: () => ahora, esperar: async ms => { ahora += ms } }, AHORA + 21_000), /se acabó el tiempo|no terminó de procesarlos/)
     assert.equal(m.posts.filter(p => p[0].endsWith('/adsets')).length, 0)
   })
-  test('si algo no quedó en pausa, lo grita', async () => {
-    const m = metaFalso({ chequeo: { status: 'ACTIVE', ads: { data: [] } } })
-    await assert.rejects(B.armarBorrador(subida, fila, VIDS, JUNTOS, deps(m), AHORA + 60_000), /no quedó en pausa/)
+  test('relee CADA anuncio y CADA conjunto por su ID; con todo en pausa no escribe nada más', async () => {
+    const m = metaFalso()
+    const b = await B.armarBorrador(subida, fila, VIDS, JUNTOS, deps(m), AHORA + 60_000)
+    const leidos = m.gets.filter(g => g[1]?.fields === 'status,effective_status').map(g => g[0])
+    assert.deepEqual(leidos.sort(), [...b.conjuntos.map(c => c.id), ...b.anuncios].sort())
+    assert.ok(!m.posts.some(p => p[1]?.status && p[1].status !== 'PAUSED'), 'nunca manda un estado que no sea PAUSED')
+  })
+  test('un anuncio que quedó ACTIVO: lo vuelve a pausar, lo relee y lo grita con ErrorPausa', async () => {
+    let creado = null
+    const m = metaFalso({ chequeo: (ruta, posts) => {
+      creado ??= posts.find(p => p[0].endsWith('/ads'))?.[1] && `N${posts.findIndex(p => p[0].endsWith('/ads')) + 1}`
+      if (ruta !== creado) return null
+      return posts.some(p => p[0] === ruta && p[1].status === 'PAUSED') ? { status: 'PAUSED' } : { status: 'ACTIVE', effective_status: 'PENDING_REVIEW' }
+    } })
+    const e = await B.armarBorrador(subida, fila, VIDS, JUNTOS, deps(m), AHORA + 60_000).catch(x => x)
+    assert.ok(B.esErrorPausa(e))
+    assert.match(e.message, /no quedó en pausa/)
+    assert.deepEqual(e.sueltas, [{ id: creado, tipo: 'anuncio', estado: 'ACTIVE', repausada: true }])
+    assert.deepEqual(m.posts.at(-1), [creado, { status: 'PAUSED' }])
+  })
+  test('campaña nueva ACTIVA que no se deja pausar: ErrorPausa pide pausarla a mano', async () => {
+    const g = { get: async (id) => ({ status: id === 'C' ? 'ACTIVE' : 'PAUSED' }), post: async () => { throw new Error('Meta #200: sin permiso') } }
+    const e = await B.verificarEnPausa(g, [{ id: 'C', tipo: 'campaña' }, { id: 'S', tipo: 'conjunto' }, { id: 'A', tipo: 'anuncio' }]).catch(x => x)
+    assert.ok(B.esErrorPausa(e))
+    assert.deepEqual(e.sueltas, [{ id: 'C', tipo: 'campaña', estado: 'ACTIVE', repausada: false }])
+    assert.match(e.message, /pausalo YA a mano \(C\)/)
+  })
+})
+
+describe('aviso si algo no quedó en pausa (📣-ads y 🧰)', async () => {
+  const AP = await import('../lib/bot/anuncios/avisoPausa.ts')
+  test('ErrorPausa: dos alertas (ads con Valen y Tomás, sistema con Tomás) y vuelve a tirar', async () => {
+    const enviadas = []
+    const err = new B.ErrorPausa([{ id: 'A1', tipo: 'anuncio', estado: 'ACTIVE', repausada: true }])
+    await assert.rejects(AP.avisarSiNoQuedoEnPausa(async () => { throw err }, { cliente: 'Cliente X', cuenta: 'act_9' }, { alertar: async a => { enviadas.push(a); return { estado: 'enviado' } }, esErrorPausa: B.esErrorPausa }), /no quedó en pausa/)
+    assert.deepEqual(enviadas.map(a => a.canal), ['ads', 'sistema'])
+    assert.deepEqual(enviadas[0].menciones, ['valentino', 'tomas'])
+    assert.ok(enviadas.every(a => a.urgente && a.lineas.some(l => /A1: estaba ACTIVE → lo volví a pausar/.test(l))))
+  })
+  test('otro error o todo bien: sin alertas', async () => {
+    const enviadas = []
+    const d = { alertar: async a => { enviadas.push(a); return { estado: 'enviado' } }, esErrorPausa: B.esErrorPausa }
+    await assert.rejects(AP.avisarSiNoQuedoEnPausa(async () => { throw new Error('Meta #100') }, { cliente: 'X', cuenta: 'act_9' }, d))
+    assert.equal(await AP.avisarSiNoQuedoEnPausa(async () => 7, { cliente: 'X', cuenta: 'act_9' }, d), 7)
+    assert.equal(enviadas.length, 0)
   })
 })
 
