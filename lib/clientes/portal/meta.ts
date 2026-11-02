@@ -49,7 +49,11 @@ async function leerCuenta(cuenta: string, token: string): Promise<{ ok: true; fi
   return { ok: true, filas }
 }
 
-/** Lee las cuentas del portal. Lanza solo si NO se pudo leer ninguna (así la caché no guarda un vacío por una falla). */
+/**
+ * Lee las cuentas del portal. Lanza si falló ALGUNA (revisión 2/11/2026): una suma parcial le mostraría al cliente menos
+ * inversión y más profit del real, y quedaría en caché una hora. Así el cliente ve «lo estamos actualizando», el equipo ve qué
+ * cuenta falló y la caché no guarda nada.
+ */
 export async function leerAnunciosPortal(cuentas: readonly string[]): Promise<LecturaMeta> {
   const validas = cuentas.filter(c => ID_CUENTA_META.test(c))
   if (!validas.length) return { filas: [], leidas: 0, errores: [] }
@@ -75,6 +79,6 @@ export async function leerAnunciosPortal(cuentas: readonly string[]): Promise<Le
     if (ok) leidas++
     else errores.push(`Cuenta …${cuenta.slice(-4)}: ${sinTokens(ultimo.message ?? 'error')}${ultimo.code ? ` (#${ultimo.code})` : ''}`.replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 200))
   }
-  if (!leidas) throw new Error(errores.join(' · ') || 'No se pudo leer Meta')
+  if (errores.length || !leidas) throw new Error(errores.join(' · ') || 'No se pudo leer Meta')
   return { filas, leidas, errores }
 }

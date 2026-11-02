@@ -58,6 +58,12 @@ describe('barra de casos', () => {
     assert.equal(casosDelMes(h, '2026-12'), null)
     assert.equal(casosDelMes([], '2026-11'), null)
   })
+  test('primer mes del contador: sin conteo anterior, la base es el primer conteo del mes (un solo conteo: null)', () => {
+    const h = [{ fecha: '2026-11-02', casos: 70 }]
+    assert.equal(casosDelMes(h, '2026-11'), null)
+    assert.equal(casosDelMes([...h, { fecha: '2026-11-30', casos: 130 }], '2026-11'), 60)
+    assert.equal(casosDelMes([...h, { fecha: '2026-11-30', casos: 130 }, { fecha: '2026-12-31', casos: 190 }], '2026-12'), 60)
+  })
 })
 
 describe('cálculos del reporte', () => {
@@ -140,13 +146,9 @@ describe('Meta: solo las cuentas del portal, solo lectura', () => {
     assert.ok(pedidos.length > 0)
     for (const p of pedidos) assert.match(new URL(p).pathname, /^\/v23\.0\/act_111111(\/insights)?$/)
   })
-  test('una cuenta en otra moneda no se suma (aviso para el equipo, sin token en el texto)', async () => {
-    usarFetchMetaDePrueba(graph({ act_111111: { data: [] }, act_222222: { moneda: 'ARS', data: [{ date_start: '2026-10-01', spend: '999999' }] } }))
-    const r = await leerAnunciosPortal(['act_111111', 'act_222222'])
-    assert.equal(r.filas.length, 0)
-    assert.equal(r.errores.length, 1)
-    assert.match(r.errores[0], /ARS/)
-    assert.doesNotMatch(r.errores[0], /tok-falso/)
+  test('una cuenta en otra moneda (o que falla) frena el reporte entero: nunca una suma parcial; aviso sin token', async () => {
+    usarFetchMetaDePrueba(graph({ act_111111: { data: [{ date_start: '2026-10-01', campaign_name: '[DM]', spend: '50' }] }, act_222222: { moneda: 'ARS', data: [{ date_start: '2026-10-01', spend: '999999' }] } }))
+    await assert.rejects(() => leerAnunciosPortal(['act_111111', 'act_222222']), e => /ARS/.test(e.message) && !/tok-falso/.test(e.message))
   })
   test('si no se puede leer ninguna, lanza (así la caché no guarda un vacío); sin cuentas, vacío sin pedir nada', async () => {
     usarFetchMetaDePrueba(graph({}))

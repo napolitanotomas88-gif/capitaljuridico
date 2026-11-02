@@ -28,8 +28,8 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
     !ver.plan && !avance ? null : { etiqueta: 'Cómo vamos', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', ...(ver.plan ? { href: '#plan', accion: 'Ver el plan' } : {}) },
     { etiqueta: 'Guiones listos', icono: 'guiones', valor: String(guiones), contexto: p.tandas.length ? `En ${p.tandas.length} ${p.tandas.length === 1 ? 'tanda' : 'tandas'}` : 'Se están preparando', ...(ver.guiones ? { href: '#guiones', accion: 'Ver los guiones' } : {}) },
   ]
-  // Casos ganados (2/11/2026): segunda tarjeta del resumen cuando hay conteo y la sección se ve
-  if (ver.progreso && barra) resumen.splice(1, 0, { etiqueta: 'Casos ganados', icono: 'estrategia', valor: <>{numero(barra.casos)}<span className="cj-dato__unidad">de {numero(barra.meta)}</span></>, contexto: barra.hito ? (barra.hito.logrado ? `Meta de ${numero(barra.hito.casos)} lograda` : `Próxima meta: ${numero(barra.hito.casos)}${barra.hito.fecha ? ` al ${fechaLarga(barra.hito.fecha)}` : ''}`) : `${Math.floor(barra.porcentaje)} % del objetivo`, href: '#progreso', accion: 'Ver el avance' })
+  // Casos conseguidos (2/11/2026): segunda tarjeta del resumen cuando hay conteo y la sección se ve
+  if (ver.progreso && barra) resumen.splice(1, 0, { etiqueta: 'Casos conseguidos', icono: 'estrategia', valor: <>{numero(barra.casos)}<span className="cj-dato__unidad">de {numero(barra.meta)}</span></>, contexto: barra.hito ? (barra.hito.logrado ? `Meta de ${numero(barra.hito.casos)} lograda` : `Próxima meta: ${numero(barra.hito.casos)}${barra.hito.fecha ? ` al ${fechaLarga(barra.hito.fecha)}` : ''}`) : `${Math.floor(barra.porcentaje)} % del objetivo`, href: '#progreso', accion: 'Ver el avance' })
   const intro = ver.plan
     ? 'Acá ves el objetivo que nos propusimos, el camino para llegar y cómo viene cada paso. Lo vamos actualizando con cada avance.'
     : 'Acá ves el objetivo que nos propusimos, cómo vamos y tus guiones. Lo vamos actualizando con cada avance.'
@@ -63,7 +63,7 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
       )}
 
       {ver.progreso && (
-      <Bloque titulo="Casos ganados" etiqueta="El objetivo, en números" id="progreso">
+      <Bloque titulo="Casos conseguidos" etiqueta="El objetivo, en números" id="progreso">
         <ProgresoCasosVista progreso={datos.progreso} />
       </Bloque>
       )}
