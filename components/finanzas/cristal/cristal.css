@@ -1,0 +1,652 @@
+/* ── Finanzas · PRUEBA del diseño de cristal (1/11/2026) ──────────────────────────────────────────────────────────────
+   Réplica del video de referencia («Glassy SideBar»): cristal ahumado con desenfoque sobre una foto, píldoras de cristal,
+   tooltips claros, insignias, puntos de color, chips de atajo e interruptor. Tomás: «no es una sidebar, es todo el diseño
+   en sí» → el mismo material se aplica a TODA la interfaz de Finanzas (tarjetas, tablas, formularios, botones, chips).
+   Paleta Capital Jurídico apagada: verde Toga de base; el ámbar cálido del video pasa a oro mate (#BE8F49) y el rojo de las
+   insignias a bordó. Sin glow dorado ni brillos chillones (estética sobria). Todo vive bajo .fin-cristal: no toca nada más.
+   Accesibilidad: texto marfil sobre cristal oscuro (≥ 7:1), foco visible oro, prefers-reduced-motion y -transparency. */
+
+@property --inflar { syntax: '<length>'; inherits: false; initial-value: 0px; }
+
+.fin-cristal {
+  /* Material */
+  --cr-curva: cubic-bezier(0.22, 1, 0.36, 1);
+  --cr-resorte: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --cr-tinte: rgba(4, 27, 22, 0.42);
+  --cr-degradado: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 18%, rgba(0, 14, 10, 0.1) 45%, rgba(190, 143, 73, 0.13) 78%, rgba(190, 143, 73, 0.19) 100%);
+  --cr-blur: blur(22px) saturate(140%);
+  --cr-brillo: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  --cr-sombra: 0 20px 50px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15);
+  --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.38);
+  --cr-panel-borde: rgba(255, 255, 255, 0.15);
+  --cr-panel-borde-arriba: rgba(255, 255, 255, 0.32);
+  /* Texto y acentos sobre cristal oscuro */
+  --cr-texto: rgba(250, 246, 238, 0.95);
+  --cr-texto-2: rgba(242, 234, 220, 0.7);
+  --cr-texto-3: rgba(242, 234, 220, 0.52);
+  --cr-oro: #d0a45a;
+  --cr-oro-mate: #be8f49;
+  --cr-bordo: #9e3442;
+  --cr-bordo-texto: #eaa3ab;
+  --cr-ok: #95d4b8;
+  --cr-atencion: #e8c58a;
+  --cr-sans: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --cr-serif: 'Sitka Display', 'Sitka Heading', 'Sitka', var(--font-source-serif), Georgia, serif;
+
+  /* Tokens del Despacho (cj.css / tarjetas.css) pasados a cristal oscuro */
+  --cj-tinta: #0b2c25;
+  --cj-sala: rgba(255, 255, 255, 0.06);
+  --cj-hueso: var(--cr-texto);
+  --cj-hueso-2: rgba(255, 255, 255, 0.85);
+  --cj-humo: var(--cr-texto-2);
+  --cj-humo-claro: var(--cr-texto-2);
+  --cj-texto-2: var(--cr-texto-2);
+  --cj-laton: var(--cr-oro);
+  --cj-dorado: var(--cr-oro-mate);
+  --cj-borgona: #7f202c;
+  --cj-error: var(--cr-bordo-texto);
+  --cj-ok: var(--cr-ok);
+  --cj-atencion: var(--cr-atencion);
+  --cj-alerta: var(--cr-atencion);
+  --cj-filete: rgba(255, 255, 255, 0.1);
+  --cj-filete-fuerte: rgba(255, 255, 255, 0.2);
+  --cj-control: rgba(255, 255, 255, 0.3);
+  --cj-radio: 12px;
+  --cj-radio-m: 18px;
+  --cj-radio-l: 22px;
+  --cj-superficie: var(--cr-panel);
+  --cj-sombra: var(--cr-brillo), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
+  --cj-sombra-2: 0 18px 40px -18px rgba(0, 0, 0, 0.6);
+  --cj-tono-ok: var(--cr-ok);
+  --cj-tono-atencion: var(--cr-atencion);
+  --cj-tono-alerta: var(--cr-bordo-texto);
+  --cj-tono-neutro: var(--cr-texto-2);
+  --cj-radio-tarjeta: 22px;
+  --cj-fuente-titulo: var(--cr-serif);
+  --cj-fuente-texto: var(--cr-sans);
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #03221c;
+  color: var(--cr-texto);
+  color-scheme: dark;
+  font-family: var(--cr-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
+.fin-cristal ::selection { background: rgba(208, 164, 90, 0.45); color: #fff; }
+.fin-cristal a { color: inherit; }
+.fin-cristal :focus-visible { outline: 2px solid var(--cr-oro); outline-offset: 2px; }
+
+/* ── Fondo: el logo de Capital Jurídico hace de la foto del living (pared clara arriba, masa oscura al medio, oro abajo) ── */
+.fin-cristal__fondo { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.fin-cristal__fondo > span { position: absolute; inset: 0; }
+.fin-cristal__fondo > .fin-cristal__logo { inset: auto; left: 50%; top: 50%; }
+.fin-cristal__manchas {
+  background:
+    radial-gradient(70vmax 42vmax at 50% -6%, rgba(120, 160, 140, 0.32), transparent 62%),
+    radial-gradient(60vmax 40vmax at 55% 52%, rgba(0, 8, 6, 0.5), transparent 70%),
+    radial-gradient(70vmax 38vmax at 62% 112%, rgba(190, 143, 73, 0.42), transparent 64%),
+    radial-gradient(40vmax 30vmax at 4% 88%, rgba(127, 32, 44, 0.18), transparent 70%),
+    linear-gradient(180deg, #0f4236 0%, #06302a 38%, #03221c 62%, #0a2b20 100%);
+}
+.fin-cristal__logo {
+  /* El imagotipo (isotipo | filete | nombre), grande y en oro mate: lo que el cristal esmerila */
+  left: 50%; top: 50%;
+  width: min(86vw, 1180px);
+  aspect-ratio: 927.41 / 446.75;
+  translate: calc(-50% + var(--cr-logo-x, 0px)) -52%;
+  background: linear-gradient(180deg, #e6cd9c 0%, #be8f49 55%, #8c6631 100%);
+  -webkit-mask: url('/marca/logo-claro.svg') center / contain no-repeat;
+  mask: url('/marca/logo-claro.svg') center / contain no-repeat;
+  opacity: 0.42;
+  transition: translate 300ms var(--cr-curva), opacity 400ms ease;
+}
+.fin-cristal[data-nav='panel'] { --cr-logo-x: 110px; }
+.fin-cristal__grano {
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+}
+/* Modo nocturno: el fondo baja de luz y el cristal se ahúma más */
+.fin-cristal[data-noche='true'] { --cr-tinte: rgba(2, 14, 11, 0.62); --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.04) 100%), rgba(2, 16, 13, 0.55); }
+.fin-cristal[data-noche='true'] .fin-cristal__manchas { filter: brightness(0.55) saturate(0.85); }
+.fin-cristal[data-noche='true'] .fin-cristal__logo { opacity: 0.28; }
+.fin-cristal__manchas { transition: filter 400ms ease; }
+
+.fin-cristal__saltar { position: fixed; left: 16px; top: -60px; z-index: 60; padding: 10px 16px; border-radius: 999px; background: #fbf7ef; color: #102a24 !important; font-weight: 600; text-decoration: none; }
+.fin-cristal__saltar:focus { top: 16px; }
+
+/* ── Contenido: corre al lado de la navegación con la misma curva ── */
+.fin-cristal__contenido {
+  position: relative; z-index: 1;
+  min-height: 100vh; min-height: 100dvh;
+  padding-left: calc(20px + 60px + 8px);
+  transition: padding-left 300ms var(--cr-curva) 90ms;
+}
+.fin-cristal[data-nav='panel'] .fin-cristal__contenido { padding-left: calc(20px + 258px + 8px); transition-delay: 0ms; }
+.fin-cristal__contenido:focus { outline: none; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   NAVEGACIÓN DE CRISTAL (riel 60 px ⇄ panel 258 px)
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.fcn {
+  position: fixed; z-index: 40;
+  left: 20px; top: 52px; bottom: 52px; width: 60px;
+  /* Al cerrar, primero se van las etiquetas (120 ms) y después se cierra el ancho */
+  transition: width 300ms var(--cr-curva) 90ms, top 300ms var(--cr-curva) 90ms, bottom 300ms var(--cr-curva) 90ms;
+}
+.fcn[data-abierta='true'] { width: 258px; top: 20px; bottom: 20px; transition-delay: 0ms; }
+
+.fcn-panel {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: 14px 11px 12px;
+  border-radius: 30px;
+  overflow: hidden;
+  background: var(--cr-degradado), var(--cr-tinte);
+  -webkit-backdrop-filter: var(--cr-blur);
+  backdrop-filter: var(--cr-blur);
+  box-shadow: var(--cr-brillo), var(--cr-sombra);
+  transition: border-radius 300ms var(--cr-curva) 90ms;
+}
+.fcn[data-abierta='true'] .fcn-panel { border-radius: 27px; transition-delay: 0ms; }
+/* Borde de 1 px con degradado: más brillante arriba */
+.fcn-panel::before {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  border-radius: inherit; padding: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.22) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* Etiquetas: entran con opacidad + x −8 → 0 + desenfoque 4 → 0, 180 ms, escalonadas 18 ms por fila, 60 ms después del ancho */
+.fcn-anima {
+  opacity: 0; transform: translateX(-8px); filter: blur(4px);
+  transition: opacity 120ms ease, transform 120ms ease, filter 120ms ease;
+}
+.fcn[data-abierta='true'] .fcn-anima {
+  opacity: 1; transform: none; filter: blur(0);
+  transition-duration: 180ms; transition-timing-function: var(--cr-curva);
+  transition-delay: calc(60ms + var(--i, 0) * 18ms);
+}
+
+/* Encabezado */
+.fcn-cab { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; padding-left: 1px; white-space: nowrap; }
+.fcn-logo {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, #a53a48 0%, #7f202c 58%, #5e1520 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(127, 32, 44, 0.35);
+  transition: transform 80ms ease;
+}
+.fcn-logo:active { transform: scale(0.94); }
+.fcn-logo__iso { width: 18px; height: 24px; background: #ecd8b0; -webkit-mask: url('/marca/isotipo.svg') center / contain no-repeat; mask: url('/marca/isotipo.svg') center / contain no-repeat; }
+.fcn-cab__textos { display: flex; flex-direction: column; min-width: 0; }
+.fcn-cab__textos strong { font-size: 15px; font-weight: 600; line-height: 1.25; color: rgba(255, 255, 255, 0.96); }
+.fcn-cab__textos span { font-size: 11.5px; font-weight: 400; line-height: 1.2; color: rgba(255, 255, 255, 0.6); }
+
+/* Buscador (en el riel queda la lupa sola) */
+.fcn-buscar {
+  flex: none; position: relative; display: flex; align-items: center;
+  height: 38px; margin-top: 14px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 220ms ease, border-color 220ms ease;
+  cursor: text;
+}
+.fcn[data-abierta='false'] .fcn-buscar { background: transparent; border-color: transparent; transition-delay: 0ms; }
+.fcn-buscar:focus-within { border-color: rgba(208, 164, 90, 0.7); }
+.fcn-buscar__lupa {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  background: transparent; border: 0; border-radius: 12px; color: rgba(255, 255, 255, 0.92); cursor: pointer;
+}
+.fcn-buscar__lupa svg { transform: translateY(var(--dy, 0px)) scale(var(--s, 1)); transition: transform 140ms ease-out; }
+.fcn-buscar input {
+  flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; margin: 0;
+  font: 400 13.5px/1 var(--cr-sans); color: var(--cr-texto);
+  background: transparent; border: 0; outline: none; -webkit-appearance: none; appearance: none;
+}
+.fcn-buscar input::placeholder { color: rgba(255, 255, 255, 0.55); }
+.fcn-buscar input::-webkit-search-cancel-button { display: none; }
+.fcn-kbd {
+  flex: none; display: grid; place-items: center; width: 26px; height: 17px; margin-right: 8px;
+  border-radius: 6px; background: rgba(255, 255, 255, 0.14);
+  font: 600 10px/1 var(--cr-sans); color: rgba(255, 255, 255, 0.7);
+}
+
+/* Lista */
+.fcn-lista {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  margin: 0 -11px; padding: 0 11px 4px;
+  overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+}
+.fcn-lista::-webkit-scrollbar { display: none; }
+.fcn-grupo { position: static; }
+
+/* Títulos de sección: en el riel son un separador corto (14 × 1, blanco 25 %) */
+.fcn-titulo { position: relative; height: 40px; }
+.fcn-titulo__texto {
+  position: absolute; left: 12px; bottom: 8px;
+  font: 600 10.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+.fcn-titulo__linea {
+  position: absolute; left: 12px; top: 50%; width: 14px; height: 1px; background: rgba(255, 255, 255, 0.25);
+  transition: opacity 160ms ease 120ms;
+}
+.fcn[data-abierta='true'] .fcn-titulo__linea { opacity: 0; transition-delay: 0ms; }
+
+/* Ítems: píldora de 36 px con paso de 40 */
+.fcn-item {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; height: 36px; margin: 2px 0; padding: 0 12px 0 10px;
+  border: 0; border-radius: 999px; background: transparent;
+  font: 500 14px/1 var(--cr-sans); color: rgba(255, 255, 255, 0.92); text-decoration: none; text-align: left;
+  white-space: nowrap; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 100ms ease;
+}
+/* En el riel el paso entre íconos es más amplio que en el panel (video: 46–50 px en el riel, 40 en el panel) */
+.fcn-item { transition: background-color 100ms ease, margin 240ms var(--cr-curva); }
+.fcn[data-abierta='false'] .fcn-item { margin: 5px 0; }
+.fcn-item:hover { background: rgba(255, 255, 255, 0.08); }
+.fcn-item[aria-current='page']:hover { background: transparent; }
+.fcn-ico {
+  position: relative; flex: none; display: grid; place-items: center; width: 18px; height: 18px;
+  transform: translateY(var(--dy, 0px)) scale(var(--s, 1));
+  transition: transform 140ms ease-out;
+}
+.fcn-item[data-presionado] .fcn-ico { transform: translateY(var(--dy, 0px)) scale(calc(var(--s, 1) * 0.9)); transition-duration: 80ms; }
+.fcn-txt { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+
+/* Punto rojo del riel (sin número): +7 / −7 del centro del ícono, aro del color del cristal; escala con el ícono */
+.fcn-punto-riel {
+  position: absolute; left: calc(50% + 7px - 4.5px); top: calc(50% - 7px - 4.5px);
+  width: 9px; height: 9px; border-radius: 50%; background: #a63746;
+  box-shadow: 0 0 0 1.5px rgba(14, 38, 32, 0.95);
+  transition: opacity 160ms ease 100ms, transform 200ms var(--cr-resorte) 100ms;
+}
+.fcn[data-abierta='true'] .fcn-punto-riel { opacity: 0; transform: scale(0.4); transition-delay: 0ms; }
+
+/* Insignias: estáticas; al expandir hacen pop (escala .6 → 1 con resorte) */
+.fcn-insignia { flex: none; display: grid; place-items: center; font: 600 11px/1 var(--cr-sans); font-variant-numeric: tabular-nums; }
+.fcn-insignia.fcn-anima { transform: scale(0.6); filter: none; }
+.fcn[data-abierta='true'] .fcn-insignia.fcn-anima { transform: scale(1); transition: opacity 180ms ease, transform 320ms var(--cr-resorte); transition-delay: calc(90ms + var(--i, 0) * 18ms); }
+.fcn-insignia--gris {
+  min-width: 24px; height: 18px; padding: 0 6px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15); color: rgba(255, 255, 255, 0.92);
+}
+.fcn-insignia--roja {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--cr-bordo); color: #fff; font-weight: 700;
+  box-shadow: 0 0 8px rgba(158, 52, 66, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Píldora activa de cristal fuerte (en el riel es el disco de 38 px): top y alto los mueve NavCristal con dos resortes */
+.fcn-activa {
+  position: absolute; z-index: 0; top: 0; height: 36px;
+  left: calc(11px - var(--inflar) / 2); right: calc(11px - var(--inflar) / 2);
+  border-radius: 999px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.21) 0%, rgba(255, 255, 255, 0.11) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+  transform: translateY(var(--dy, 0px)) scale(var(--s, 1));
+  transition: transform 140ms ease-out, opacity 160ms ease;
+}
+
+/* Subárbol de Reportes */
+.fcn-chevron { flex: none; display: grid; place-items: center; margin-left: auto; color: rgba(255, 255, 255, 0.7); }
+.fcn-chevron svg { transition: transform 200ms var(--cr-curva); }
+.fcn-arbol[data-desplegado='false'] .fcn-chevron svg { transform: rotate(180deg); }
+.fcn-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms ease-out; }
+.fcn[data-abierta='true'] .fcn-arbol[data-desplegado='true'] .fcn-sub { grid-template-rows: 1fr; }
+.fcn-sub__interior { min-height: 0; overflow: hidden; }
+.fcn-subitem {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 10px;
+  height: 33px; margin: 1px 0; padding-left: 41px; padding-right: 12px;
+  border-radius: 999px; font: 500 13px/1 var(--cr-sans); color: rgba(255, 255, 255, 0.8); text-decoration: none; white-space: nowrap;
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity 180ms ease, transform 180ms var(--cr-curva), background-color 100ms ease;
+}
+.fcn-subitem:hover { background: rgba(255, 255, 255, 0.07); }
+.fcn-subitem[aria-current='page'] { color: rgba(255, 255, 255, 0.96); }
+.fcn-subitem[aria-current='page']:hover { background: transparent; }
+.fcn[data-abierta='true'] .fcn-arbol[data-desplegado='true'] .fcn-subitem { opacity: 1; transform: none; transition-delay: calc(60ms + var(--j, 0) * 40ms); }
+.fcn-subitem__txt { overflow: hidden; }
+/* Línea guía: baja desde el ícono padre y cada subítem se conecta con un codo redondeado (radio 6) */
+.fcn-subitem::before, .fcn-subitem::after {
+  content: ''; position: absolute; left: 18.5px; pointer-events: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  transform: scaleY(0); transform-origin: top;
+  transition: transform 200ms ease-out;
+}
+.fcn-subitem::before { top: -2px; height: calc(50% + 2px); width: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.25); border-bottom-left-radius: 6px; }
+.fcn-subitem:first-child::before { top: -10px; height: calc(50% + 10px); }
+.fcn-subitem::after { top: calc(50% - 6px); bottom: -2px; }
+.fcn-subitem:last-child::after { display: none; }
+.fcn[data-abierta='true'] .fcn-arbol[data-desplegado='true'] .fcn-subitem::before,
+.fcn[data-abierta='true'] .fcn-arbol[data-desplegado='true'] .fcn-subitem::after { transform: scaleY(1); transition-delay: calc(var(--j, 0) * 40ms); }
+.fcn-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.fcn-punto--verde { background: #5aa88a; box-shadow: 0 0 6px rgba(90, 168, 138, 0.6); }
+.fcn-punto--oro { background: #be8f49; box-shadow: 0 0 6px rgba(190, 143, 73, 0.6); }
+.fcn-punto--bordo { background: #b45f6b; box-shadow: 0 0 6px rgba(180, 95, 107, 0.6); }
+.fcn-vacio { margin: 10px 12px; font-size: 12.5px; color: rgba(255, 255, 255, 0.55); white-space: nowrap; }
+
+/* Modo nocturno: separado por 20 px; interruptor 36 × 20 */
+.fcn-noche { flex: none; margin-top: 14px; padding-top: 6px; }
+.fcn-interruptor {
+  position: relative; flex: none; margin-left: auto; width: 36px; height: 20px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 120ms ease, transform 120ms ease, filter 120ms ease;
+}
+.fcn-interruptor__perilla {
+  position: absolute; left: 1px; top: 1px; width: 16px; height: 16px; border-radius: 999px;
+  background: #faf9f7; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 220ms var(--cr-resorte), width 120ms ease;
+}
+.fcn-item--noche[aria-checked='true'] .fcn-interruptor { background: var(--cr-oro-mate); border-color: rgba(255, 255, 255, 0.3); }
+.fcn-item--noche[aria-checked='true'] .fcn-interruptor__perilla { transform: translateX(16px); }
+.fcn-item--noche:active .fcn-interruptor__perilla { width: 20px; }
+.fcn-item--noche[aria-checked='true']:active .fcn-interruptor__perilla { transform: translateX(12px); }
+
+/* Usuario */
+.fcn-usuario { flex: none; margin-top: 8px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.12); transition: border-color 200ms ease 100ms; }
+.fcn[data-abierta='false'] .fcn-usuario { border-top-color: transparent; }
+.fcn-usuario__boton {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 6px 0 2px;
+  background: transparent; border: 0; border-radius: 999px; color: inherit; cursor: pointer; text-align: left;
+  transition: background-color 100ms ease;
+}
+.fcn-usuario__boton:hover { background: rgba(255, 255, 255, 0.06); }
+.fcn-avatar {
+  position: relative; flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(160deg, #efe6d4 0%, #cdb791 100%); color: #13302a;
+  font: 700 12px/1 var(--cr-sans); letter-spacing: 0.02em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.fcn-en-linea { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #4fa37a; box-shadow: 0 0 0 2px #14332c; }
+.fcn-usuario__textos { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.fcn-usuario__textos strong, .fcn-usuario__textos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fcn-usuario__textos strong { font-size: 13.5px; font-weight: 600; line-height: 1.3; color: rgba(255, 255, 255, 0.95); }
+.fcn-usuario__textos span { font-size: 11.5px; line-height: 1.3; color: rgba(255, 255, 255, 0.6); }
+.fcn-usuario__chev { flex: none; color: rgba(255, 255, 255, 0.55); }
+
+/* Botón circular expandir / contraer: mitad afuera del borde derecho, a la altura del logo */
+.fcn-plegar {
+  position: absolute; z-index: 3; top: 25px; left: calc(100% - 13px);
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; background: #faf7f0; color: #1a1a1a; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 150ms ease, transform 80ms ease;
+}
+.fcn-plegar:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 4px rgba(255, 255, 255, 0.2); }
+.fcn-plegar:active { transform: scale(0.9); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 6px rgba(255, 255, 255, 0.28); }
+
+/* Tooltip: píldora CLARA de cristal con texto oscuro; se desliza en Y con resorte y cambia su ancho */
+.fcn-tip {
+  position: absolute; z-index: 5; left: 0; top: 0;
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box;
+  height: 26px; padding: 0 10px; border-radius: 8px;
+  background: rgba(242, 236, 226, 0.8);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: #1d2b27; font: 500 12px/1 var(--cr-sans); white-space: nowrap; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+  translate: calc(var(--tip-x) + 9px) calc(var(--tip-y) - 50%);
+  opacity: 0; scale: 0.96;
+  transition: translate 170ms cubic-bezier(0.3, 1.25, 0.5, 1), width 170ms cubic-bezier(0.3, 1.25, 0.5, 1), opacity 120ms ease, scale 120ms ease;
+}
+.fcn-tip[data-visible='true'] { opacity: 1; scale: 1; translate: calc(var(--tip-x) + 15px) calc(var(--tip-y) - 50%); transition-duration: 170ms, 170ms, 160ms, 160ms; }
+.fcn-tip__extra { padding: 2px 5px; border-radius: 5px; background: rgba(16, 40, 34, 0.12); font-size: 10.5px; font-weight: 600; color: rgba(16, 40, 34, 0.7); }
+.fcn-tip--medir { visibility: hidden; left: -9999px; translate: none; transition: none; }
+
+/* Menú del usuario */
+.fcn-menu {
+  position: absolute; z-index: 6; left: calc(100% + 12px); bottom: 6px; min-width: 220px; padding: 6px;
+  border-radius: 18px; background: var(--cr-degradado), rgba(4, 27, 22, 0.6);
+  -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur);
+  border: 1px solid rgba(255, 255, 255, 0.22); box-shadow: var(--cr-brillo), var(--cr-sombra);
+  animation: cr-pop 180ms var(--cr-curva) both;
+}
+.fcn-menu form { margin: 0; }
+.fcn-menu__op {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 12px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--cr-texto);
+  font: 500 13.5px/1 var(--cr-sans); text-decoration: none; cursor: pointer; text-align: left;
+}
+.fcn-menu__op:hover { background: rgba(255, 255, 255, 0.08); }
+@keyframes cr-pop { from { opacity: 0; transform: translateX(-6px) scale(0.96); } }
+.fcn-velo { display: none; }
+
+/* Presionar: escala .97 en 80 ms */
+.fcn-item:active, .fcn-subitem:active, .fcn-usuario__boton:active, .fcn-menu__op:active { transform: scale(0.97); transition: transform 80ms ease, background-color 100ms ease; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   EL RESTO DE FINANZAS EN CRISTAL (mismos componentes de /finanzas; solo cambia la presentación)
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.fin-cristal .fin-verde {
+  font-family: var(--cr-sans); font-size: 14.5px;
+  --bg: transparent; --card: rgba(255, 255, 255, 0.06); --text: var(--cr-texto); --text-muted: var(--cr-texto-2); --border: rgba(255, 255, 255, 0.14);
+  --brand-orange: var(--cr-oro-mate); --brand-red: var(--cr-bordo-texto); --brand-yellow: var(--cr-oro);
+  --fin-bien: var(--cr-ok); --fin-bien-bg: rgba(149, 212, 184, 0.13);
+  --fin-mal: var(--cr-bordo-texto); --fin-mal-bg: rgba(200, 80, 96, 0.16);
+  --fin-aviso: var(--cr-atencion); --fin-aviso-bg: rgba(208, 164, 90, 0.15);
+  --fin-borde-control: rgba(255, 255, 255, 0.22); --fin-foco: var(--cr-oro);
+  --fin-pista: rgba(255, 255, 255, 0.1); --fin-sobre-dorado: #0b2c25; --fin-boton: #7f202c;
+  color: var(--cr-texto);
+}
+.fin-cristal .fin-fondo { background: transparent; min-height: 0; }
+.fin-cristal .fin-pagina { padding-top: 26px; gap: 22px; }
+.fin-cristal .fin-nav { display: none; }   /* la navegación es el riel / panel de cristal */
+.fin-cristal .fin-verde h2, .fin-cristal .fin-verde h3 { font-family: var(--cr-serif); }
+.fin-cristal .cj-titulo { color: rgba(255, 255, 255, 0.97); text-shadow: 0 1px 18px rgba(0, 0, 0, 0.35); }
+.fin-cristal .cj-etiqueta--laton { color: var(--cr-oro); }
+.fin-cristal .cj-texto-2 { color: var(--cr-texto-2); }
+
+/* Superficies de primer nivel = paneles de cristal ahumado */
+.fin-cristal :is(.cj-bloque, .cj-dato, .cj-vacio-guiado, .cj-panel),
+.fin-cristal .fin-skwd :is(.tabla-scroll, .kpi, .dash-card, .detalle, .resumen-principal, .tarjetas > div, .er-detalle, .login-tarjeta, .impacto, .form, .filtros, .alta-rapida) {
+  background: var(--cr-panel);
+  -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur);
+  border: 1px solid var(--cr-panel-borde); border-top-color: var(--cr-panel-borde-arriba);
+  box-shadow: var(--cr-brillo), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms var(--cr-curva), background-color 200ms ease;
+}
+/* Anidados (una tabla dentro de un bloque): cristal sin otro desenfoque encima */
+.fin-cristal .cj-bloque :is(.cj-dato, .tabla-scroll), .fin-cristal .fin-skwd :is(.detalle, .dash-card, .er-detalle, .resumen-principal, .tarjetas > div) :is(.tabla-scroll, .form, .filtros, .alta-rapida) {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+/* Formularios y barras de filtros: paneles de cristal (en el video nada de la interfaz queda suelto sobre la foto) */
+.fin-cristal .fin-skwd .form { padding: 18px 20px 20px; border-radius: 22px; gap: 12px 16px; }
+.fin-cristal .fin-skwd .filtros { padding: 8px; border-radius: 22px; gap: 8px; }
+.fin-cristal .fin-skwd .filtros > strong, .fin-cristal .fin-skwd .filtros > .aviso { padding: 0 6px; }
+.fin-cristal .fin-skwd .filtros > strong { font: 600 10.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.fin-cristal .fin-skwd .alta-rapida { padding: 12px 14px; border-radius: 22px; }
+.fin-cristal .fin-skwd .filtros .check { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; white-space: nowrap; border-radius: 999px; color: var(--cr-texto-2); }
+.fin-cristal .fin-skwd .filtros .check:hover { background: rgba(255, 255, 255, 0.06); color: var(--cr-texto); }
+/* Títulos de sección sueltos sobre el fondo: sombra suave para que el logo no les quite lectura */
+.fin-cristal .fin-skwd > :is(h2, h3), .fin-cristal .fin-skwd > p { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); }
+.fin-cristal .cj-bloque { border-radius: 24px; }
+.fin-cristal .cj-dato { border-radius: 20px; }
+.fin-cristal .fin-skwd { --sk-radio: 18px; --sk-campo: rgba(255, 255, 255, 0.08); --sk-thead: transparent; --sk-realce: rgba(255, 255, 255, 0.06); --sk-texto-3: var(--cr-texto-3);
+  --sk-oro-suave: rgba(190, 143, 73, 0.16); --sk-verde-suave: rgba(149, 212, 184, 0.09); }
+.fin-cristal .fin-skwd .detalle { border-top: 1px solid var(--cr-panel-borde-arriba); box-shadow: var(--cr-brillo), inset 0 2px 0 rgba(190, 143, 73, 0.6), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
+.fin-cristal .fin-skwd .resumen-principal { border-left: 1px solid var(--cr-panel-borde); box-shadow: var(--cr-brillo), inset 4px 0 0 rgba(190, 143, 73, 0.7), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
+.fin-cristal .cj-dato--destacado { box-shadow: var(--cr-brillo), inset 0 2px 0 rgba(190, 143, 73, 0.75), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
+.fin-cristal .fin-skwd :is(.tarjetas .destacada, .kpi.destacada, .tarjeta-alerta) { background: linear-gradient(180deg, rgba(190, 143, 73, 0.2), rgba(190, 143, 73, 0.08)), rgba(5, 30, 25, 0.38) !important; border-color: rgba(208, 164, 90, 0.55) !important; }
+
+/* Hover: el panel «se enciende» como la píldora (borde y brillo de cristal), sin moverse de lugar */
+@media (hover: hover) {
+  .fin-cristal :is(.cj-dato, .cj-bloque):hover,
+  .fin-cristal .fin-skwd :is(.kpi, .dash-card, .tarjetas > div):hover {
+    border-color: rgba(255, 255, 255, 0.24); border-top-color: rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.1), 0 20px 44px -18px rgba(0, 0, 0, 0.6);
+  }
+  .fin-cristal :is(.cj-dato):hover, .fin-cristal .fin-skwd :is(.kpi, .tarjetas > div):hover { transform: translateY(-2px); }
+}
+
+/* Títulos y números: la serif de la marca */
+.fin-cristal .cj-bloque__titulo, .fin-cristal .cj-dato__valor { color: rgba(255, 255, 255, 0.96); }
+.fin-cristal .cj-dato__etiqueta { font-size: 13.5px; color: var(--cr-texto-2); }
+.fin-cristal .cj-dato__icono, .fin-cristal .cj-vacio-guiado__icono { background: rgba(190, 143, 73, 0.16); color: var(--cr-oro); border-radius: 12px; }
+.fin-cristal .fin-skwd h2::after { background: linear-gradient(90deg, var(--cr-oro-mate), rgba(190, 143, 73, 0)); width: 64px; }
+.fin-cristal .fin-skwd .kpi strong { color: rgba(255, 255, 255, 0.96); }
+
+/* Estados (ícono + texto) en píldora de cristal */
+.fin-cristal .cj-estado { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); }
+.fin-cristal .cj-estado--ok { background: rgba(149, 212, 184, 0.12); }
+.fin-cristal .cj-estado--atencion { background: rgba(208, 164, 90, 0.15); }
+.fin-cristal .cj-estado--alerta { background: rgba(200, 80, 96, 0.16); }
+
+/* Tablas: encabezado como los títulos de sección (10,5 / 600 / +0,08 em / blanco 45 %) y fila con la píldora suave */
+.fin-cristal :is(.fin-tabla, .fin-skwd table) th,
+.fin-cristal .fin-skwd thead th {
+  background: transparent; color: rgba(255, 255, 255, 0.5);
+  font: 600 10.5px/1.3 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.fin-cristal :is(.fin-tabla, .fin-skwd table) td { border-bottom-color: rgba(255, 255, 255, 0.07); transition: background-color 100ms ease; }
+.fin-cristal .fin-skwd tbody tr:hover { background: transparent; }
+.fin-cristal :is(.fin-tabla, .fin-skwd table) tbody tr:hover > td { background: rgba(255, 255, 255, 0.07); }
+.fin-cristal :is(.fin-tabla, .fin-skwd table) tbody tr:hover > td:first-child { border-radius: 12px 0 0 12px; }
+.fin-cristal :is(.fin-tabla, .fin-skwd table) tbody tr:hover > td:last-child { border-radius: 0 12px 12px 0; }
+.fin-cristal .fin-skwd .tabla-scroll { scrollbar-color: rgba(255, 255, 255, 0.3) transparent; padding: 4px 6px; }
+.fin-cristal .fin-scroll { scrollbar-color: rgba(255, 255, 255, 0.3) transparent; }
+.fin-cristal .fin-skwd .fila-total td { border-top-color: rgba(190, 143, 73, 0.7); }
+/* Columna fija del Estado de resultados: fondo opaco para que no se superpongan las cifras al deslizar */
+.fin-cristal .fin-skwd .er-tabla td:first-child, .fin-cristal .fin-skwd .er-tabla th:first-child { background: #0c3029; }
+.fin-cristal .fin-skwd .er-tabla tbody tr:hover > td:first-child { background: #17392f; }
+.fin-cristal .fin-skwd .er-vacio { color: rgba(255, 255, 255, 0.35); }
+
+/* Campos: como el buscador del panel (blanco 10 %, borde blanco 10 %, radio 12) */
+.fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea, .fin-entrada, .cj-campo__entrada) {
+  background: rgba(255, 255, 255, 0.08); color: var(--cr-texto);
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+.fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea):hover { background: rgba(255, 255, 255, 0.11); }
+.fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea):focus { outline: 2px solid rgba(208, 164, 90, 0.75); outline-offset: 1px; border-color: rgba(208, 164, 90, 0.8); background: rgba(255, 255, 255, 0.12); }
+.fin-cristal .fin-skwd :is(input[type='checkbox'], input[type='radio']) { accent-color: var(--cr-oro-mate); }
+.fin-cristal .fin-skwd :is(input, textarea)::placeholder { color: rgba(255, 255, 255, 0.45); }
+.fin-cristal .fin-skwd :is(input, select, textarea):disabled { background: rgba(255, 255, 255, 0.04); color: var(--cr-texto-3); }
+.fin-cristal select option, .fin-cristal select optgroup { background: #0d2f28; color: #f4efe6; }
+.fin-cristal .fin-skwd .form label { color: var(--cr-texto-2); font-weight: 500; }
+
+/* Botones: la acción principal en bordó (manual), con cristal; los secundarios son píldoras de cristal */
+/* Por defecto: píldora de cristal (como los ítems del panel). Bordó solo para la acción que guarda (submit). */
+.fin-cristal .fin-skwd button {
+  border-radius: 999px; padding: 8px 16px; font-family: var(--cr-sans); font-weight: 600;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05)); color: var(--cr-texto);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: filter 120ms ease, transform 80ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+.fin-cristal .fin-skwd button:hover:not(:disabled) { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08)); border-color: rgba(255, 255, 255, 0.3); }
+.fin-cristal .fin-skwd button[type='submit'] {
+  background: linear-gradient(180deg, #933041 0%, #741c29 100%); color: #fbf3ea;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 16px -8px rgba(127, 32, 44, 0.7);
+}
+.fin-cristal .fin-skwd button[type='submit']:hover:not(:disabled) { background: linear-gradient(180deg, #a23a4b 0%, #80222f 100%); border-color: rgba(255, 255, 255, 0.3); }
+.fin-cristal .fin-skwd button:disabled { opacity: 0.42; }
+/* En las barras de filtros, el botón desactivado es el elegido (Módulo de Correcciones, período del Tablero): cristal fuerte */
+.fin-cristal .fin-skwd .filtros button:not([type='submit']):disabled {
+  opacity: 1; color: rgba(255, 255, 255, 0.97);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.11));
+  border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.fin-cristal .fin-skwd :is(.subtabs button, td button, .alta-rapida button.secundario, button.quitar) {
+  background: rgba(255, 255, 255, 0.07); color: var(--cr-texto-2);
+  border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: none;
+}
+.fin-cristal .fin-skwd :is(.subtabs button, td button, .alta-rapida button.secundario):hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); color: var(--cr-texto); border-color: rgba(255, 255, 255, 0.24); filter: none; }
+.fin-cristal .fin-skwd button.quitar { color: var(--cr-bordo-texto); border-color: rgba(234, 163, 171, 0.4); }
+/* Pestaña elegida = píldora de cristal fuerte (como la activa del panel) */
+.fin-cristal .fin-skwd .subtabs button:disabled {
+  opacity: 1; color: rgba(255, 255, 255, 0.97);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.11));
+  border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.fin-cristal .fin-skwd .subtabs { padding: 4px; gap: 4px; border-radius: 999px; width: fit-content; max-width: 100%; flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+.fin-cristal .fin-skwd .subtabs button { border-color: transparent; background: transparent; }
+.fin-cristal .cj-boton { border-radius: 999px; font-family: var(--cr-sans); letter-spacing: 0.06em; transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease, filter 120ms ease; }
+.fin-cristal .cj-boton--secundario { background: rgba(255, 255, 255, 0.07); color: var(--cr-texto); border-color: rgba(255, 255, 255, 0.18); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.fin-cristal .cj-boton--secundario:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); }
+.fin-cristal .cj-boton--primario { background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.12)); color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+.fin-cristal .cj-boton--marca { background: linear-gradient(180deg, #933041, #741c29); color: #fbf3ea; border-color: rgba(255, 255, 255, 0.2); }
+/* Chips de mes = píldoras de cristal; el elegido, cristal fuerte */
+.fin-cristal .cj-chip { border-radius: 999px; font-family: var(--cr-sans); letter-spacing: 0.06em; color: var(--cr-texto-2); background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.14); transition: background-color 100ms ease, color 100ms ease, border-color 100ms ease, transform 80ms ease; }
+.fin-cristal .cj-chip:hover { color: var(--cr-texto); background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.24); }
+.fin-cristal .cj-chip[aria-pressed='true'] { color: #fff; background: linear-gradient(180deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.11)); border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.fin-cristal :is(.cj-boton, .cj-chip, .fin-skwd button):active:not(:disabled) { transform: scale(0.97); }
+
+/* Etiquetas de estado y avisos: píldoras de cristal teñidas */
+.fin-cristal .fin-skwd .et { border-radius: 999px; padding: 2px 9px; border: 1px solid rgba(255, 255, 255, 0.1); }
+.fin-cristal .fin-skwd .aviso-box { border-radius: 16px; border: 1px solid rgba(208, 164, 90, 0.4); border-left: 1px solid rgba(208, 164, 90, 0.4); box-shadow: inset 3px 0 0 var(--cr-oro-mate); -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur); }
+.fin-cristal .fin-skwd .aparte { border-radius: 14px; }
+.fin-cristal .fin-skwd .dash-tooltip { background: rgba(242, 236, 226, 0.9); color: #1d2b27; border: 0; border-radius: 10px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
+.fin-cristal [role='alert'], .fin-cristal [role='status'].rounded-xl { border-radius: 16px; }
+
+/* Gráficos (Recharts): los colores fijos pensados para el marfil pasan a tonos legibles sobre el cristal */
+.fin-cristal .recharts-cartesian-axis-tick-value, .fin-cristal .recharts-text { fill: rgba(242, 234, 220, 0.72); }
+.fin-cristal .recharts-cartesian-axis-line { stroke: rgba(255, 255, 255, 0.2); }
+.fin-cristal .recharts-cartesian-grid line { stroke: rgba(255, 255, 255, 0.08); }
+.fin-cristal .recharts-legend-item-text { color: var(--cr-texto-2) !important; }
+.fin-cristal [fill='#012d25'] { fill: #e7dcc6; }
+.fin-cristal [stroke='#012d25'] { stroke: #e7dcc6; }
+.fin-cristal [fill='#7f202c'] { fill: #c86a76; }
+.fin-cristal [stroke='#7f202c'] { stroke: #c86a76; }
+.fin-cristal [fill='#605747'], .fin-cristal [fill='#8c8574'] { fill: rgba(242, 234, 220, 0.6); }
+.fin-cristal .recharts-tooltip-cursor { fill: rgba(255, 255, 255, 0.06); }
+
+/* ── Entrada de los paneles y transición entre vistas (template.tsx los vuelve a montar) ── */
+@keyframes cr-entra { from { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.fin-cristal__vista :is(.cj-seccion, .cj-resumen__lista > li, .cj-bloque, .fin-meses, .fin-skwd > *, .fin-skwd .kpi, .fin-skwd .dash-card, .fin-skwd .tarjetas > div, .fin-skwd .tabla-scroll, .fin-skwd .detalle) {
+  animation: cr-entra 520ms var(--cr-curva) both;
+}
+.fin-cristal__vista .cj-seccion { animation-delay: 0ms; }
+.fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(2) { animation-delay: 40ms; }
+.fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(3) { animation-delay: 80ms; }
+.fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(4) { animation-delay: 120ms; }
+.fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(5) { animation-delay: 160ms; }
+.fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(n + 6) { animation-delay: 200ms; }
+.fin-cristal__vista .cj-bloque { animation-delay: 120ms; }
+
+/* ── Celular: riel a 8 px del borde; el panel abierto va encima del contenido con un velo ── */
+@media (max-width: 767px) {
+  .fcn, .fcn[data-abierta='true'] { left: 8px; top: 8px; bottom: 8px; }
+  .fin-cristal__contenido, .fin-cristal[data-nav='panel'] .fin-cristal__contenido { padding-left: calc(8px + 60px + 2px); }
+  .fin-cristal[data-nav='panel'] { --cr-logo-x: 0px; }
+  .fin-cristal .fin-pagina { padding-left: 8px; padding-right: 12px; }
+  .fcn[data-abierta='true'] .fcn-velo { display: block; position: fixed; inset: 0; z-index: -1; background: rgba(1, 12, 10, 0.45); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+  .fcn-menu { left: 12px; right: 12px; bottom: 64px; }
+  .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea) { font-size: 16px; }
+  .fin-cristal .fin-skwd .form { padding: 14px; }
+  .fin-cristal .fin-skwd .filtros { padding: 6px; border-radius: 18px; }
+}
+
+/* ── Accesibilidad ── */
+@media (prefers-reduced-motion: reduce) {
+  .fin-cristal *, .fin-cristal *::before, .fin-cristal *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+  .fcn-anima { filter: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .fin-cristal { --cr-tinte: #0b2f27; --cr-panel: #0d332b; }
+  .fin-cristal .fcn-panel, .fin-cristal :is(.cj-bloque, .cj-dato), .fin-cristal .fin-skwd :is(.tabla-scroll, .kpi, .dash-card, .detalle) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .fin-cristal .fcn-tip { background: #f2ece2; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .fin-cristal { --cr-tinte: rgba(6, 34, 28, 0.94); --cr-panel: rgba(10, 44, 37, 0.94); }
+}
+@media print {
+  .fcn, .fin-cristal__fondo { display: none !important; }
+  .fin-cristal__contenido { padding-left: 0 !important; }
+}
