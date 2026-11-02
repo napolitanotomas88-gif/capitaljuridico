@@ -4,7 +4,7 @@ import type { PaginaPortal } from '@/lib/clientes/portal/armar'
 
 // Lo que ve el CLIENTE en su portal (2/11/2026). El equipo ve exactamente esto debajo de su panel de edición. Solo lectura y
 // solo lo de este cliente: su objetivo, el plan por etapas, los próximos pasos, cómo viene el proceso, sus guiones aprobados y
-// las notas de seguimiento. Sin montos, sin nombres del equipo, sin fuentes internas. Clases del Despacho (cj-*): sin CSS propio.
+// las notas de seguimiento (cada sección se puede ocultar por portal: datos.secciones, 2/11/2026). Sin montos, sin nombres del equipo, sin fuentes internas. Clases del Despacho (cj-*): sin CSS propio.
 
 const TONO_ETAPA: Record<EstadoEtapa, Tono> = { hecha: 'ok', en_curso: 'atencion', pendiente: 'neutro' }
 
@@ -15,23 +15,29 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
   const guiones = p.tandas.reduce((n, t) => n + t.guiones.length, 0)
   const pasos = datos.proximos.filter(x => !x.hecho)
   const notas = [...datos.notas].sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''))
+  const ver = datos.secciones
 
   const resumen: DatoResumen[] = [
     { etiqueta: 'Nuestro objetivo', icono: 'ok', destacado: true, valor: datos.objetivo.metrica || '—', contexto: datos.objetivo.fecha ? `Para el ${fechaLarga(datos.objetivo.fecha)}` : 'Lo definimos juntos' },
-    { etiqueta: 'Avance del plan', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', href: '#plan', accion: 'Ver el plan' },
-    { etiqueta: 'Guiones listos', icono: 'guiones', valor: String(guiones), contexto: p.tandas.length ? `En ${p.tandas.length} ${p.tandas.length === 1 ? 'tanda' : 'tandas'}` : 'Se están preparando', href: '#guiones', accion: 'Ver los guiones' },
+    // «Cómo vamos» (antes «Avance del plan»): lleva al plan solo si esa sección se ve
+    { etiqueta: 'Cómo vamos', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', ...(ver.plan ? { href: '#plan', accion: 'Ver el plan' } : {}) },
+    { etiqueta: 'Guiones listos', icono: 'guiones', valor: String(guiones), contexto: p.tandas.length ? `En ${p.tandas.length} ${p.tandas.length === 1 ? 'tanda' : 'tandas'}` : 'Se están preparando', ...(ver.guiones ? { href: '#guiones', accion: 'Ver los guiones' } : {}) },
   ]
+  const intro = ver.plan
+    ? 'Acá ves el objetivo que nos propusimos, el camino para llegar y cómo viene cada paso. Lo vamos actualizando con cada avance.'
+    : 'Acá ves el objetivo que nos propusimos, cómo vamos y tus guiones. Lo vamos actualizando con cada avance.'
 
   return (
     <div className="cj-pila">
       <SeccionTitulo etiqueta="Tu portal · Capital Jurídico" titulo={nombre} />
       <p className="cj-parrafo cj-texto-2" style={{ marginTop: -40 }}>
-        Acá ves el objetivo que nos propusimos, el camino para llegar y cómo viene cada paso. Lo vamos actualizando con cada avance.
+        {intro}
         {actualizado && <> Última actualización: {fechaLarga(actualizado.slice(0, 10))}.</>}
       </p>
 
       <Resumen titulo="Resumen" datos={resumen} />
 
+      {ver.objetivo && (
       <Bloque titulo="El objetivo" etiqueta="Hacia dónde vamos" id="objetivo">
         {datos.objetivo.texto ? (
           <div className="cj-pila cj-pila--chica">
@@ -47,7 +53,9 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <VacioGuiado titulo="Lo estamos definiendo" texto="El objetivo lo dejamos por escrito acá apenas lo cerremos juntos." />
         )}
       </Bloque>
+      )}
 
+      {ver.plan && (
       <Bloque titulo="Cómo vamos a llegar" etiqueta="El plan, por etapas" id="plan" estado={avance ? { tono: avance.hechas === avance.total ? 'ok' : 'atencion', texto: `${avance.hechas} de ${avance.total} logradas` } : undefined}>
         {datos.etapas.length ? (
           <ol className="cj-linea">
@@ -64,7 +72,9 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <VacioGuiado titulo="El plan se arma con vos" texto="Cuando definamos las etapas, vas a ver acá cada una y en cuál estamos." />
         )}
       </Bloque>
+      )}
 
+      {ver.proximos && (
       <Bloque titulo="Próximos pasos" etiqueta="Lo que sigue" id="proximos">
         {pasos.length ? (
           <ul className="cj-lista">
@@ -76,7 +86,9 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <p className="cj-parrafo cj-texto-2">Por ahora no hay pasos pendientes de tu lado.</p>
         )}
       </Bloque>
+      )}
 
+      {ver.proceso && (
       <Bloque titulo="Cómo viene el proceso" etiqueta="Lo que ya hicimos juntos" id="proceso">
         {p.proceso.length ? (
           <ol className="cj-linea">
@@ -92,7 +104,9 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <p className="cj-parrafo cj-texto-2">Todavía no hay avances para mostrar.</p>
         )}
       </Bloque>
+      )}
 
+      {ver.guiones && (
       <Bloque titulo="Tus guiones" etiqueta="Para grabar" id="guiones">
         {p.tandas.length ? (
           <div className="cj-pila cj-pila--chica">
@@ -129,7 +143,9 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <VacioGuiado titulo="Se están preparando" texto="Cuando una tanda de guiones esté lista y revisada, aparece acá para que la grabes." accion={p.documento ? <a className="cj-enlace" href={p.documento} target="_blank" rel="noreferrer">Abrir tu documento de guiones</a> : undefined} />
         )}
       </Bloque>
+      )}
 
+      {ver.seguimiento && (
       <Bloque titulo="Seguimiento" etiqueta="Lo que vamos viendo" id="seguimiento">
         {notas.length ? (
           <ol className="cj-linea">
@@ -145,6 +161,7 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
           <p className="cj-parrafo cj-texto-2">Después de cada reunión dejamos acá lo que vimos y lo que acordamos.</p>
         )}
       </Bloque>
+      )}
     </div>
   )
 }

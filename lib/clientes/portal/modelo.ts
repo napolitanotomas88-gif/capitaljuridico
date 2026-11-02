@@ -11,9 +11,20 @@ export const NOMBRE_ESTADO_ETAPA: Record<EstadoEtapa, string> = { pendiente: 'Pr
 export interface EtapaPlan { titulo: string; detalle: string; estado: EstadoEtapa; fecha: string | null }
 export interface NotaSeguimiento { fecha: string | null; titulo: string; texto: string }
 export interface ProximoPaso { texto: string; fecha: string | null; hecho: boolean }
+/** Secciones de la vista del cliente que el equipo puede mostrar u ocultar por portal (2/11/2026). Sin dato: todas visibles. */
+export const SECCIONES_PORTAL = ['objetivo', 'plan', 'proximos', 'proceso', 'guiones', 'seguimiento'] as const
+export type SeccionPortal = (typeof SECCIONES_PORTAL)[number]
+export type SeccionesPortal = Record<SeccionPortal, boolean>
+export const NOMBRE_SECCION_PORTAL: Record<SeccionPortal, string> = {
+  objetivo: 'El objetivo', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
+}
+export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true }
+
 export interface DatosPortal {
   /** Cómo se lo saluda en el portal ("Estudio Pérez"). Vacío = el nombre del CRM. */
   nombre: string
+  /** Qué secciones ve el cliente (el resumen de arriba siempre va) */
+  secciones: SeccionesPortal
   objetivo: { texto: string; metrica: string; fecha: string | null }
   etapas: EtapaPlan[]
   notas: NotaSeguimiento[]
@@ -21,7 +32,7 @@ export interface DatosPortal {
 }
 export interface PortalGuardado { datos: DatosPortal; version: number; actualizado: string | null }
 
-export const PORTAL_VACIO: DatosPortal = { nombre: '', objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [] }
+export const PORTAL_VACIO: DatosPortal = { nombre: '', secciones: SECCIONES_TODAS, objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [] }
 
 // Topes: el portal es para leer de un vistazo (y una fila de Neon no tiene que crecer sin límite)
 export const TOPES = { nombre: 80, objetivo: 600, metrica: 120, titulo: 120, detalle: 800, nota: 2000, paso: 300, etapas: 12, notas: 40, proximos: 12 } as const
@@ -44,6 +55,9 @@ export function validarDatosPortal(x: unknown): { ok: true; datos: DatosPortal }
   if (!o) return { ok: false, error: 'Datos inválidos.' }
   const nombre = texto(o.nombre, TOPES.nombre)
   if (nombre === null) return { ok: false, error: `El nombre puede tener hasta ${TOPES.nombre} caracteres.` }
+  if (o.secciones !== undefined && o.secciones !== null && (typeof o.secciones !== 'object' || Array.isArray(o.secciones))) return { ok: false, error: 'Secciones: formato inválido.' }
+  const crudas = (o.secciones ?? {}) as Record<string, unknown>
+  const secciones = Object.fromEntries(SECCIONES_PORTAL.map(k => [k, crudas[k] === false ? false : true])) as SeccionesPortal
   const obj = o.objetivo && typeof o.objetivo === 'object' ? (o.objetivo as Record<string, unknown>) : {}
   const objetivo = { texto: texto(obj.texto, TOPES.objetivo, true), metrica: texto(obj.metrica, TOPES.metrica), fecha: fecha(obj.fecha) }
   if (objetivo.texto === null) return { ok: false, error: `El objetivo puede tener hasta ${TOPES.objetivo} caracteres.` }
@@ -88,7 +102,7 @@ export function validarDatosPortal(x: unknown): { ok: true; datos: DatosPortal }
     if (f === undefined) return { ok: false, error: `Próximo paso ${i + 1}: la fecha tiene que ser una fecha real.` }
     proximos.push({ texto: t, fecha: f, hecho: r.hecho === true })
   }
-  return { ok: true, datos: { nombre, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos } }
+  return { ok: true, datos: { nombre, secciones, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos } }
 }
 
 /** Lo guardado en Neon, leído sin confiar: si algo no valida, vale el portal vacío (nunca rompe la página del cliente). */
