@@ -7,6 +7,7 @@
 //   · f04 → cada video del lote queda «enviado al cliente» (envio_link), como el envío del bot.
 //   · e01 → el paso del día 0 o del recordatorio queda hecho (a nombre de quien lo mandó).
 //   · b07 → el paso «bienvenida» del alta queda hecho a mano y el alta sigue.
+//   · i01 de la etapa Proyección (datos.origen 'proyeccion') → la llamada de proyección queda «Avisado» (lib/bot/proyeccion).
 //   · g04–g06, h01–h03, i01, i03 → nada extra: el bot ya los dio por entregados al dejarlos «para enviar».
 // En todos, si hay ID del CRM, cuenta como contacto del equipo (cliente sin respuesta).
 import { randomUUID } from 'node:crypto'
@@ -72,6 +73,12 @@ export async function alConfirmarEnvio(m: MensajeGuardado, quien: Quien, op: { f
     if (op.fondo) { op.fondo(correr); return 'la bienvenida queda hecha y el alta sigue (en segundo plano)' }
     const r = await correr()
     return r.errores.length ? `alta: ${r.errores[0]}` : 'la bienvenida quedó hecha y el alta sigue'
+  })
+  if (m.pieza === 'i01' && m.datos.origen === 'proyeccion' && m.idCrm && typeof m.datos.fin === 'string') await intentar('proyección', async () => {
+    const { marcarAvisadoSiFalta, baseProyeccionConfigurada } = await import('@/lib/bot/proyeccion/marcas')
+    if (!baseProyeccionConfigurada()) return null
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+    return (await marcarAvisadoSiFalta(m.idCrm!, m.datos.fin as string, hoy, por)) ? 'la llamada de proyección quedó «Avisado»' : 'ya figuraba avisado'
   })
   if (m.idCrm) {
     await intentar('actividad', async () => {

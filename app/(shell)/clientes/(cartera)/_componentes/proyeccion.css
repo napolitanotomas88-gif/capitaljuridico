@@ -1,0 +1,31 @@
+/* Llamada de proyección: panel de Clientes y bloque de la tarjeta (2/11/2026). Mismos tokens que la cartera y el cristal. */
+.py-panel { display: flex; flex-direction: column; gap: 10px; }
+.py-cabeza { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.py-titulo { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--cj-hueso); }
+.py-ayuda { margin: 0; font-size: 0.85rem; color: var(--cj-texto-2); }
+.py-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.py-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 0; border-top: 1px solid var(--cj-control); }
+.py-item:first-child { border-top: 0; }
+.py-item--hecho { opacity: 0.6; }
+.py-quien { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.py-nombre { color: var(--cj-hueso); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.py-nombre:hover, .py-nombre:focus-visible { text-decoration: underline; }
+.py-dias { font-size: 0.82rem; color: var(--cj-texto-2); }
+.py-fase { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.py-fase--rojo { color: var(--cj-error); }
+.py-fase--laton { color: var(--cj-laton); }
+.py-fase--ok { color: var(--cj-ok); }
+.py-marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.py-marca {
+  font: inherit; font-size: 0.8rem; line-height: 1; padding: 7px 10px; min-height: 32px; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--cj-hueso); border: 1px solid var(--cj-control);
+}
+.py-marca:hover:not(:disabled) { border-color: var(--cj-hueso); }
+.py-marca:focus-visible { outline: 2px solid var(--cj-laton); outline-offset: 2px; }
+.py-marca:disabled { opacity: 0.55; cursor: wait; }
+.py-marca--si { border-color: color-mix(in srgb, var(--cj-ok) 60%, transparent); color: var(--cj-ok); background: color-mix(in srgb, var(--cj-ok) 10%, transparent); }
+.py-marca--no { border-color: color-mix(in srgb, var(--cj-error) 60%, transparent); color: var(--cj-error); background: color-mix(in srgb, var(--cj-error) 10%, transparent); }
+.py-fecha { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.py-input { min-height: 32px; }
+.py-error { flex-basis: 100%; margin: 0; font-size: 0.8rem; color: var(--cj-error); }
+@media (max-width: 640px) { .py-item { flex-direction: column; align-items: flex-start; } }

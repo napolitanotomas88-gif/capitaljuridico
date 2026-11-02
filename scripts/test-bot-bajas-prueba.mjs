@@ -170,12 +170,19 @@ describe('servidor: general en SECO + modo prueba', () => {
 
 describe('servidor: general en REAL + modo prueba (no se pisan)', () => {
   test('el general pide el aviso del real y el de prueba el del ficticio; ninguno dos veces', async () => {
-    const env = { ...ENV_BASE, BOT_CLIENTES_PRUEBA: 'Z001', BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin' }
+    const env = { ...ENV_BASE, BOT_PROYECCION: 'no', BOT_CLIENTES_PRUEBA: 'Z001', BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin' }
     const almacen = A.almacenBajasEnMemoria(), red = redFalsa()
     const r = await conArchivadosActuales(() => S.correrDiarioBajasReal({ env, almacen, fetch: red.f, leerClientes: async () => CLIENTES.slice(0, 2), ahora: () => AHORA, log: SILENCIO }), ARCHIVO)
     assert.equal(r.avisos, 2)
     assert.deepEqual(almacen._pedidos.map((p) => p.idCrm).sort(), ['A100', 'Z001'])
     assert.deepEqual(almacen._rastros.map((x) => x.idCrm), ['Z001'])   // el real no deja rastros de prueba
+  })
+  test('con la etapa Proyección prendida (por defecto) el general NO pide el OK del aviso de fin; el de prueba sí', async () => {
+    const env = { ...ENV_BASE, BOT_PROYECCION: '', BOT_CLIENTES_PRUEBA: 'Z001', BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin' }
+    const almacen = A.almacenBajasEnMemoria(), red = redFalsa()
+    const r = await conArchivadosActuales(() => S.correrDiarioBajasReal({ env, almacen, fetch: red.f, leerClientes: async () => CLIENTES.slice(0, 2), ahora: () => AHORA, log: SILENCIO }), ARCHIVO)
+    assert.equal(r.avisos, 1)
+    assert.deepEqual(almacen._pedidos.map((p) => p.idCrm), ['Z001'])
   })
 })
 

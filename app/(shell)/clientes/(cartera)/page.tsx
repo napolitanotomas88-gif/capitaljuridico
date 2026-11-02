@@ -14,6 +14,7 @@ import { BotonMontos } from '@/components/clientes/BotonMontos'
 import { Monto } from '@/components/clientes/Monto'
 import { CalidadDatos } from './_componentes/CalidadDatos'
 import { EsperaBloque, ListaEnVivo, RecorridoEnVivo } from './_componentes/EnVivo'
+import { PendientesProyeccion } from './_componentes/PendientesProyeccion'
 
 // Cartera de clientes (CRM): cifras al día de hoy, la línea de tiempo, filtros, búsqueda y la lista. Solo lectura.
 // La lectura de la planilla (una sola, con snapshot de 10 min) se hace acá en el servidor; el navegador solo recibe
@@ -85,6 +86,11 @@ export default async function ClientesPage({ searchParams }: Props) {
           </div>
         }
       />
+
+      {/* Continuidad (Tomás, 2/11/2026): abajo de «Cargar alta», los pendientes de la llamada de proyección para marcarlos rápido */}
+      <Suspense fallback={null}>
+        <PendientesProyeccion clientes={datos.clientes} hoy={datos.hoy} demo={vista.esDemo} />
+      </Suspense>
 
       <AvisoLectura lectura={lectura} />
       {typeof params.accion === 'string' && <p className="cj-panel" role="status">Elegí un cliente en el recorrido para abrir la acción solicitada. También podés buscarlo por nombre o ID.</p>}

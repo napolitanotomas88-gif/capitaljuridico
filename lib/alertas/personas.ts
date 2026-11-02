@@ -55,7 +55,7 @@ export const esPiezaCliente = (x: unknown): x is PiezaCliente => typeof x === 's
 
 export const NOMBRE_PIEZA: Record<PiezaCliente, string> = {
   b07: 'Bienvenida', d02: 'Guiones listos y pedido de grabación', e01: 'Recordatorio de grabación', f04: 'Videos listos', g04: 'Campaña al aire', g05: 'Optimización',
-  g06: 'Ganadores', h01: 'Pedido de testimonio', h02: 'Agradecimiento del testimonio', h03: 'Encuesta mensual', i01: 'Aviso de fin de servicio', i03: 'Despedida',
+  g06: 'Ganadores', h01: 'Pedido de testimonio', h02: 'Agradecimiento del testimonio', h03: 'Encuesta mensual', i01: 'Invitación a la llamada de proyección', i03: 'Despedida',
 }
 /** El grupo de WhatsApp del cliente donde va cada pieza. */
 export const GRUPO_PIEZA: Record<PiezaCliente, 'General' | 'Contenido' | 'Ventas'> = {
@@ -65,7 +65,7 @@ export const GRUPO_PIEZA: Record<PiezaCliente, 'General' | 'Contenido' | 'Ventas
 
 export const RESPONSABLE_POR_DEFECTO: Record<PiezaCliente, Rol[]> = {
   b07: ['aylu'], d02: ['aylu', 'gero_m'], e01: ['gero_m'], f04: ['aylu'], g04: ['valentino'], g05: ['valentino'], g06: ['valentino'],
-  h01: ['gero_m'], h02: ['gero_m'], h03: ['gero_m'], i01: ['gero_m', 'tomas'], i03: ['aylu'],
+  h01: ['gero_m'], h02: ['gero_m'], h03: ['gero_m'], i01: ['aylu', 'gero_m', 'tomas'], i03: ['aylu'],
 }
 
 /** Responsables de una pieza: ALERTAS_RESPONSABLES_JSON ({"f04":["aylu"],…}) pisa la tabla; lo roto se ignora. */

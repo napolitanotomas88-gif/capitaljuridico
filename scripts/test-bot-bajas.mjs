@@ -728,9 +728,13 @@ describe('/api/bot/bajas (ruta) y lectura para la cartera', () => {
   })
   test('dry en real: lee, arma los pedidos y NO guarda ni manda nada', async () => {
     const almacen = A.almacenBajasEnMemoria()
-    const env2 = { BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin', WHAPI_GRUPO_VERIFICACIONES: VERIF, BOT_ALTA_APROBADORES: TOMI }
-    const d = await conArchivadosActuales(() => RB.atenderBajas(new URLSearchParams('dry=1'), { env: env2, almacen, leerClientes: async () => CLIENTES, ahora: () => AHORA, log: SILENCIO }), { leer: async () => [['ID', 'Nombre', 'Estado', 'Anotaciones'], ...CLIENTES.map(c => [c.id, c.nombre, c.estado, ''])] })
+    // BOT_PROYECCION=no: vuelve el pedido de OK del aviso de fin (i01). Con la etapa Proyección prendida, Bajas no lo pide
+    const env2 = { BOT_PROYECCION: 'no', BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin', WHAPI_GRUPO_VERIFICACIONES: VERIF, BOT_ALTA_APROBADORES: TOMI }
+    const archivo = { leer: async () => [['ID', 'Nombre', 'Estado', 'Anotaciones'], ...CLIENTES.map(c => [c.id, c.nombre, c.estado, ''])] }
+    const d = await conArchivadosActuales(() => RB.atenderBajas(new URLSearchParams('dry=1'), { env: env2, almacen, leerClientes: async () => CLIENTES, ahora: () => AHORA, log: SILENCIO }), archivo)
     assert.equal(d.cuerpo.avisos, 1); assert.equal(almacen._pedidos.length, 0)
+    const d2 = await conArchivadosActuales(() => RB.atenderBajas(new URLSearchParams('dry=1'), { env: { ...env2, BOT_PROYECCION: '' }, almacen, leerClientes: async () => CLIENTES, ahora: () => AHORA, log: SILENCIO }), archivo)
+    assert.equal(d2.cuerpo.avisos, 0); assert.ok(d2.cuerpo.registro.some((l) => /etapa Proyección/.test(l)))
   })
   test('lectura: estado por cliente (pedido, confirmada, cerrada)', async () => {
     const x = armar()

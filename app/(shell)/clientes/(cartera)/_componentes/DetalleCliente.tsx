@@ -27,6 +27,7 @@ import { DocGuiones } from './DocGuiones'
 import { RegistroHitos } from './RegistroHitos'
 import { CorregirEtapa } from './CorregirEtapa'
 import { AccionesCliente } from './AccionesCliente'
+import { ProyeccionCliente } from './ProyeccionCliente'
 import { puedeHacerAcciones } from '@/lib/clientes/acciones/permisos'
 import type { Hito } from '@/lib/clientes/hitos'
 import { asegurarDocumentoCliente, documentoVinculadoCliente } from '@/lib/bot/guiones/documento'
@@ -95,7 +96,7 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
       )}
 
       <Saltos secciones={[
-        ['rc-registro', 'Registro'], ...(ver.acciones ? [['rc-acciones', 'Acciones'] as [string, string]] : []), ['rc-crm', 'CRM'], ['rc-kickoff', 'Kickoff'], ...(ver.guiones ? [['rc-guiones', 'Guiones'] as [string, string]] : []),
+        ['rc-registro', 'Registro'], ['rc-proyeccion', 'Proyección'], ...(ver.acciones ? [['rc-acciones', 'Acciones'] as [string, string]] : []), ['rc-crm', 'CRM'], ['rc-kickoff', 'Kickoff'], ...(ver.guiones ? [['rc-guiones', 'Guiones'] as [string, string]] : []),
         ...(ver.edicion ? [['rc-edicion', 'Edición'] as [string, string]] : []), ...(ver.anuncios ? [['rc-anuncios', 'Anuncios'] as [string, string]] : []),
         ...(ver.referidos ? [['rc-referidos', 'Referidos'] as [string, string]] : []), ['rc-notas', 'Notas'],
       ]} />
@@ -106,6 +107,14 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
           <RegistroHitos idCrm={ficha.id} hitos={hitos} hoy={vista.datos.hoy} demo={demo} />
           <Suspense fallback={<p className="cj-texto-2" role="status">Leyendo el historial de servicio…</p>}>
             <HistorialOperativo idCrm={ficha.id} periodos={vista.datos.clientes.find(c => c.id === ficha.id)?.periodos ?? []} estado={ficha.estado} fin={ficha.fin} hoy={vista.datos.hoy} conFinanzas={ver.finanzas} demo={demo} />
+          </Suspense>
+        </SeccionFicha>
+      </div>
+
+      <div id="rc-proyeccion" className="rc-bloque">
+        <SeccionFicha etiqueta="Continuidad" titulo="Llamada de proyección">
+          <Suspense fallback={<p className="cj-texto-2" role="status">Leyendo la llamada de proyección…</p>}>
+            <ProyeccionCliente cliente={vista.datos.clientes.find(c => c.id === ficha.id) ?? null} hoy={vista.datos.hoy} demo={demo} />
           </Suspense>
         </SeccionFicha>
       </div>
