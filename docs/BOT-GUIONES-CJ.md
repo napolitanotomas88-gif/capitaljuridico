@@ -149,3 +149,9 @@ estado previo (para volver atrás: `estado = doc->'cierre'->>'previo'`). Primer 
 la TANDA 1 manual con todos los chips en «Grabado completo» y anuncios lanzados.
 Antes de pedir una revisión, cruzar con el Doc: si la TANDA 1 ya tiene chips más allá de «No iniciado», el cliente ya avanzó solo
 (lectura con `estadoChips` y `soloLeer: true`, no cambia nada).
+
+## Recordatorio de guiones editados sin verificar (2/11/2026)
+Pedido de RESPONSABLE_HUB: dos tandas quedaron trabadas porque se corrigieron y guardaron los guiones sin tildar «✓ Verificado» ni dar
+el check final (guardar no publica). Cron `/api/bot/guiones/recordatorio` (días hábiles, 9:00 AR): por cada tanda en a_revisar con
+guiones editados hace más de 2 h y sin verificar, menciona a quien editó en el canal de guiones (⏰) y le deja la campanita. Una vez
+por tanda y día. A mano: GET con Bearer CRON_SECRET; `?dry=1` lista qué avisaría. Pruebas: `scripts/test-guiones-recordatorio.mjs`.

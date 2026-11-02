@@ -129,6 +129,15 @@ export async function tandasDelCliente(idCrm: string): Promise<FilaTanda[]> {
   })
 }
 
+/** Tandas para revisar (para el recordatorio de guiones editados sin verificar), sin clientes archivados. */
+export async function tandasARevisar(): Promise<FilaTanda[]> {
+  const archivados = await leerArchivados()
+  const filas = await correr('tandas a revisar', async q => {
+    try { return (await q`SELECT * FROM cj_guiones WHERE estado = 'a_revisar' ORDER BY actualizado ASC LIMIT 100`).map(x => aFila(x as Record<string, unknown>)) } catch (e) { if (sinTabla(e)) return []; throw e }
+  })
+  return excluirArchivados(filas.filter(f => !!f.id_crm), archivados, f => f.id_crm)
+}
+
 /** La última tanda avisada en ese grupo de WhatsApp (respuesta del cliente que trae el webhook de Whapi). */
 export async function tandaPorGrupo(grupo: string): Promise<FilaTanda | undefined> {
   return correr('tanda por grupo', async q => {
