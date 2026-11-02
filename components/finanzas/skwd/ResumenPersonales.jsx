@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { calcularSaldoCombinado, etiquetaSaldo, INGRESOS_DESDE } from './calculoPersonales'
+import { dolares, cant, fechaCorta } from './formato'
 
 // Resumen de Gastos Personales. MÓDULO INDEPENDIENTE: recibe filas de gastos_personales y, solo para consulta, los ingresos
 // («Quién recibió») ya leídos de Pagos. No escribe nada y no se mezcla con Gastos, Cuentas, Estado de Resultados ni Dashboard.
@@ -8,7 +9,7 @@ import { calcularSaldoCombinado, etiquetaSaldo, INGRESOS_DESDE } from './calculo
 // Paleta de gráficos de marca: Gero = Verde Toga, Tomi = Oro Capital (se distinguen también por luminosidad). Nombres de claves sin cambios.
 // Colores de la paleta del Despacho (marfil)
 const COLOR = { gero: '#012d25', tomi: '#be8f49', neutro: '#012d25', gris: '#8c8574', grilla: '#e3d9c6', tinta2: '#605747' }
-const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n) => dolares(n, 2)
 const compacto = (v) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 })}k` : `$${Math.round(v)}`)
 const hoyLocal = () => new Date().toLocaleDateString('en-CA')
 const pad = (n) => String(n).padStart(2, '0')
@@ -31,14 +32,14 @@ function TooltipMes({ active, payload }) {
       <strong>{d.nombre}</strong>
       <div style={{ color: COLOR.gero }}>● Gero pagó: {fmt(d.gero)}</div>
       <div style={{ color: COLOR.tomi }}>● Tomi pagó: {fmt(d.tomi)}</div>
-      <div>Total: <strong>{fmt(d.total)}</strong> ({d.n} gasto(s))</div>
+      <div>Total: <strong>{fmt(d.total)}</strong> ({cant(d.n, 'gasto')})</div>
     </div>
   )
 }
 function TooltipSimple({ active, payload }) {
   if (!active || !payload || !payload.length) return null
   const d = payload[0].payload
-  return <div className="dash-tooltip"><strong>{d.nombre}</strong><div>{fmt(d.usd)}</div><div className="aviso">{d.n} gasto(s)</div></div>
+  return <div className="dash-tooltip"><strong>{d.nombre}</strong><div>{fmt(d.usd)}</div><div className="aviso">{cant(d.n, 'gasto')}</div></div>
 }
 
 function Tarjeta({ titulo, subtitulo, children, columnas, filas }) {
@@ -130,7 +131,7 @@ export default function ResumenPersonales({ gastos, ingresos, errorIngresos, onE
       ) : (
         <>
           <div className="kpis">
-            <div className="kpi"><span>Total registrado</span><strong>{fmt(r.total)}</strong><small>{r.n} gasto(s)</small></div>
+            <div className="kpi"><span>Total registrado</span><strong>{fmt(r.total)}</strong><small>{cant(r.n, 'gasto')}</small></div>
             <div className="kpi"><span style={{ color: COLOR.gero }}>● Pagó Gero</span><strong>{fmt(r.pagoGero)}</strong></div>
             <div className="kpi"><span style={{ color: COLOR.tomi }}>● Pagó Tomi</span><strong>{fmt(r.pagoTomi)}</strong></div>
             {conIngresos && <div className="kpi"><span>Ingresos desde el {fechaCorta}</span><strong>{fmt(ing.gero + ing.tomi)}</strong><small>Gero {fmt(ing.gero)} · Tomi {fmt(ing.tomi)}</small></div>}
@@ -144,7 +145,7 @@ export default function ResumenPersonales({ gastos, ingresos, errorIngresos, onE
               </small>
             </div>
           </div>
-          {r.revisar.n > 0 && <div className="aviso-box">⚠ {r.revisar.n} gasto(s) por {fmt(r.revisar.usd)} están <strong>"A revisar"</strong> y quedan <strong>fuera del balance</strong> (ver abajo).</div>}
+          {r.revisar.n > 0 && <div className="aviso-box">⚠ {cant(r.revisar.n, 'gasto')} por {fmt(r.revisar.usd)} {r.revisar.n === 1 ? 'está' : 'están'} <strong>"A revisar"</strong> y {r.revisar.n === 1 ? 'queda' : 'quedan'} <strong>fuera del balance</strong> (ver abajo).</div>}
 
           <div className="dash-grid">
             <Tarjeta titulo="Gasto por mes" subtitulo="apilado por quién pagó" columnas={['Mes', 'Pagó Gero', 'Pagó Tomi', 'Total', 'Gastos']} filas={r.porMes.map((m) => [m.nombre, fmt(m.gero), fmt(m.tomi), fmt(m.total), m.n])}>
@@ -249,7 +250,7 @@ export default function ResumenPersonales({ gastos, ingresos, errorIngresos, onE
                 </tbody>
               </table>
             </div>
-            <p className="aviso">Se usa "Ejecutado por" como quien pagó. "Gero para Tomi" lo paga Gero y Tomi debe el 100%; "Tomi para Gero" lo paga Tomi y Gero debe el 100%; "Para ambos": quien no pagó debe el 50%. Los gastos inconsistentes se marcan "A revisar" y no entran al balance.</p>
+            <p className="aviso">Se usa «Lo pagó» como quien pagó. "Gero para Tomi" lo paga Gero y Tomi debe el 100%; "Tomi para Gero" lo paga Tomi y Gero debe el 100%; "Para ambos": quien no pagó debe el 50%. Los gastos inconsistentes se marcan "A revisar" y no entran al balance.</p>
           </section>
 
           {r.revisar.n > 0 && (
@@ -257,11 +258,11 @@ export default function ResumenPersonales({ gastos, ingresos, errorIngresos, onE
               <h3>A revisar ({r.revisar.n})</h3>
               <div className="tabla-scroll">
                 <table>
-                  <thead><tr><th>Fecha</th><th>Ejecutado por</th><th>Tipo</th><th>Gasto de</th><th>Monto</th><th>Descripción</th><th>Motivo</th><th></th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Lo pagó</th><th>Tipo</th><th>Gasto de</th><th>Monto</th><th>Descripción</th><th>Motivo</th><th></th></tr></thead>
                   <tbody>
                     {r.revisar.filas.map((g) => (
                       <tr key={g.id} className="fila-revisar">
-                        <td>{g.fecha}</td><td>{g.ejecutado_por}</td><td>{g.tipo_gasto}</td><td>{g.gasto_de}</td><td>{fmt(g.monto_usd)}</td><td>{g.descripcion}</td><td className="nota">{g.motivo}</td>
+                        <td className="nowrap">{fechaCorta(g.fecha)}</td><td>{g.ejecutado_por}</td><td>{g.tipo_gasto}</td><td>{g.gasto_de}</td><td>{fmt(g.monto_usd)}</td><td>{g.descripcion}</td><td className="nota">{g.motivo}</td>
                         <td><button type="button" onClick={() => onEditar(g.id)}>Editar</button></td>
                       </tr>
                     ))}

@@ -542,6 +542,9 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal .fin-skwd :is(input, select, textarea):disabled { background: rgba(255, 255, 255, 0.04); color: var(--cr-texto-3); }
 .fin-cristal select option, .fin-cristal select optgroup { background: #0d2f28; color: #f4efe6; }
 .fin-cristal .fin-skwd .form label { color: var(--cr-texto-2); font-weight: 500; }
+/* Asterisco de campo obligatorio: el bordó del manual no se lee sobre el cristal oscuro; va en su tono claro */
+.fin-cristal .fin-skwd .pe-obligatorio { color: var(--cr-bordo-texto); }
+.fin-cristal .fin-skwd .pe-ayuda { color: var(--cr-texto-2); }
 
 /* Botones: la acción principal en bordó (manual), con cristal; los secundarios son píldoras de cristal */
 /* Por defecto: píldora de cristal (como los ítems del panel). Bordó solo para la acción que guarda (submit). */
@@ -796,6 +799,11 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
      estirar la página a lo ancho */
   .fin-cristal .fin-skwd .filtros .check { white-space: normal; flex-wrap: wrap; max-width: 100%; padding-top: 6px; padding-bottom: 6px; }
   .fin-cristal .fin-skwd .filtros .check input:not([type='checkbox']):not([type='radio']) { min-width: 0; max-width: 100%; }
+  /* Al dedo: botones, campos y selectores de al menos 44 px de alto (auditoría de UX 1/11/2026) */
+  .fin-cristal .fin-skwd :is(button, select, input:not([type='checkbox']):not([type='radio'])) { min-height: 44px; }
+  .fin-cristal .fin-skwd .filtros .check, .fin-cristal .cj-chip { min-height: 44px; }
+  /* Filtros: uno por renglón y a todo el ancho (antes quedaban de anchos dispares) */
+  .fin-cristal .fin-skwd .filtros > :is(select, input:not([type='checkbox']):not([type='radio'])) { flex: 1 1 100%; width: 100%; }
 }
 
 /* ── Accesibilidad ── */

@@ -594,8 +594,8 @@ export function calcularFinanzas(e: EntradaCalculo) {
     categoria: c,
     monto: r2(porCat[c]),
     estimado: c === 'Anuncios' && anunciosEstimado,
-    detalle: c === 'Staff' ? (payrollMes ? `Payroll: ${payrollMes.length} personas (base + bonus)` : 'Sin bloque de Payroll para el mes')
-      : c === 'Comisiones' ? `Closers/setters calculados $${comisiones.aPagar.toFixed(0)}${comPlataforma ? ` + plataformas $${comPlataforma.toFixed(0)}` : ''}`
+    detalle: c === 'Staff' ? (payrollMes ? `Pagos del equipo: ${payrollMes.length} ${payrollMes.length === 1 ? 'persona' : 'personas'} (honorarios + bonus)` : 'Todavía no hay pagos del equipo cargados para el mes')
+      : c === 'Comisiones' ? `Comisiones de closers y setters: US$ ${comisiones.aPagar.toFixed(0)}${comPlataforma ? ` + plataformas US$ ${comPlataforma.toFixed(0)}` : ''}`
       : c === 'Anuncios' && soloEstimadoMeta ? 'Estimado de Meta cargado en Gastos por la automatización de fin de mes (reemplazar con lo cobrado en Relay)'
       : c === 'Anuncios' && anunciosEstimado ? 'Estimado con el gasto de Meta (no hay anuncios cargados en Gastos)'
       : undefined,
@@ -617,7 +617,7 @@ export function calcularFinanzas(e: EntradaCalculo) {
   if (!anunciosEnGastos && !anunciosEstimado)
     revisar.push({ tipo: 'gasto', texto: 'Sin anuncios en Gastos y sin dato de Meta para el mes.' })
   if (!payrollMes)
-    revisar.push({ tipo: 'gasto', texto: 'No hay bloque de Payroll para este mes (Staff = 0).' })
+    revisar.push({ tipo: 'gasto', texto: 'Todavía no hay pagos del equipo cargados para este mes (Staff = US$ 0).' })
   const payrollPendiente = (payrollMes ?? []).filter(f => !f.pagado)
   if (payrollPendiente.length)
     revisar.push({ tipo: 'gasto', texto: `Payroll pendiente de pago (casilla "Pagado" sin tildar): ${payrollPendiente.map(f => `${f.nombre} $${f.total}`).join(', ')}`, monto: r2(payrollPendiente.reduce((s, f) => s + f.total, 0)) })

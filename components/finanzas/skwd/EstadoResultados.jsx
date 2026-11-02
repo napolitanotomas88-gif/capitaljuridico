@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { calcularEstado } from './calculoEstado'
+import { dolares } from './formato'
 
 // Todo se calcula en vivo desde los valores VIGENTES (con las correcciones aplicadas): pagos_vigentes, gastos_vigentes,
 // pagos_equipo_vigentes y, de Cuentas, solo las inversiones leídas de la vista movimientos_cuenta_empresa.
 // Esta pantalla es solo de lectura/cálculo: nunca lee las tablas originales ni escribe correcciones. No se usa ninguna fórmula del Excel.
 
-const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n) => dolares(n, 2)
+// Celdas de la tabla: sin símbolo, porque la tabla dice «USD» en el encabezado
+const num = (n) => (Number(n) < 0 ? '−' : '') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const pct = (x) => (x === null || x === undefined ? 'n/d' : (x * 100).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%')
 const hoyLocal = () => new Date().toLocaleDateString('en-CA')
 const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-const etiquetaTipo = (t) => (t === 'Software' ? 'Softwares' : t)
+const etiquetaTipo = (t) => t   // mismo nombre que en Gastos y en el Resumen («Software»)
 
 export default function EstadoResultados() {
   const hoy = hoyLocal()
@@ -100,27 +103,27 @@ export default function EstadoResultados() {
   // ---- definición de las filas de la tabla
   const filas = [
     { t: 'seccion', label: 'INGRESOS' },
-    { label: 'Cash collected', m: (m) => m.cash, tot: est.total.cash, f: fmt, fuerte: true },
+    { label: 'Cash collected', m: (m) => m.cash, tot: est.total.cash, f: num, fuerte: true },
     { label: '↳ variación vs mes anterior', m: (m) => m.variacion, tot: null, f: pct, sub: true, nd: true },
-    { label: 'Comisiones de plataformas', m: (m) => m.comisiones, tot: est.total.comisiones, f: fmt },
-    { label: 'Cash collected neto', m: (m) => m.cashNeto, tot: est.total.cashNeto, f: fmt, fuerte: true },
+    { label: 'Comisiones de plataformas', m: (m) => m.comisiones, tot: est.total.comisiones, f: num },
+    { label: 'Cash collected neto', m: (m) => m.cashNeto, tot: est.total.cashNeto, f: num, fuerte: true },
     { t: 'seccion', label: 'GASTOS OPERATIVOS' },
     { t: 'sub', label: 'Staff (Payroll, todas las líneas del mes)' },
-    ...est.areas.map((a) => ({ label: a, m: (m) => m.staff.areas[a], tot: est.total.staff.areas[a], f: fmt, sangria: true })),
-    { label: 'Subtotal Staff', m: (m) => m.staff.subtotal, tot: est.total.staff.subtotal, f: fmt, fuerte: true },
-    { label: '↳ pendiente de pago (ya incluido arriba)', m: (m) => m.staff.pendiente, tot: est.total.staff.pendiente, f: (p) => (p.lineas > 0 ? `${fmt(p.monto)} (${p.lineas})` : '—'), sub: true, texto: true },
+    ...est.areas.map((a) => ({ label: a, m: (m) => m.staff.areas[a], tot: est.total.staff.areas[a], f: num, sangria: true })),
+    { label: 'Subtotal Staff', m: (m) => m.staff.subtotal, tot: est.total.staff.subtotal, f: num, fuerte: true },
+    { label: '↳ pendiente de pago (ya incluido arriba)', m: (m) => m.staff.pendiente, tot: est.total.staff.pendiente, f: (p) => (p.lineas > 0 ? `${num(p.monto)} (${p.lineas})` : '—'), sub: true, texto: true },
     { t: 'sub', label: 'Gastos (tabla Gastos, una línea por tipo)' },
-    ...est.tipos.map((tp) => ({ label: etiquetaTipo(tp), m: (m) => m.gastosPorTipo[tp], tot: est.total.gastosPorTipo[tp], f: fmt, sangria: true })),
-    { label: 'Gastos totales', m: (m) => m.gastosTotales, tot: est.total.gastosTotales, f: fmt, fuerte: true },
+    ...est.tipos.map((tp) => ({ label: etiquetaTipo(tp), m: (m) => m.gastosPorTipo[tp], tot: est.total.gastosPorTipo[tp], f: num, sangria: true })),
+    { label: 'Gastos totales', m: (m) => m.gastosTotales, tot: est.total.gastosTotales, f: num, fuerte: true },
     { t: 'seccion', label: 'RESULTADO' },
-    { label: 'BENEFICIO NETO', m: (m) => m.beneficio, tot: est.total.beneficio, f: fmt, fuerte: true, destacada: true },
+    { label: 'BENEFICIO NETO', m: (m) => m.beneficio, tot: est.total.beneficio, f: num, fuerte: true, destacada: true },
     { label: '% beneficio neto', m: (m) => m.pct, tot: est.total.pct, f: pct, sub: true, nd: true },
     { t: 'seccion', label: 'INVERSIONES (desde Cuentas)' },
-    { label: 'Inversiones', m: (m) => m.inversiones, tot: est.total.inversiones, f: fmt },
-    { label: 'RESULTADO DESPUÉS DE INVERSIONES', m: (m) => m.resultadoDespuesInversiones, tot: est.total.resultadoDespuesInversiones, f: fmt, fuerte: true, destacada: true },
+    { label: 'Inversiones', m: (m) => m.inversiones, tot: est.total.inversiones, f: num },
+    { label: 'RESULTADO DESPUÉS DE INVERSIONES', m: (m) => m.resultadoDespuesInversiones, tot: est.total.resultadoDespuesInversiones, f: num, fuerte: true, destacada: true },
     { t: 'seccion', label: 'BENEFICIO ACUMULADO' },
-    { label: 'Beneficio acumulado', m: (m) => m.acumulado, tot: ultimo ? ultimo.acumulado : null, f: fmt, fuerte: true },
-    { label: 'Beneficio acumulado después de inversiones', m: (m) => m.acumuladoDespuesInversiones, tot: ultimo ? ultimo.acumuladoDespuesInversiones : null, f: fmt },
+    { label: 'Beneficio acumulado', m: (m) => m.acumulado, tot: ultimo ? ultimo.acumulado : null, f: num, fuerte: true },
+    { label: 'Beneficio acumulado después de inversiones', m: (m) => m.acumuladoDespuesInversiones, tot: ultimo ? ultimo.acumuladoDespuesInversiones : null, f: num },
   ]
 
   const celda = (fila, m) => {
@@ -147,11 +150,11 @@ export default function EstadoResultados() {
       {mensaje && <p className="ok">{mensaje}</p>}
 
       <form onSubmit={guardarSaldo} className="filtros">
-        <label className="check">Saldo inicial del Beneficio acumulado (USD):
+        <label className="check">Saldo inicial del beneficio acumulado (USD)
           <input type="number" step="0.01" value={saldoEdit} onChange={(e) => setSaldoEdit(e.target.value)} style={{ width: 130 }} />
         </label>
         <button type="submit" disabled={Number(saldoEdit) === saldo}>Guardar saldo inicial</button>
-        <span className="aviso">Opcional. En el Excel estaba vacío ($0).</span>
+        <span className="aviso">Opcional. En la planilla anterior estaba vacío (US$ 0).</span>
       </form>
 
       {mesEnCurso && (
@@ -202,7 +205,7 @@ export default function EstadoResultados() {
         <ul>
           <li><strong>Cash collected y comisiones:</strong> tabla Pagos, por la fecha de cada pago. Un pago pertenece al mes de su fecha (límites exactos, sin "31 de septiembre" ni "31 de febrero").</li>
           <li><strong>Staff:</strong> Payroll (Pagos del equipo), por mes de liquidación y departamento. Se cuentan <strong>todas</strong> las líneas del mes, pagadas o no; las pendientes se indican aparte.</li>
-          <li><strong>Softwares, Otros, Anuncios y demás:</strong> tabla Gastos, por fecha del gasto, con <strong>una línea por cada tipo</strong>. Un tipo nuevo o un gasto sin tipo aparecen solos.</li>
+          <li><strong>Software, Otros, Anuncios y demás:</strong> tabla Gastos, por fecha del gasto, con <strong>una línea por cada tipo</strong>. Un tipo nuevo o un gasto sin tipo aparecen solos.</li>
           <li><strong>Inversiones:</strong> de Cuentas, solo movimientos de tipo "Inversión empresa", leídos de la vista <code>movimientos_cuenta_empresa</code>.</li>
           <li><strong>Septiembre</strong> no incluye los cobros del 1/10 (pertenecen a octubre).</li>
           <li><strong>Los gastos de 2026</strong> se toman de los datos reales de Gastos, no de referencias a 2025.</li>
@@ -214,7 +217,7 @@ export default function EstadoResultados() {
 
       {anio === 2026 && (
         <details className="er-detalle" onToggle={(e) => { if (e.currentTarget.open && (!referencia || referencia.estado !== 'ok')) cargarReferencia(anio) }}>
-          <summary>Comparación con Excel / diferencias detectadas</summary>
+          <summary>Comparación con la planilla anterior y diferencias detectadas</summary>
           {!referencia || referencia.estado === 'cargando' ? (
             <p className="aviso">Cargando referencia…</p>
           ) : referencia.estado !== 'ok' ? (

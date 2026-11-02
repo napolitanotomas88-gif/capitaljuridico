@@ -104,7 +104,7 @@ export function FinanzasDashboard({ base = '/finanzas' }: { base?: string } = {}
               {d.fuente === 'app'
                 ? 'Datos de la app de Finanzas (pagos, gastos y pagos al equipo) · Estado de Resultados de la planilla (control del cash)'
                 : 'Datos del sheet de Finanzas (Registro de Pagos, Gastos, Payroll, Estado de Resultados)'} · Meta Ads · dólar MEP (argentinadatos.com / dolarapi.com).
-              Actualizado {new Date(d.generado).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.
+              Actualizado a las {new Date(d.generado).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}.
             </p>
           </div>
         )}

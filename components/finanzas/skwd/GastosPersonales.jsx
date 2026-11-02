@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import ResumenPersonales from './ResumenPersonales'
 import { clasificar, EJECUTORES, GASTO_DE, TIPOS } from './calculoPersonales'
+import { dolares, fechaCorta } from './formato'
 
 // Gastos Personales: MÓDULO INDEPENDIENTE. Escribe SOLO la tabla gastos_personales.
 // Además LEE (solo select) pagos_vigentes y pago_quien_recibio para sumar los ingresos recibidos por Gero y Tomi desde el 1/10/2026.
@@ -9,7 +10,7 @@ import { clasificar, EJECUTORES, GASTO_DE, TIPOS } from './calculoPersonales'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
 const vacio = () => ({ fecha: hoy(), ejecutado_por: 'Gero A.', tipo_gasto: 'Personal', gasto_de: 'Para ambos', monto_usd: '', descripcion: '' })
-const fmt = (n) => '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n) => dolares(n, 2)
 
 export default function GastosPersonales() {
   const [vista, setVista] = useState('movimientos')
@@ -108,12 +109,16 @@ export default function GastosPersonales() {
         <>
           <h3>{editandoId ? `Editando gasto personal #${editandoId}` : 'Cargar gasto personal'}</h3>
           <form onSubmit={guardar} className="form">
-            <label>Fecha<input type="date" name="fecha" value={form.fecha} onChange={cambiar} required /></label>
-            <label>Ejecutado por<select name="ejecutado_por" value={form.ejecutado_por} onChange={cambiar}>{EJECUTORES.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label><span>Fecha<span className="pe-obligatorio" aria-hidden="true"> *</span></span><input type="date" name="fecha" value={form.fecha} onChange={cambiar} required /></label>
+            <label>Lo pagó<select name="ejecutado_por" value={form.ejecutado_por} onChange={cambiar}>{EJECUTORES.map((x) => <option key={x}>{x}</option>)}</select></label>
             <label>Tipo de gasto<select name="tipo_gasto" value={form.tipo_gasto} onChange={cambiar}>{TIPOS.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label>Gasto de<select name="gasto_de" value={form.gasto_de} onChange={cambiar}>{GASTO_DE.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label>Monto (USD)<input name="monto_usd" type="number" step="0.01" min="0" value={form.monto_usd} onChange={cambiar} required /></label>
+            <label>Gasto de (para quién)<select name="gasto_de" value={form.gasto_de} onChange={cambiar}>{GASTO_DE.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label><span>Monto (USD)<span className="pe-obligatorio" aria-hidden="true"> *</span></span><input name="monto_usd" type="number" step="0.01" min="0" value={form.monto_usd} onChange={cambiar} required /></label>
             <label>Descripción (opcional)<input name="descripcion" value={form.descripcion} onChange={cambiar} /></label>
+            <p className="pe-ayuda" style={{ gridColumn: '1 / -1' }}>
+              «Tomi para Gero»: lo pagó Tomi y Gero le debe todo. «Gero para Tomi»: al revés. «Para ambos»: quien lo pagó tiene a favor la mitad.
+              Si «Lo pagó» no coincide con «Gasto de», el gasto queda «A revisar» y fuera del balance. Los campos con * son obligatorios.
+            </p>
             <div className="acciones">
               <button type="submit">{editandoId ? 'Guardar cambios' : 'Guardar gasto personal'}</button>
               {editandoId && <button type="button" onClick={cancelar}>Cancelar</button>}
@@ -124,14 +129,14 @@ export default function GastosPersonales() {
           <h3>Gastos personales ({gastos.length}) — Total registrado: <strong>{fmt(total)}</strong></h3>
           <div className="tabla-scroll">
             <table>
-              <thead><tr><th>Fecha</th><th>Ejecutado por</th><th>Tipo</th><th>Gasto de</th><th>Monto</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Lo pagó</th><th>Tipo</th><th>Gasto de</th><th>Monto</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
               <tbody>
                 {gastos.map((g) => {
                   const c = clasificar(g)
                   return (
                     <tr key={g.id} className={(c.estado === 'revisar' ? 'fila-revisar ' : '') + (g.id === editandoId ? 'fila-abierta' : '')}>
-                      <td>{g.fecha}</td><td>{g.ejecutado_por}</td><td>{g.tipo_gasto}</td><td>{g.gasto_de}</td><td>{fmt(g.monto_usd)}</td><td>{g.descripcion}</td>
-                      <td>{c.estado === 'revisar' ? <span className="et et-revisar" title={c.motivo}>⚑ A REVISAR</span> : ''}</td>
+                      <td className="nowrap">{fechaCorta(g.fecha)}</td><td>{g.ejecutado_por}</td><td>{g.tipo_gasto}</td><td>{g.gasto_de}</td><td>{fmt(g.monto_usd)}</td><td>{g.descripcion}</td>
+                      <td>{c.estado === 'revisar' ? <span className="et et-revisar" title={c.motivo}>⚑ A REVISAR</span> : 'En el balance'}</td>
                       <td className="nowrap"><button type="button" onClick={() => editar(g.id)}>Editar</button> <button type="button" onClick={() => borrar(g)}>Borrar</button></td>
                     </tr>
                   )

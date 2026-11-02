@@ -7,8 +7,9 @@ import { RepartoPagadores, ChipsPagadores } from './RepartoPagadores'
 import { repartoInicial, repartoDeLinea, validarReparto, QUIENES_PAGAN } from './calculoPagadores'
 import { Boton } from '@/components/ui/Boton'
 import { ChipSemaforo } from '@/components/ui/ChipSemaforo'
+import { dolares, mesLargo } from './formato'
 
-const usd = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 2 })
+const usd = (n) => dolares(n)
 const ars = (n) => 'ARS ' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
 const mesActual = () => new Date().toLocaleDateString('en-CA').slice(0, 7)
 // comisionEditada / bonusEditado: false = el importe lo propone el cálculo automático; true = lo escribió la persona (manual) y no se pisa
@@ -118,7 +119,7 @@ export default function PagosEquipo({ onCorregir }) {
   }
   const porDepto = useMemo(() => {
     const m = {}
-    for (const l of visibles) m[l.departamento || '(sin departamento)'] = (m[l.departamento || '(sin departamento)'] || 0) + Number(l.total_usd)
+    for (const l of visibles) m[l.departamento || 'Sin departamento'] = (m[l.departamento || 'Sin departamento'] || 0) + Number(l.total_usd)
     return Object.entries(m).sort((a, b) => b[1] - a[1])
   }, [visibles])
 
@@ -520,7 +521,7 @@ export default function PagosEquipo({ onCorregir }) {
             <div className="pe-campo">
               <label htmlFor="pe-mes-cierre" id="pe-cierre-titulo">Cierre del mes</label>
               <select id="pe-mes-cierre" value={mesCierre} onChange={(e) => setMesCierre(e.target.value)}>
-                {mesesCierre.map((m) => <option key={m} value={m}>{m}</option>)}
+                {mesesCierre.map((m) => <option key={m} value={m}>{mesLargo(m)}</option>)}
               </select>
             </div>
             <p className="pe-ayuda">Lo que corresponde pagar a cada persona en el mes (suma de todas sus líneas). Las inactivas con líneas en el mes también aparecen.</p>
@@ -532,7 +533,7 @@ export default function PagosEquipo({ onCorregir }) {
             <div className="pe-kpi"><span className="cj-etiqueta">Líneas</span><strong>{cierre.totales.lineas}</strong></div>
           </div>
           <section className="pe-tarjeta" aria-labelledby="pe-cierre-pagadores">
-            <h3 id="pe-cierre-pagadores">Quién pone cuánto en {mesCierre}</h3>
+            <h3 id="pe-cierre-pagadores">Quién pone cuánto en {mesLargo(mesCierre)}</h3>
             <p className="pe-ayuda">Cada línea reparte su total según «Pagado por» (por ejemplo Gero 80% · Tomi 20%).</p>
             <dl className="pe-desglose pe-desglose--fila">
               {[...QUIENES_PAGAN, 'otro', 'sinDato'].filter((k) => QUIENES_PAGAN.includes(k) || cierre.porPagador[k] > 0).map((k) => (
@@ -554,13 +555,13 @@ export default function PagosEquipo({ onCorregir }) {
                     <td className="nowrap">{f.activo && <button type="button" onClick={() => abrirNueva(f.persona_id, mesCierre)}>Agregar línea</button>}</td>
                   </tr>
                 ))}
-                {cierre.filas.length === 0 && <tr><td colSpan={14} className="aviso">No hay líneas en {mesCierre}.</td></tr>}
+                {cierre.filas.length === 0 && <tr><td colSpan={14} className="aviso">No hay líneas en {mesLargo(mesCierre)}.</td></tr>}
               </tbody>
             </table>
           </div>
           {cierre.sinLinea.length > 0 && (
             <div className="aviso-box pe-sin-linea">
-              <strong>Personas activas sin ninguna línea en {mesCierre} ({cierre.sinLinea.length}):</strong>{' '}
+              <strong>Personas activas sin ninguna línea en {mesLargo(mesCierre)} ({cierre.sinLinea.length}):</strong>{' '}
               {cierre.sinLinea.map((p) => <button key={p.id} type="button" onClick={() => abrirNueva(p.id, mesCierre)}>{p.nombre}</button>)}
               <div className="aviso">Es solo un aviso: puede que ese mes no les corresponda pago.</div>
             </div>
@@ -575,7 +576,7 @@ export default function PagosEquipo({ onCorregir }) {
           <select id="pe-f-mes" value={mes ?? ''} onChange={(e) => setMes(e.target.value)}>
             <option value="">Todos los meses</option>
             {meses.map((m) => (
-              <option key={m} value={m}>{m.slice(0, 7)}</option>
+              <option key={m} value={m}>{mesLargo(m)}</option>
             ))}
           </select>
         </div>
@@ -644,14 +645,14 @@ export default function PagosEquipo({ onCorregir }) {
               <tr>
                 {/* Primera columna a propósito: así "Corregir" siempre se ve, sin tener que desplazar la tabla hacia la derecha */}
                 <td className="nowrap">
-                  {esImportado(l) && <button type="button" onClick={() => onCorregir && onCorregir({ tabla: 'pagos_equipo', id: l.id })}>Corregir</button>}
+                  {esImportado(l) && <button type="button" title="Línea importada: se corrige en Correcciones y el dato original queda guardado" onClick={() => onCorregir && onCorregir({ tabla: 'pagos_equipo', id: l.id })}>Corregir</button>}
                   {!esImportado(l) && <button type="button" onClick={() => editarLinea(l)}>Editar</button>}
                   {!esImportado(l) && !l.pagado && <button type="button" className="quitar" onClick={() => borrarLinea(l)}>Borrar</button>}
                 </td>
-                <td className="nowrap"><Celda l={l} k="mes">{l.mes.slice(0, 7)}</Celda></td>
+                <td className="nowrap"><Celda l={l} k="mes">{mesLargo(l.mes)}</Celda></td>
                 <td className="nowrap">
                   {nombreDe(l)}
-                  {nombreDe(l) !== l.nombre_original && <div className="aviso">en el Excel: {l.nombre_original}</div>}
+                  {nombreDe(l) !== l.nombre_original && <div className="aviso" title="Nombre con el que figuraba en la planilla importada">en la planilla: {l.nombre_original}</div>}
                 </td>
                 <td className="nowrap"><Celda l={l} k="puesto">{l.puesto}</Celda></td>
                 <td className="nowrap"><Celda l={l} k="departamento">{l.departamento}</Celda></td>

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import DatosPago from './DatosPago'
 import { armarPersona, validarPersona, consolidarSensibles, textoMeses, fichaPermanente, autorizacionDesdeSondeo, etiquetaOrigen } from './calculoEquipo'
+import { dolares, cant } from './formato'
 
 const mask = (v) => (v ? '••••' + String(v).slice(-4) : '—')
 const fechaCorta = (t) => (t ? String(t).slice(0, 16).replace('T', ' ') : '—')
-const usd = (n) => '$' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
+const usd = (n) => dolares(n)
 
 // El historial lee pagos_equipo_vigentes (valores con correcciones). Las celdas corregidas llevan ✎ y el original al pasar el mouse.
 // Datos sensibles (separados, ocultos por defecto), SOLO LECTURA y solo si la autorización está confirmada:
@@ -400,7 +401,7 @@ export default function Equipo() {
     let texto = `${p.nombre} ahora está ${p.activo ? 'inactiva (conserva su historial de pagos)' : 'activa'}.`
     if (p.activo) {
       const pend = (lineas ?? []).filter((l) => !l.pagado)
-      if (pend.length) texto += ` Ojo: tiene ${pend.length} pago(s) pendiente(s) por ${usd(pend.reduce((s, l) => s + Number(l.total_usd || 0), 0))}; se pueden pagar igual.`
+      if (pend.length) texto += ` Ojo: tiene ${cant(pend.length, 'pago pendiente', 'pagos pendientes')} por ${usd(pend.reduce((s, l) => s + Number(l.total_usd || 0), 0))}; se pueden pagar igual.`
     }
     setMensaje(texto)
     setDeshacer({ texto: 'Deshacer', accion: async () => supabase.from('personas').update({ activo: p.activo }).eq('id', p.id) })
@@ -454,12 +455,12 @@ export default function Equipo() {
         </section>
       )}
       <div className="filtros">
-        <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
+        <select aria-label="Filtrar por estado" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
           <option value="todos">Todas las personas</option>
           <option value="activos">Solo activas</option>
           <option value="inactivos">Solo inactivas</option>
         </select>
-        <input placeholder="Buscar nombre, puesto o departamento" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+        <input type="search" aria-label="Buscar personas" placeholder="Buscar nombre, puesto o departamento" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
       </div>
       <p>
         <strong>{visibles.length}</strong> de {personas.length} personas — Activas: <strong>{personas.filter((p) => p.activo).length}</strong>
@@ -478,7 +479,7 @@ export default function Equipo() {
                 <td>{p.departamento}</td>
                 <td>{p.apodos}</td>
                 <td className="nowrap">{p.activo ? '● Activa' : '○ Inactiva'}</td>
-                {autorizado === true && <td>{p.id in marcas ? (marcas[p.id] > 0 ? `${marcas[p.id]} campo(s) pendiente(s)` : 'Con registro') : 'Sin registro'}</td>}
+                {autorizado === true && <td>{p.id in marcas ? (marcas[p.id] > 0 ? cant(marcas[p.id], 'campo pendiente', 'campos pendientes') : 'Con registro') : 'Sin registro'}</td>}
                 <td className="nowrap">
                   <button type="button" onClick={() => setAbiertoId(p.id)}>Ver detalle</button>{' '}
                   <button type="button" onClick={() => abrirForm(p)}>Editar</button>{' '}

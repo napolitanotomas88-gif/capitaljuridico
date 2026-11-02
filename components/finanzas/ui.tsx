@@ -42,7 +42,8 @@ export function Barra({ label, valor, max, texto, nota, marca }: { label: ReactN
   return (
     <div className="py-1.5" title={`${typeof label === 'string' ? label : ''} ${texto}`}>
       <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span style={{ color: 'var(--text)', minWidth: 0 }} className="truncate">{label} {marca}</span>
+        {/* La etiqueta baja de renglón en vez de cortarse con «…» (en el celular «FECCU · Front-end en un pago» no entraba) */}
+        <span style={{ color: 'var(--text)', minWidth: 0, overflowWrap: 'anywhere' }}>{label} {marca}</span>
         <span className="tabular-nums font-semibold shrink-0" style={{ color: 'var(--text)' }}>{texto}</span>
       </div>
       <div style={{ height: 8, borderRadius: 4, background: 'var(--fin-pista)', marginTop: 4, overflow: 'hidden' }}>
