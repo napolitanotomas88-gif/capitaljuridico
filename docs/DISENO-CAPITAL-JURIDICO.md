@@ -4,6 +4,18 @@
 
 # Sistema de diseño Capital Jurídico
 
+## Cristal en todo el Despacho (2/11/2026, el tema vigente)
+
+Pedido de Tomás: «acomodá toda la interfaz con el tema nuevo». El material de Finanzas (`components/finanzas/cristal/cristal.css`, PR #41–#43) pasa a todo el Despacho: verde Toga ahumado con el imagotipo grande de fondo, paneles de cristal esmerilado, texto marfil y oro mate. **Las secciones de abajo (marfil, latón #805C29) describen la paleta CLARA, que sigue siendo la de impresión/PDF y la de las pantallas sin el marco** (por ejemplo `/anuncios` con su clave, sin Google).
+
+- **Dónde:** `components/shell/cristal.css` (lo importa `components/shell/MarcoShell.tsx`). Todo va dentro de `@media screen`: al imprimir sale el diseño claro.
+- **Cómo:** `.cj-raiz` lleva `.cj-cristal` y `data-noche`. Los tokens `--cj-*`, los del dashboard viejo (`--bg`, `--card`…) y los del CRM de ventas (`--color-*` de Tailwind) se redefinen en `:root:has(.cj-cristal)`, así también los toman los portales (tarjeta del cliente). La escala neutra del CRM se invierte (negro = texto claro); las barras oscuras (encabezados, columnas, cabeceras de tabla) pasan a cristal con texto marfil y sobre los rellenos de color (oro, bordó, verde) el texto va oscuro.
+- **Dos modos, por cuenta:** nocturno (predeterminado) y claro. Interruptor «Modo nocturno» al pie de la barra lateral (en el celular, en la hoja «Más»). Se guarda en la cuenta (Neon, `cj_preferencias_usuario`, la misma tabla que Finanzas: `POST /api/preferencias`) y en la cookie `cj_noche` como caché para que la página salga bien de entrada.
+- **Tokens sobre cristal:** texto `#FBF8F2`; secundario `#E3DAC8`; oro de texto `#EED6A8` (mate, más claro que el de Finanzas porque acá hay texto suelto sobre el logo); ok `#9FDCC0`; atención `#ECCA8F`; error `#F0B1B8`; filetes blancos al 13 % / 26 %; borde de controles blanco al 46 %. Radios 10 / 16 / 22 y 18 en tarjetas.
+- **Tipografía:** cuerpo en sans del sistema (SF Pro / Inter), títulos en Sitka/Source Serif; cifras y montos en negrita; nada por debajo de 12 px (también los tamaños en línea del Resumen y de los paneles viejos).
+- **Contraste medido (AA):** con un recorrido automático de todos los textos visibles, componiendo las capas de fondo sobre el peor punto realista (modo claro, borde superior del logo sobre la luz de arriba ≈ `#44624A`): ningún texto activo bajo 4,5:1 en Resumen, Cartera, tarjeta y ficha del cliente, Kickoff, Guiones, Edición, Referidos, Anuncios, Cargar alta, Ventas (Admin y Mi día), Cuotas, Trazabilidad y Configuración, a 1440, 1024 y 375 px, en los dos modos. Solo quedan bajo el umbral controles deshabilitados («Dic» futuro, «Limpiar» sin filtros), que WCAG exceptúa.
+- **Desenfoque:** solo en superficies de primer nivel (pocas por pantalla); las repetidas en listas van en cristal liso. Nada entre el fondo y los paneles puede crear su propio contexto de apilamiento (la transición entre pantallas quedó solo en opacidad). Con «reducir transparencia» o sin `backdrop-filter`, superficies sólidas.
+
 Base visual y de navegación del dashboard unificado. Vive en el grupo de rutas `app/(shell)/` y se prueba en `/sistema` (solo en desarrollo).
 
 Fuente de las reglas: el Manual de Identidad de Skyward tal como se lo transcribió en el pedido del 6/10/2026 y su implementación de referencia en `app/anuncios/layout.tsx`. Si el PDF dice otra cosa, manda el PDF. Revisado contra el original (14 páginas) el 6/10/2026: los seis colores, las dos tipografías, la escala de tamaños (etiqueta 10 a 12 px, cuerpo 15 a 17, título 24 a 46, cifra 38 a 68) y el control de calidad coinciden con lo implementado.
@@ -15,6 +27,7 @@ Los estilos son CSS plano con prefijo `cj-` (`app/(shell)/cj.css`), sin mezclars
 | Qué | Dónde |
 |---|---|
 | Tokens y clases `cj-*` | `app/(shell)/cj.css` |
+| Cristal de todo el Despacho (tema vigente) y modo nocturno | `components/shell/cristal.css`, `components/shell/ModoNocturno.tsx`, `app/api/preferencias/route.ts` |
 | Fuentes (Bodoni Moda y Archivo, `next/font/google`) | `app/(shell)/fuentes.ts` |
 | Layout del shell (marca, navegación, barrera de sesión) | `app/(shell)/layout.tsx` |
 | Pantalla de ingreso con Google (y "Acceso no configurado") | `app/entrar/page.tsx` |

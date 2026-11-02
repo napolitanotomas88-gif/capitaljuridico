@@ -21,6 +21,7 @@ import { PanelReferidosFicha } from '../../[id]/_componentes/PanelReferidos'
 import { Periodos } from '../../[id]/_componentes/Periodos'
 import { SeccionFicha } from '../../[id]/_componentes/SeccionFicha'
 import { Saltos } from './LineaTiempo'
+import { DocGuiones } from './DocGuiones'
 import { RegistroHitos } from './RegistroHitos'
 import { CorregirEtapa } from './CorregirEtapa'
 import { AccionesCliente } from './AccionesCliente'
@@ -81,7 +82,7 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
   return (
     <div className="rc-detalle">
       <Recorrido fila={fila} dia1={ficha.dia1} demo={demo} />
-      {documento && <p><a className="cj-enlace" href={documento.url} target="_blank" rel="noreferrer">Documento de guiones del cliente</a></p>}
+      <DocGuiones url={documento?.url ?? null} guionesHref={ver.guiones ? `/guiones/${id}${sufijo}` : null} />
 
       {fila.alertas.length > 0 && (
         <ul className="rc-alertas" aria-label="Qué mirar">

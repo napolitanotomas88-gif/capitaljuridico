@@ -8,6 +8,7 @@ import {
   ANCHO_DEFECTO, ANCHO_MAX, ANCHO_MIN, COOKIE_NAV, alArrastrar, anchoVisible, escribirPreferencia, limitarAncho, type PreferenciaNav,
 } from './preferenciaNav'
 import { Conectados } from './Conectados'
+import { ModoNocturno } from './ModoNocturno'
 import { Wordmark } from './Wordmark'
 import type { ItemNavegacion } from './secciones'
 
@@ -28,6 +29,8 @@ type Props = {
   preferencia: PreferenciaNav
   /** Quién está conectado (27/10/2026): lo ve todo el equipo */
   verConectados?: boolean
+  /** Modo nocturno del cristal con que salió la página (cuenta → cookie → nocturno) */
+  noche?: boolean
 }
 
 function bajo(pathname: string, href: string): boolean {
@@ -41,7 +44,7 @@ function activo(pathname: string, it: ItemNavegacion): boolean {
 
 const MAX_PESTANAS = 5
 
-export function Navegacion({ items, aparte = [], inicio, nombre, rol, esDePrueba, preferencia, verConectados = false }: Props) {
+export function Navegacion({ items, aparte = [], inicio, nombre, rol, esDePrueba, preferencia, verConectados = false, noche = true }: Props) {
   const pathname = usePathname()
   const [pref, setPref] = useState<PreferenciaNav>(preferencia)
   const [arrastrando, setArrastrando] = useState(false)
@@ -161,6 +164,9 @@ export function Navegacion({ items, aparte = [], inicio, nombre, rol, esDePrueba
             ))}
           </ul>
         </nav>
+        <div className="cj-lateral__pie">
+          <ModoNocturno inicial={noche} compacto={pref.chica} />
+        </div>
         {!esDePrueba && (
           <form method="post" action="/api/auth/salir" className="cj-salir">
             <button type="submit" className="cj-boton cj-boton--secundario" title={pref.chica ? 'Salir' : undefined}>
@@ -222,6 +228,7 @@ export function Navegacion({ items, aparte = [], inicio, nombre, rol, esDePrueba
               </p>
             )}
             {verConectados && <Conectados />}
+            <ModoNocturno inicial={noche} />
             <ul>
               {enMas.map((it) => (
                 <li key={it.clave}>

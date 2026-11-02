@@ -98,7 +98,7 @@ const ubicacion = (r) => (r.location ? new URL(r.location).pathname + new URL(r.
 
 // ═════════════════════════════════════════════════════════════════════════════════════════
 // Rutas del marco global del Despacho que piden sesión de Google sin sección (cualquier rol): la ruta filtra adentro.
-const MARCO_SIN_SECCION = ['/api/notificaciones/*', '/api/presencia']
+const MARCO_SIN_SECCION = ['/api/notificaciones/*', '/api/presencia', '/api/preferencias']
 
 describe('normalizarRuta', () => {
   const casos = [
