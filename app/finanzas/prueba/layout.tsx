@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { COOKIE_FINANZAS, tokenValido } from '@/lib/finanzasAuth'
 import { adminEnPagina } from '@/lib/auth/llaveAdminPagina'
+import { correoFinanzas } from '@/lib/finanzasSkwd/correoSesion'
+import { leerPreferenciasSinDemora, resolverPreferencias } from '@/lib/finanzasSkwd/preferencias'
 import { MarcoCristal } from '@/components/finanzas/cristal/MarcoCristal'
 import { VIEWPORT_APP } from '@/components/shell/pwa'
 import { clasesFuentes } from '@/app/(shell)/fuentes'
@@ -17,9 +19,15 @@ export const metadata: Metadata = { title: 'Finanzas · prueba de cristal', robo
 export default async function FinanzasPruebaLayout({ children }: { children: React.ReactNode }) {
   const galletas = await cookies()
   if (!tokenValido(galletas.get(COOKIE_FINANZAS)?.value) && !(await adminEnPagina())) redirect('/finanzas/login')
+  // Modo nocturno por defecto; lo que cada cuenta eligió (Neon, cj_preferencias_usuario) manda sobre la cookie de este
+  // navegador, que queda como caché (si la base tarda o falla, la página sale igual con la cookie).
+  const correo = await correoFinanzas(await headers(), galletas.get(COOKIE_FINANZAS)?.value)
+  const prefs = resolverPreferencias(await leerPreferenciasSinDemora(correo), {
+    noche: galletas.get('fin_cristal_noche_v2')?.value, nav: galletas.get('fin_cristal_nav')?.value,
+  })
   return (
     <main className={clasesFuentes} lang="es">
-      <MarcoCristal abiertaInicial={galletas.get('fin_cristal_nav')?.value !== 'riel'} nocheInicial={galletas.get('fin_cristal_noche')?.value === '1'}>
+      <MarcoCristal abiertaInicial={prefs.nav === 'panel'} nocheInicial={prefs.noche}>
         {children}
       </MarcoCristal>
     </main>

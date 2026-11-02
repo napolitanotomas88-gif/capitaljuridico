@@ -17,13 +17,15 @@
   --cr-blur: blur(22px) saturate(140%);
   --cr-brillo: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
   --cr-sombra: 0 20px 50px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15);
-  --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.38);
+  --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.56);
   --cr-panel-borde: rgba(255, 255, 255, 0.15);
   --cr-panel-borde-arriba: rgba(255, 255, 255, 0.32);
   /* Texto y acentos sobre cristal oscuro */
-  --cr-texto: rgba(250, 246, 238, 0.95);
-  --cr-texto-2: rgba(242, 234, 220, 0.7);
-  --cr-texto-3: rgba(242, 234, 220, 0.52);
+  --cr-texto: #fbf8f2;
+  /* Legibilidad (1/11, «todas las letras mucho más visibles»): secundarios opacos y claros, nada de grises apagados */
+  --cr-texto-2: #e9e1d1;
+  --cr-texto-3: #d3c9b6;
+  --cr-sombra-texto: 0 1px 2px rgba(0, 0, 0, 0.45);
   --cr-oro: #d0a45a;
   --cr-oro-mate: #be8f49;
   --cr-bordo: #9e3442;
@@ -104,7 +106,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   background: linear-gradient(180deg, #e6cd9c 0%, #be8f49 55%, #8c6631 100%);
   -webkit-mask: url('/marca/logo-claro.svg') center / contain no-repeat;
   mask: url('/marca/logo-claro.svg') center / contain no-repeat;
-  opacity: 0.42;
+  opacity: 0.3;
   transition: translate 300ms var(--cr-curva), opacity 400ms ease;
 }
 .fin-cristal[data-nav='panel'] { --cr-logo-x: 110px; }
@@ -114,9 +116,9 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
 }
 /* Modo nocturno: el fondo baja de luz y el cristal se ahúma más */
-.fin-cristal[data-noche='true'] { --cr-tinte: rgba(2, 14, 11, 0.62); --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.04) 100%), rgba(2, 16, 13, 0.55); }
+.fin-cristal[data-noche='true'] { --cr-tinte: rgba(2, 14, 11, 0.68); --cr-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.04) 100%), rgba(2, 16, 13, 0.7); }
 .fin-cristal[data-noche='true'] .fin-cristal__manchas { filter: brightness(0.55) saturate(0.85); }
-.fin-cristal[data-noche='true'] .fin-cristal__logo { opacity: 0.28; }
+.fin-cristal[data-noche='true'] .fin-cristal__logo { opacity: 0.22; }
 .fin-cristal__manchas { transition: filter 400ms ease; }
 
 .fin-cristal__saltar { position: fixed; left: 16px; top: -60px; z-index: 60; padding: 10px 16px; border-radius: 999px; background: #fbf7ef; color: #102a24 !important; font-weight: 600; text-decoration: none; }
@@ -189,7 +191,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fcn-logo__iso { width: 18px; height: 24px; background: #ecd8b0; -webkit-mask: url('/marca/isotipo.svg') center / contain no-repeat; mask: url('/marca/isotipo.svg') center / contain no-repeat; }
 .fcn-cab__textos { display: flex; flex-direction: column; min-width: 0; }
 .fcn-cab__textos strong { font-size: 15px; font-weight: 600; line-height: 1.25; color: rgba(255, 255, 255, 0.96); }
-.fcn-cab__textos span { font-size: 11.5px; font-weight: 400; line-height: 1.2; color: rgba(255, 255, 255, 0.6); }
+.fcn-cab__textos span { font-size: 12px; font-weight: 500; line-height: 1.2; color: var(--cr-texto-3); }
 
 /* Buscador (en el riel queda la lupa sola) */
 .fcn-buscar {
@@ -211,12 +213,12 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   font: 400 13.5px/1 var(--cr-sans); color: var(--cr-texto);
   background: transparent; border: 0; outline: none; -webkit-appearance: none; appearance: none;
 }
-.fcn-buscar input::placeholder { color: rgba(255, 255, 255, 0.55); }
+.fcn-buscar input::placeholder { color: var(--cr-texto-3); }
 .fcn-buscar input::-webkit-search-cancel-button { display: none; }
 .fcn-kbd {
   flex: none; display: grid; place-items: center; width: 26px; height: 17px; margin-right: 8px;
   border-radius: 6px; background: rgba(255, 255, 255, 0.14);
-  font: 600 10px/1 var(--cr-sans); color: rgba(255, 255, 255, 0.7);
+  font: 600 10.5px/1 var(--cr-sans); color: var(--cr-texto-2);
 }
 
 /* Lista */
@@ -232,7 +234,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fcn-titulo { position: relative; height: 40px; }
 .fcn-titulo__texto {
   position: absolute; left: 12px; bottom: 8px;
-  font: 600 10.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45);
+  font: 600 11px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cr-texto-3);
   white-space: nowrap;
 }
 .fcn-titulo__linea {
@@ -301,7 +303,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 }
 
 /* Subárbol de Reportes */
-.fcn-chevron { flex: none; display: grid; place-items: center; margin-left: auto; color: rgba(255, 255, 255, 0.7); }
+.fcn-chevron { flex: none; display: grid; place-items: center; margin-left: auto; color: var(--cr-texto-2); }
 .fcn-chevron svg { transition: transform 200ms var(--cr-curva); }
 .fcn-arbol[data-desplegado='false'] .fcn-chevron svg { transform: rotate(180deg); }
 .fcn-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms ease-out; }
@@ -311,7 +313,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   position: relative; z-index: 1;
   display: flex; align-items: center; gap: 10px;
   height: 33px; margin: 1px 0; padding-left: 41px; padding-right: 12px;
-  border-radius: 999px; font: 500 13px/1 var(--cr-sans); color: rgba(255, 255, 255, 0.8); text-decoration: none; white-space: nowrap;
+  border-radius: 999px; font: 500 13.5px/1 var(--cr-sans); color: var(--cr-texto-2); text-decoration: none; white-space: nowrap;
   opacity: 0; transform: translateY(-4px);
   transition: opacity 180ms ease, transform 180ms var(--cr-curva), background-color 100ms ease;
 }
@@ -337,7 +339,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fcn-punto--verde { background: #5aa88a; box-shadow: 0 0 6px rgba(90, 168, 138, 0.6); }
 .fcn-punto--oro { background: #be8f49; box-shadow: 0 0 6px rgba(190, 143, 73, 0.6); }
 .fcn-punto--bordo { background: #b45f6b; box-shadow: 0 0 6px rgba(180, 95, 107, 0.6); }
-.fcn-vacio { margin: 10px 12px; font-size: 12.5px; color: rgba(255, 255, 255, 0.55); white-space: nowrap; }
+.fcn-vacio { margin: 10px 12px; font-size: 13px; color: var(--cr-texto-3); white-space: nowrap; }
 
 /* Modo nocturno: separado por 20 px; interruptor 36 × 20 */
 .fcn-noche { flex: none; margin-top: 14px; padding-top: 6px; }
@@ -375,8 +377,8 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fcn-usuario__textos { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
 .fcn-usuario__textos strong, .fcn-usuario__textos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fcn-usuario__textos strong { font-size: 13.5px; font-weight: 600; line-height: 1.3; color: rgba(255, 255, 255, 0.95); }
-.fcn-usuario__textos span { font-size: 11.5px; line-height: 1.3; color: rgba(255, 255, 255, 0.6); }
-.fcn-usuario__chev { flex: none; color: rgba(255, 255, 255, 0.55); }
+.fcn-usuario__textos span { font-size: 12px; line-height: 1.3; color: var(--cr-texto-3); }
+.fcn-usuario__chev { flex: none; color: var(--cr-texto-3); }
 
 /* Botón circular expandir / contraer: mitad afuera del borde derecho, a la altura del logo */
 .fcn-plegar {
@@ -467,15 +469,17 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal .fin-skwd .form { padding: 18px 20px 20px; border-radius: 22px; gap: 12px 16px; }
 .fin-cristal .fin-skwd .filtros { padding: 8px; border-radius: 22px; gap: 8px; }
 .fin-cristal .fin-skwd .filtros > strong, .fin-cristal .fin-skwd .filtros > .aviso { padding: 0 6px; }
-.fin-cristal .fin-skwd .filtros > strong { font: 600 10.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.fin-cristal .fin-skwd .filtros > strong { font: 600 11.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cr-texto-3); }
 .fin-cristal .fin-skwd .alta-rapida { padding: 12px 14px; border-radius: 22px; }
 .fin-cristal .fin-skwd .filtros .check { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; white-space: nowrap; border-radius: 999px; color: var(--cr-texto-2); }
 .fin-cristal .fin-skwd .filtros .check:hover { background: rgba(255, 255, 255, 0.06); color: var(--cr-texto); }
 /* Títulos de sección sueltos sobre el fondo: sombra suave para que el logo no les quite lectura */
 .fin-cristal .fin-skwd > :is(h2, h3), .fin-cristal .fin-skwd > p { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); }
+/* Textos sueltos sobre el fondo (sin panel detrás): marfil pleno, porque detrás puede asomar el oro del logo */
+.fin-cristal .fin-skwd > p, .fin-cristal .fin-skwd > * > p.aviso { color: var(--cr-texto); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 0, 0, 0.45); }
 .fin-cristal .cj-bloque { border-radius: 24px; }
 .fin-cristal .cj-dato { border-radius: 20px; }
-.fin-cristal .fin-skwd { --sk-radio: 18px; --sk-campo: rgba(255, 255, 255, 0.08); --sk-thead: transparent; --sk-realce: rgba(255, 255, 255, 0.06); --sk-texto-3: var(--cr-texto-3);
+.fin-cristal .fin-skwd { --sk-radio: 18px; --sk-campo: rgba(255, 255, 255, 0.08); --sk-thead: transparent; --sk-realce: rgba(255, 255, 255, 0.06); --sk-texto-3: var(--cr-texto-2);
   --sk-oro-suave: rgba(190, 143, 73, 0.16); --sk-verde-suave: rgba(149, 212, 184, 0.09); }
 .fin-cristal .fin-skwd .detalle { border-top: 1px solid var(--cr-panel-borde-arriba); box-shadow: var(--cr-brillo), inset 0 2px 0 rgba(190, 143, 73, 0.6), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
 .fin-cristal .fin-skwd .resumen-principal { border-left: 1px solid var(--cr-panel-borde); box-shadow: var(--cr-brillo), inset 4px 0 0 rgba(190, 143, 73, 0.7), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
@@ -508,8 +512,8 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 /* Tablas: encabezado como los títulos de sección (10,5 / 600 / +0,08 em / blanco 45 %) y fila con la píldora suave */
 .fin-cristal :is(.fin-tabla, .fin-skwd table) th,
 .fin-cristal .fin-skwd thead th {
-  background: transparent; color: rgba(255, 255, 255, 0.5);
-  font: 600 10.5px/1.3 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase;
+  background: transparent; color: var(--cr-texto-3);
+  font: 600 11.5px/1.3 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 .fin-cristal :is(.fin-tabla, .fin-skwd table) td { border-bottom-color: rgba(255, 255, 255, 0.07); transition: background-color 100ms ease; }
@@ -523,7 +527,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 /* Columna fija del Estado de resultados: fondo opaco para que no se superpongan las cifras al deslizar */
 .fin-cristal .fin-skwd .er-tabla td:first-child, .fin-cristal .fin-skwd .er-tabla th:first-child { background: #0c3029; }
 .fin-cristal .fin-skwd .er-tabla tbody tr:hover > td:first-child { background: #17392f; }
-.fin-cristal .fin-skwd .er-vacio { color: rgba(255, 255, 255, 0.35); }
+.fin-cristal .fin-skwd .er-vacio { color: rgba(255, 255, 255, 0.62); }
 
 /* Campos: como el buscador del panel (blanco 10 %, borde blanco 10 %, radio 12) */
 .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea, .fin-entrada, .cj-campo__entrada) {
@@ -534,7 +538,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea):hover { background: rgba(255, 255, 255, 0.11); }
 .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea):focus { outline: 2px solid rgba(208, 164, 90, 0.75); outline-offset: 1px; border-color: rgba(208, 164, 90, 0.8); background: rgba(255, 255, 255, 0.12); }
 .fin-cristal .fin-skwd :is(input[type='checkbox'], input[type='radio']) { accent-color: var(--cr-oro-mate); }
-.fin-cristal .fin-skwd :is(input, textarea)::placeholder { color: rgba(255, 255, 255, 0.45); }
+.fin-cristal .fin-skwd :is(input, textarea)::placeholder { color: rgba(242, 234, 220, 0.66); }
 .fin-cristal .fin-skwd :is(input, select, textarea):disabled { background: rgba(255, 255, 255, 0.04); color: var(--cr-texto-3); }
 .fin-cristal select option, .fin-cristal select optgroup { background: #0d2f28; color: #f4efe6; }
 .fin-cristal .fin-skwd .form label { color: var(--cr-texto-2); font-weight: 500; }
@@ -555,7 +559,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 16px -8px rgba(127, 32, 44, 0.7);
 }
 .fin-cristal .fin-skwd button[type='submit']:hover:not(:disabled) { background: linear-gradient(180deg, #a23a4b 0%, #80222f 100%); border-color: rgba(255, 255, 255, 0.3); }
-.fin-cristal .fin-skwd button:disabled { opacity: 0.42; }
+.fin-cristal .fin-skwd button:disabled { opacity: 0.6; }
 /* En las barras de filtros, el botón desactivado es el elegido (Módulo de Correcciones, período del Tablero): cristal fuerte */
 .fin-cristal .fin-skwd .filtros button:not([type='submit']):disabled {
   opacity: 1; color: rgba(255, 255, 255, 0.97);
@@ -596,7 +600,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal [role='alert'], .fin-cristal [role='status'].rounded-xl { border-radius: 16px; }
 
 /* Gráficos (Recharts): los colores fijos pensados para el marfil pasan a tonos legibles sobre el cristal */
-.fin-cristal .recharts-cartesian-axis-tick-value, .fin-cristal .recharts-text { fill: rgba(242, 234, 220, 0.72); }
+.fin-cristal .recharts-cartesian-axis-tick-value, .fin-cristal .recharts-text { fill: var(--cr-texto-2); }
 .fin-cristal .recharts-cartesian-axis-line { stroke: rgba(255, 255, 255, 0.2); }
 .fin-cristal .recharts-cartesian-grid line { stroke: rgba(255, 255, 255, 0.08); }
 .fin-cristal .recharts-legend-item-text { color: var(--cr-texto-2) !important; }
@@ -604,13 +608,99 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal [stroke='#012d25'] { stroke: #e7dcc6; }
 .fin-cristal [fill='#7f202c'] { fill: #c86a76; }
 .fin-cristal [stroke='#7f202c'] { stroke: #c86a76; }
-.fin-cristal [fill='#605747'], .fin-cristal [fill='#8c8574'] { fill: rgba(242, 234, 220, 0.6); }
+.fin-cristal [fill='#605747'], .fin-cristal [fill='#8c8574'] { fill: var(--cr-texto-3); }
 .fin-cristal .recharts-tooltip-cursor { fill: rgba(255, 255, 255, 0.06); }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   AJUSTES DEL 1/11 (Tomás: «todas las letras mucho más visibles» y «separá con gap y mejor los cuadrados de arriba»)
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Texto secundario de las pantallas (Tailwind gris, var(--text-muted), opacidades sueltas): marfil legible + sombra
+   mínima, que solo se nota donde el logo asoma detrás del cristal */
+.fin-cristal .fin-verde { --text-muted: var(--cr-texto-2); }
+.fin-cristal .fin-verde :is(p, span, small, li, td, th, label, dt, dd, h4, h5, h6) { text-shadow: var(--cr-sombra-texto); }
+.fin-cristal .fin-verde :is(.text-gray-400, .text-gray-500, .text-gray-600, .text-neutral-400, .text-neutral-500, .text-stone-400, .text-stone-500, .text-zinc-400, .text-zinc-500, .text-slate-400, .text-slate-500) { color: var(--cr-texto-2) !important; }
+.fin-cristal .fin-verde :is(.opacity-50, .opacity-60, .opacity-70) { opacity: 0.9 !important; }
+.fin-cristal .fin-verde [style*='--text-muted'] { color: var(--cr-texto) !important; }
+.fin-cristal .fin-verde .text-\[11px\] { font-size: 12.5px; }
+.fin-cristal .fin-verde .text-\[10px\] { font-size: 11.5px; }
+.fin-cristal .fin-verde .text-xs { font-size: 13px; }
+.fin-cristal .cj-titulo + *, .fin-cristal .cj-etiqueta { text-shadow: var(--cr-sombra-texto); }
+.fin-cristal .cj-chip { color: var(--cr-texto); font-weight: 600; font-size: 12.5px; }
+/* Antetítulos sueltos sobre el fondo (FINANZAS): oro claro, porque detrás puede asomar el oro del logo */
+.fin-cristal .cj-etiqueta--laton { color: #f8ead0; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 0, 0, 0.45); }
+.fin-cristal .cj-chip:not([aria-pressed='true']) { background: rgba(4, 22, 18, 0.5); border-color: rgba(255, 255, 255, 0.22); }
+.fin-cristal .recharts-legend-item-text { color: var(--cr-texto) !important; }
+.fin-cristal .cj-estado { font-weight: 600; }
+.fin-cristal .cj-estado--ok { color: #a9e2c8; }
+.fin-cristal .cj-estado--alerta { color: #f2b7be; }
+.fin-cristal .fin-skwd .tabla-scroll td { color: var(--cr-texto); }
+.fin-cristal .fin-skwd .kpi small { font-size: 12px; }
+
+/* Pagos del equipo (.pe-*): sus tarjetas, KPIs y filtros también son paneles de cristal (antes quedaban al 6 % de blanco y el
+   logo se leía detrás de los números) */
+.fin-cristal .pe :is(.pe-tarjeta, .pe-kpi, .pe-filtros) {
+  background: var(--cr-panel);
+  -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur);
+  border: 1px solid var(--cr-panel-borde); border-top-color: var(--cr-panel-borde-arriba);
+  box-shadow: var(--cr-brillo), 0 14px 36px -18px rgba(0, 0, 0, 0.55);
+}
+.fin-cristal .pe .pe-kpi--destacada { box-shadow: var(--cr-brillo), inset 0 2px 0 rgba(190, 143, 73, 0.75), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
+.fin-cristal .pe :is(.pe-ayuda, .pe-kpi small, .pe-desglose dt) { color: var(--cr-texto-2); }
+
+/* Tarjetas del Resultado del mes (Entró, Gastos, Ganancia neta, Margen, Devoluciones): misma separación que los paneles
+   (24 px), número en UNA línea con tamaño que se ajusta al ancho de la fila, etiqueta arriba y chip/contexto abajo
+   alineados entre tarjetas. Columnas según el ancho real (container queries): 5 → 3 → 2 → 1 fila compacta. */
+.fin-cristal .fin-resumen { container-type: inline-size; margin-bottom: 24px; }
+.fin-cristal .fin-resumen .cj-resumen__lista { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.fin-cristal .fin-resumen .cj-dato { display: flex; border-radius: 22px; }
+.fin-cristal .fin-resumen .cj-dato__cuerpo {
+  display: flex; flex-direction: column; gap: 0; flex: 1 1 auto; width: 100%; min-height: 0;
+  padding: 18px 20px 16px; grid-template-areas: none;
+}
+.fin-cristal .fin-resumen .cj-dato__cab { min-height: 22px; }
+.fin-cristal .fin-resumen .cj-dato__etiqueta { font: 600 14px/1.3 var(--cr-sans); color: var(--cr-texto-2); letter-spacing: 0.01em; }
+.fin-cristal .fin-resumen .cj-dato__valor {
+  margin: 12px 0 14px; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums;
+  font-size: clamp(22px, 2.8cqi, 34px); line-height: 1.1; letter-spacing: -0.015em; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+.fin-cristal .fin-resumen :is(.cj-dato__contexto, .cj-dato__pie) {
+  margin-top: auto; min-height: 30px; padding: 0; display: flex; align-items: center;
+  font-size: 13.5px; font-weight: 500; color: var(--cr-texto-2); padding-left: 0; max-width: none;
+}
+.fin-cristal .fin-resumen .cj-dato__contexto + .cj-dato__pie { margin-top: 6px; }
+.fin-cristal .fin-resumen .cj-estado { min-height: 28px; font-size: 13px; }
+@container (max-width: 1040px) {
+  /* 3 arriba y 2 abajo que ocupan todo el ancho (6 columnas: 2+2+2 / 3+3), sin hueco al final */
+  .fin-cristal .fin-resumen .cj-resumen__lista { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .fin-cristal .fin-resumen .cj-resumen__lista > li { grid-column: span 2; }
+  .fin-cristal .fin-resumen .cj-resumen__lista[data-cantidad='5'] > li:nth-child(n + 4) { grid-column: span 3; }
+  .fin-cristal .fin-resumen .cj-dato__valor { font-size: clamp(24px, 4.2cqi, 34px); }
+}
+@container (max-width: 620px) {
+  .fin-cristal .fin-resumen .cj-resumen__lista { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .fin-cristal .fin-resumen .cj-resumen__lista > li, .fin-cristal .fin-resumen .cj-resumen__lista[data-cantidad='5'] > li:nth-child(n + 4) { grid-column: auto; }
+  .fin-cristal .fin-resumen .cj-dato__valor { font-size: clamp(22px, 6.2cqi, 32px); }
+  .fin-cristal .fin-resumen .cj-resumen__lista > li.cj-dato--destacado { grid-column: 1 / -1; }
+}
+@container (max-width: 400px) {
+  .fin-cristal .fin-resumen .cj-resumen__lista { grid-template-columns: 1fr; gap: 10px; }
+  .fin-cristal .fin-resumen .cj-resumen__lista > li.cj-dato--destacado { grid-column: auto; }
+  .fin-cristal .fin-resumen .cj-dato__cuerpo {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'cab valor' 'bajo valor';
+    align-items: center; column-gap: 12px; row-gap: 4px; padding: 14px 16px;
+  }
+  .fin-cristal .fin-resumen .cj-dato__cab { grid-area: cab; }
+  .fin-cristal .fin-resumen .cj-dato__valor { grid-area: valor; margin: 0; font-size: 26px; text-align: right; }
+  .fin-cristal .fin-resumen :is(.cj-dato__contexto, .cj-dato__pie) { grid-area: bajo; margin: 0; min-height: 0; }
+}
+
 /* ── Entrada de los paneles y transición entre vistas (template.tsx los vuelve a montar) ── */
-@keyframes cr-entra { from { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+/* Relleno «backwards» (no «both»): si el filtro quedara puesto al terminar (blur(0)), el contenedor pasa a ser «raíz de
+   fondo» y los paneles de adentro dejan de esmerilar el logo (pasaba en Pagos del equipo y en otras vistas .fin-skwd) */
+@keyframes cr-entra { from { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 .fin-cristal__vista :is(.cj-seccion, .cj-resumen__lista > li, .cj-bloque, .fin-meses, .fin-skwd > *, .fin-skwd .kpi, .fin-skwd .dash-card, .fin-skwd .tarjetas > div, .fin-skwd .tabla-scroll, .fin-skwd .detalle) {
-  animation: cr-entra 520ms var(--cr-curva) both;
+  animation: cr-entra 520ms var(--cr-curva) backwards;
 }
 .fin-cristal__vista .cj-seccion { animation-delay: 0ms; }
 .fin-cristal__vista :is(.cj-resumen__lista > li, .fin-skwd .kpi, .fin-skwd .tarjetas > div, .fin-skwd .dash-card):nth-child(2) { animation-delay: 40ms; }
