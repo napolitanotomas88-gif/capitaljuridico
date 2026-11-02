@@ -2,8 +2,8 @@
 // paraEnviar(m): registra el mensaje en cj_canal_mensajes (la misma clave nunca dos veces) y avisa en
 // #📤-para-enviar-al-cliente mencionando a la persona responsable de la pieza (lib/alertas/personas.ts), con el texto listo
 // para copiar y el link a /clientes/para-enviar. Devuelve {estado:'manual_pendiente'}. Nunca tira.
-// Recordatorios (los corre el vigía): a las 24 h sin «Enviado», otra mención en 📤; a las 48 h, aviso a Tomás en
-// #🛠️-operaciones.
+// Recordatorios (los corre el vigía): a las 24 h sin «Enviado», otra mención en 📤; a las 48 h, aviso en #🛠️-operaciones a
+// Tomás, Gero M y Aylu (Tomás, 2/11/2026: que le llegue también a Gero M y a Aylu).
 import { alertar } from '@/lib/alertas'
 import { GRUPO_PIEZA, NOMBRE_PIEZA, responsablesDe } from '@/lib/alertas/personas'
 import { baseCanalLista, insertarMensaje, idPorClave, tomarParaRecordar } from './registro'
@@ -36,7 +36,10 @@ export async function paraEnviar(m: MensajeCliente): Promise<ResultadoSalidaClie
 
 export const canalManual: CanalSalidaCliente = { proveedor: 'manual', enviar: paraEnviar }
 
-/** El vigía: recordatorio a las 24 h (en 📤) y aviso a Tomás a las 48 h (en 🛠️). Nunca tira. */
+/** Quiénes reciben el aviso de las 48 h sin «Enviado» (en 🛠️). */
+export const MENCIONES_ATRASADO = ['tomas', 'gero_m', 'aylu'] as const
+
+/** El vigía: recordatorio a las 24 h (en 📤) y aviso a Tomás, Gero M y Aylu a las 48 h (en 🛠️). Nunca tira. */
 export async function recordarParaEnviar(): Promise<{ recordados: number; atrasados: number }> {
   let recordados = 0, atrasados = 0
   try {
@@ -45,7 +48,7 @@ export async function recordarParaEnviar(): Promise<{ recordados: number; atrasa
       if (r.estado === 'enviado') recordados++
     }
     for (const m of await tomarParaRecordar(48, 2)) {
-      const r = await alertar({ canal: 'operaciones', tipo: 'para_enviar_atrasado', clave: `para_enviar:${m.clave}:rec2`, idCrm: m.idCrm, emoji: '🚩', titulo: `Más de 48 h sin mandar: ${NOMBRE_PIEZA[m.pieza]}`, cliente: m.cliente, lineas: ['Nadie marcó «Enviado» ni «No corresponde».'], link: linkParaEnviar(m.id), menciones: ['tomas'] })
+      const r = await alertar({ canal: 'operaciones', tipo: 'para_enviar_atrasado', clave: `para_enviar:${m.clave}:rec2`, idCrm: m.idCrm, emoji: '🚩', titulo: `Más de 48 h sin mandar: ${NOMBRE_PIEZA[m.pieza]}`, cliente: m.cliente, lineas: ['Nadie marcó «Enviado» ni «No corresponde».'], link: linkParaEnviar(m.id), menciones: MENCIONES_ATRASADO })
       if (r.estado === 'enviado') atrasados++
     }
   } catch (e) { console.error(`[para-enviar] recordatorios: ${motivoDe(e)}`) }

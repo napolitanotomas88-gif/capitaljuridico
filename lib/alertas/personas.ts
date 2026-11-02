@@ -54,7 +54,7 @@ export type PiezaCliente = (typeof PIEZAS_CLIENTE)[number]
 export const esPiezaCliente = (x: unknown): x is PiezaCliente => typeof x === 'string' && (PIEZAS_CLIENTE as readonly string[]).includes(x)
 
 export const NOMBRE_PIEZA: Record<PiezaCliente, string> = {
-  b07: 'Bienvenida', d02: 'Guiones listos', e01: 'Recordatorio de grabación', f04: 'Videos listos', g04: 'Campaña al aire', g05: 'Optimización',
+  b07: 'Bienvenida', d02: 'Guiones listos y pedido de grabación', e01: 'Recordatorio de grabación', f04: 'Videos listos', g04: 'Campaña al aire', g05: 'Optimización',
   g06: 'Ganadores', h01: 'Pedido de testimonio', h02: 'Agradecimiento del testimonio', h03: 'Encuesta mensual', i01: 'Aviso de fin de servicio', i03: 'Despedida',
 }
 /** El grupo de WhatsApp del cliente donde va cada pieza. */

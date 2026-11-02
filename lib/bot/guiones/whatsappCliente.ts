@@ -9,7 +9,8 @@ import type { FilaTanda } from './registro'
 import { avisarCliente, buscarGrupoContenido } from './envio'
 import { tokenWhapi } from '../whapi/config'
 import { guardiaWhapi } from '../whapi/salud'
-import { textoWhatsApp } from './envio'
+import { textoGuionesParaGrabar } from './envio'
+import { fechaParaCliente, fechaSugeridaE01 } from '@/lib/edicion/textos'
 import { paraEnviar } from '../canal/salidaCliente'
 
 export const MAX_ANTIGUEDAD_APROBACION_MS = 24 * 3_600_000
@@ -56,15 +57,24 @@ export async function enviarGuionesAlCliente(fila: FilaTanda, env: Record<string
 }
 
 /** d02 sin WhatsApp (2/11/2026): el link de la tanda aprobada queda «para enviar» (Aylu o Gero M lo pegan en el grupo
- *  Contenido y confirman la entrega). Devuelve 'manual' (no 'enviado'): el aviso de entrega de la campanita sale igual. */
-export async function guionesParaEnviar(fila: FilaTanda): Promise<ResultadoD02 | { estado: 'manual'; motivo?: string }> {
+ *  Contenido y marcan «Enviado»). Devuelve 'manual' (no 'enviado'): el aviso de entrega de la campanita sale igual.
+ *  UNIFICADO con el día 0 de grabación (Tomás, 2/11/2026): un solo mensaje con el link del Doc y el pedido de grabar con
+ *  la fecha sugerida. Al marcar «Enviado», la tanda queda entregada Y el día 0 de e01 queda hecho (lib/bot/canal/ganchos.ts):
+ *  la escalera sigue con los días 2, 4 y 9, y el día 0 ya no sale por separado (paraEnviarE01). */
+export async function guionesParaEnviar(fila: FilaTanda, ahora: Date = new Date()): Promise<ResultadoD02 | { estado: 'manual'; motivo?: string }> {
   if (!fila.doc?.url || !fila.aprobacion?.cuando) return { estado: 'fuera', motivo: 'falta el documento o la aprobación' }
   const r = await paraEnviar({
     pieza: 'd02', idCrm: fila.id_crm, cliente: fila.cliente ?? fila.id_crm ?? 'Cliente', clave: claveD02(fila),
-    texto: textoWhatsApp(fila, fila.doc.url), abrir: fila.id_crm ? `/clientes/entregas?cliente=${encodeURIComponent(fila.id_crm)}` : '/clientes/entregas',
-    datos: { tanda: fila.id },
+    texto: textoD02Unificado(fila, ahora), abrir: fila.id_crm ? `/clientes/entregas?cliente=${encodeURIComponent(fila.id_crm)}` : '/clientes/entregas',
+    datos: { tanda: fila.id, tandaDoc: fila.doc.tanda ?? null, grabacion: true },
   })
   return r.estado === 'error' ? { estado: 'error', motivo: r.motivo } : { estado: 'manual', motivo: 'queda para enviar a mano (📤)' }
+}
+
+/** El texto unificado (link + pedido de grabación con la fecha sugerida: dos días hábiles después de hoy en Argentina). */
+export function textoD02Unificado(fila: FilaTanda, ahora: Date = new Date()): string {
+  const hoy = new Date(ahora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)
+  return textoGuionesParaGrabar(fila, fila.doc!.url, fechaParaCliente(fechaSugeridaE01(hoy)))
 }
 
 /** La clave del «para enviar» de una tanda (por aprobación: una corrección aprobada de nuevo es otro mensaje). */

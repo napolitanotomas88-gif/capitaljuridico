@@ -57,7 +57,7 @@ Tests: `scripts/test-alertas-discord.mjs`.
 | `DISCORD_WEBHOOK_CLIENTES` | 🤝-exito-y-bajas | h02 (testimonio recibido), i05, `cliente_sin_respuesta`, `beneficio_referido` |
 | `DISCORD_WEBHOOK_OPERACIONES` | 🛠️-operaciones | Tareas a mano (crear los 3 grupos, Skool, sacar de grupos), `kickoff_error`, «para enviar» con más de 48 h |
 | `DISCORD_WEBHOOK_PARA_ENVIAR` | 📤-para-enviar-al-cliente | Cada texto para pegar en un grupo del cliente |
-| `DISCORD_WEBHOOK_SISTEMA` | 🧰-sistema-bot | Respaldo de cualquier canal sin webhook, ensayo y topes |
+| `DISCORD_WEBHOOK_SISTEMA` | 🧰-sistema-bot | Respaldo de cualquier canal sin webhook, ensayo y topes; carga de la tanda en el Doc fallida o dudosa y chips sin pasar a «Para grabar» (Gero M y Aylu, link a /guiones/<ID>) |
 | `DISCORD_WEBHOOK_URL` | 🚨-alertas-dashboard | Último respaldo |
 
 Otras variables:
@@ -73,19 +73,19 @@ Otras variables:
 
 - **Registro.** `salidaCliente.ts:paraEnviar()` registra el mensaje en `cj_canal_mensajes` (clave única) y avisa en 📤 al responsable, con el texto para copiar y el link a `/clientes/para-enviar`.
 - **«Enviado».** Desde `POST /api/clientes/para-enviar/[id]`, `ganchos.ts` hace lo mismo que hacía el envío automático:
-  - **d02**: la tanda queda «enviada».
+  - **d02**: la tanda queda «enviada» y, como el mensaje lleva el pedido de grabación, el día 0 de e01 queda hecho (2/11/2026).
   - **f04**: los videos quedan «enviados al cliente».
   - **e01**: el paso queda hecho.
   - **b07**: la bienvenida del alta queda hecha a mano y el alta sigue.
 - **«No corresponde»** lleva un motivo.
-- **Recordatorios.** Los corre el vigía: a las 24 h, otra mención en 📤; a las 48 h, aviso a Tomás en 🛠️.
+- **Recordatorios.** Los corre el vigía: a las 24 h, otra mención en 📤; a las 48 h, aviso a Tomás, Gero M y Aylu en 🛠️.
 - **Punto de enganche del canal oficial futuro.** La interfaz `CanalSalidaCliente` en `tipos.ts`. Hoy hay un solo proveedor, `manual`. Un proveedor `meta` o `2chat` implementaría la misma interfaz; **no está construido**.
 
 | Pieza | Cómo queda |
 |---|---|
 | b07 bienvenida | Al hacer a mano la comunidad, sale en 📤 con el link del video (Aylu) |
-| d02 guiones | Al publicar la tanda, sale en 📤. También se cierra con «Confirmar entrega» en `/clientes/entregas` (Aylu y Gero M) |
-| e01 día 0 y recordatorios | En cada vuelta del diario o del vigía, de 9 a 20 h los días hábiles (Gero M) |
+| d02 guiones + día 0 de grabación | Al publicar la tanda, sale en 📤 UN solo mensaje: link del Doc y pedido de grabar con la fecha sugerida (Aylu y Gero M). También se cierra con «Confirmar entrega» en `/clientes/entregas` (Aylu y Gero M) |
+| e01 recordatorios (y el día 0 solo si no hubo mensaje de guiones: chips cambiados a mano o regrabación) | En cada vuelta del diario o del vigía, de 9 a 20 h los días hábiles (Gero M) |
 | f04 videos listos | Al pasar a «revisión», el lote del cliente (Aylu) |
 | g04–g06 | El texto ya va en el aviso de 📣-ads para Valentino, que entra a /anuncios con su clave. No se registra en 📤 |
 | h01, h02, h03 | Al aprobar en `/clientes/aprobaciones`, o al cargar el testimonio (Gero M) |

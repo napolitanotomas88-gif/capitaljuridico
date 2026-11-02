@@ -107,6 +107,21 @@ export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
     : `¡Hola${nombre ? ` ${nombre}` : ''}! Ya tenés los ${n} guiones nuevos 🎬\nTe los dejé en tu documento de guiones, en la Tanda ${fila.doc?.tanda ?? fila.tanda}: ${urlDoc}\nLeelos y contanos acá qué cambiarías. Cuando estén ok, grabalos siguiendo las indicaciones y subilos a tu carpeta de Crudos.`
 }
 
+/** d02 + día 0 de grabación en UN solo mensaje (Tomás, 2/11/2026): el link del Doc y el pedido de grabar con la fecha
+ *  sugerida (dos días hábiles después de hoy, como el día 0 de e01). `fecha` ya viene para el cliente («el jueves 5/11»).
+ *  Sin la palabra «no» (regla de los textos al cliente, lib/edicion/textos.ts). */
+export function textoGuionesParaGrabar(fila: FilaTanda, urlDoc: string, fecha: string): string {
+  const nombre = (fila.cliente ?? '').trim().split(/\s+/)[0] || ''
+  const n = Object.keys(fila.guiones).length
+  const uno = n === 1
+  const tanda = fila.doc?.tanda ?? fila.tanda
+  const hola = `¡Hola${nombre ? ` ${nombre}` : ''}!`
+  const pedido = `¿Te queda bien ${uno ? 'grabarlo' : 'grabarlos'} para ${fecha}? Cuando ${uno ? 'lo subas' : 'los subas'} a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.`
+  return fila.notas.some(x => x.aplicada)
+    ? `${hola} Ya ${uno ? 'está el guion' : 'están los guiones'} con los cambios que nos pediste ✅\n${uno ? 'Lo' : 'Los'} tenés en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\nSi está todo ok, ya ${uno ? 'lo' : 'los'} podés grabar 🎬\n${pedido}`
+    : `${hola} Ya ${uno ? 'tenés el guion nuevo' : `tenés los ${n} guiones nuevos`} 🎬\nTe ${uno ? 'lo' : 'los'} dejé en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\n${uno ? 'Leelo' : 'Leelos'} y contanos acá qué cambiarías. Cuando ${uno ? 'esté ok, grabalo' : 'estén ok, grabalos'} siguiendo las indicaciones.\n${pedido}`
+}
+
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 /** Busca el grupo «Contenido - <cliente>» entre los grupos del número del bot (GET /groups). null si no hay uno solo claro. */
