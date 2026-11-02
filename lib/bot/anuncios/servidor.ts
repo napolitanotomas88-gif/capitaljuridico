@@ -12,7 +12,9 @@ import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
 import { anotarWhatsapp, avisoReciente, avisosRegistrados, marcarAvisoDudoso, marcarAvisoEnviado, reclamarAviso, soltarAviso, videosAvisadosHasta } from './registro'
 import { leerEditados } from './editadosDrive'
 import { avisarVideosNuevos, type DepsVideos, type ResultadoVideos } from './videos'
-import { armarBorrador, borradorPermitido, crearGraph, type Borrador, type DepsBorrador } from './borrador'
+import { armarBorrador, borradorPermitido, crearGraph, esErrorPausa, type Borrador, type DepsBorrador } from './borrador'
+import { alertar } from '@/lib/alertas'
+import { avisarSiNoQuedoEnPausa } from './avisoPausa'
 import { escribirTextos, gruposConTextos } from './copys'
 import { armarLanzamiento } from './lanzamiento'
 import { estimarHabitantes } from './habitantes'
@@ -83,7 +85,7 @@ export function depsVideos(t?: Pick<Tablero, 'filas'>): DepsVideos {
     permitido: c => borradorPermitido(c),
     armar: async (sub, fila, estructura, deadline) => {
       const { grupos, aviso } = await gruposConTextos(sub, sub.guionesDoc ?? null, copys)
-      return conAviso(await armarBorrador(sub, fila, grupos, estructura, base(fila.clienteCRM ?? fila.cliente), deadline), aviso)
+      return conAviso(await avisarSiNoQuedoEnPausa(() => armarBorrador(sub, fila, grupos, estructura, base(fila.clienteCRM ?? fila.cliente), deadline), { cliente: fila.clienteCRM ?? fila.cliente, cuenta: fila.id }, { alertar, esErrorPausa }), aviso)
     },
   } : undefined
   const lanzar: DepsVideos['lanzar'] = token ? {
@@ -91,7 +93,7 @@ export function depsVideos(t?: Pick<Tablero, 'filas'>): DepsVideos {
       const { grupos, aviso } = await gruposConTextos(sub, sub.guionesDoc ?? null, copys)
       const z = pl.kickoff!.zona
       const habitantes = async () => (await estimarHabitantes({ descripcion: z.descripcion, lugares: z.lugares, radio_km: z.radioKm, pais: z.pais ?? null } as ZonaFicha, 40_000)).habitantes
-      return conAviso(await armarLanzamiento(sub, pl, grupos, { ...base(pl.cliente), usdPor, habitantes }, deadline), aviso)
+      return conAviso(await avisarSiNoQuedoEnPausa(() => armarLanzamiento(sub, pl, grupos, { ...base(pl.cliente), usdPor, habitantes }, deadline), { cliente: pl.cliente, cuenta: pl.kickoff!.cuenta?.id ?? '' }, { alertar, esErrorPausa }), aviso)
     },
   } : undefined
   return { clienteOperativo, borrador, lanzar, editados: leerEditados, avisadoHasta: videosAvisadosHasta, reclamar: reclamarAviso, marcarEnviado: marcarAvisoEnviado, marcarDudoso: marcarAvisoDudoso, soltar: soltarAviso, enviar: s.enviar, valentino: s.valentino, ahora: () => Date.now() }

@@ -121,7 +121,8 @@ describe('armarLanzamiento', () => {
         if (ruta === 'search') return { data: /Lomas/.test(q.q) ? [{ key: '123', name: 'Lomas de Zamora', type: 'city', region: 'Buenos Aires' }] : [] }
         if (q?.fields === 'status') return tipos[ruta] === 'campaigns' ? { status: 'PAUSED' } : { status: { video_status: 'ready' } }
         if (ruta.endsWith('/thumbnails')) return { data: [{ uri: 'u', is_preferred: true }] }
-        if (q?.fields === 'status,ads{status}') return { status: 'PAUSED', ads: { data: [{ status: 'PAUSED' }] } }
+        // Chequeo posterior: campaña, cada conjunto y cada anuncio, por su ID, tienen que haberse creado
+        if (q?.fields === 'status,effective_status') { if (!tipos[ruta]) throw new Error(`relee algo que no creó: ${ruta}`); return { status: 'PAUSED', effective_status: 'PAUSED' } }
         throw new Error(`GET inesperado ${ruta}`)
       },
       async post(ruta, cuerpo) { posts.push([ruta, cuerpo]); const id = `N${++n}`; tipos[id] = ruta.split('/')[1]; return { id } },

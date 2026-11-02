@@ -231,15 +231,11 @@ export async function crearEnPausa(cuenta: string, x: {
     }
     conjuntos.push({ id: String(set.id), nombre, anuncios })
   }
-  // 5) Verificación: todo tiene que haber quedado en pausa
-  if (nueva) {
-    const c = await g.get(campana.id, { fields: 'status' })
-    if (c.status !== 'PAUSED') throw new Error(`¡la campaña ${campana.id} no quedó en pausa! Revisala ya`)
-  }
-  for (const c of conjuntos) {
-    const chk = await g.get(c.id, { fields: 'status,ads{status}' })
-    if (chk.status !== 'PAUSED' || ((chk.ads?.data ?? []) as Json[]).some(a => a.status !== 'PAUSED')) throw new Error(`¡el conjunto ${c.id} no quedó en pausa! Revisalo ya`)
-  }
+  // 5) Verificación (pedido de Tomás, 2/11): la campaña (si es nueva), CADA conjunto y CADA anuncio, uno por uno, tienen que
+  //    estar en PAUSED. Va sin el plazo del cron: lo creado se revisa siempre. Si algo no quedó así, se vuelve a pausar (nunca
+  //    se prende nada) y se tira ErrorPausa: el aviso sale en 📣-ads y en 🧰-sistema-bot (servidor.ts).
+  await verificarEnPausa(deps.graph, [...(nueva ? [{ id: campana.id, tipo: 'campaña' as const }] : []),
+    ...conjuntos.flatMap(c => [{ id: c.id, tipo: 'conjunto' as const }, ...c.anuncios.map(id => ({ id, tipo: 'anuncio' as const }))])])
   const nAd = (i: number) => `idea ${i + 1}`
   const sinTextos = x.grupos.map((gr, i) => (gr.textos.length ? null : nAd(i))).filter(Boolean)
   if (sinTextos.length) faltan.push(`${sinTextos.length === x.grupos.length ? 'el copy' : `el copy del ${sinTextos.join(', ')}`} es el del anuncio ganador: escribí los 2 textos y los 2 títulos`)
@@ -254,6 +250,38 @@ export async function crearEnPausa(cuenta: string, x: {
     link: nueva ? `https://adsmanager.facebook.com/adsmanager/manage/adsets?act=${act}&selected_campaign_ids=${campana.id}` : `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${act}&selected_adset_ids=${conjuntos.map(c => c.id).join(',')}`,
     conjuntoId: conjuntos[0]?.id ?? '', conjunto: conjuntos[0]?.nombre ?? '', anuncios: conjuntos.flatMap(c => c.anuncios),
   }
+}
+
+export interface PiezaSuelta { id: string; tipo: 'campaña' | 'conjunto' | 'anuncio'; estado: string; repausada: boolean }
+/** Algo de lo que armó el bot NO quedó en pausa. Lleva las piezas para el aviso a 📣-ads y 🧰-sistema-bot. */
+export class ErrorPausa extends Error {
+  readonly sueltas: PiezaSuelta[]
+  constructor(sueltas: PiezaSuelta[]) {
+    const sin = sueltas.filter(p => !p.repausada)
+    super(`¡${sueltas.map(p => `${p.tipo} ${p.id} (${p.estado})`).join(', ')} no quedó en pausa! ${sin.length ? `NO lo pude volver a pausar: pausalo YA a mano (${sin.map(p => p.id).join(', ')})` : 'Lo volví a pausar: revisá quién lo cambió'}`)
+    this.name = 'ErrorPausa'
+    this.sueltas = sueltas
+  }
+}
+export const esErrorPausa = (e: unknown): e is ErrorPausa => e instanceof ErrorPausa || (e as Error)?.name === 'ErrorPausa'
+
+/**
+ * Relee cada pieza por su ID (status = el que se configuró, effective_status = el que corre). Lo que no esté en PAUSED se
+ * vuelve a pausar (POST status=PAUSED: lo único que el bot le escribe al estado) y se relee. Tira ErrorPausa si hubo alguna.
+ */
+export async function verificarEnPausa(g: Graph, piezas: { id: string; tipo: PiezaSuelta['tipo'] }[]): Promise<void> {
+  const sueltas: PiezaSuelta[] = []
+  for (const p of piezas) {
+    const r = await g.get(p.id, { fields: 'status,effective_status' })
+    if (r.status === 'PAUSED') continue
+    let repausada = false
+    try {
+      await g.post(p.id, { status: 'PAUSED' })
+      repausada = (await g.get(p.id, { fields: 'status,effective_status' })).status === 'PAUSED'
+    } catch { /* queda como no repausada: el aviso pide pausarlo a mano */ }
+    sueltas.push({ ...p, estado: String(r.status ?? r.effective_status ?? 'sin estado'), repausada })
+  }
+  if (sueltas.length) throw new ErrorPausa(sueltas)
 }
 
 /** Rotación: el molde es la propia cuenta (conjunto y anuncio que más gastan). */
