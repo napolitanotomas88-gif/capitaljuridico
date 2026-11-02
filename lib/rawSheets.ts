@@ -1,4 +1,5 @@
 import { google } from 'googleapis'
+import { clientesSinFin, esSinFin } from './clientes/sinFin'
 
 function getAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
@@ -2003,6 +2004,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
   const crmChurnRenov = zeros()          // renovaciones PAGAS arrancadas en el mes
   let crmActivos = 0, crmPausados = 0, crmRenovadores = 0, crmNoRenovaron = 0
   let semVerde = 0, semAmarillo = 0, semRojo = 0, semSinFecha = 0
+  const listaSinFin = clientesSinFin()
   let exitoSi = 0, exitoTotal = 0, satisfSum = 0, satisfN = 0, ltvCrmSum = 0, ltvCrmN = 0, ltvCobSum = 0, ltvCobN = 0
   const hoy = nowArgentina(); hoy.setHours(0, 0, 0, 0)
   const en14dias = new Date(hoy); en14dias.setDate(en14dias.getDate() + 14)
@@ -2267,7 +2269,9 @@ async function construirRawData(ligero = false): Promise<RawData> {
       crmActivos++
       // Semáforo del PDF del mentor: verde al día, amarillo ≤14 días del fin
       // (mandar llamada de proyección), rojo ya venció sin renovar.
-      if (!fin) semSinFecha++
+      // Servicio por objetivos (BOT_CLIENTES_SIN_FIN, lib/clientes/sinFin.ts): el fin del CRM no vence → «sin fecha»,
+      // fuera de vencidos / por vencer (tablero, resumen de Discord y analista)
+      if (!fin || esSinFin((r[0] ?? '').toString(), listaSinFin)) semSinFecha++
       else if (fin < hoy) {
         semRojo++
         const llamada = llamadaAgendada(r)
