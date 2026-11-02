@@ -8,7 +8,8 @@
 //                       'Tomi y Gero' = efectivo dividido mitad y mitad (regla de Tomás), sin fila → 'sin dato' (y ahí
 //                       los comprobantes de jul–sep, lib/finanzasCuentas.ts, quedan como respaldo).
 //   · gastos          ← finanzas.gastos_vigentes (cuenta = "Banco / Cuenta" de la planilla; vacía = Relay, como antes).
-//   · payroll (Staff) ← finanzas.pagos_equipo_vigentes, nombre canónico de finanzas.personas.
+//   · payroll (Staff) ← finanzas.pagos_equipo_vigentes, nombre canónico de finanzas.personas. «Pagado por» repartido
+//                       (columna pagadores, 1/11/2026): cada pagador carga su parte en USD en el reparto 50/50.
 // Lee como el dueño de la base (sin `set role`): es solo servidor y solo lectura. Caché de 60 s + deduplicación de
 // pedidos concurrentes + último valor bueno ante un error, igual que la lectura de la planilla en lib/finanzas.ts.
 // La única escritura es la del cierre de mes (cargarEstimadoMetaEnApp): un gasto web firmado como el cierre.
@@ -33,6 +34,7 @@ export interface FilaEquipoApp {
   honorarios_base: number | string | null; bonuses: number | string | null; comision: number | string | null
   extras?: number | string | null
   total_usd: number | string | null; pagado: boolean | null; pagado_por: string | null
+  pagadores?: { quien: string; porcentaje: number | string }[] | null   // reparto de «Pagado por» (1/11/2026); [] = sin reparto
 }
 
 const num = (v: unknown) => { const n = typeof v === 'number' ? v : Number(v ?? 0); return Number.isFinite(n) ? n : 0 }
@@ -96,6 +98,25 @@ export function gastosDesdeApp(filas: FilaGastoApp[]): Gasto[] {
   return lista
 }
 
+// Reparto de «Pagado por» → partes en USD sobre el total (centavos exactos: el último se queda con la diferencia).
+// Sin filas de reparto pero con el resumen en pagado_por («Gero 80% · Tomi 20%»), se lee el resumen.
+const RESUMEN_PAGADORES = /^(Tomi|Gero|Financiera|Empresa) (\d{1,3}(?:,\d{1,2})?)%$/
+export function partesPagadores(total: number, pagadores: FilaEquipoApp['pagadores'], pagadoPor: string | null): FilaPayroll['partes'] {
+  let lista = (pagadores ?? []).map(p => ({ quien: txt(p.quien), porcentaje: num(p.porcentaje) })).filter(p => p.quien && p.porcentaje > 0)
+  if (!lista.length && pagadoPor && pagadoPor.includes('%')) {
+    const trozos = pagadoPor.split(' · ').map(t => RESUMEN_PAGADORES.exec(t.trim()))
+    if (trozos.every(Boolean)) lista = trozos.map(m => ({ quien: m![1], porcentaje: Number(m![2].replace(',', '.')) }))
+  }
+  if (!lista.length) return undefined
+  const tc = Math.round(total * 100)
+  let usado = 0
+  return lista.map((p, i) => {
+    const c = i === lista.length - 1 ? tc - usado : Math.round(tc * p.porcentaje / 100)
+    usado += c
+    return { quien: p.quien, porcentaje: p.porcentaje, pagador: normPagador(p.quien), monto: c / 100 }
+  })
+}
+
 export function payrollDesdeApp(filas: FilaEquipoApp[]): Map<string, FilaPayroll[]> {
   const out = new Map<string, FilaPayroll[]>()
   for (const r of filas) {
@@ -106,10 +127,14 @@ export function payrollDesdeApp(filas: FilaEquipoApp[]): Map<string, FilaPayroll
     const base = num(r.honorarios_base), bonus = num(r.bonuses) + num(r.extras), comision = num(r.comision)
     let total = base + bonus + comision
     if (!total) total = num(r.total_usd)
-    const pagadoPorTexto = txt(r.pagado_por)   // Financiera / Tomi / Gero / Otro (Financiera = empresa, regla del 3/10)
+    const pagadoPorTexto = txt(r.pagado_por)   // Financiera / Tomi / Gero / Empresa / Otro o el resumen del reparto (Financiera = empresa, regla del 3/10)
+    const partes = partesPagadores(total, r.pagadores, pagadoPorTexto)
     const fila: FilaPayroll = {
       fila: r.id, ref: `Pago al equipo #${r.id}`, nombre, puesto: txt(r.puesto), base, bonus, comision, total,
-      pagado: r.pagado === true, pagadoPorTexto, pagador: normPagador(pagadoPorTexto),
+      pagado: r.pagado === true, pagadoPorTexto,
+      // con reparto, `pagador` es el de la parte más grande (las partes son las que cuentan en el reparto)
+      pagador: partes ? [...partes].sort((a, b) => b.monto - a.monto)[0].pagador : normPagador(pagadoPorTexto),
+      ...(partes ? { partes } : {}),
     }
     const lista = out.get(r.mes) ?? []
     lista.push(fila)
@@ -129,7 +154,7 @@ export const CONSULTAS_APP = {
     from finanzas.gastos_vigentes order by fecha, id`,
   equipo: `select e.id, to_char(e.mes, 'YYYY-MM') as mes, coalesce(nullif(btrim(pe.nombre), ''), e.nombre_original) as nombre, e.puesto,
       e.honorarios_base::float8 as honorarios_base, e.bonuses::float8 as bonuses, e.comision::float8 as comision, e.extras::float8 as extras,
-      e.total_usd::float8 as total_usd, e.pagado, e.pagado_por
+      e.total_usd::float8 as total_usd, e.pagado, e.pagado_por, e.pagadores
     from finanzas.pagos_equipo_vigentes e left join finanzas.personas pe on pe.id = e.persona_id order by e.mes, e.id`,
 }
 

@@ -1,7 +1,7 @@
 // Base de Finanzas SKWD: desde el 1/11/2026 vive en Neon (decisión de Tomás: «no lo vamos a usar más [Supabase]»).
 // Las pantallas son las de la app original y siguen escribiendo `supabase.from(...).select(...)...` como con supabase-js:
 // este módulo arma el mismo pedido y lo manda a /api/finanzas/db, que lo traduce a SQL con el correo de la sesión del
-// Despacho (lib/finanzasSkwd/baseNeon.ts). Solo lo que usan las pantallas: select/insert/update/upsert/delete, filtros
+// Despacho (lib/finanzasSkwd/baseNeon.ts). Solo lo que usan las pantallas: select/insert/update/upsert/delete, rpc, filtros
 // eq/neq/gt/gte/lt/lte/in/is/match, order, limit, single/maybeSingle. Devuelve { data, error } como supabase-js.
 
 class Consulta {
@@ -39,7 +39,12 @@ class Consulta {
   then(ok, mal) { return this.#correr().then(ok, mal) }
 }
 
-export const supabase = { from: (tabla) => new Consulta(tabla) }
+// rpc: solo las funciones de la lista blanca de baseNeon.ts (FUNCIONES_FINANZAS). data = lo que devuelve la función.
+class Llamada extends Consulta {
+  constructor(funcion, args) { super(null); this.p = { tabla: null, accion: 'rpc', funcion, args } }
+}
+
+export const supabase = { from: (tabla) => new Consulta(tabla), rpc: (funcion, args = {}) => new Llamada(funcion, args) }
 
 /**
  * Pregunta al Despacho con qué correo se firma (y si la base está configurada).
