@@ -58,6 +58,17 @@ export const ESTILOS_SKWD = `
 .fin-skwd .nowrap { white-space: nowrap; }
 .fin-skwd .aviso { font-size: 12px; color: var(--sk-texto-3); font-weight: normal; }
 .fin-skwd .nota { max-width: 260px; font-size: 13px; }
+.fin-skwd .pe-celda-nota { max-width: 240px; }
+.fin-skwd .pe-nota { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.fin-skwd .pe-nota__caja { min-width: 0; flex: 1 1 auto; }
+.fin-skwd .pe-nota__ver { display: flex; align-items: center; gap: 6px; max-width: 100%; min-height: 28px; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.fin-skwd .pe-nota__ver:hover, .fin-skwd .pe-nota__ver[aria-expanded='true'] { border-color: var(--brand-orange); }
+.fin-skwd .pe-nota__ico { flex: none; color: var(--brand-orange); }
+.fin-skwd .pe-nota__corta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-skwd .pe-nota__editar { flex: none; }
+.pe-nota__globo { position: fixed; z-index: 80; display: block; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); font-size: 14px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.55); }
+:root:has(.fin-cristal) .pe-nota__globo, :root:has(.cj-cristal) .pe-nota__globo { background: rgba(4, 24, 20, 0.96); border-color: rgba(255, 255, 255, 0.2); color: #fbf8f2; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+@media (max-width: 767px), (pointer: coarse) { .fin-skwd .pe-nota__ver, .fin-skwd .pe-nota__editar { min-height: 44px; min-width: 44px; } }
 .fin-skwd .bloqueado { font-size: 14px; color: var(--text-muted); padding: 8px 0; }
 .fin-skwd .aviso-box { background: var(--fin-aviso-bg); border: 1px solid var(--brand-orange); border-left-width: 4px; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 14px; color: var(--text); }
 .fin-skwd .aparte { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--text-muted); background: var(--sk-realce); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }

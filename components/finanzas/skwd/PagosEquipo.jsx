@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './supabase'
 import { validarLinea, armarLinea, totalDe, tipoRemuneracion, cierreDeMes, mesDe, mesAnterior, motivoBloqueoComision } from './calculoPayroll'
 import { calcularComision, nombresSinPersona, REGLAS_COMISION } from './calculoComisiones'
@@ -10,6 +11,46 @@ import { ChipSemaforo } from '@/components/ui/ChipSemaforo'
 import { dolares, mesLargo } from './formato'
 
 const usd = (n) => dolares(n)
+
+// Nota de una línea (2/11/2026, Tomás: «un choclo re grande»): en la tabla va en una sola línea cortada con «…»; al tocarla se
+// abre un globo con el texto entero. Así todas las filas quedan de la misma altura. Se cierra con Escape, tocando afuera o de nuevo.
+function NotaDesplegable({ id, texto }) {
+  // El globo va en un portal sobre <body> con position: fixed (la tabla desplaza de costado y el marco de cristal lo correría);
+  // se cierra al desplazar
+  const [abierta, setAbierta] = useState(null) // null = cerrada · { top, left, ancho }
+  const caja = useRef(null)
+  const boton = useRef(null)
+  const alternar = () => {
+    if (abierta) return setAbierta(null)
+    const r = boton.current.getBoundingClientRect()
+    const ancho = Math.min(340, window.innerWidth - 24)
+    setAbierta({ top: r.bottom + 6, left: Math.max(12, Math.min(r.left, window.innerWidth - ancho - 12)), ancho })
+  }
+  useEffect(() => {
+    if (!abierta) return
+    const afuera = (e) => { if (caja.current && !caja.current.contains(e.target) && !e.target.closest?.('.pe-nota__globo')) setAbierta(null) }
+    const tecla = (e) => { if (e.key === 'Escape') { setAbierta(null); boton.current?.focus() } }
+    const cerrar = () => setAbierta(null)
+    document.addEventListener('pointerdown', afuera)
+    document.addEventListener('keydown', tecla)
+    window.addEventListener('scroll', cerrar, true)
+    window.addEventListener('resize', cerrar)
+    return () => {
+      document.removeEventListener('pointerdown', afuera); document.removeEventListener('keydown', tecla)
+      window.removeEventListener('scroll', cerrar, true); window.removeEventListener('resize', cerrar)
+    }
+  }, [abierta])
+  return (
+    <span className="pe-nota__caja" ref={caja}>
+      <button ref={boton} type="button" className="pe-nota__ver" aria-expanded={!!abierta} aria-controls={id} onClick={alternar} title={abierta ? 'Cerrar la nota' : 'Ver la nota completa'}>
+        <svg className="pe-nota__ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>
+        <span className="pe-nota__corta">{texto}</span>
+        <span className="sr-solo">{abierta ? ' (cerrar)' : ' (ver completa)'}</span>
+      </button>
+      {abierta && createPortal(<span id={id} role="note" className="pe-nota__globo" style={{ top: abierta.top, left: abierta.left, width: abierta.ancho }}>{texto}</span>, document.body)}
+    </span>
+  )
+}
 const ars = (n) => 'ARS ' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
 const mesActual = () => new Date().toLocaleDateString('en-CA').slice(0, 7)
 // comisionEditada / bonusEditado: false = el importe lo propone el cálculo automático; true = lo escribió la persona (manual) y no se pisa
@@ -676,9 +717,11 @@ export default function PagosEquipo({ onCorregir }) {
                   {l.pagado_por && !(l.pagadores?.length) && !QUIENES_PAGAN.includes(l.pagado_por) && <span className="aviso"> (sin reparto)</span>}
                   <button type="button" onClick={() => abrirReparto(l)} title="Editar quién pagó" aria-label={`Editar «Pagado por» de la línea #${l.id}`} aria-expanded={repartoAbierto?.id === l.id}>✎</button>
                 </td>
-                <td className="nota">
-                  {l.nota}{' '}
-                  <button type="button" onClick={() => editarNota(l)} title="Editar nota" aria-label="Editar nota">✎</button>
+                <td className="nota pe-celda-nota">
+                  <div className="pe-nota">
+                    {l.nota && <NotaDesplegable id={`pe-nota-${l.id}`} texto={l.nota} />}
+                    <button type="button" className="pe-nota__editar" onClick={() => editarNota(l)} title="Editar nota" aria-label={l.nota ? 'Editar nota' : 'Agregar nota'}>✎</button>
+                  </div>
                 </td>
               </tr>
               {repartoAbierto?.id === l.id && (
