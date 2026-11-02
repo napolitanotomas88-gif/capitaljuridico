@@ -341,6 +341,13 @@ describe('armarCarga (puro)', () => {
     assert.ok(!armarCarga(filaPrueba(), await lecturaDe(planillaDeJuguete(hojaInicial(), { sinSheetId: true }))).ok)
     assert.ok(!armarCarga(filaPrueba(), lectura, { comprobante: { ...COMPROBANTE, mimeType: 'text/html' } }).ok)
   })
+  test('columna B fuera de la lista estricta: frena con la opción sugerida del plan (2/11/2026)', async () => {
+    const lectura = await lecturaDe(planillaDeJuguete(hojaInicial()))
+    const f = filaPrueba(); f.celdas.B = 'DFY | PIF | $5000'; f.fila[1] = f.celdas.B
+    const c = armarCarga(f, lectura)
+    assert.ok(!c.ok)
+    assert.ok(c.errores.some(e => e.includes('columna B') && e.includes('Sugerida para el plan que declaró el closer: "DFY | PIF | $6.000"')), c.errores.join(' | '))
+  })
   test('lista NO estricta: el valor fuera de la lista pasa con aviso', async () => {
     const h = hojaInicial(); h.validaciones[1][17].strict = false
     const c = armarCarga(filaPrueba({ cuenta: 'Empresa' }), await lecturaDe(planillaDeJuguete(h)))

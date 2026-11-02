@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto'
 import { parsearAlta } from '../parsear'
 import { planDeAlta } from '../plan'
+import { programaPlanilla, textoProgramaFueraDeLista } from '../finanzas'
 import { hoyArgentina } from '../../../clientes/fechas'
 import type { AlmacenAltas, Espera, FilaAlta } from '../motor/almacen'
 import type { MotorAltasO } from '../motor/orquestador'
@@ -78,15 +79,19 @@ export async function vistaPrevia(p: { texto: string; closer: string; archivos: 
   const proc = await motor.procesar([r.evento], { hasta: p.deps.ahora() + PLAZO_INVOCACION_MS, invocacion: 'vista-previa' })
   const alta = await almacen.leerAlta(`alta_${id}`)
   const a = parsearAlta(r.evento.texto)
+  // Columna B de Finanzas: sale del plan que declaró el closer (tipo de pago y total), nunca del monto de este pago
+  const programa = programaPlanilla(a)
+  const avisoPrograma = !programa ? [] : !programa.enLista ? [textoProgramaFueraDeLista(programa)] : programa.nota ? [programa.nota] : []
   return {
     ok: true as const,
     tipo: r.tipo,
     datos: {
       nombre: a.nombre, closer: a.closer, programa: a.programa, telefono: a.telefonos[0]?.numero ?? null,
       correo: a.correo, modalidad: a.modalidad, totalUsd: a.totalUsd, estePagoUsd: a.estePagoUsd, pagoEnPesos: a.pagoEnPesos, inicio: a.inicio, socios: a.socios,
+      columnaB: programa?.valor ?? null,
     },
     comprobantes: pa.archivos.map((x) => ({ nombre: x.nombre, mime: x.mime, bytes: x.bytes })),
-    faltantes: a.faltantes, avisos: a.avisos,
+    faltantes: a.faltantes, avisos: [...a.avisos, ...avisoPrograma],
     preguntas: (alta?.esperas ?? []).map((e: Espera) => ({ quien: QUIEN_TEXTO[e.quien], paso: TITULO_PASO[e.paso], texto: String(e.datos?.texto ?? e.pedido.join('\n')) })),
     haria: proc.registro.map((x) => x.replace(/^alta_\S+: /, '')),
     plan: planDeAlta(a, hoyArgentina(new Date(p.deps.ahora()))).map((x) => ({ titulo: x.titulo, enEspera: x.enEspera })),

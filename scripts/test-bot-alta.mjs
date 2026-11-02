@@ -302,7 +302,7 @@ test('finanzas: PP 1/n que no cierra con el total y nombre de una sola palabra',
 test('finanzas: programa fuera de la lista → se arma igual y avisa; $6.000 con punto como en la lista', () => {
   const fuera = filaRegistroPagos(parsearAlta('#ALTA\nTipo de pago: PP 3500 USD\nEste pago: 1000 USD'), { fecha: '2026-10-23' })
   assert.equal(fuera.celdas.B, 'DFY | PP | $3500')
-  assert.match(fuera.avisos.join(' '), /El programa "DFY \| PP \| \$3500" no está en la lista de la planilla/)
+  assert.match(fuera.avisos.join(' '), /El programa "DFY \| PP \| \$3500" \(el plan que declaró el closer\) no tiene ninguna opción con ese total/)
   const seis = filaRegistroPagos(parsearAlta('#ALTA\nTipo de pago: PIF 6000 USD'), { fecha: '2026-10-23' })
   assert.equal(seis.celdas.B, 'DFY | PIF | $6.000')
   assert.deepEqual(seis.avisos, [])
@@ -316,7 +316,7 @@ test('finanzas: programa fuera de la lista → se arma igual y avisa; $6.000 con
   assert.equal(programaPlanilla({ programa: null, modalidad: 'PP', totalUsd: 3300.5 }).valor, 'DFY | PP | $3300,5')
   assert.equal(programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 6000.5 }).valor, 'DFY | PIF | $6.000,5')
   const raro = filaRegistroPagos(parsearAlta('#ALTA\nPrograma: Mentoría\nTipo de pago: PIF 2400 USD'), { fecha: '2026-10-23' })
-  assert.match(raro.avisos.join(' '), /"Mentoría \| PIF \| \$2400" no está en la lista/)
+  assert.match(raro.avisos.join(' '), /"Mentoría \| PIF \| \$2400" \(el plan que declaró el closer\) no tiene ninguna opción/)
 })
 
 test('finanzas: una fuente fuera de la lista desplegable de K queda con aviso (25/10/2026)', () => {
@@ -913,4 +913,80 @@ test('plan con socios: Skool invita al cliente y a sus socios con los correos de
   const falta = planDeAlta(parsearAlta(CON_SOCIOS('Socios: Ana Gómez +54 9 11 3000-2222')), '2026-10-24').find((p) => p.id === 'skool')
   assert.equal(falta.enEspera, true)
   assert.match(falta.detalle.join(' '), /Falta el correo de Ana Gómez: pedíselo al closer\./)
+})
+
+// ── Columna B = el PLAN que declara el closer, nunca el monto de este pago (Tomás, 2/11/2026) ──
+const { programaDeLista, leerOpcionPrograma, OPCIONES_PROGRAMA } = await import('../lib/bot/alta/finanzas.ts')
+
+test('columna B: Fee de 300 de un PIF 3300 escrito en formato libre → el plan, no el Fee', () => {
+  const t = `Closer: Marcos
+Nombre: Juana Inventada
+Tel: +598 99 000 111
+Mail: juana@example.test
+Inicio hoy: 2/11/2026
+
+Paga hoy 300 USD de seña, mañana completa el PIF 3300 con tarjeta`
+  const a = parsearAlta(t)
+  assert.equal(a.modalidad, 'PIF')
+  assert.equal(a.totalUsd, 3300)
+  assert.equal(a.estePagoUsd, 300)
+  const f = filaRegistroPagos(a, { fecha: '2026-11-02', setter: 'Mai', fuente: 'Inbound IG', cuenta: 'Empresa' })
+  // PIF 3300 no existe en la lista; con ese total solo está el PP: se carga ese, con nota
+  assert.equal(f.celdas.B, 'DFY | PP | $3300')
+  assert.equal(f.celdas.E, 300)
+  assert.equal(f.celdas.J, 'Fee')
+  assert.match(f.avisos.join(' '), /declaró DFY PIF 3\.300 USD .*solo está como "DFY \| PP \| \$3300"/)
+  assert.ok(!f.avisos.some((x) => /no tiene ninguna opción/.test(x)))
+})
+
+test('columna B: primera cuota de un PP 3300 → DFY | PP | $3300', () => {
+  const a = parsearAlta('#ALTA\nCloser: Marcos\nNombre completo: Juan Pérez\nTipo de pago: PP 3300 USD\nEste pago: 1100 USD · Transferencia\nCuotas:\n19/11/2026 1100\n19/12/2026 1100')
+  const f = filaRegistroPagos(a, { fecha: '2026-10-23' })
+  assert.equal(f.celdas.B, 'DFY | PP | $3300')
+  assert.equal(f.celdas.E, 1100)
+  assert.equal(f.celdas.J, '1ra Cuota')
+  assert.ok(!f.avisos.some((x) => /columna B/.test(x)))
+  // Formato libre: la primera cuota escrita antes del plan tampoco es el total
+  const libre = parsearAlta('Paga hoy 1100 USD, PP 3300 en 3 cuotas\nJuan Pérez')
+  assert.equal(libre.totalUsd, 3300)
+  assert.equal(libre.estePagoUsd, 1100)
+  assert.equal(programaPlanilla(libre).valor, 'DFY | PP | $3300')
+})
+
+test('columna B: plan exacto en la lista (sin nota)', () => {
+  const p = programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 2400 })
+  assert.deepEqual(p, { valor: 'DFY | PIF | $2400', enLista: true, nota: null, sugerida: null })
+  assert.equal(programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 6000 }).valor, 'DFY | PIF | $6.000')
+  // Un Fee de un PIF 2400 sigue con el plan en B
+  const fee = filaRegistroPagos(parsearAlta('#ALTA\nNombre completo: Juan Pérez\nTipo de pago: PIF 2400 USD\nEste pago: 200 USD'), { fecha: '2026-10-23' })
+  assert.equal(fee.celdas.B, 'DFY | PIF | $2400')
+  assert.equal(fee.celdas.J, 'Fee')
+})
+
+test('columna B: total que existe solo con el otro tipo → ese, con nota', () => {
+  const pif3000 = programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 3000 })
+  assert.equal(pif3000.valor, 'DFY | PP | $3000')
+  assert.equal(pif3000.enLista, true)
+  assert.match(pif3000.nota, /PIF 3\.000 USD .*"DFY \| PP \| \$3000"/)
+  const pp2600 = programaPlanilla({ programa: null, modalidad: 'PP', totalUsd: 2600 })
+  assert.equal(pp2600.valor, 'DFY | PIF | $2600')
+  assert.ok(pp2600.nota)
+  // DWY no toma opciones de DFY con el mismo total
+  const dwy = programaDeLista({ prefijo: 'DWY', modalidad: 'PIF', total: 600 }, OPCIONES_PROGRAMA)
+  assert.equal(dwy.valor, 'DWY | PP | $600')
+})
+
+test('columna B: plan sin ese total en la lista → no se carga y se sugiere la opción más cercana', () => {
+  const p = programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 5000 })
+  assert.equal(p.enLista, false)
+  assert.equal(p.valor, 'DFY | PIF | $5000')
+  assert.equal(p.sugerida, 'DFY | PIF | $6.000')
+  const f = filaRegistroPagos(parsearAlta('#ALTA\nNombre completo: Juan Pérez\nTipo de pago: PIF 5000 USD\nEste pago: 5000 USD'), { fecha: '2026-10-23' })
+  assert.equal(f.celdas.B, 'DFY | PIF | $5000')
+  assert.match(f.avisos.join(' '), /no tiene ninguna opción con ese total .*Sugerida: "DFY \| PIF \| \$6\.000"/)
+  // Un "total" de 300 (lo que antes salía de un Fee mal leído) tampoco se carga
+  assert.equal(programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 300 }).enLista, false)
+  assert.deepEqual(leerOpcionPrograma('DFY | PIF | $6.000'), { prefijo: 'DFY', modalidad: 'PIF', total: 6000 })
+  assert.deepEqual(leerOpcionPrograma('DFY+R++ | PP | $3800'), { prefijo: 'DFY+R++', modalidad: 'PP', total: 3800 })
+  assert.equal(leerOpcionPrograma('cualquier cosa'), null)
 })

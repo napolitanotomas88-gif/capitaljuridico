@@ -696,13 +696,13 @@ function reintentoLectura(ctx: CtxPaso, etapa: string, motivo: string): SalidaPa
 }
 
 /** Paso a revisar + la espera "ok_revisar" (OK = ya lo arreglé, seguí). */
-export function revisarCon(paso: CtxPaso['paso']['paso'], alta: FilaAlta, motivo: string, parcial?: Record<string, unknown>, resultado?: unknown): SalidaPaso {
+export function revisarCon(paso: CtxPaso['paso']['paso'], alta: FilaAlta, motivo: string, parcial?: Record<string, unknown>, resultado?: unknown, textos?: { titulo: string; ok: string }): SalidaPaso {
   const nombre = alta.validacion?.nombreConfirmado ?? alta.nombreCliente
   return {
     estado: 'revisar', error: motivo, ...(parcial ? { parcial } : {}), ...(resultado !== undefined ? { resultado } : {}),
     esperas: [{
       paso, motivo: 'revisar', tipos: ['ok_revisar'], grupo: 'verificaciones', quien: 'equipo', requiere: [], pedido: [`${paso}: ${motivo}`],
-      texto: textoPedidoEquipo({ nombre, titulo: `el paso "${paso}" quedó a medias y no se reintenta solo.`, detalle: [motivo], ok: 'ya lo revisé/arreglé a mano, seguí', no: 'dejarlo sin hacer' }),
+      texto: textoPedidoEquipo({ nombre, titulo: textos?.titulo ?? `el paso "${paso}" quedó a medias y no se reintenta solo.`, detalle: [motivo], ok: textos?.ok ?? 'ya lo revisé/arreglé a mano, seguí', no: 'dejarlo sin hacer' }),
     }],
   }
 }
@@ -731,6 +731,12 @@ export function interpretarFinanzas(r: ResultadoCargaFinanzas, c: { huboCorriend
     const espera = esperaReintento(c.intentos)
     if (espera === null) return revisarCon('finanzas', { validacion: null, nombreCliente: c.nombre } as unknown as FilaAlta, r.motivo ?? 'no se pudo cargar', { intentosLectura: c.intentos + 1 }, guardado)
     return { estado: 'reintento', resultado: guardado, noAntesDe: iso(c.ahora + espera), error: r.motivo, parcial: { intentosLectura: c.intentos + 1 } }
+  }
+  // Un control frenó la carga antes de escribir (ej. el programa de la columna B fuera de la lista estricta): es una pregunta
+  // en Verificaciones C.J, no algo "a medias". Solo frena Finanzas: CRM, Drive, comunidad y lo demás siguen (2/11/2026)
+  if (r.etapa === 'control') {
+    return revisarCon('finanzas', { validacion: null, nombreCliente: c.nombre } as unknown as FilaAlta, r.motivo ?? 'Finanzas frenó la carga', undefined, guardado,
+      { titulo: 'Finanzas no cargó el pago (no se escribió nada en la planilla). El resto del alta sigue.', ok: 'ya lo cargué a mano en "Registro de Pagos", seguí' })
   }
   return revisarCon('finanzas', { validacion: null, nombreCliente: c.nombre } as unknown as FilaAlta, r.motivo ?? 'Finanzas frenó la carga', undefined, guardado)
 }
