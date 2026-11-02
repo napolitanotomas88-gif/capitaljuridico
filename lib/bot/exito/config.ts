@@ -125,8 +125,11 @@ export function faltantesExito(env: NodeJS.ProcessEnv = process.env, prueba = fa
   const c = prueba ? configPruebaExito(env) : configExito(env)
   if (!env.DATABASE_URL?.trim()) f.push('DATABASE_URL')
   if (c.modo === 'seco') return f
-  if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
-  if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
+  // Sin WhatsApp (2/11/2026, WHATSAPP_BOT distinto de «encendido»): los OK se dan en el Despacho y el aviso va a Discord
+  if (env.WHATSAPP_BOT?.trim().toLowerCase() === 'encendido') {
+    if (!env.WHAPI_TOKEN?.trim()) f.push('WHAPI_TOKEN')
+    if (!c.verificaciones) f.push('WHAPI_GRUPO_VERIFICACIONES')
+  } else if (!env.DISCORD_WEBHOOK_VERIFICACIONES?.trim()) f.push('DISCORD_WEBHOOK_VERIFICACIONES')
   if (!c.aprobadores.length) f.push('BOT_ALTA_APROBADORES')
   if (!(env.CLAUDE_VIA?.trim() === 'mac' || env.BOT_ANTHROPIC_API_KEY?.trim() || env.ANTHROPIC_API_KEY?.trim())) f.push('BOT_ANTHROPIC_API_KEY')
   if (c.capacidades.has('exito_testimonio') && !env.DISCORD_WEBHOOK_CLIENTES?.trim()) f.push('DISCORD_WEBHOOK_CLIENTES')

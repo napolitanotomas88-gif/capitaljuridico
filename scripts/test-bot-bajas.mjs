@@ -13,6 +13,9 @@ for (const k of Object.keys(process.env)) {
 }
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 
+// El corte global (2/11/2026, lib/bot/whapi/corte.ts) frena toda escritura a Whapi: estos tests prueban el cliente de Whapi con
+// un fetch falso, así que abren la puerta SOLO en este proceso
+;(await import('../lib/bot/whapi/corte.ts')).permitirWhatsappEnPruebas()
 const CFG = await import('../lib/bot/bajas/config.ts')
 const T = await import('../lib/bot/bajas/textos.ts')
 const FIN = await import('../lib/bot/bajas/fin.ts')
@@ -139,7 +142,8 @@ describe('config: nace en seco y las capacidades se respetan', () => {
   })
   test('faltantes: solo NOMBRES, según las capacidades', () => {
     assert.deepEqual(CFG.faltantesBajas({}), ['DATABASE_URL'])
-    const f = CFG.faltantesBajas({ BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: TODAS.join(',') })
+    const f = CFG.faltantesBajas({ BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: TODAS.join(','), WHATSAPP_BOT: 'encendido' })
+    assert.ok(CFG.faltantesBajas({ BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: TODAS.join(',') }).includes('DISCORD_WEBHOOK_VERIFICACIONES'))
     for (const k of ['SHEET_ID_CLIENTES', 'WHAPI_TOKEN', 'WHAPI_GRUPO_VERIFICACIONES', 'BOT_ALTA_APROBADORES', 'BOT_ANTHROPIC_API_KEY', 'FATHOM_API_KEY_TOMAS', 'DISCORD_WEBHOOK_CLIENTES', 'DISCORD_ID_AYLU']) assert.ok(f.includes(k), k)
   })
   test('BOT_BAJAS=no apaga; un link que no es https no cuenta', () => {
@@ -953,5 +957,48 @@ describe('ronda 2 — comunidad: se elimina SIEMPRE al final (después de la des
     const f = G.fichasDelMotor([{ nombre: 'Ana Pérez', id_crm: 'A100', general: GENERAL, comunidad: COMUNIDAD, carpeta: CARPETA, texto: '#ALTA\nCorreo: Ana@Estudio.test\nSocios: Juan, socio@estudio.test', creado: '1' }])[0]
     assert.equal(f.comunidad, COMUNIDAD); assert.equal(f.carpeta, CARPETA); assert.deepEqual(f.correos, ['ana@estudio.test', 'socio@estudio.test'])
     assert.match(G.CONSULTA_MOTOR_BAJAS, /comunidadId/); assert.match(G.CONSULTA_MOTOR_BAJAS, /pd\.paso = 'drive'/)
+  })
+})
+
+// ── Sin WhatsApp (2/11/2026): OK en el Despacho, despedida «para enviar» y salir de los grupos como tarea a mano ─────────
+describe('sin WhatsApp: aprobaciones en el Despacho', () => {
+  function manual(op = {}) {
+    const x = armar(op)
+    const tareas = []
+    x.deps.salidaManual = true
+    x.deps.generalVirtual = (id) => (id ? `cliente:${id.toUpperCase()}:general` : null)
+    x.deps.tareaManual = async (t) => { tareas.push(t) }
+    x.N = N.crearNucleoBajas(x.deps)
+    return { ...x, tareas }
+  }
+  test('OK de la baja y de la despedida desde el Despacho: la despedida queda para enviar (i03) y sacarlo es una tarea; nada se quita por Whapi', async () => {
+    const x = manual()
+    await x.N.procesarLlamada(reunion())
+    const r1 = await x.N.resolverManual({ id: pedidoDe(x, 'confirmar_baja').id, veredicto: 'ok', resto: '', por: 'Tomás' })
+    assert.equal(r1.aprobados, 1)
+    const desp = pedidoDe(x, 'despedida')
+    assert.ok(desp)
+    assert.ok(typeof desp.detalle.texto === 'string' && desp.detalle.texto.includes('Despedida para'))
+    const r2 = await x.N.resolverManual({ id: desp.id, veredicto: 'ok', resto: '', por: 'Aylu' })
+    assert.equal(r2.aprobados, 1)
+    const alCliente = x.enviados.filter((e) => e.pieza === 'i03')
+    assert.equal(alCliente.length, 1)
+    assert.equal(alCliente[0].idCrm, 'A100')
+    assert.equal(x.quitados.length, 0)
+    assert.equal(x.tareas.length, 1)
+    assert.match(x.tareas[0].titulo, /Sacarlo de los 3 grupos/)
+    const b = x.almacen._bajas[0]
+    assert.equal(b.pasos.grupos.estado, 'omitido'); assert.match(b.pasos.grupos.detalle, /a mano/)
+    // las respuestas cortas («Listo con…») no salen a Verificaciones: quedan en el registro
+    assert.ok(!x.enviados.some((e) => /^Listo con/.test(e.texto)))
+    assert.ok(r2.registro.some((l) => /Listo con Ana Pérez/.test(l)))
+  })
+  test('un pedido ya resuelto o inexistente no hace nada', async () => {
+    const x = manual()
+    assert.equal((await x.N.resolverManual({ id: 'no-existe', veredicto: 'ok', resto: '', por: 'Tomás' })).errores.length, 1)
+    await x.N.procesarLlamada(reunion())
+    const id = pedidoDe(x, 'confirmar_baja').id
+    await x.N.resolverManual({ id, veredicto: 'no', resto: '', por: 'Tomás' })
+    assert.equal((await x.N.resolverManual({ id, veredicto: 'ok', resto: '', por: 'Tomás' })).ignorados, 1)
   })
 })

@@ -10,7 +10,7 @@ test('quién la ve: por mail, por sección o todos', () => {
   assert.equal(M.laVe({ paraEmail: null, paraSeccion: 'guiones' }, 'a@x.com', ['clientes']), false)
   assert.equal(M.laVe({ paraEmail: null, paraSeccion: 'guiones' }, 'a@x.com', ['guiones']), true)
   assert.equal(M.laVe({ paraEmail: null, paraSeccion: null }, 'a@x.com', []), true)
-  assert.deepEqual(M.seccionesDe('csm'), ['clientes', 'referidos'])
+  assert.deepEqual(M.seccionesDe('csm'), ['clientes', 'referidos', 'altas'])
 })
 
 test('validación y links internos', () => {

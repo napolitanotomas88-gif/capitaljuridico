@@ -372,10 +372,13 @@ describe('aviso a Discord', () => {
     assert.equal((await m.almacen.leerAlta(r.json.altaId)).esperas.find((x) => x.estado === 'abierta').avisoDespacho, undefined)
   })
   test('canal: BOT_ALTA_CANAL manda; sin ella, despacho con el número caído y ambos si no se sabe', () => {
-    assert.equal(CA.canalDesdeEntorno({ BOT_ALTA_CANAL: 'WhatsApp' }), 'whatsapp')
-    assert.equal(CA.canalDesdeEntorno({}, { ok: false, conocido: true }), 'despacho')
-    assert.equal(CA.canalDesdeEntorno({}, { ok: false, conocido: false }), 'ambos')
-    assert.equal(CA.canalDesdeEntorno({}, null), 'ambos')
+    const W = { WHATSAPP_BOT: 'encendido' }
+    assert.equal(CA.canalDesdeEntorno({ ...W, BOT_ALTA_CANAL: 'WhatsApp' }), 'whatsapp')
+    assert.equal(CA.canalDesdeEntorno(W, { ok: false, conocido: true }), 'despacho')
+    assert.equal(CA.canalDesdeEntorno(W, { ok: false, conocido: false }), 'ambos')
+    assert.equal(CA.canalDesdeEntorno(W, null), 'ambos')
+    // Sin WhatsApp (2/11/2026): con el corte global, siempre el Despacho
+    assert.equal(CA.canalDesdeEntorno({ BOT_ALTA_CANAL: 'whatsapp' }), 'despacho')
     assert.equal(AV.webhookAvisos({ DISCORD_WEBHOOK_URL: 'https://a', DISCORD_WEBHOOK_VERIFICACIONES: 'https://b' }), 'https://b')
     assert.equal(AV.webhookAvisos({ DISCORD_WEBHOOK_URL: 'https://a' }), 'https://a')
     assert.deepEqual(AV.mencionesDe('closer', { BOT_ALTA_APROBADORES_DISCORD: '123456789012345678, x' }), ['123456789012345678'])

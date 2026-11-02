@@ -888,9 +888,10 @@ describe('sesión y roles', () => {
     const ve = (rol) => ['resumen', 'ventas', 'clientes', 'referidos', 'finanzas', 'anuncios'].filter((s) => puedeVer(rol, s))
     assert.deepEqual(ve('socio'), ['resumen', 'ventas', 'clientes', 'referidos', 'finanzas', 'anuncios'])
     assert.deepEqual(ve('csm'), ['clientes', 'referidos'])
+    assert.equal(puedeVer('csm', 'altas'), true)   // 2/11/2026: CSM (Aylu, Gero M) carga altas
     assert.deepEqual(ve('closer'), ['ventas'])
     assert.deepEqual(ve('setter'), ['ventas'])
-    assert.deepEqual(MATRIZ_ROLES.csm, ['clientes', 'referidos'])
+    assert.deepEqual(MATRIZ_ROLES.csm, ['clientes', 'referidos', 'altas'])
     assert.equal(rutaInicial('csm'), '/clientes')
     assert.equal(rutaInicial('setter'), '/ventas')
   })

@@ -9,6 +9,8 @@ import type { FilaTanda } from './registro'
 import { avisarCliente, buscarGrupoContenido } from './envio'
 import { tokenWhapi } from '../whapi/config'
 import { guardiaWhapi } from '../whapi/salud'
+import { textoWhatsApp } from './envio'
+import { paraEnviar } from '../canal/salidaCliente'
 
 export const MAX_ANTIGUEDAD_APROBACION_MS = 24 * 3_600_000
 export const HORARIO_GUIONES_WA = { desde: 9, hasta: 20 } as const   // hora de Argentina, [desde, hasta)
@@ -52,3 +54,18 @@ export async function enviarGuionesAlCliente(fila: FilaTanda, env: Record<string
     await reg.anotarWhatsApp(fila.id, enviado).catch(e => console.error('Guiones: no se anotó el WhatsApp de la tanda', fila.id, (e as Error)?.name ?? 'error'))
   }
 }
+
+/** d02 sin WhatsApp (2/11/2026): el link de la tanda aprobada queda «para enviar» (Aylu o Gero M lo pegan en el grupo
+ *  Contenido y confirman la entrega). Devuelve 'manual' (no 'enviado'): el aviso de entrega de la campanita sale igual. */
+export async function guionesParaEnviar(fila: FilaTanda): Promise<ResultadoD02 | { estado: 'manual'; motivo?: string }> {
+  if (!fila.doc?.url || !fila.aprobacion?.cuando) return { estado: 'fuera', motivo: 'falta el documento o la aprobación' }
+  const r = await paraEnviar({
+    pieza: 'd02', idCrm: fila.id_crm, cliente: fila.cliente ?? fila.id_crm ?? 'Cliente', clave: claveD02(fila),
+    texto: textoWhatsApp(fila, fila.doc.url), abrir: fila.id_crm ? `/clientes/entregas?cliente=${encodeURIComponent(fila.id_crm)}` : '/clientes/entregas',
+    datos: { tanda: fila.id },
+  })
+  return r.estado === 'error' ? { estado: 'error', motivo: r.motivo } : { estado: 'manual', motivo: 'queda para enviar a mano (📤)' }
+}
+
+/** La clave del «para enviar» de una tanda (por aprobación: una corrección aprobada de nuevo es otro mensaje). */
+export const claveD02 = (fila: Pick<FilaTanda, 'id' | 'aprobacion'>) => `${fila.id}:${fila.aprobacion?.cuando ?? 'sin-aprobacion'}`

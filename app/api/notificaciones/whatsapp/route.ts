@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { autorizarCron } from '@/lib/bot/grabacion/acceso'
-import { despacharNotifWhatsappReal, estadoNotifWhatsapp } from '@/lib/notificaciones/whatsapp/servidor'
+import { estadoNotifWhatsapp } from '@/lib/notificaciones/whatsapp/servidor'
+import { despacharNotifDiscordReal } from '@/lib/notificaciones/discord/servidor'
+import { ultimasAlertas } from '@/lib/alertas'
+import { estadoCanales } from '@/lib/alertas/canales'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -17,7 +20,8 @@ export async function POST(req: Request) {
   const a = autorizarCron(req.headers, process.env)
   if (!a.ok) return json({ error: a.status === 503 ? 'no configurado' : 'no autorizado' }, a.status)
   try {
-    return json({ ok: true, ...(await despacharNotifWhatsappReal()) })
+    // Sin WhatsApp (2/11/2026): la corrida es la de Discord (la de WhatsApp quedó apagada por WHATSAPP_BOT)
+    return json({ ok: true, discord: await despacharNotifDiscordReal() })
   } catch (e) {
     return json({ ok: false, error: motivo(e) }, 500)
   }
@@ -27,7 +31,8 @@ export async function GET(req: Request) {
   const a = autorizarCron(req.headers, process.env)
   if (!a.ok) return json({ error: a.status === 503 ? 'no configurado' : 'no autorizado' }, a.status)
   try {
-    return json({ ok: true, ...(await estadoNotifWhatsapp()) })
+    // Canales: solo sí/no por variable (nunca la URL). Alertas: resumen, sin textos ni webhooks.
+    return json({ ok: true, discord: { canales: estadoCanales(), ultimas: await ultimasAlertas(40) }, whatsapp: await estadoNotifWhatsapp() })
   } catch (e) {
     return json({ ok: false, error: motivo(e) }, 500)
   }

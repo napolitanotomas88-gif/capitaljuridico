@@ -40,6 +40,8 @@ export interface OpcionesEnvio {
   timeoutMs?: number
   reintentos429?: number
   esperas5xx?: number[]
+  /** flags del mensaje: por defecto 4 (sin vista previa de links). lib/alertas suma 4096 (silencioso) de noche. */
+  flags?: number
 }
 
 export const TIMEOUT_DISCORD_MS = 15_000
@@ -63,7 +65,7 @@ export async function enviarDiscord(webhook: string, mensajes: string[], mencion
 
   for (let i = 0; i < mensajes.length; i++) {
     if (i > 0) await esperarSiAlcanza(pausa, 'pausa entre mensajes')
-    const cuerpo = JSON.stringify({ content: mensajes[i], flags: 4, allowed_mentions: { parse: [], users: menciones } })
+    const cuerpo = JSON.stringify({ content: mensajes[i], flags: op.flags ?? 4, allowed_mentions: { parse: [], users: menciones } })
     let n429 = 0, n5xx = 0
     for (;;) {
       const queda = restante()

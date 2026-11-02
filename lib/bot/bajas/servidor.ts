@@ -11,6 +11,8 @@ import { neon } from '@neondatabase/serverless'
 import { BASE_WHAPI } from '@/lib/bot/whapi/comun'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
+import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
+import { CHAT_VERIFICACIONES_DISCORD, enviarTextoSinWhatsapp, generalVirtual, tareaOperaciones } from '@/lib/bot/sinWhatsapp'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
 import { personasDelEquipo } from '@/lib/bot/whapi/guiones'
 import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
@@ -117,12 +119,16 @@ const PREFIJO_DISCORD_PRUEBA = '🧪 PRUEBA (cliente ficticio, no hay que hacer 
 
 export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
   const env = op.env ?? process.env
-  const config = op.config ?? configBajas(env)
+  // Sin WhatsApp (2/11/2026): Verificaciones es el canal de Discord, lo del cliente queda «para enviar» y sacarlo de los
+  // grupos es una tarea en 🛠️-operaciones. Whapi no se toca (ni siquiera para leer grupos).
+  const sinWa = !whatsappBotEncendido(env)
+  const config0 = op.config ?? configBajas(env)
+  const config = sinWa ? { ...config0, verificaciones: CHAT_VERIFICACIONES_DISCORD } : config0
   const prueba = !!config.prueba
   const listaPrueba = config.clientesPrueba ?? []
   const lecturas = hayLecturas(config.modo)
   const token = tokenWhapi(env)
-  const conWhapi = lecturas && !!token
+  const conWhapi = lecturas && !!token && !sinWa
   const webhook = env.DISCORD_WEBHOOK_CLIENTES?.trim() ?? ''
   const db = env.DATABASE_URL?.trim()
   let cliente: ReturnType<typeof crearClienteWhapi> | null = null
@@ -166,6 +172,7 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
     })
   return {
     config,
+    ...(sinWa ? { salidaManual: true, generalVirtual, tareaManual: (t: Parameters<NonNullable<DepsBajas['tareaManual']>>[0]) => tareaOperaciones({ ...t, menciones: ['aylu'] }) } : {}),
     clienteOperativo,
     alcance,
     almacen: op.dry ? almacenSoloLectura(almacenBase) : almacenBase,
@@ -173,6 +180,7 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
     async enviarTexto(p) {
       if (op.dry) return { id: null }   // ?dry=1: no sale nada
       if (config.modo === 'seco') throw new Error('modo seco: no sale nada')
+      if (sinWa) return enviarTextoSinWhatsapp('bajas', p)
       if (!token) throw Object.assign(new Error('falta WHAPI_TOKEN'), { aplicado: false })
       const r = await whapi().enviarTexto({ chatId: p.chatId, texto: p.texto, citar: p.citar ?? null })
       return { id: r.id }
@@ -339,4 +347,9 @@ export async function correrDiarioBajasReal(op: OpcionesBajasReal & { forzarReco
   const r = await enTodos(op, (n) => n.correrDiario({ forzarRecontacto: op.forzarRecontacto }))
   if (!op.dry) (op.log ?? console).info(`bot-bajas: diario — ${lineaResumenBajas(r)}`)
   return r
+}
+
+/** OK / NO de un pedido de Bajas desde el Despacho (/clientes/aprobaciones, 2/11/2026). Cada núcleo atiende solo los suyos. */
+export async function resolverBajasManualReal(q: { id: string; veredicto: 'ok' | 'no'; resto: string; por: string }, op: OpcionesBajasReal = {}): Promise<ResumenBajas> {
+  return enTodos(op, (n) => n.resolverManual(q))
 }

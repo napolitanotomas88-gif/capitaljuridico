@@ -1,3 +1,5 @@
+> **2/11/2026 (tarde): sin WhatsApp.** El número del bot no se recuperó. Todo envío por Whapi quedó cortado en el código (`WHATSAPP_BOT` distinto de «encendido»). Las alertas van por Discord, lo del cliente queda «para enviar» y los OK se dan en el Despacho: ver `docs/ALERTAS-DISCORD.md`. Las variables `*_WHATSAPP*` de este documento ya no tienen efecto.
+
 # Encendido general · 2/11/2026
 
 Tomás pidió prender todo el 2/11/2026. Este documento dice qué se prendió, con qué variable y cómo apagar cada cosa.

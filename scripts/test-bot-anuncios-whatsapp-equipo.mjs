@@ -4,6 +4,9 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
+// El corte global (2/11/2026, lib/bot/whapi/corte.ts) apaga el WhatsApp del bot: estos tests prueban el envío viejo, así
+// que abren la puerta SOLO en este proceso
+;(await import('../lib/bot/whapi/corte.ts')).permitirWhatsappEnPruebas()
 const W = await import('../lib/bot/anuncios/whatsappEquipo.ts')
 const S = await import('../lib/bot/anuncios/whatsappEquipoServidor.ts')
 

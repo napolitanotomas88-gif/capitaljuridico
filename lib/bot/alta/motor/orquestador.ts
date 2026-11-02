@@ -72,6 +72,12 @@ export interface DepsOrquestador extends DepsMotorBase {
   /** Aviso (Discord) de un pedido que se responde en el Despacho: porque el canal es 'despacho' o porque WhatsApp no está
    *  disponible (la guardia de salud lo frenó). Uno por espera. Nunca frena al motor. */
   avisarEspera?: (d: { alta: FilaAlta; espera: Espera; motivo: 'despacho' | 'sin_whatsapp' }) => Promise<void>
+  /** Sin WhatsApp (2/11/2026): lo que el motor le decía al equipo en Verificaciones C.J. o al closer en Ventas C.J. (resumen
+   *  de lo recibido, avisos, «Alta terminada») va a ✅-verificaciones de Discord. Los pedidos (esperas) van por avisarEspera.
+   *  Nunca frena al motor. */
+  equipoDiscord?: (d: { alta: FilaAlta; proposito: string; texto: string; grupo: 'ventas' | 'verificaciones' }) => Promise<void>
+  /** Al terminar un paso en real (p. ej. «Alta cargada en Finanzas» a 💰-finanzas). Nunca frena al motor. */
+  alTerminarPaso?: (d: { alta: FilaAlta; paso: PasoId; resultado: unknown }) => Promise<void>
 }
 
 /** Opciones internas de avanzar (la ruta del motor). */
@@ -97,6 +103,8 @@ export interface MotorAltasO extends MotorAltas {
 const CAPACIDAD: Record<PasoId, Capacidad | null> = {
   validar: null, finanzas: 'finanzas', crm: 'crm', drive: 'drive', comunidad: 'comunidad', bienvenida: 'bienvenida', skool: 'mensajes_equipo', contrato: 'contrato',
 }
+/** Sin WhatsApp (deps.pasos.tareaManual): comunidad, bienvenida y Skool son tareas humanas y no necesitan su capacidad. */
+const capacidadDe = (paso: PasoId, aMano: boolean): Capacidad | null => (aMano && (PASOS_A_MANO as readonly string[]).includes(paso) ? null : CAPACIDAD[paso])
 const EJECUTOR: Record<PasoId, (ctx: CtxPaso) => Promise<SalidaPaso>> = {
   validar: pasoValidar, finanzas: pasoFinanzas, crm: pasoCrm, drive: pasoDrive, comunidad: pasoComunidad, bienvenida: pasoBienvenida, skool: pasoSkool, contrato: pasoContrato,
 }
@@ -193,7 +201,7 @@ export function crearOrquestador(deps: DepsOrquestador): MotorAltasO {
     const modo = menorModo(alta.modo, deps.modo)
     const deAlta = new Set(alta.capacidades)
     const capacidades = new Set<Capacidad>([...deAlta].filter((c) => deps.capacidades.has(c) && (modo === 'real' || (modo === 'ensayo' && c === 'reporte_verificaciones'))))
-    const pausados = new Set<PasoId>(PASOS.filter((p) => { const c = CAPACIDAD[p]; return modo === 'real' && c !== null && deAlta.has(c) && !deps.capacidades.has(c) }))
+    const pausados = new Set<PasoId>(PASOS.filter((p) => { const c = capacidadDe(p, !!deps.pasos.tareaManual); return modo === 'real' && c !== null && deAlta.has(c) && !deps.capacidades.has(c) }))
     return { modo, capacidades, pausada: modoMenorQue(deps.modo, alta.modo), pausados }
   }
 
@@ -201,6 +209,15 @@ export function crearOrquestador(deps: DepsOrquestador): MotorAltasO {
   async function enviar(st: Pick<Estado, 'alta' | 'ef' | 'registro'>, m: EnvioSolicitado & { reporte?: boolean }): Promise<ResultadoEnvio> {
     const { ef } = st
     const destinoTxt = 'grupo' in m.destino ? (m.destino.grupo === 'ventas' ? 'al closer en Ventas' : 'en Verificaciones') : 'al grupo del cliente'
+    // Sin WhatsApp (2/11/2026, canal Despacho): lo del equipo (Ventas y Verificaciones) va a ✅-verificaciones de Discord, salvo
+    // los pedidos (avisarEspera ya los avisa con el link) y el aviso de Skool (es una tarea a mano)
+    if ('grupo' in m.destino && !m.reporte && deps.equipoDiscord && ef.modo === 'real' && canal() === 'despacho'
+      && (ef.capacidades.has('mensajes_equipo') || ef.capacidades.has('reporte_verificaciones'))
+      && !m.esperaId && !m.proposito.startsWith('espera:') && m.proposito !== 'skool:aviso' && m.proposito !== 'comunidad:link_closer') {
+      try { await deps.equipoDiscord({ alta: st.alta, proposito: m.proposito, texto: m.texto, grupo: m.destino.grupo }) } catch (e) { log.warn(`bot-alta: ${st.alta.id} — no salió a Discord "${m.proposito}" (${motivoDe(e)})`) }
+      st.registro.push(`a Discord (Verificaciones): ${recortar((m.texto || '').replace(/\s+/g, ' '), 100)}`)
+      return { estado: 'simulado', id: null }
+    }
     const permitido = m.reporte
       ? ef.modo === 'ensayo' && ef.capacidades.has('reporte_verificaciones')
       : ef.modo === 'real' && ('grupo' in m.destino
@@ -379,7 +396,7 @@ export function crearOrquestador(deps: DepsOrquestador): MotorAltasO {
   // ── Correr un paso ──
   async function correrPaso(st: Estado, accion: Extract<Accion, { tipo: 'correr' }>, pasos: Record<PasoId, FilaPaso>): Promise<void> {
     const { paso } = accion
-    const cap = CAPACIDAD[paso]
+    const cap = capacidadDe(paso, !!deps.pasos.tareaManual)
     const real = st.ef.modo === 'real' && (cap === null || st.ef.capacidades.has(cap))
     const previo = pasos[paso]
     const huboCorriendo = previo.estado === 'corriendo' || previo.dudoso
@@ -411,6 +428,9 @@ export function crearOrquestador(deps: DepsOrquestador): MotorAltasO {
       if (recurso) await almacen.soltarRecurso(recurso, st.dueno)
     }
     await aplicarSalida(st, paso, iniciado, salida, huboCorriendo)
+    if (real && salida.estado === 'hecho' && deps.alTerminarPaso) {
+      try { await deps.alTerminarPaso({ alta: st.alta, paso, resultado: salida.resultado ?? null }) } catch (e) { log.warn(`bot-alta: ${st.alta.id} — aviso del paso ${paso} (${motivoDe(e)})`) }
+    }
   }
 
   async function aplicarSalida(st: Estado, paso: PasoId, iniciado: string, s: SalidaPaso, huboCorriendo: boolean): Promise<void> {

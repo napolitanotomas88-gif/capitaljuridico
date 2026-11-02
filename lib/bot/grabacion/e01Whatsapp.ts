@@ -22,6 +22,7 @@
 //     Discord) y se reintenta en la vuelta siguiente. Si se cae en medio de la vuelta (ErrorWhapi 'sin_numero'), el paso se
 //     devuelve tal cual (sin «No salió»: lo vuelve a tomar el bot) y la vuelta se corta.
 import { grupoContenidoFijo } from '../whapi/gruposFijos'
+import { whatsappBotEncendido } from '../whapi/corte'
 import type { IdCrm, PasoSeguimiento, Ymd } from '@/lib/edicion/tipos'
 import { fechaSugeridaE01, nombreDeSaludo, textoE01 } from '@/lib/edicion/textos'
 import { linkDoc } from '@/lib/edicion/vista'
@@ -90,6 +91,8 @@ export function escalonesActivos(env: Record<string, string | undefined>): Set<T
 /** La configuración si está prendido (para el motor y para la pantalla de pendientes), o null. */
 export function configE01Whatsapp(env: Record<string, string | undefined>): { desde: Ymd; tipos: Set<TipoEnvio> } | null {
   if (env[VARIABLE_E01_WHATSAPP]?.trim() !== 'real') return null
+  // Sin WhatsApp (2/11/2026): con el corte global el e01 queda «para enviar» (paraEnviarE01)
+  if (!whatsappBotEncendido(env)) return null
   const desde = env[VARIABLE_DESDE]?.trim() ?? ''
   if (!/^\d{4}-\d{2}-\d{2}$/.test(desde)) return null
   return { desde, tipos: escalonesActivos(env) }
@@ -104,6 +107,7 @@ export function loMandaElBot(p: Pick<PasoSeguimiento, 'escalon' | 'debido' | 'te
 /** Por qué no corre (null = prendido). */
 export function motivoApagado(env: Record<string, string | undefined>, modo: 'dry' | 'real', ahora: Date, esHabil: (d: Ymd) => boolean): string | null {
   if (env[VARIABLE_E01_WHATSAPP]?.trim() !== 'real') return `${VARIABLE_E01_WHATSAPP} no está en «real»`
+  if (!whatsappBotEncendido(env)) return 'el WhatsApp del bot está apagado (WHATSAPP_BOT)'
   if (!configE01Whatsapp(env)) return `falta ${VARIABLE_DESDE} (aaaa-mm-dd, el día en que se prende)`
   if (modo !== 'real') return 'Edición no está en modo real'
   if (!esHabil(ymdAR(ahora))) return 'hoy no es día hábil'
@@ -196,6 +200,50 @@ export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 
     // Ya salió: si la confirmación falla, queda «enviando…» y la vuelta siguiente lo pasa a dudoso (nunca se suelta)
     try { await deps.confirmar(p.id, `enviado por WhatsApp a «${g.nombre.slice(0, 80)}»${r.id ? ` (mensaje ${r.id.slice(0, 40)})` : ''}`) }
     catch (e) { out.errores.push(`${p.cliente}: salió pero no se pudo confirmar el paso (${motivo(e)})`) }
+  }
+  return out
+}
+
+// ── e01 sin WhatsApp (2/11/2026): el día 0 y los recordatorios quedan «para enviar» ───────────────────────────────────────
+// El bot ya no le escribe al cliente. En cada vuelta del diario o del vigía, los pasos del día 0 y los recordatorios que
+// vencieron (hasta MAX_DIAS_ATRASO días atrás y desde E01_PARA_ENVIAR_DESDE, aaaa-mm-dd; por defecto el 2/11/2026) dejan su
+// texto en /clientes/para-enviar con un aviso en #📤 para Gero M. El paso sigue abierto en «Grabaciones pendientes»: se
+// cierra con «Enviado» (marca el paso hecho) o desde esa pantalla, como siempre. Es idempotente: la clave es el id del paso.
+// Los días 2, 4 y 9 son internos y ya salen en el resumen de la daily (#✂️-edicion, con Gero M y Tomás).
+export const VARIABLE_PARA_ENVIAR_DESDE = 'E01_PARA_ENVIAR_DESDE'
+export const E01_PARA_ENVIAR_DESDE_POR_DEFECTO = '2026-11-02'
+export interface DepsE01ParaEnviar {
+  pasosAbiertos(): Promise<PasoSeguimiento[]>
+  docs(): Promise<Map<IdCrm, string | null>>
+  vigente(p: PasoSeguimiento): Promise<boolean>
+  /** true si quedó registrado (o ya estaba). */
+  paraEnviar(p: PasoSeguimiento, texto: string): Promise<boolean>
+  env: Record<string, string | undefined>
+  esHabil(d: Ymd): boolean
+}
+
+export async function paraEnviarE01(deps: DepsE01ParaEnviar, op: { ahora: Date; modo: 'dry' | 'real'; deadline: number }): Promise<{ apagado: string | null; elegibles: number; registrados: number; errores: string[] }> {
+  const out = { apagado: null as string | null, elegibles: 0, registrados: 0, errores: [] as string[] }
+  if (configE01Whatsapp(deps.env)) { out.apagado = 'el e01 sale por WhatsApp (E01_WHATSAPP=real)'; return out }
+  if (op.modo !== 'real') { out.apagado = 'Edición no está en modo real'; return out }
+  const hoy = ymdAR(op.ahora)
+  if (!deps.esHabil(hoy)) { out.apagado = 'hoy no es día hábil'; return out }
+  const h = horaAR(op.ahora)
+  if (h < 9 || h >= 20) { out.apagado = 'fuera de horario (9 a 20 h)'; return out }
+  const desde = (deps.env[VARIABLE_PARA_ENVIAR_DESDE] ?? '').trim()
+  const cfg = { desde: /^\d{4}-\d{2}-\d{2}$/.test(desde) ? desde : E01_PARA_ENVIAR_DESDE_POR_DEFECTO, tipos: escalonesActivos(deps.env) }
+  const xs = elegibles(await deps.pasosAbiertos(), hoy, cfg)
+  out.elegibles = xs.length
+  if (!xs.length) return out
+  const docs = await deps.docs()
+  for (const p of xs) {
+    if (Date.now() > op.deadline - 10_000) break
+    try {
+      const t = textoE01({ paso: p, nombre: nombreDeSaludo(p.cliente), linkGuiones: linkDoc(docs.get(p.id_crm.toUpperCase()) ?? null), fechaSugerida: fechaSugeridaE01(hoy), videos: p.videos.length })
+      if (t.para !== 'grupo_contenido') continue
+      if (!(await deps.vigente(p))) continue
+      if (await deps.paraEnviar(p, t.texto)) out.registrados++
+    } catch (e) { out.errores.push(`${p.cliente}: ${motivo(e)}`) }
   }
   return out
 }

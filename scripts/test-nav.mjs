@@ -54,11 +54,14 @@ test('menú: Resumen, Clientes, Ventas, Cobro de cuotas, Trazabilidad, Finanzas,
 })
 test('pestañas del hub en orden: Cartera, Guiones, Edición, Anuncios, Referidos, con las secciones de siempre', () => {
   assert.deepEqual(H.PESTANAS_CLIENTES.map((p) => [p.etiqueta, p.clave, p.href]), [
-    ['Cartera', 'clientes', '/clientes'], ['Guiones', 'guiones', '/guiones'], ['Edición', 'edicion', '/clientes/edicion'],
-    ['Anuncios', 'anuncios', '/anuncios'], ['Referidos', 'referidos', '/clientes/referidos'], ['Cargar alta', 'altas', '/clientes/altas'],
+    ['Cargar alta', 'altas', '/clientes/altas'], ['Cartera', 'clientes', '/clientes'], ['Guiones', 'guiones', '/guiones'], ['Edición', 'edicion', '/clientes/edicion'],
+    ['Anuncios', 'anuncios', '/anuncios'], ['Referidos', 'referidos', '/clientes/referidos'],
   ])
-  assert.deepEqual(H.pestanasVisibles('socio').map((p) => p.clave), ['clientes', 'guiones', 'edicion', 'anuncios', 'referidos', 'altas'])
-  assert.deepEqual(H.pestanasVisibles('csm').map((p) => p.clave), ['clientes', 'referidos'])
+  assert.deepEqual(H.pestanasVisibles('socio').map((p) => p.clave), ['altas', 'clientes', 'guiones', 'edicion', 'anuncios', 'referidos'])
+  // 2/11/2026: sin WhatsApp el alta arranca en «Cargar alta» y la carga también CSM (Aylu, Gero M); Clientes sigue yendo a Cartera
+  assert.deepEqual(H.pestanasVisibles('csm').map((p) => p.clave), ['altas', 'clientes', 'referidos'])
+  assert.equal(H.rutaClientes('csm'), '/clientes')
+  assert.equal(H.rutaClientes('socio'), '/clientes')
 })
 test('René (solo [edicion]): ve Clientes, entra directo a Edición y ÚNICAMENTE esa pestaña (nunca la Cartera)', () => {
   const rene = acceso(['edicion'])

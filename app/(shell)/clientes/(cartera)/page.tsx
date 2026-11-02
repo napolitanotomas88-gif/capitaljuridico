@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { Resumen, SeccionTitulo, type DatoResumen } from '@/components/ui'
+import { BotonEnlace, Resumen, SeccionTitulo, type DatoResumen } from '@/components/ui'
 import { pedidoDemo } from '@/lib/clientes/demo'
 import { AvisoLectura } from '@/components/clientes/AvisoLectura'
 import { ErrorLectura } from '@/components/clientes/ErrorLectura'
@@ -71,6 +71,10 @@ export default async function ClientesPage({ searchParams }: Props) {
         titulo="Cartera de clientes"
         acciones={
           <div className="cj-fila">
+            {/* Sin WhatsApp (2/11/2026): el alta arranca acá; lo que antes iba por WhatsApp se manda y se aprueba en el Despacho */}
+            {puedeVer(sesion, 'altas') && <BotonEnlace href="/clientes/altas" variante="marca">＋ Cargar alta</BotonEnlace>}
+            <BotonEnlace href="/clientes/para-enviar" variante="secundario">📤 Para enviar</BotonEnlace>
+            <BotonEnlace href="/clientes/aprobaciones" variante="secundario">✅ Aprobaciones</BotonEnlace>
             {/* Ocultar o mostrar los montos en pantalla (solo con Finanzas; sin Finanzas ni llegan) */}
             {verCobros && <BotonMontos />}
             <p className="cj-etiqueta cj-seccion__meta">

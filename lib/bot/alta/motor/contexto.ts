@@ -61,6 +61,21 @@ export interface DepsPasos {
   agregarDirecto?: boolean
   esperar: (ms: number) => Promise<void>
   azar: () => number
+  /** Sin WhatsApp (2/11/2026): comunidad, bienvenida y Skool son tareas humanas. Crear los 3 grupos y el aviso de Skool van a
+   *  #🛠️-operaciones; la bienvenida queda «para enviar» (📤). El paso queda en reintento hasta «Hecho a mano» (o «Enviado»).
+   *  Con esto, esos tres pasos no necesitan su capacidad (no tocan WhatsApp). Nunca tira. */
+  tareaManual?: (t: TareaManualAlta) => Promise<void>
+}
+
+export interface TareaManualAlta {
+  paso: 'comunidad' | 'bienvenida' | 'skool'
+  altaId: string
+  cliente: string
+  titulo: string
+  lineas: string[]
+  /** Bienvenida: el texto para pegar en el General. */
+  copiar?: string | null
+  adjuntos?: string[]
 }
 
 export type DestinoEnvio = { grupo: 'ventas' | 'verificaciones' } | { chatId: string; cliente: true }

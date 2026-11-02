@@ -46,7 +46,13 @@ export interface DepsBajas {
   almacen: AlmacenBajas
   grupos: DirectorioGrupos
   /** El cliente real de Whapi (solo se llama cuando el modo y la capacidad lo permiten). Tira ErrorWhapi. */
-  enviarTexto(p: { chatId: string; texto: string; citar?: string | null }): Promise<{ id: string | null }>
+  enviarTexto(p: { chatId: string; texto: string; citar?: string | null; pieza?: 'i01' | 'i03'; idCrm?: string | null; cliente?: string | null; clave?: string | null }): Promise<{ id: string | null }>
+  /** Sin WhatsApp (2/11/2026): lo del cliente queda «para enviar», las respuestas cortas en Verificaciones no salen (las
+   *  muestra el Despacho) y sacarlo de los grupos y borrar la comunidad pasa a ser una tarea en #🛠️-operaciones. */
+  salidaManual?: boolean
+  generalVirtual?(idCrm: string | null): string | null
+  /** Tarea humana (sacarlo de los 3 grupos, de Skool y borrar la comunidad). Nunca tira. */
+  tareaManual?(t: { idCrm: string; cliente: string; clave: string; titulo: string; lineas: string[] }): Promise<void>
   /** GET de los participantes de un grupo (ensayo y real). */
   participantes?(chatId: string): Promise<ParticipanteGrupo[]>
   /** DELETE de participantes (solo real con baja_quitar_grupos). */
@@ -132,11 +138,12 @@ export function crearNucleoBajas(d: DepsBajas) {
   }
 
   /** Manda un texto si `permitido`; en ensayo, con el prefijo SIMULACIÓN. Nunca tira. */
-  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null, idCrm: string | null = null): Promise<Salida & { texto: string }> {
+  const manual = !!d.salidaManual
+  async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null, idCrm: string | null = null, meta: { pieza: 'i01' | 'i03'; cliente: string; clave: string } | null = null): Promise<Salida & { texto: string }> {
     const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
     if (!permitido || !chatId) return { estado: 'simulado', texto: final }
     try {
-      const r = await d.enviarTexto({ chatId, texto: final, citar })
+      const r = await d.enviarTexto({ chatId, texto: final, citar, ...(meta ? { ...meta, idCrm } : {}) })
       await rastro(idCrm, 'whatsapp', { chatId, mensajeId: r.id })
       return { estado: 'enviado', id: r.id, texto: final }
     } catch (e) {
@@ -146,7 +153,12 @@ export function crearNucleoBajas(d: DepsBajas) {
     }
   }
   /** Respuesta corta en Verificaciones (solo en real con la capacidad; citando el OK). */
-  const responder = async (cap: CapacidadBaja, texto: string, citar: string, idCrm: string | null = null) => { if (real(cap)) await salir(true, c.verificaciones, texto, citar, idCrm) }
+  /** Sin WhatsApp no sale (la respuesta la ve quien aprobó en el Despacho): queda en el registro del resumen. */
+  let registroManual: string[] | null = null
+  const responder = async (cap: CapacidadBaja, texto: string, citar: string, idCrm: string | null = null) => {
+    if (manual) { if (real(cap)) registroManual?.push(texto); return }
+    if (real(cap)) await salir(true, c.verificaciones, texto, citar, idCrm)
+  }
 
   /** Abre un pedido de OK en Verificaciones (o el reporte SIMULACIÓN en ensayo). false si no se abrió. */
   async function abrirPedido(r: ResumenBajas, p: { id: string; tipo: TipoPedido; cliente: ClienteBaja; general: string | null; fin: string | null; texto: string; detalle: Record<string, unknown>; permitido: boolean; haria: string }): Promise<boolean> {
@@ -156,7 +168,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     const final = c.modo === 'ensayo' ? conPrefijoEnsayo(p.texto) : p.texto
     const creado = await almacen.crearPedido({
       id: p.id, tipo: p.tipo, clave: p.cliente.id.toUpperCase(), cliente: p.cliente.nombre, idCrm: p.cliente.id.toUpperCase(), general: p.general, fin: p.fin,
-      modo: c.modo, mensajePedidoId: null, huella: huellaTexto(final), detalle: p.detalle, creado: iso(d.ahora()),
+      modo: c.modo, mensajePedidoId: null, huella: huellaTexto(final), detalle: { ...p.detalle, texto: p.texto.slice(0, 1500) }, creado: iso(d.ahora()),
     })
     if (!creado) { r.ignorados++; return false }
     const s = await salir(true, c.verificaciones, p.texto, null, p.cliente.id)
@@ -182,7 +194,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       const baja = await almacen.bajaDe(k.id.toUpperCase())
       if (baja && Date.parse(baja.creado) > d.ahora() - 180 * DIA_MS) continue
       if (abiertos >= MAX_AVISOS_DIA) { r.registro.push(`tope de ${MAX_AVISOS_DIA} avisos de fin por día: el resto sigue mañana`); break }
-      const general = permitido ? (await d.grupos.deCliente(k.id, k.nombre))?.grupos.general ?? null : null
+      const general = permitido ? (await d.grupos.deCliente(k.id, k.nombre))?.grupos.general ?? d.generalVirtual?.(k.id) ?? null : null
       const texto = `${textoPedidoAvisoFin(k.nombre, cand.fin)}${permitido && !general ? '\n(No conozco su grupo General: el mensaje habría que mandarlo a mano.)' : ''}`
       if (await abrirPedido(r, { id, tipo: 'aviso_fin', cliente: k, general, fin: cand.fin, texto, detalle: { dias: cand.dias }, permitido, haria: `pedir el OK del aviso de fin de ${k.nombre} (termina el ${fechaCorta(cand.fin)}; sin la capacidad baja_aviso_fin)` })) { abiertos++; r.avisos++ }
     }
@@ -211,11 +223,11 @@ export function crearNucleoBajas(d: DepsBajas) {
     }
     if (!(await almacen.actualizarPedido(p.id, { estado: 'aprobado', por, respuesta: `OK ${x.resto}`.trim() }, ['abierto']))) return
     r.aprobados++
-    const s = await salir(true, p.general, textoRenovacion(p.cliente, p.fin!, c.calendlyUrl), null, p.idCrm)
+    const s = await salir(true, p.general, textoRenovacion(p.cliente, p.fin!, c.calendlyUrl), null, p.idCrm, { pieza: 'i01', cliente: p.cliente, clave: p.id })
     if (s.estado === 'enviado') {
       await almacen.actualizarPedido(p.id, { estado: 'enviado', mensajeClienteId: s.id, resuelto: iso(d.ahora()) })
       r.renovaciones++
-      r.registro.push(`mensaje de renovación enviado a ${p.cliente}`)
+      r.registro.push(manual ? `mensaje de renovación para ${p.cliente}: quedó para enviar (📤)` : `mensaje de renovación enviado a ${p.cliente}`)
       await responder('baja_aviso_fin', `Listo: le mandé el mensaje de renovación a ${p.cliente}.`, x.mensajeId, p.idCrm)
     } else if (s.estado === 'error' && s.dudoso) {
       await almacen.actualizarPedido(p.id, { estado: 'dudoso', error: s.motivo, resuelto: iso(d.ahora()) })
@@ -602,11 +614,11 @@ export function crearNucleoBajas(d: DepsBajas) {
     const resumen: string[] = []
     // 1. PRIMERO la despedida
     if (!sinMensaje) {
-      const s = await salir(true, grupos.general ?? p.general, textoDespedida(p.cliente), null, p.idCrm)
+      const s = await salir(true, grupos.general ?? p.general ?? d.generalVirtual?.(p.idCrm) ?? null, textoDespedida(p.cliente), null, p.idCrm, { pieza: 'i03', cliente: p.cliente, clave: p.id })
       if (s.estado === 'enviado' || (s.estado === 'error' && s.dudoso)) {
-        if (bajaId) await almacen.marcarPaso(bajaId, 'despedida', paso(s.estado === 'enviado' ? 'hecho' : 'dudoso', s.estado === 'enviado' ? 'despedida enviada al General' : 'WhatsApp no confirmó la despedida'))
-        resumen.push(s.estado === 'enviado' ? 'Despedida: enviada al General' : 'Despedida: WhatsApp no confirmó (revisar el General)')
-        if (d.esperar) await d.esperar(ESPERA_DESPEDIDA_MS)
+        if (bajaId) await almacen.marcarPaso(bajaId, 'despedida', paso(s.estado === 'enviado' ? 'hecho' : 'dudoso', s.estado === 'enviado' ? (manual ? 'despedida para enviar a mano (📤)' : 'despedida enviada al General') : 'WhatsApp no confirmó la despedida'))
+        resumen.push(s.estado === 'enviado' ? (manual ? 'Despedida: quedó para enviar (📤)' : 'Despedida: enviada al General') : 'Despedida: WhatsApp no confirmó (revisar el General)')
+        if (d.esperar && !manual) await d.esperar(ESPERA_DESPEDIDA_MS)
       } else {
         const m = s.estado === 'error' ? s.motivo : 'no conozco su grupo General'
         await almacen.actualizarPedido(p.id, { estado: 'error', error: m, resuelto: iso(d.ahora()) })
@@ -620,7 +632,13 @@ export function crearNucleoBajas(d: DepsBajas) {
     // 2. DESPUÉS sacarlo de los grupos. Revalidar porque la espera permite que el equipo archive al cliente.
     if (d.clienteOperativo && !await d.clienteOperativo(p.idCrm, p.cliente)) { r.ignorados++; return }
     let gruposOk = false
-    if (real('baja_quitar_grupos')) {
+    if (manual) {
+      // Sin WhatsApp: sacarlo de los 3 grupos, de Skool y borrar la comunidad lo hace una persona (tarea en 🛠️-operaciones)
+      await d.tareaManual?.({ idCrm: p.idCrm, cliente: p.cliente, clave: `baja:${p.id}`, titulo: 'Sacarlo de los 3 grupos y de Skool', lineas: [sinMensaje ? 'Se aprobó «sin mensaje»: no hay despedida.' : 'Primero tiene que salir la despedida (está en 📤 para enviar).', 'Sacarlo de General, Ventas y Contenido (al equipo no), y de Skool.', 'Después eliminar su comunidad «<Nombre> - C.J».'] })
+      if (bajaId) await almacen.marcarPaso(bajaId, 'grupos', paso('omitido', 'a mano: tarea en 🛠️-operaciones'))
+      if (bajaId) await almacen.marcarPaso(bajaId, 'comunidad', paso('omitido', 'a mano: tarea en 🛠️-operaciones'))
+      resumen.push('Grupos, Skool y comunidad: tarea a mano en 🛠️-operaciones')
+    } else if (real('baja_quitar_grupos')) {
       const q = await quitarDeGrupos(grupos, p.idCrm)
       r.quitados += q.quitados
       gruposOk = q.estado === 'hecho'
@@ -632,7 +650,7 @@ export function crearNucleoBajas(d: DepsBajas) {
       resumen.push('Grupos: sacarlo a mano (baja_quitar_grupos apagada)')
     }
     // 3. Ronda 2: SIEMPRE al final (después de la despedida y de sacarlo de los grupos) se elimina su comunidad con Avisos
-    if (real('baja_eliminar_comunidad')) {
+    if (manual) { /* ya va en la tarea a mano */ } else if (real('baja_eliminar_comunidad')) {
       const m = await eliminarComunidadDe(p, gruposOk)
       if (bajaId) await almacen.marcarPaso(bajaId, 'comunidad', paso(m.estado, m.detalle))
       if (m.estado === 'error' || m.estado === 'dudoso') r.errores.push(`${p.cliente}: comunidad — ${m.detalle}`)
@@ -657,6 +675,25 @@ export function crearNucleoBajas(d: DepsBajas) {
     if (p.tipo === 'confirmar_baja') return aprobarBaja(r, p, x)
     if (p.tipo === 'pausar_meta') return aprobarPausarMeta(r, p, x)
     return aprobarDespedida(r, p, x)
+  }
+
+  /** OK / NO desde el Despacho (/clientes/aprobaciones). Quién puede aprobar lo valida la ruta por la sesión. */
+  async function resolverManual(q: { id: string; veredicto: 'ok' | 'no'; resto: string; por: string }): Promise<ResumenBajas> {
+    const r = vacio(c.modo)
+    registroManual = r.registro
+    try {
+      const p = await almacen.pedido(q.id)
+      if (!p) { r.errores.push('no existe el pedido'); return r }
+      if (!enAlcance(p.idCrm)) { r.ignorados++; return r }
+      if (p.estado !== 'abierto') { r.ignorados++; r.registro.push(`el pedido ya está «${p.estado}»`); return r }
+      if (d.clienteOperativo && !await d.clienteOperativo(p.idCrm, p.cliente)) { r.ignorados++; r.registro.push('el cliente está archivado'); return r }
+      const x: RespuestaBaja = { mensajeId: '', citado: p.mensajePedidoId ?? '', veredicto: q.veredicto, resto: q.resto, autor: { telefono: null, lid: null, nombre: q.por }, enviadoEn: iso(d.ahora()) }
+      if (p.tipo === 'aviso_fin') await aprobarAvisoFin(r, p, x)
+      else if (p.tipo === 'confirmar_baja') await aprobarBaja(r, p, x)
+      else if (p.tipo === 'pausar_meta') await aprobarPausarMeta(r, p, x)
+      else await aprobarDespedida(r, p, x)
+    } catch (e) { r.errores.push(motivoDe(e)) } finally { registroManual = null }
+    return r
   }
 
   async function procesarEventos(cands: CandidatosBajas): Promise<ResumenBajas> {
@@ -734,7 +771,7 @@ export function crearNucleoBajas(d: DepsBajas) {
     return r
   }
 
-  return { procesarEventos, procesarLlamada, pedirBajaManual, correrDiario }
+  return { procesarEventos, procesarLlamada, pedirBajaManual, correrDiario, resolverManual }
 }
 
 export type { NombrePaso }

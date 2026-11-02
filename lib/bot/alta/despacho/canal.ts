@@ -7,6 +7,7 @@
 // Sin la variable (o mal escrita): 'despacho' si la guardia ya sabe que el número está caído y 'ambos' si no (con el número
 // caído, el primer envío lo frena la guardia y el aviso sale igual). Puro, sin red.
 import type { PasoId } from '../motor/tipos'
+import { whatsappBotEncendido } from '../../whapi/corte'
 
 export const CANALES = ['despacho', 'whatsapp', 'ambos'] as const
 export type CanalAlta = (typeof CANALES)[number]
@@ -26,6 +27,8 @@ export type SaludConocida = { ok: boolean; conocido: boolean } | null
 
 /** BOT_ALTA_CANAL, o el que corresponde por la salud del número. */
 export function canalDesdeEntorno(env: NodeJS.ProcessEnv = process.env, salud: SaludConocida = null): CanalAlta {
+  // Sin WhatsApp (2/11/2026): con el corte global puesto, el alta va SIEMPRE por el Despacho y Discord
+  if (!whatsappBotEncendido(env)) return 'despacho'
   const v = env.BOT_ALTA_CANAL?.trim().toLowerCase()
   if (esCanal(v)) return v
   return salud && salud.conocido && !salud.ok ? 'despacho' : 'ambos'

@@ -24,8 +24,13 @@ import type { DepsOrquestador } from './orquestador'
 import type { DepsMotorBase } from './tipos'
 import { archivosNeon, clienteConArchivosDespacho } from '../despacho/archivos'
 import { canalDesdeEntorno, type CanalAlta } from '../despacho/canal'
-import { mencionesDe, textoAvisoEspera, webhookAvisos } from '../despacho/aviso'
-import { enviarDiscord } from '../../../fathomAnuncios/discord'
+import { linkEspera } from '../despacho/aviso'
+import { closerDeFila } from '../despacho/aprobadores'
+import { whatsappBotEncendido } from '../../whapi/corte'
+import { alertar } from '@/lib/alertas'
+import { sinTelefonos } from '@/lib/alertas/formato'
+import type { TareaManualAlta } from './contexto'
+import type { FilaAlta } from './almacen'
 import { guardiaWhapi } from '../../whapi/salud'
 import { tokenWhapi } from '../../whapi/config'
 import type { DepsOrquestador as DepsO } from './orquestador'
@@ -131,7 +136,44 @@ export function depsPasosServidor(base: Pick<DepsMotorBase, 'modo'>, env: NodeJS
     agregarDirecto: env.BOT_COMUNIDAD_AGREGAR_DIRECTO?.trim().toLowerCase() === 'si',
     esperar: (ms) => new Promise<void>((r) => setTimeout(r, ms)),
     azar: Math.random,
+    // Sin WhatsApp (2/11/2026): comunidad, bienvenida y Skool son tareas humanas con su alerta
+    ...(whatsappBotEncendido(env) ? {} : { tareaManual: tareaManualDiscord }),
   }
+}
+
+/** Crear grupos y Skool → 🛠️-operaciones (Aylu); bienvenida → «para enviar» (📤). Nunca tira. */
+export async function tareaManualDiscord(t: TareaManualAlta): Promise<void> {
+  const link = `/clientes/altas?alta=${encodeURIComponent(t.altaId)}`
+  if (t.paso === 'bienvenida') {
+    const { paraEnviar } = await import('../../canal/salidaCliente')
+    await paraEnviar({ pieza: 'b07', idCrm: null, cliente: t.cliente, clave: t.altaId, texto: t.copiar ?? '', abrir: link, adjuntos: t.adjuntos ?? [], datos: { alta: t.altaId } })
+    return
+  }
+  await alertar({ canal: 'operaciones', tipo: `alta_${t.paso}`, clave: `alta:${t.altaId}:${t.paso}`, emoji: t.paso === 'comunidad' ? '👥' : '🎓', titulo: t.titulo, cliente: t.cliente, lineas: [...t.lineas, 'Al terminar: «Hecho a mano» en el alta.'], link, menciones: ['aylu'] })
+}
+
+const nombreAlta = (a: FilaAlta) => a.validacion?.nombreConfirmado ?? a.nombreCliente ?? 'un cliente'
+
+
+/** Lo que el motor le decía al equipo o al closer → ✅-verificaciones (mencionando a los aprobadores solo si pide algo). */
+export async function equipoDiscordAlta(d: { alta: FilaAlta; proposito: string; texto: string; grupo: 'ventas' | 'verificaciones' }): Promise<void> {
+  const lineas = sinTelefonos(d.texto).split('\n').map((l) => l.trim()).filter(Boolean)
+  const closer = closerDeFila(d.alta)
+  const terminada = /Alta de .* terminada/.test(d.texto)
+  const r = await alertar({
+    canal: 'verificaciones', tipo: terminada ? 'alta_completa' : d.grupo === 'ventas' ? 'alta_recibida' : 'alta_avisos', clave: `alta:${d.alta.id}:${d.proposito}`,
+    emoji: terminada ? '✅' : d.grupo === 'ventas' ? '💼' : '📋', titulo: terminada ? 'Alta completa' : d.grupo === 'ventas' ? `Alta recibida${closer ? ` (closer ${closer})` : ''}` : 'Avisos del alta',
+    cliente: nombreAlta(d.alta), lineas: lineas.slice(0, 6), link: `/clientes/altas?alta=${encodeURIComponent(d.alta.id)}`, menciones: [],
+  })
+  if (r.estado === 'error') throw new Error(r.motivo ?? 'no salió')
+}
+
+/** «Alta cargada en Finanzas» → 💰-finanzas (Aylu). */
+export async function alTerminarPasoAlta(d: { alta: FilaAlta; paso: string; resultado: unknown }): Promise<void> {
+  if (d.paso !== 'finanzas') return
+  const plan = d.alta.validacion?.estadoPlan
+  const que = plan === 'fee' ? 'Fee' : plan === 'pago_cliente' ? 'Pago de un cliente (cuota)' : 'Alta'
+  await alertar({ canal: 'finanzas', tipo: 'finanzas_alta', clave: `alta:${d.alta.id}:finanzas`, emoji: '💰', titulo: `${que} cargado en Finanzas`, cliente: nombreAlta(d.alta), lineas: ['Planilla «Registro de Pagos» y app /finanzas.', 'La columna B (programa) sale del plan que declaró el closer.'], link: '/finanzas', menciones: ['aylu'] })
 }
 
 /** Todo lo que el orquestador necesita en producción, a partir de lo que arma la ruta (modo, capacidades, grupos, Whapi). */
@@ -143,7 +185,9 @@ export function depsServidor(base: DepsMotorBase, op: OpcionesServidor = {}): De
     // Altas desde el Despacho (26/10/2026): los comprobantes subidos ahí se leen de cj_altas_archivos, no de Whapi
     whapi: clienteConArchivosDespacho(base.whapi, () => archivosNeon(env)),
     canal: () => canalDelEntorno(env),
-    avisarEspera: (d) => avisarEsperaDiscord(d, env, op.fetch),
+    avisarEspera: (d) => avisarEsperaDiscord(d),
+    equipoDiscord: equipoDiscordAlta,
+    alTerminarPaso: alTerminarPasoAlta,
     almacen: almacenNeon(),
     pasos: depsPasosServidor(base, env),
     entorno,
@@ -161,13 +205,17 @@ export function canalDelEntorno(env: NodeJS.ProcessEnv = process.env): CanalAlta
   return canalDesdeEntorno(env, salud)
 }
 
-/** Aviso a Discord de un pedido que se responde en el Despacho (DISCORD_WEBHOOK_VERIFICACIONES o DISCORD_WEBHOOK_URL). Tira si
- *  no salió: el orquestador lo anota y lo vuelve a intentar con el próximo envío del pedido. */
-export async function avisarEsperaDiscord(d: Parameters<NonNullable<DepsO['avisarEspera']>>[0], env: NodeJS.ProcessEnv = process.env, f?: typeof fetch): Promise<void> {
-  const wh = webhookAvisos(env)
-  if (!wh) throw new Error('falta DISCORD_WEBHOOK_VERIFICACIONES y DISCORD_WEBHOOK_URL')
-  const menciones = mencionesDe(d.espera.quien, env)
-  const texto = textoAvisoEspera({ alta: d.alta, espera: d.espera, motivo: d.motivo, base: urlDespacho(env), menciones })
-  const ids = await enviarDiscord(wh, [texto], menciones, { deadline: Date.now() + 15_000, reintentos429: 1, ...(f ? { fetch: f } : {}) })
-  if (!ids.length) throw new Error('Discord no confirmó el aviso')
+/** Aviso a ✅-verificaciones de un pedido que se responde en el Despacho, mencionando a los aprobadores (Tomás, Gero A, Gero M
+ *  y Aylu). Tomás (2/11/2026): lo que le faltaba al closer también va acá (sin canal de Ventas en Discord); los closers no se
+ *  mencionan. Tira si no salió seguro: el orquestador lo vuelve a intentar con el próximo envío del pedido. */
+export async function avisarEsperaDiscord(d: Parameters<NonNullable<DepsO['avisarEspera']>>[0]): Promise<void> {
+  const closer = closerDeFila(d.alta)
+  const que = d.espera.quien === 'closer' ? `falta un dato del cliente${closer ? ` (lo cargó ${closer})` : ''}` : 'hace falta un OK'
+  const link = linkEspera('', d.alta.id, d.espera.id)
+  const r = await alertar({
+    canal: 'verificaciones', tipo: d.espera.quien === 'closer' ? 'alta_falta_dato' : 'alta_ok', clave: `alta:${d.alta.id}:espera:${d.espera.id}`,
+    emoji: d.espera.quien === 'closer' ? '✍️' : '🟡', titulo: `Alta: ${que}`, cliente: nombreAlta(d.alta),
+    lineas: d.espera.pedido.slice(0, 6).map((x) => sinTelefonos(String(x))), link, menciones: ['aprobadores'],
+  })
+  if (r.estado === 'error' || r.estado === 'dudoso') throw new Error(r.motivo ?? 'Discord no confirmó el aviso')
 }

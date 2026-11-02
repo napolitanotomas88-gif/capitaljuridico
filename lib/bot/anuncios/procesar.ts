@@ -42,6 +42,8 @@ export interface DepsSeguimiento {
     enviar(grupoId: string, texto: string): Promise<string | null>
     anotar(clave: string, grupoId: string, mensajeId: string | null): Promise<void>
   }
+  /** g04–g06 sin WhatsApp (2/11/2026): el texto para el cliente queda «para enviar» (📤, Valentino). Nunca tira. */
+  paraEnviar?(p: { pieza: 'g04' | 'g05' | 'g06'; cuenta: string; cliente: string; clave: string; texto: string }): Promise<void>
   valentino: string | null
   ahora(): number
 }
@@ -230,6 +232,12 @@ export async function seguimientoAnuncios(t: Pick<Tablero, 'hoy' | 'filas' | 'op
         errores.push(`WhatsApp de ${c0.fila.cliente}: ${motivo(err)}`)
         texto = conWhatsApp(texto, { estado: 'no', motivo: 'el WhatsApp falló' })
       }
+    }
+    // Sin WhatsApp: el texto para el cliente queda «para enviar» (el aviso de #ads lo sigue mostrando para Valentino)
+    if (paraCliente && !whatsappSalio && deps.paraEnviar) {
+      const t = textoCliente(c0.tipo === 'lanzada' ? { ...c0, rotacion: mias.every(x => x.rotacion) } : c0)
+      const pieza = c0.tipo === 'lanzada' ? 'g04' as const : c0.subtipo === 'ganadores' ? 'g06' as const : 'g05' as const
+      try { await deps.paraEnviar({ pieza, cuenta: c0.fila.id, cliente: c0.fila.clienteCRM ?? c0.fila.cliente, clave: c0.clave, texto: t }) } catch (err) { errores.push(`para enviar ${c0.clave}: ${motivo(err)}`) }
     }
     try {
       const id = await deps.enviar(texto, deadline - 2_000)

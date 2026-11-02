@@ -8,6 +8,7 @@ import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
 import { leerDetalles } from './metaDetalle'
 import { elegirGrupoVentas, enviarAlGrupo, grupoFijado, gruposDelBot, permitidaWhatsApp } from './whatsapp'
 import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
+import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
 import { anotarWhatsapp, avisoReciente, avisosRegistrados, marcarAvisoDudoso, marcarAvisoEnviado, reclamarAviso, soltarAviso, videosAvisadosHasta } from './registro'
 import { leerEditados } from './editadosDrive'
 import { avisarVideosNuevos, type DepsVideos, type ResultadoVideos } from './videos'
@@ -42,13 +43,16 @@ export function depsSeguimiento(): DepsSeguimiento {
       return ids[0] ?? ''
     },
     // WhatsApp seguro: al cliente solo de 9 a 20 h de Argentina (fuera de horario el texto va a Valentino para pegar)
-    whatsapp: { permitida: c => permitidaWhatsApp(c) && enHorario(Date.now()), grupos: () => gruposDelBot(), elegir: (cliente, grupos, cuenta) => {
+    whatsapp: { permitida: c => whatsappBotEncendido() && permitidaWhatsApp(c) && enHorario(Date.now()), grupos: () => gruposDelBot(), elegir: (cliente, grupos, cuenta) => {
       // Fijado a mano: tiene que estar entre los grupos del bot (si no, el bot no está adentro y no puede escribir).
       // Si la cuenta tiene grupo fijo y el bot no está ahí, NO se busca por nombre (podría caer en el grupo de otro cliente).
       const id = grupoFijado(cuenta)
       if (id) { const g = grupos.find(x => x.id === id); return g?.id ? { id: g.id, nombre: g.name ?? g.id } : null }
       return elegirGrupoVentas(cliente, grupos)
     }, enviar: enviarAlGrupo, anotar: anotarWhatsapp },
+    // g04–g06 sin WhatsApp (2/11/2026): el texto para el cliente ya va en el aviso de #📣-ads («Para el cliente»), que es donde
+    // lo pega Valentino (entra a /anuncios con su clave, sin la sesión de Google de /clientes/para-enviar). paraEnviar queda
+    // sin conectar a propósito.
     valentino,
     ahora: () => Date.now(),
   }

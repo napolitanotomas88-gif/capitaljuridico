@@ -171,6 +171,8 @@ export async function atenderAcciones(req: Request, deps: DepsAcciones): Promise
     if (!puedeMarcarAMano(s, env)) return error('Solo Tomás, Gero A, Aylu y Gero M marcan pasos hechos a mano.', 403)
     const por = firma(s, aprobadorDe(s, env))
     fondo('a mano', () => deps.motor().hechoAMano(altaId, paso, por, op))
+    // Sin WhatsApp (2/11/2026): la bienvenida hecha a mano cierra también su mensaje «para enviar»
+    if (paso === 'bienvenida') fondo('para enviar', async () => { const { cerrarPorClave } = await import('../../canal/registro'); await cerrarPorClave(`b07:${altaId}`, por) })
     return res({ ok: true, mensaje: `${TITULO_PASO[paso]}: marcado hecho a mano.` }, 202)
   }
 

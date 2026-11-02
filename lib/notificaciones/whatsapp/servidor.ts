@@ -73,7 +73,7 @@ export function etapasVigentesEdicion(tipo: string, titulo: string): readonly st
 }
 
 /** Regla de Tomás: el estado que originó el aviso sigue siendo real. */
-async function vigenciaReal(f: FilaPendiente, q: Q, archivados: () => Promise<ReadonlySet<string>>): Promise<Vigencia> {
+export async function vigenciaReal(f: FilaPendiente, q: Q, archivados: () => Promise<ReadonlySet<string>>): Promise<Vigencia> {
   let idCrm = idCrmDeUrl(f.url)
   let detalle: string | null = null
   // El CRM se lee ANTES y fuera de cualquier try: si no se puede leer, tira y la corrida entera se corta sin omitir nada

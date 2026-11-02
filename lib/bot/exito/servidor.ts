@@ -10,6 +10,8 @@ import { neon } from '@neondatabase/serverless'
 import { BASE_WHAPI } from '@/lib/bot/whapi/comun'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
+import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
+import { CHAT_VERIFICACIONES_DISCORD, enviarTextoSinWhatsapp, generalVirtual } from '@/lib/bot/sinWhatsapp'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
 import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
 import { clientesPrueba, esClientePrueba } from '@/lib/bot/clientesPrueba'
@@ -85,6 +87,14 @@ export function directorioReal(env: NodeJS.ProcessEnv, conWhapi: boolean, f: typ
 }
 
 export interface ClientePrueba { id: string; nombre: string }
+
+/** El nombre del cliente en el CRM (para las fichas virtuales sin grupo). */
+export async function nombreClienteCrm(idCrm: string): Promise<string | null> {
+  try {
+    const { leerClientes } = await import('@/lib/clientes/leer')
+    return (await leerClientes()).clientes.find((k) => String(k.id ?? '').toUpperCase() === idCrm.toUpperCase())?.nombre ?? null
+  } catch { return null }
+}
 export interface OpcionesExitoReal {
   env?: NodeJS.ProcessEnv; log?: RegistroLogExito; fetch?: typeof fetch; almacen?: AlmacenExito; config?: ConfigExito; ahora?: () => number; esperar?: (ms: number) => Promise<void>
   /** Registro de rastros de la corrida de prueba (por defecto, Neon: cj_prueba_rastros). */
@@ -136,14 +146,18 @@ export function depsExitoReales(op: OpcionesExitoReal = {}, ambito?: Ambito): De
   const webhook = env.DISCORD_WEBHOOK_CLIENTES?.trim() ?? ''
   const ids = clientesPrueba(env)
   let cliente: ReturnType<typeof crearClienteWhapi> | null = null
-  const base = op.directorio ?? directorioReal(env, lecturas, op.fetch)
+  const base = op.directorio ?? directorioReal(env, lecturas && (!!op.enviarTexto || whatsappBotEncendido(env)), op.fetch)
+  // Sin WhatsApp (2/11/2026): Verificaciones es el canal de Discord y lo del cliente queda «para enviar»
+  const sinWa = !op.enviarTexto && !whatsappBotEncendido(env)
+  const cfg: ConfigExito = sinWa ? { ...config, verificaciones: CHAT_VERIFICACIONES_DISCORD } : config
   const deps: DepsExito = {
-    config,
+    config: cfg,
+    ...(sinWa ? { salidaManual: true, generalVirtual, nombreDeId: nombreClienteCrm } : {}),
     ambito,
     clienteOperativo: op.clienteOperativo ?? clienteOperativo,
     almacen: op.almacen ?? almacenExitoNeon(),
     directorio: ids.size ? directorioConPrueba(base, op.nombresPrueba ?? (() => nombresPruebaReales(ids))) : base,
-    enviarTexto: op.enviarTexto ?? (async (p) => {
+    enviarTexto: op.enviarTexto ?? (sinWa ? (p) => enviarTextoSinWhatsapp('exito', p) : async (p) => {
       if (config.modo === 'seco') throw new Error('modo seco: no sale nada')
       if (!token) throw Object.assign(new Error('falta WHAPI_TOKEN'), { aplicado: false })
       cliente ??= crearClienteWhapi({ token, fetch: op.fetch })
@@ -297,3 +311,24 @@ export async function correrDiarioReal(op: OpcionesExitoReal & { dry?: boolean; 
   if (!op.dry) (op.log ?? console).info(`bot-exito: diario — ${lineaResumen(r!)}`)
   return r!
 }
+
+/** Los núcleos de Éxito (general y, con BOT_CLIENTES_PRUEBA, el de prueba) para las acciones del Despacho. */
+function nucleosExito(op: OpcionesExitoReal = {}) {
+  const env = op.env ?? process.env
+  if (exitoApagado(env)) return []
+  return (op.config ? [depsExitoReales(op)] : corridas(op, env, configExito(env), configPruebaExito(env), op.almacen)).map((d) => ({ prueba: d.ambito?.tipo === 'prueba', nucleo: crearNucleo(d) }))
+}
+
+async function enTodosExito(op: OpcionesExitoReal, fn: (n: ReturnType<typeof crearNucleo>) => Promise<ResumenExito>): Promise<ResumenExito> {
+  let r: ResumenExito | null = null
+  for (const x of nucleosExito(op)) r = sumarResumenes(r, await fn(x.nucleo), x.prueba ? 'prueba' : '')
+  if (!r) { const v: ResumenExito = { modo: configExito(op.env ?? process.env).modo, detectados: 0, pedidos: 0, aprobados: 0, rechazados: 0, testimonios: 0, ecos: 0, encuestas: 0, recordatorios: 0, vencidos: 0, ignorados: 0, errores: [], registro: ['la etapa Éxito está apagada o en seco'] }; return v }
+  return r
+}
+
+/** OK / NO desde /clientes/aprobaciones (2/11/2026). */
+export const resolverExitoManualReal = (p: Parameters<ReturnType<typeof crearNucleo>['resolverManual']>[0], op: OpcionesExitoReal = {}) => enTodosExito(op, (n) => n.resolverManual(p))
+/** «Señal de éxito» cargada a mano en la tarjeta del cliente. */
+export const senalExitoManualReal = (p: Parameters<ReturnType<typeof crearNucleo>['senalManual']>[0], op: OpcionesExitoReal = {}) => enTodosExito(op, (n) => n.senalManual(p))
+/** «Llegó el testimonio» cargado a mano. */
+export const testimonioManualReal = (p: Parameters<ReturnType<typeof crearNucleo>['testimonioManual']>[0], op: OpcionesExitoReal = {}) => enTodosExito(op, (n) => n.testimonioManual(p))

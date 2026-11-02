@@ -23,6 +23,7 @@ import { ComoLeVa } from './_componentes/ComoLeVa'
 import { AccionesCliente } from '../(cartera)/_componentes/AccionesCliente'
 import { puedeHacerAcciones } from '@/lib/clientes/acciones/permisos'
 import { AccesosCliente } from './_componentes/AccesosCliente'
+import { CargarDelCliente } from './_componentes/CargarDelCliente'
 import { DocGuiones } from '../(cartera)/_componentes/DocGuiones'
 import { BotonMontos } from '@/components/clientes/BotonMontos'
 import { Monto } from '@/components/clientes/Monto'
@@ -180,6 +181,7 @@ export default async function FichaClientePage({ params, searchParams }: Props) 
       </div>
 
       {!vista.esDemo && <ComoLeVa idCliente={ficha.id} nombre={ficha.nombre} estado={seguimiento} />}
+      {!vista.esDemo && <CargarDelCliente idCrm={ficha.id} nombre={ficha.nombre} />}
       <Datos f={ficha} />
       {verMontos && <Periodos f={ficha} accionHref={vista.esDemo || puedeHacerAcciones(sesion.email) ? `/clientes/${encodeURIComponent(ficha.id)}?${vista.esDemo ? 'demo=1&' : ''}accion=renovacion#rc-acciones` : undefined} />}
       {verMontos && <Cobros f={ficha} accionHref={vista.esDemo || puedeHacerAcciones(sesion.email) ? `/clientes/${encodeURIComponent(ficha.id)}?${vista.esDemo ? 'demo=1&' : ''}accion=pago#rc-acciones` : undefined} />}

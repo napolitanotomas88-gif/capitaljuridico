@@ -1,3 +1,5 @@
+> **2/11/2026: sin WhatsApp.** El alta arranca solo en el Despacho («Cargar alta», primera pestaña de Clientes). Las esperas y los avisos van a ✅-verificaciones de Discord: lo que antes iba al closer en Ventas C.J. también, mencionando a Tomás, Gero A, Gero M y Aylu. Comunidad, bienvenida y Skool son tareas a mano (🛠️ y 📤) que se cierran con «Hecho a mano». Ver `docs/ALERTAS-DISCORD.md`.
+
 > **REFERENCIA TÉCNICA HISTÓRICA SANEADA.** Las marcas antiguas «hecho», «falta publicar», «pendiente» y sus fechas describen el contexto de origen; no acreditan el estado actual ni autorizan activar una integración. Los ejemplos e identificadores son ficticios o marcadores. Prevalecen `CONTEXTO-HUB.md`, `FLUJOS-VIGENTES.md`, `CONFIGURACION-PRIVADA.md` y `RUNBOOK.md`; WhatsApp permanece apagado. Se excluyeron casos, recibos, contactos y configuración operativa.
 
 # Bot "Capital Jurídico": alta automática de clientes (Fase 1)
