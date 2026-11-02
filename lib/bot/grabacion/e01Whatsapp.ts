@@ -210,6 +210,9 @@ export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 
 // texto en /clientes/para-enviar con un aviso en #📤 para Gero M. El paso sigue abierto en «Grabaciones pendientes»: se
 // cierra con «Enviado» (marca el paso hecho) o desde esa pantalla, como siempre. Es idempotente: la clave es el id del paso.
 // Los días 2, 4 y 9 son internos y ya salen en el resumen de la daily (#✂️-edicion, con Gero M y Tomás).
+// Unificado (Tomás, 2/11/2026): el día 0 de un ciclo de guiones nuevos ya va en el «para enviar» de los guiones (d02, con el
+// link y el pedido de grabación): si el cliente lo tiene, el día 0 no sale aparte (pendiente → espera al «Enviado»; enviado
+// → queda hecho con esa constancia). Los recordatorios y el día 0 de una regrabación siguen como antes.
 export const VARIABLE_PARA_ENVIAR_DESDE = 'E01_PARA_ENVIAR_DESDE'
 export const E01_PARA_ENVIAR_DESDE_POR_DEFECTO = '2026-11-02'
 export interface DepsE01ParaEnviar {
@@ -218,12 +221,16 @@ export interface DepsE01ParaEnviar {
   vigente(p: PasoSeguimiento): Promise<boolean>
   /** true si quedó registrado (o ya estaba). */
   paraEnviar(p: PasoSeguimiento, texto: string): Promise<boolean>
+  /** Unificado (Tomás, 2/11/2026): el día 0 va con el link de los guiones (d02). ¿Ese mensaje existe para el ciclo? */
+  d02DelCiclo?(p: PasoSeguimiento): Promise<'pendiente' | 'enviado' | null>
+  /** El d02 del ciclo ya se mandó: el día 0 queda hecho con esa constancia (no sale otro mensaje). */
+  cumplirDia0?(p: PasoSeguimiento): Promise<void>
   env: Record<string, string | undefined>
   esHabil(d: Ymd): boolean
 }
 
-export async function paraEnviarE01(deps: DepsE01ParaEnviar, op: { ahora: Date; modo: 'dry' | 'real'; deadline: number }): Promise<{ apagado: string | null; elegibles: number; registrados: number; errores: string[] }> {
-  const out = { apagado: null as string | null, elegibles: 0, registrados: 0, errores: [] as string[] }
+export async function paraEnviarE01(deps: DepsE01ParaEnviar, op: { ahora: Date; modo: 'dry' | 'real'; deadline: number }): Promise<{ apagado: string | null; elegibles: number; registrados: number; conGuiones: number; errores: string[] }> {
+  const out = { apagado: null as string | null, elegibles: 0, registrados: 0, conGuiones: 0, errores: [] as string[] }
   if (configE01Whatsapp(deps.env)) { out.apagado = 'el e01 sale por WhatsApp (E01_WHATSAPP=real)'; return out }
   if (op.modo !== 'real') { out.apagado = 'Edición no está en modo real'; return out }
   const hoy = ymdAR(op.ahora)
@@ -242,6 +249,12 @@ export async function paraEnviarE01(deps: DepsE01ParaEnviar, op: { ahora: Date; 
       const t = textoE01({ paso: p, nombre: nombreDeSaludo(p.cliente), linkGuiones: linkDoc(docs.get(p.id_crm.toUpperCase()) ?? null), fechaSugerida: fechaSugeridaE01(hoy), videos: p.videos.length })
       if (t.para !== 'grupo_contenido') continue
       if (!(await deps.vigente(p))) continue
+      // El día 0 de un ciclo de guiones nuevos va en el mismo mensaje que el link (d02): no sale por separado
+      if (p.escalon === 'dia0' && p.motivo !== 'regrabar' && deps.d02DelCiclo) {
+        const d = await deps.d02DelCiclo(p)
+        if (d === 'enviado') await deps.cumplirDia0?.(p)
+        if (d) { out.conGuiones++; continue }
+      }
       if (await deps.paraEnviar(p, t.texto)) out.registrados++
     } catch (e) { out.errores.push(`${p.cliente}: ${motivo(e)}`) }
   }

@@ -2,6 +2,8 @@
 // Lo llama POST /api/clientes/para-enviar/[id] después de marcar el mensaje como enviado. Cada gancho es idempotente y nunca
 // tira (lo que falle queda en el log y en la respuesta; el mensaje ya quedó «enviado»).
 //   · d02 → la tanda pasa a «enviada» (la misma entrega manual de /clientes/entregas) y se cierra su aviso de la campanita.
+//     Unificado con el día 0 de grabación (2/11/2026): si el mensaje lleva el pedido de grabar (datos.grabacion), el día 0
+//     de e01 queda hecho y los videos de la tanda llevan la constancia (lib/bot/grabacion/dia0Guiones.ts).
 //   · f04 → cada video del lote queda «enviado al cliente» (envio_link), como el envío del bot.
 //   · e01 → el paso del día 0 o del recordatorio queda hecho (a nombre de quien lo mandó).
 //   · b07 → el paso «bienvenida» del alta queda hecho a mano y el alta sigue.
@@ -32,6 +34,10 @@ export async function alConfirmarEnvio(m: MensajeGuardado, quien: Quien, op: { f
     const { cerrarAvisosEntrega } = await import('@/lib/bot/guiones/entrega')
     await cerrarAvisosEntrega(tanda, por)
     return ok ? 'la tanda quedó «enviada»' : 'la tanda cambió: confirmá la entrega en /clientes/entregas'
+  })
+  if (m.pieza === 'd02' && m.datos.grabacion === true && m.idCrm) await intentar('grabación', async () => {
+    const { cumplirDia0PorGuiones } = await import('@/lib/bot/grabacion/dia0Guiones')
+    return cumplirDia0PorGuiones({ idCrm: m.idCrm!, tandaDoc: num(m.datos.tandaDoc), por, texto: m.texto })
   })
   if (m.pieza === 'f04') await intentar('edición', async () => {
     const envios = Array.isArray(m.datos.envios) ? (m.datos.envios as { tarjeta?: string; evento?: string; link?: string }[]) : []

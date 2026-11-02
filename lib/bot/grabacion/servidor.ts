@@ -108,6 +108,8 @@ export function e01ParaEnviarReal(env: Record<string, string | undefined>): Deps
       const r = await paraEnviar({ pieza: 'e01', idCrm: p.id_crm, cliente: p.cliente, clave: String(p.id), texto, abrir: '/clientes/edicion/pendientes', datos: { paso: p.id } })
       return r.estado !== 'error'
     },
+    d02DelCiclo: async (p) => (await import('./dia0Guiones')).d02DelCiclo(p),
+    cumplirDia0: async (p) => { await (await import('./dia0Guiones')).marcarDia0Hecho({ idCrm: p.id_crm, pasoId: p.id, por: 'Para enviar (guiones)' }) },
   }
 }
 
