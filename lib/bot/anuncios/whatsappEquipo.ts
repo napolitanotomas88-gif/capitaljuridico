@@ -13,9 +13,26 @@
 export const ESPACIO_MIN_MS = 5 * 60_000
 export const MAX_DIA_POR_DEFECTO = 6
 export const MAX_LINEAS_RESUMEN = 20
-/** Cómo le habla el bot a Valen (pedido de Tomás, 1/11): «Pelado». */
-export const SALUDO = 'Pelado'
-const encabezado = (tel: string | null) => `${tel ? `@${tel} ` : ''}${SALUDO}, `
+/** Cómo le habla el bot a Valen (pedido de Tomás, 1/11): «Pelado botón de Oberá» o «Misionero pelado», con variantes
+ *  para que se divierta. Cada mensaje sortea uno. */
+export const SALUDOS = [
+  'Pelado botón de Oberá', 'Misionero pelado', 'Pelado botón de Oberá querido', 'Misionero pelado de mi vida',
+  'Ey, pelado botón de Oberá', 'Ey, misionero pelado', 'Pelado botón de Oberá, atento', 'Misionero pelado, atento',
+  'Mi pelado botón de Oberá', 'Misionero pelado y orgulloso',
+] as const
+export const saludo = (azar: () => number = Math.random): string => SALUDOS[Math.floor(azar() * SALUDOS.length) % SALUDOS.length]
+const encabezado = (tel: string | null, azar?: () => number) => `${tel ? `@${tel} ` : ''}${saludo(azar)} 👋 `
+
+/** Apodos de clientes para hablarle a Valen (ANUNCIOS_APODOS_CLIENTES = {"Nombre del cliente":"apodo"}; va por variable
+ *  porque el repo es público). Reemplaza el nombre completo donde aparezca. */
+export function conApodos(texto: string, env: NodeJS.ProcessEnv = process.env): string {
+  let m: Record<string, unknown> = {}
+  try { m = JSON.parse(env.ANUNCIOS_APODOS_CLIENTES || '{}') as Record<string, unknown> } catch { return texto }
+  let t = texto
+  for (const [nombre, apodo] of Object.entries(m))
+    if (nombre.trim() && typeof apodo === 'string' && apodo.trim()) t = t.split(nombre).join(apodo)
+  return t
+}
 
 export const equipoEncendido = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP_EQUIPO?.trim() === 'real'
 export const telValentino = (env: NodeJS.ProcessEnv = process.env): string | null => {
@@ -44,19 +61,20 @@ const ETIQUETA: Record<string, string> = {
 export interface ItemResumen { tipo: string; cliente: string }
 
 /** El único mensaje de la alerta diaria: qué salió hoy por Discord, por cliente. null si no salió nada. */
-export function textoResumen(items: readonly ItemResumen[], link: string, tel: string | null): string | null {
+export function textoResumen(items: readonly ItemResumen[], link: string, tel: string | null, azar?: () => number, env: NodeJS.ProcessEnv = process.env): string | null {
   if (!items.length) return null
   const lineas = items.slice(0, MAX_LINEAS_RESUMEN).map(i => `• ${i.cliente} — ${ETIQUETA[i.tipo] ?? i.tipo}`)
   if (items.length > MAX_LINEAS_RESUMEN) lineas.push(`• … y ${items.length - MAX_LINEAS_RESUMEN} más`)
   return [
-    `${encabezado(tel)}📣 *Anuncios de hoy* · ${items.length} aviso${items.length === 1 ? '' : 's'}`,
+    `${encabezado(tel, azar)}📣 *Anuncios de hoy* · ${items.length} aviso${items.length === 1 ? '' : 's'}`,
     ...lineas,
     `El detalle de cada uno está en #📣-ads de Discord. Tablero: ${link}`,
-  ].join('\n')
+  ].map(l => conApodos(l, env)).join('\n')
 }
 
 /** Un aviso suelto (p. ej. una nota del cliente): el texto de Discord pasado a WhatsApp, con la mención adelante. */
-export const textoSuelto = (textoDiscord: string, tel: string | null): string => `${encabezado(tel)}${discordAWhatsapp(textoDiscord)}`
+export const textoSuelto = (textoDiscord: string, tel: string | null, azar?: () => number, env: NodeJS.ProcessEnv = process.env): string =>
+  `${encabezado(tel, azar)}${conApodos(discordAWhatsapp(textoDiscord), env)}`
 
 export interface DepsEquipo {
   encendido: boolean
