@@ -7,7 +7,10 @@
 // - Las personas inactivas no se pueden elegir para cargar líneas nuevas (su historial se conserva).
 // Nada de esto toca las líneas importadas ni recalcula Payroll histórico.
 
-export const OPCIONES_PAGADO_POR = ['Financiera', 'Tomi', 'Gero', 'Otro']
+import { validarReparto, resumenReparto, totalesPorPagador } from './calculoPagadores'
+
+// «Pagado por» (1/11/2026): ya no es una sola opción sino un reparto por porcentajes entre Tomi, Gero, Financiera y Empresa
+// (calculoPagadores.js). En el formulario `f.pagadores` son las filas del editor; pagado_por queda como resumen legible.
 export const MONEDA_NUEVAS = 'USD'
 
 // Importes siempre en centavos enteros para no arrastrar errores de coma flotante
@@ -45,7 +48,7 @@ export function tipoRemuneracion(f) {
 
 /**
  * Valida una línea nueva o editada.
- * `f`: { persona_id, mes:'YYYY-MM', puesto, departamento, honorarios_base, bonuses, comision, pagado, pagado_por, nota, confirmaAdicional }
+ * `f`: { persona_id, mes:'YYYY-MM', puesto, departamento, honorarios_base, bonuses, comision, pagado, pagadores: [{ quien, porcentaje }], nota, confirmaAdicional }
  * `ctx`: { personas, lineas (pagos_equipo_vigentes), editandoId }
  * Devuelve { errores, existentes, total }. Si `errores` no está vacío, NO se debe guardar.
  */
@@ -64,7 +67,8 @@ export function validarLinea(f, { personas = [], lineas = [], editandoId = null 
   const total = totalCentavos(f)
   if (!Number.isNaN(total) && total <= 0) errores.push('El total debe ser mayor que 0: completá honorarios, bonus, comisión o extras.')
   if (aC(f.extras) > 0 && !String(f.extras_detalle ?? '').trim()) errores.push('Contá qué hizo de más en «Detalle de los extras».')
-  if (f.pagado_por && !OPCIONES_PAGADO_POR.includes(f.pagado_por)) errores.push('«Pagado por» no es una opción válida.')
+  const rep = validarReparto(f.pagadores)
+  errores.push(...rep.errores)
 
   let existentes = []
   if (persona && mesAFecha(f.mes)) {
@@ -76,7 +80,7 @@ export function validarLinea(f, { personas = [], lineas = [], editandoId = null 
       errores.push(`Ya existe ${existentes.length === 1 ? 'una línea' : `${existentes.length} líneas`} de ${persona.nombre} en ${f.mes} (total ${usd(t)}). Si querés cargar otra igualmente (por ejemplo un ajuste), marcá «Es una línea adicional».`)
     }
   }
-  return { errores, existentes, total: Number.isNaN(total) ? 0 : deC(total) }
+  return { errores, existentes, total: Number.isNaN(total) ? 0 : deC(total), reparto: rep.reparto }
 }
 
 /**
@@ -95,7 +99,10 @@ export function motivoBloqueoComision({ comision, propuesta, estado }) {
   return null
 }
 
-/** Arma las columnas a insertar/actualizar en pagos_equipo para una línea nueva. No lleva marca de importación: son líneas creadas en la web. */
+/**
+ * Arma las columnas a insertar/actualizar en pagos_equipo para una línea nueva. No lleva marca de importación: son líneas creadas en la web.
+ * pagado_por = resumen del reparto (lo vuelve a dejar igual finanzas.reemplazar_pagadores, que guarda el reparto en sí).
+ */
 export function armarLinea(f, persona) {
   const texto = (v) => (String(v ?? '').trim() === '' ? null : String(v).trim())
   return {
@@ -112,7 +119,7 @@ export function armarLinea(f, persona) {
     total_usd: deC(totalCentavos(f)),
     moneda: MONEDA_NUEVAS,
     pagado: !!f.pagado,
-    pagado_por: texto(f.pagado_por),
+    pagado_por: resumenReparto(validarReparto(f.pagadores).reparto),
     nota: texto(f.nota),
   }
 }
@@ -127,18 +134,32 @@ export function cierreDeMes(lineas, personas, mes) {
   for (const l of delMes) {
     const clave = l.persona_id ?? `nombre:${l.nombre_original}`
     const p = personas.find((x) => x.id === l.persona_id)
-    if (!porPersona.has(clave)) porPersona.set(clave, { persona_id: l.persona_id ?? null, nombre: p?.nombre ?? l.nombre_original, activo: p ? p.activo : null, puesto: l.puesto ?? p?.puesto ?? null, departamento: l.departamento ?? p?.departamento ?? null, lineas: 0, h: 0, b: 0, c: 0, e: 0, t: 0, pagado: 0, pendiente: 0 })
+    if (!porPersona.has(clave)) porPersona.set(clave, { persona_id: l.persona_id ?? null, nombre: p?.nombre ?? l.nombre_original, activo: p ? p.activo : null, puesto: l.puesto ?? p?.puesto ?? null, departamento: l.departamento ?? p?.departamento ?? null, lineas: 0, h: 0, b: 0, c: 0, e: 0, t: 0, pagado: 0, pendiente: 0, de: [] })
     const f = porPersona.get(clave)
     f.lineas++
+    f.de.push(l)
     f.h += aC(l.honorarios_base); f.b += aC(l.bonuses); f.c += aC(l.comision); f.e += aC(l.extras)
     const t = aC(l.total_usd)
     f.t += t
     if (l.pagado) f.pagado += t; else f.pendiente += t
   }
-  const filas = [...porPersona.values()].map((f) => ({ persona_id: f.persona_id, nombre: f.nombre, activo: f.activo, puesto: f.puesto, departamento: f.departamento, lineas: f.lineas, honorarios: deC(f.h), bonus: deC(f.b), comision: deC(f.c), extras: deC(f.e), total: deC(f.t), pagado: deC(f.pagado), pendiente: deC(f.pendiente) }))
+  const filas = [...porPersona.values()].map((f) => ({ persona_id: f.persona_id, nombre: f.nombre, activo: f.activo, puesto: f.puesto, departamento: f.departamento, lineas: f.lineas, honorarios: deC(f.h), bonus: deC(f.b), comision: deC(f.c), extras: deC(f.e), total: deC(f.t), pagado: deC(f.pagado), pendiente: deC(f.pendiente), pagadores: pagadoresDePersona(f.de) }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
   const conLinea = new Set(filas.map((f) => f.persona_id).filter((x) => x !== null))
   const sinLinea = personas.filter((p) => p.activo && !conLinea.has(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre))
   const suma = (k) => deC(filas.reduce((s, f) => s + aC(f[k]), 0))
-  return { mes, filas, sinLinea, totales: { lineas: delMes.length, honorarios: suma('honorarios'), bonus: suma('bonus'), comision: suma('comision'), extras: suma('extras'), total: suma('total'), pagado: suma('pagado'), pendiente: suma('pendiente') } }
+  return { mes, filas, sinLinea, porPagador: totalesPorPagador(delMes), totales: { lineas: delMes.length, honorarios: suma('honorarios'), bonus: suma('bonus'), comision: suma('comision'), extras: suma('extras'), total: suma('total'), pagado: suma('pagado'), pendiente: suma('pendiente') } }
+}
+
+/**
+ * Cierre de mes: quién pone cuánto para una persona, juntando sus líneas del mes. [{ quien, usd, porcentaje }] ordenado de
+ * mayor a menor; el porcentaje es sobre el total de la persona (si una línea la paga Gero y otra Tomi, se ve la mezcla).
+ */
+function pagadoresDePersona(lineas) {
+  const t = totalesPorPagador(lineas)
+  const total = Object.values(t).reduce((s, v) => s + aC(v), 0)
+  const nombres = { otro: 'Otro', sinDato: 'Sin dato' }
+  return Object.entries(t).filter(([, v]) => aC(v) > 0)
+    .map(([k, v]) => ({ quien: nombres[k] ?? k, usd: v, porcentaje: total ? Math.round((aC(v) / total) * 10000) / 100 : 0 }))
+    .sort((a, b) => b.usd - a.usd)
 }

@@ -276,6 +276,36 @@ export const ESTILOS_SKWD = `
 .fin-skwd .pe-pagado input { width: 18px; height: 18px; }
 .fin-skwd .pe-sin-linea button { margin: 4px 6px 0 0; background: var(--card); color: var(--text); border: 1px solid var(--cj-control); font-weight: 500; }
 
+/* «Pagado por» repartido (1/11/2026): filas Quién / % / = USD, chips en tablas y cierre */
+.fin-skwd .pe-reparto { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fin-skwd .pe-reparto__cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.fin-skwd .pe-reparto__titulo { font-size: 13px; font-weight: 600; color: var(--text); }
+.fin-skwd .pe-reparto__atajos, .fin-skwd .pe-reparto__pie { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.fin-skwd .pe-reparto__pie { justify-content: space-between; }
+.fin-skwd .pe-reparto button { min-height: 36px; padding: 4px 12px; font-size: 13px; background: var(--card); color: var(--text); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); font-weight: 500; cursor: pointer; }
+.fin-skwd .pe-reparto button:disabled { opacity: .5; cursor: default; }
+.fin-skwd .pe-reparto__filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fin-skwd .pe-reparto__fila { display: grid; grid-template-columns: minmax(120px, 1.3fr) minmax(90px, .8fr) minmax(110px, 1fr) auto; align-items: center; gap: 8px; }
+.fin-skwd .pe-reparto select, .fin-skwd .pe-reparto input { width: 100%; min-height: 40px; padding: 6px 10px; font-size: 15px; background: var(--card); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); }
+.fin-skwd .pe-reparto__pct { position: relative; }
+.fin-skwd .pe-reparto__pct input { padding-right: 26px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.fin-skwd .pe-reparto__pct span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-muted); pointer-events: none; }
+.fin-skwd .pe-reparto__usd { font-size: 14px; color: var(--text); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.fin-skwd .pe-reparto__suma { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fin-skwd .pe-reparto__suma--mal { color: var(--cj-borgona); font-weight: 600; }
+.fin-skwd .pe-reparto.pe-campo--error select, .fin-skwd .pe-reparto.pe-campo--error input { border-color: var(--cj-borgona); box-shadow: inset 3px 0 0 var(--cj-borgona); }
+.fin-skwd .pe-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.fin-skwd .pe-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap; color: var(--text); background: rgba(128,92,41,0.10); border: 1px solid var(--cj-filete); }
+.fin-skwd .pe-celda-pagadores { white-space: nowrap; }
+.fin-skwd .pe-celda-pagadores .pe-chips { flex-wrap: nowrap; }
+.fin-skwd .pe-celda-pagadores > button { margin-left: 4px; }
+.fin-skwd .pe-fila-reparto > td { background: rgba(242,234,220,0.38); }
+.fin-skwd .pe-reparto-linea { position: sticky; left: 8px; display: flex; flex-direction: column; gap: 10px; max-width: min(640px, calc(100vw - 64px)); padding: 4px 0; } /* sticky: se ve aunque la tabla esté desplazada a la derecha (donde está el ✎) */
+@media (max-width: 767px) {
+  .fin-skwd .pe-reparto__fila { grid-template-columns: minmax(0, 1fr) 96px auto; }
+  .fin-skwd .pe-reparto__usd { grid-column: 1 / -2; grid-row: 2; font-size: 13px; color: var(--text-muted); }
+}
+
 @media (max-width: 1023px) {
   .fin-skwd .pe-form__cuerpo, .fin-skwd .pe-form__resumen { grid-column: 1 / -1; }
   .fin-skwd .pe-form__resumen { position: static; }

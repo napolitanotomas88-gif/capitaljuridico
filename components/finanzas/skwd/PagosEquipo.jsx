@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
-import { OPCIONES_PAGADO_POR, validarLinea, armarLinea, totalDe, tipoRemuneracion, cierreDeMes, mesDe, mesAnterior, motivoBloqueoComision } from './calculoPayroll'
+import { validarLinea, armarLinea, totalDe, tipoRemuneracion, cierreDeMes, mesDe, mesAnterior, motivoBloqueoComision } from './calculoPayroll'
 import { calcularComision, nombresSinPersona, REGLAS_COMISION } from './calculoComisiones'
 import SopDelPuesto from './SopDelPuesto'
+import { RepartoPagadores, ChipsPagadores } from './RepartoPagadores'
+import { repartoInicial, repartoDeLinea, validarReparto, QUIENES_PAGAN } from './calculoPagadores'
 import { Boton } from '@/components/ui/Boton'
 import { ChipSemaforo } from '@/components/ui/ChipSemaforo'
 
@@ -10,13 +12,15 @@ const usd = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractio
 const ars = (n) => 'ARS ' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
 const mesActual = () => new Date().toLocaleDateString('en-CA').slice(0, 7)
 // comisionEditada / bonusEditado: false = el importe lo propone el cálculo automático; true = lo escribió la persona (manual) y no se pisa
-const vacio = (mes = '') => ({ persona_id: '', mes, puesto: '', departamento: '', honorarios_base: '', bonuses: '', comision: '', extras: '', extras_detalle: '', comisionEditada: false, bonusEditado: false, pagado: false, pagado_por: '', nota: '', confirmaAdicional: false })
+const vacio = (mes = '') => ({ persona_id: '', mes, puesto: '', departamento: '', honorarios_base: '', bonuses: '', comision: '', extras: '', extras_detalle: '', comisionEditada: false, bonusEditado: false, pagado: false, pagadores: repartoInicial(), nota: '', confirmaAdicional: false })
 
 // Reglas de esta pantalla:
 // - Lee la vista pagos_equipo_vigentes (valores con las correcciones aplicadas). Los datos sensibles NO se leen acá.
 // - Las líneas importadas (con id_origen) tienen bloqueados mes, puesto, departamento, honorarios, bonus, comisión, total y moneda:
 //   se corrigen SOLO desde la pestaña Correcciones (botón "Corregir"); el original se conserva. No se pueden borrar.
-// - Siguen editables los campos de trabajo: pagado, pagado_por y nota (se escriben en la tabla pagos_equipo).
+// - Siguen editables los campos de trabajo: pagado, «Pagado por» y nota (se escriben en la tabla pagos_equipo).
+// - «Pagado por» es un REPARTO por porcentajes (Tomi / Gero / Financiera / Empresa, 1/11/2026): se guarda con
+//   finanzas.reemplazar_pagadores (tabla pagos_equipo_pagadores + resumen en pagado_por). En la tabla se edita con ✎.
 // - Las líneas NUEVAS (creadas acá, sin id_origen) se crean, editan y —solo si están pendientes— se borran en pagos_equipo.
 //   Las reglas del alta (validaciones, duplicados, cierre de mes) están en calculoPayroll.js. Nunca se escribe en Gastos.
 // - Las personas inactivas no aparecen al cargar líneas nuevas (su historial se conserva).
@@ -51,6 +55,7 @@ export default function PagosEquipo({ onCorregir }) {
   const [refresco, setRefresco] = useState(0) // se suma cada vez que se abre el formulario o se pide «Actualizar pagos»: fuerza leer los pagos de nuevo
   const [kpi, setKpi] = useState(false) // «objetivo KPI alcanzado»: tilda MANUAL (bono 15% de la comisión de Setter)
   const [intentado, setIntentado] = useState(false) // solo presentación: los errores se muestran al lado de cada campo después del primer «Guardar»
+  const [repartoAbierto, setRepartoAbierto] = useState(null) // { id, filas, error, guardando }: editor de «Pagado por» de una línea de la tabla
   const cargaId = useRef(0)
 
   async function cargar() {
@@ -124,6 +129,22 @@ export default function PagosEquipo({ onCorregir }) {
     cargar()
   }
 
+  // «Pagado por» de una línea desde la tabla (también importadas: es un campo de trabajo, no se corrige)
+  function abrirReparto(l) {
+    setRepartoAbierto(repartoAbierto?.id === l.id ? null : { id: l.id, filas: repartoDeLinea(l), error: null, guardando: false })
+  }
+  async function guardarReparto(l) {
+    const v = validarReparto(repartoAbierto.filas)
+    if (v.errores.length) return setRepartoAbierto({ ...repartoAbierto, error: v.errores.join(' ') })
+    setRepartoAbierto({ ...repartoAbierto, guardando: true, error: null })
+    setError('')
+    const { data, error } = await supabase.rpc('reemplazar_pagadores', { p_pago_equipo_id: l.id, p_reparto: v.reparto })
+    if (error) return setRepartoAbierto({ ...repartoAbierto, guardando: false, error: error.message })
+    setRepartoAbierto(null)
+    setMensaje(`«Pagado por» de la línea #${l.id}: ${data || 'sin dato'}.`)
+    cargar()
+  }
+
   function editarNota(l) {
     const nueva = window.prompt('Nota de esta línea (dejá el texto original si no querés cambiarlo):', l.nota || '')
     if (nueva === null) return
@@ -187,7 +208,7 @@ export default function PagosEquipo({ onCorregir }) {
     setForm({
       persona_id: String(l.persona_id ?? ''), mes: mesDe(l.mes), puesto: l.puesto ?? '', departamento: l.departamento ?? '',
       honorarios_base: String(l.honorarios_base ?? ''), bonuses: String(l.bonuses ?? ''), comision: String(l.comision ?? ''), extras: Number(l.extras) ? String(l.extras) : '', extras_detalle: l.extras_detalle ?? '', comisionEditada: true, bonusEditado: true, // al editar una línea guardada, sus importes no se pisan
-      pagado: !!l.pagado, pagado_por: l.pagado_por ?? '', nota: l.nota ?? '', confirmaAdicional: true,
+      pagado: !!l.pagado, pagadores: repartoDeLinea(l), nota: l.nota ?? '', confirmaAdicional: true,
     })
     setKpi(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -237,6 +258,7 @@ export default function PagosEquipo({ onCorregir }) {
     const datos = armarLinea(formEf, persona)
     // Si el importe de comisión es exactamente el propuesto (no se editó a mano) y no hay nota, queda constancia de cómo se calculó
     if (!editandoId && !datos.nota && !form.comisionEditada && autoComision) datos.nota = `Comisión calculada con las reglas nuevas sobre ${propuesta.pagosUsados} pago(s)${autoBono ? ' · KPI alcanzado (bono 15% de la comisión de Setter)' : ''}`
+    let idLinea = editandoId
     if (editandoId) {
       const original = lineas.find((l) => l.id === editandoId)
       if (!original || esImportado(original)) return setError('Esa línea es importada: se corrige desde la pestaña Correcciones.')
@@ -248,7 +270,18 @@ export default function PagosEquipo({ onCorregir }) {
       const { data, error } = await supabase.from('pagos_equipo').insert(datos).select('id')
       if (error) return setError(error.message)
       if (!data || data.length !== 1) return setError('No se pudo confirmar que la línea se guardó. Recargá la página y revisá la lista antes de volver a cargarla.')
+      idLinea = data[0].id
       setMensaje(`Línea guardada: ${persona.nombre}, ${form.mes}, ${usd(datos.total_usd)} (${datos.pagado ? 'pagada' : 'pendiente'}).`)
+    }
+    // Después de la línea, su reparto de «Pagado por» (reemplaza el anterior entero, en una transacción de la base).
+    // Si falla, la línea ya quedó guardada: el formulario pasa a editarla para reintentar sin duplicarla.
+    const { error: errReparto } = await supabase.rpc('reemplazar_pagadores', { p_pago_equipo_id: idLinea, p_reparto: v.reparto })
+    if (errReparto) {
+      setEditandoId(idLinea)
+      setForm({ ...form, confirmaAdicional: true })
+      setMensaje('')
+      cargar()
+      return setError(`La línea se guardó, pero no el reparto de «Pagado por»: ${errReparto.message} Revisalo y volvé a guardar.`)
     }
     setMes(datos.mes) // el filtro salta al mes de la línea guardada para que se vea en la lista
     cerrarForm()
@@ -441,12 +474,10 @@ export default function PagosEquipo({ onCorregir }) {
                       <option value="si">Pagado</option>
                     </select>
                   </Campo>
-                  <Campo campo="pagado_por" etiqueta="Pagado por" error={errorDe('pagado_por')} className="pe-c4">
-                    <select {...props('pagado_por')} name="pagado_por" value={form.pagado_por} onChange={cambiarForm}>
-                      <option value="">—</option>
-                      {OPCIONES_PAGADO_POR.map((o) => <option key={o}>{o}</option>)}
-                    </select>
-                  </Campo>
+                  <div className="pe-c12">
+                    <RepartoPagadores filas={form.pagadores} onChange={(pagadores) => setForm({ ...form, pagadores })} total={totalDe(formEf)} error={errorDe('pagado_por')}
+                      ayuda="Elegí quién pone la plata y en qué porcentaje (Tomi, Gero, Financiera o Empresa). Tiene que sumar 100%." />
+                  </div>
                   <Campo campo="nota" etiqueta="Nota" ayuda="Opcional. Si la dejás vacía y la comisión es la propuesta, se anota cómo se calculó." className="pe-c12">
                     <input {...props('nota', true)} name="nota" value={form.nota} onChange={cambiarForm} />
                   </Campo>
@@ -500,20 +531,30 @@ export default function PagosEquipo({ onCorregir }) {
             <div className="pe-kpi"><span className="cj-etiqueta">Pendiente</span><strong>{usd(cierre.totales.pendiente)}</strong></div>
             <div className="pe-kpi"><span className="cj-etiqueta">Líneas</span><strong>{cierre.totales.lineas}</strong></div>
           </div>
+          <section className="pe-tarjeta" aria-labelledby="pe-cierre-pagadores">
+            <h3 id="pe-cierre-pagadores">Quién pone cuánto en {mesCierre}</h3>
+            <p className="pe-ayuda">Cada línea reparte su total según «Pagado por» (por ejemplo Gero 80% · Tomi 20%).</p>
+            <dl className="pe-desglose pe-desglose--fila">
+              {[...QUIENES_PAGAN, 'otro', 'sinDato'].filter((k) => QUIENES_PAGAN.includes(k) || cierre.porPagador[k] > 0).map((k) => (
+                <div key={k}><dt>{k === 'sinDato' ? 'Sin dato' : k === 'otro' ? 'Otro' : k}</dt><dd>{usd(cierre.porPagador[k])}</dd></div>
+              ))}
+            </dl>
+          </section>
           <div className="tabla-scroll">
             <table className="pe-tabla">
-              <thead><tr><th>Persona</th><th>Rol</th><th>Área</th><th className="num">Honorarios</th><th className="num">Bonus</th><th className="num">Comisión</th><th className="num">Extras</th><th className="num">Total a pagar</th><th className="num">Pagado</th><th className="num">Pendiente</th><th>Estado</th><th className="num">Líneas</th><th><span className="sr-solo">Acciones</span></th></tr></thead>
+              <thead><tr><th>Persona</th><th>Rol</th><th>Área</th><th className="num">Honorarios</th><th className="num">Bonus</th><th className="num">Comisión</th><th className="num">Extras</th><th className="num">Total a pagar</th><th className="num">Pagado</th><th className="num">Pendiente</th><th>Pagado por</th><th>Estado</th><th className="num">Líneas</th><th><span className="sr-solo">Acciones</span></th></tr></thead>
               <tbody>
                 {cierre.filas.map((f) => (
                   <tr key={f.persona_id ?? f.nombre} className={f.activo === false ? 'fila-inactiva' : ''}>
                     <td className="nowrap">{f.nombre}{f.activo === false && ' (inactiva)'}</td><td className="nowrap">{f.puesto}</td><td className="nowrap">{f.departamento}</td>
                     <td className="num">{usd(f.honorarios)}</td><td className="num">{usd(f.bonus)}</td><td className="num">{usd(f.comision)}</td><td className="num">{usd(f.extras)}</td><td className="num"><strong>{usd(f.total)}</strong></td><td className="num">{usd(f.pagado)}</td><td className="num">{usd(f.pendiente)}</td>
+                    <td><span className="pe-chips">{f.pagadores.map((x) => <span key={x.quien} className="pe-chip" title={usd(x.usd)}>{x.quien} {String(x.porcentaje).replace('.', ',')}% · {usd(x.usd)}</span>)}</span></td>
                     <td><ChipSemaforo estado={Number(f.pendiente) > 0 ? 'amarillo' : 'verde'} className="pe-estado">{Number(f.pendiente) > 0 ? 'Pendiente' : 'Pagado'}</ChipSemaforo></td>
                     <td className="num">{f.lineas}</td>
                     <td className="nowrap">{f.activo && <button type="button" onClick={() => abrirNueva(f.persona_id, mesCierre)}>Agregar línea</button>}</td>
                   </tr>
                 ))}
-                {cierre.filas.length === 0 && <tr><td colSpan={13} className="aviso">No hay líneas en {mesCierre}.</td></tr>}
+                {cierre.filas.length === 0 && <tr><td colSpan={14} className="aviso">No hay líneas en {mesCierre}.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -599,7 +640,8 @@ export default function PagosEquipo({ onCorregir }) {
           </thead>
           <tbody>
             {visibles.map((l) => (
-              <tr key={l.id}>
+              <Fragment key={l.id}>
+              <tr>
                 {/* Primera columna a propósito: así "Corregir" siempre se ve, sin tener que desplazar la tabla hacia la derecha */}
                 <td className="nowrap">
                   {esImportado(l) && <button type="button" onClick={() => onCorregir && onCorregir({ tabla: 'pagos_equipo', id: l.id })}>Corregir</button>}
@@ -628,19 +670,31 @@ export default function PagosEquipo({ onCorregir }) {
                     <ChipSemaforo estado={l.pagado ? 'verde' : 'amarillo'} className="pe-estado">{l.pagado ? 'Pagado' : 'Pendiente'}</ChipSemaforo>
                   </label>
                 </td>
-                <td>
-                  <select value={l.pagado_por || ''} onChange={(e) => actualizar(l.id, { pagado_por: e.target.value || null })} aria-label="Pagado por">
-                    <option value="">—</option>
-                    {OPCIONES_PAGADO_POR.map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </select>
+                <td className="pe-celda-pagadores">
+                  <ChipsPagadores linea={l} />
+                  {l.pagado_por && !(l.pagadores?.length) && !QUIENES_PAGAN.includes(l.pagado_por) && <span className="aviso"> (sin reparto)</span>}
+                  <button type="button" onClick={() => abrirReparto(l)} title="Editar quién pagó" aria-label={`Editar «Pagado por» de la línea #${l.id}`} aria-expanded={repartoAbierto?.id === l.id}>✎</button>
                 </td>
                 <td className="nota">
                   {l.nota}{' '}
                   <button type="button" onClick={() => editarNota(l)} title="Editar nota" aria-label="Editar nota">✎</button>
                 </td>
               </tr>
+              {repartoAbierto?.id === l.id && (
+                <tr className="pe-fila-reparto">
+                  <td colSpan={14}>
+                    <div className="pe-reparto-linea">
+                      <RepartoPagadores id={`pe-reparto-${l.id}`} filas={repartoAbierto.filas} onChange={(filas) => setRepartoAbierto({ ...repartoAbierto, filas, error: null })} total={Number(l.total_usd)} error={repartoAbierto.error}
+                        ayuda={`Línea #${l.id} · ${nombreDe(l) ?? l.nombre_original} · ${mesDe(l.mes)} · total ${usd(l.total_usd)}`} />
+                      <div className="pe-acciones">
+                        <Boton variante="marca" onClick={() => guardarReparto(l)} disabled={repartoAbierto.guardando}>{repartoAbierto.guardando ? 'Guardando…' : 'Guardar reparto'}</Boton>
+                        <Boton variante="secundario" onClick={() => setRepartoAbierto(null)}>Cancelar</Boton>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
             {visibles.length === 0 && <tr><td colSpan={14} className="aviso">No hay líneas con estos filtros.</td></tr>}
           </tbody>

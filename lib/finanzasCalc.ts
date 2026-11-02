@@ -379,6 +379,9 @@ export interface FilaPayroll {
   fila: number; nombre: string; puesto: string; base: number; bonus: number; comision: number; total: number
   pagado: boolean; pagadoPorTexto: string; pagador: Pagador
   ref?: string                          // app: "Pago al equipo #id"; sin ref = "Payroll fila N"
+  // app (1/11/2026): «Pagado por» repartido por porcentajes (Gero 80 % · Tomi 20 %). Cada parte lleva su monto en USD
+  // (suman el total). Sin partes = el total entero a `pagador`, como siempre.
+  partes?: { quien: string; porcentaje: number; pagador: Pagador; monto: number }[]
 }
 export const refPayroll = (f: FilaPayroll) => f.ref ?? `Payroll fila ${f.fila}`
 // Payroll: un bloque por mes. Fila de título con "CONTRATISTAS" y el mes en col J; la siguiente trae los encabezados.
@@ -636,8 +639,14 @@ export function calcularFinanzas(e: EntradaCalculo) {
     else if (g.pagador !== 'Empresa') { gastosSinPagador += g.monto; gastosSinPagadorLista.push(`${g.concepto}${g.pagadoPorTexto ? ` ("${g.pagadoPorTexto}")` : ''}`) }
   }
   for (const f of payrollMes ?? []) {
-    if (f.pagador === 'Tomi' || f.pagador === 'Gero') { gastosSocio[f.pagador] += f.total; detalleGastosSocio.push({ quien: f.pagador, concepto: `Payroll: ${f.nombre}`, monto: r2(f.total), origen: refPayroll(f) }) }
-    else if (f.pagador !== 'Empresa') { gastosSinPagador += f.total; gastosSinPagadorLista.push(`Payroll: ${f.nombre}${f.pagadoPorTexto ? ` ("${f.pagadoPorTexto}")` : ''}`) }
+    // Con reparto, cada pagador carga su parte en USD (Empresa / Financiera = la empresa, fuera del reparto)
+    const partes = f.partes?.length ? f.partes : [{ quien: f.pagadoPorTexto, porcentaje: 100, pagador: f.pagador, monto: f.total }]
+    const varias = partes.length > 1
+    for (const pt of partes) {
+      const concepto = `Payroll: ${f.nombre}${varias ? ` (${pt.quien} ${String(pt.porcentaje).replace('.', ',')}%)` : ''}`
+      if (pt.pagador === 'Tomi' || pt.pagador === 'Gero') { gastosSocio[pt.pagador] += pt.monto; detalleGastosSocio.push({ quien: pt.pagador, concepto, monto: r2(pt.monto), origen: refPayroll(f) }) }
+      else if (pt.pagador !== 'Empresa') { gastosSinPagador += pt.monto; gastosSinPagadorLista.push(`${concepto}${!varias && f.pagadoPorTexto ? ` ("${f.pagadoPorTexto}")` : ''}`) }
+    }
   }
   const saldoTomi = ingresosSocio.Tomi - gastosSocio.Tomi
   const saldoGero = ingresosSocio.Gero - gastosSocio.Gero

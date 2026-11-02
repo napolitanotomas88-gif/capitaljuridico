@@ -11,7 +11,7 @@ import { neon } from '@neondatabase/serverless'
 
 export const TABLAS_FINANZAS = [
   'campos_corregibles', 'conciliaciones', 'correcciones', 'cuentas', 'estado_parametros', 'estado_referencia_excel', 'gastos',
-  'gastos_personales', 'movimientos_cuenta', 'pago_quien_recibio', 'pagos', 'pagos_equipo', 'pagos_equipo_sensibles', 'personas',
+  'gastos_personales', 'movimientos_cuenta', 'pago_quien_recibio', 'pagos', 'pagos_equipo', 'pagos_equipo_pagadores', 'pagos_equipo_sensibles', 'personas',
   'personas_sensibles', 'personas_sensibles_historial', 'vocabularios_correccion',
   // vistas
   'correcciones_vigentes', 'correcciones_por_registro', 'gastos_vigentes', 'movimientos_cuenta_vigentes', 'movimientos_cuenta_empresa',
@@ -21,14 +21,20 @@ export const TABLAS_FINANZAS = [
 /** Clave primaria de cada tabla (para upsert sin onConflict). */
 const CLAVES: Record<string, string[]> = {
   campos_corregibles: ['tabla', 'campo'], estado_parametros: ['anio'], estado_referencia_excel: ['anio', 'mes'],
-  pago_quien_recibio: ['pago_id'], pagos_equipo_sensibles: ['pago_equipo_id'], personas_sensibles: ['persona_id'],
+  pago_quien_recibio: ['pago_id'], pagos_equipo_pagadores: ['pago_equipo_id', 'quien'], pagos_equipo_sensibles: ['pago_equipo_id'], personas_sensibles: ['persona_id'],
   vocabularios_correccion: ['tabla', 'campo', 'valor'],
 }
+
+/** Funciones de la base que las pantallas pueden llamar con supabase.rpc(): lista blanca. Corren con los permisos de la app.
+ *  reemplazar_pagadores(p_pago_equipo_id, p_reparto): reparto de «Pagado por» de una línea de Pagos del equipo (1/11/2026). */
+export const FUNCIONES_FINANZAS = ['reemplazar_pagadores'] as const
 
 export type Filtro = [op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is', columna: string, valor: unknown]
 export interface Pedido {
   tabla: string
-  accion: 'select' | 'insert' | 'update' | 'upsert' | 'delete'
+  accion: 'select' | 'insert' | 'update' | 'upsert' | 'delete' | 'rpc'
+  funcion?: string                  // solo rpc: nombre de FUNCIONES_FINANZAS
+  args?: Record<string, unknown>    // solo rpc: argumentos con nombre (objetos y listas van como JSON)
   columnas?: string | null          // select(...) o returning; null = sin returning
   filtros?: Filtro[]
   orden?: [columna: string, ascendente: boolean][]
@@ -56,6 +62,15 @@ const lista = (cols: string): string => {
 
 /** Traduce el pedido a una consulta que devuelve una sola fila con la columna `filas` (JSON). Exportada para los tests. */
 export function armarConsulta(p: Pedido): { texto: string; params: unknown[] } {
+  if (p.accion === 'rpc') {
+    if (!(FUNCIONES_FINANZAS as readonly string[]).includes(p.funcion ?? '')) throw new ErrorPedido(`Función desconocida: ${p.funcion}`)
+    const params: unknown[] = []
+    const args = Object.entries(p.args ?? {}).map(([k, v]) => {
+      params.push(v !== null && typeof v === 'object' ? JSON.stringify(v) : v)
+      return `${ident(k)} => $${params.length}`
+    })
+    return { texto: `select to_json(finanzas.${ident(p.funcion!)}(${args.join(', ')})) as filas`, params }
+  }
   if (!(TABLAS_FINANZAS as readonly string[]).includes(p.tabla)) throw new ErrorPedido(`Tabla desconocida: ${p.tabla}`)
   const t = `finanzas.${ident(p.tabla)}`
   const params: unknown[] = []
