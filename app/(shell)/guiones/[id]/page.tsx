@@ -31,6 +31,7 @@ const ESTADO: Record<string, string> = {
   mercado: 'Analizando el mercado de la zona', plan: 'Planificando la tanda', escribiendo: 'Escribiendo los guiones',
   a_revisar: 'Lista para revisar', aprobada: 'Aprobada · escribiendo en el Doc', enviada: 'Entrega al cliente confirmada',
   con_notas: 'El cliente respondió', corrigiendo: 'El bot está corrigiendo con lo que pidió el cliente', error: 'Se frenó',
+  cerrada: 'Cerrada · resuelta fuera del bot (no queda nada pendiente)',
 }
 
 function vista(f: FilaTanda): TandaVista {
