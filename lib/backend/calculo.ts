@@ -137,7 +137,8 @@ export function armarTablero(e: EntradaTablero): Tablero {
   }
   const delCiclo = (idCliente: string, ciclo: string) => (porCliente.get(idCliente) ?? []).filter((a) => a.referencia === ciclo && (a.lista === 'renovaciones' || a.lista === 'proyeccion'))
 
-  const agencia = e.clientes.filter((c) => c.linea === 'agencia' && c.id && c.estado === 'ACTIVO' && c.finPeriodo)
+  // Los de servicio por objetivos (sinFin, BOT_CLIENTES_SIN_FIN) no renuevan ni tienen llamada de proyección
+  const agencia = e.clientes.filter((c) => c.linea === 'agencia' && c.id && c.estado === 'ACTIVO' && c.finPeriodo && !c.sinFin)
 
   // ── Renovaciones: vencen dentro de la ventana o ya vencieron sin decisión ──
   const renovaciones: ItemRenovacion[] = []

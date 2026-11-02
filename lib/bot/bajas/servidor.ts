@@ -12,6 +12,7 @@ import { BASE_WHAPI } from '@/lib/bot/whapi/comun'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
 import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
+import { clientesSinFin, esSinFin } from '@/lib/clientes/sinFin'
 import { CHAT_VERIFICACIONES_DISCORD, enviarTextoSinWhatsapp, generalVirtual, tareaOperaciones } from '@/lib/bot/sinWhatsapp'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
 import { personasDelEquipo } from '@/lib/bot/whapi/guiones'
@@ -139,8 +140,10 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
   // menos los de la lista (así nunca se atiende dos veces ni se cruza un cliente real con el modo prueba)
   const alcance = (idCrm: string) => (prueba ? esClientePrueba(idCrm, listaPrueba) : !esClientePrueba(idCrm, listaPrueba))
   const leerBase = op.leerClientes ?? leerClientesReal
+  // Servicio por objetivos (BOT_CLIENTES_SIN_FIN): sin aviso de fin, sin FINALIZADO por fin vencido y sin recontacto
+  const listaSinFin = clientesSinFin(env)
   const leer = async (): Promise<ClienteBaja[]> => {
-    const todos = await leerBase()
+    const todos = (await leerBase()).map((k) => (esSinFin(k.id, listaSinFin) ? { ...k, sinFin: true } : k))
     if (!prueba) return listaPrueba.length ? todos.filter((k) => !esClientePrueba(k.id, listaPrueba)) : todos
     const enLista = todos.filter((k) => esClientePrueba(k.id, listaPrueba))
     const raros = enLista.filter((k) => !nombreDePrueba(k.nombre)).length

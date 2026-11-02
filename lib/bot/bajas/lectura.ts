@@ -3,6 +3,7 @@
 // '@/lib/bot/bajas/lectura'. Se cruza por idCrm ("A123"). Nunca tira: sin base, vuelve vacío.
 import type { AlmacenBajas, Baja, Pedido } from './almacen'
 import { capacidadesBajasDesconocidas, configBajas, configPruebaBajas, faltantesBajas } from './config'
+import { clientesSinFin } from '@/lib/clientes/sinFin'
 
 export type EstadoBajaCliente = 'aviso_pedido' | 'renovacion_enviada' | 'baja_pedida' | 'baja_confirmada' | 'despedida_pedida' | 'cerrada'
 
@@ -10,6 +11,8 @@ export interface EstadoBajas {
   modo: string; capacidades: string[]; desconocidas: number; faltan: string[]
   /** Modo prueba (BOT_CLIENTES_PRUEBA): IDs y capacidades. null = apagado. */
   prueba: { clientes: string[]; capacidades: string[] } | null
+  /** Cuántos IDs tiene BOT_CLIENTES_SIN_FIN (servicio por objetivos: sin aviso de fin ni recontacto). Solo la cantidad. */
+  sinFin: number
   clientes: { idCrm: string; cliente: string; estado: EstadoBajaCliente; desde: string; pasos?: Baja['pasos'] }[]
   pedidosAbiertos: { tipo: Pedido['tipo']; cliente: string; creado: string }[]
 }
@@ -18,7 +21,7 @@ export async function leerEstadoBajas(op: { env?: NodeJS.ProcessEnv; almacen?: A
   const env = op.env ?? process.env
   const c = configBajas(env)
   const p = configPruebaBajas(env)
-  const base: EstadoBajas = { modo: c.modo, capacidades: [...c.capacidades], desconocidas: capacidadesBajasDesconocidas(env).length, faltan: faltantesBajas(env), prueba: p ? { clientes: p.clientesPrueba ?? [], capacidades: [...p.capacidades] } : null, clientes: [], pedidosAbiertos: [] }
+  const base: EstadoBajas = { modo: c.modo, capacidades: [...c.capacidades], desconocidas: capacidadesBajasDesconocidas(env).length, faltan: faltantesBajas(env), prueba: p ? { clientes: p.clientesPrueba ?? [], capacidades: [...p.capacidades] } : null, sinFin: clientesSinFin(env).length, clientes: [], pedidosAbiertos: [] }
   if (!op.almacen && !env.DATABASE_URL?.trim()) return base
   try {
     const almacen = op.almacen ?? (await import('./almacenNeon')).almacenBajasNeon()

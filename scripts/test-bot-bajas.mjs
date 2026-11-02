@@ -185,6 +185,43 @@ ${CAL}`)
   })
 })
 
+describe('clientes sin fecha de fin (BOT_CLIENTES_SIN_FIN: servicio por objetivos)', () => {
+  const SF = cliente({ id: 'A120', nombre: 'Estudio Objetivos', mail: 'obj@x.test', finPeriodo: '2026-11-11', sinFin: true })
+  test('la variable: IDs en mayúsculas, sin repetidos; lo que no es un ID se ignora', async () => {
+    const { clientesSinFin, esSinFin } = await import('../lib/clientes/sinFin.ts')
+    assert.deepEqual(clientesSinFin({ BOT_CLIENTES_SIN_FIN: 'a120, A120;b7  hola Z9999999' }), ['A120', 'B7'])
+    assert.deepEqual(clientesSinFin({}), [])
+    assert.equal(esSinFin(' a120 ', ['A120']), true); assert.equal(esSinFin('A121', ['A120']), false); assert.equal(esSinFin(null, ['A120']), false)
+  })
+  test('sin fin real, sin aviso de fin (i01), sin cruce de la llamada (i02) ni recontacto (i05)', () => {
+    assert.equal(FIN.finReal(SF), null)
+    assert.deepEqual(FIN.candidatosAvisoFin([...CLIENTES, SF], '2026-11-01').map((x) => x.cliente.id), ['A100'])
+    assert.equal(FIN.clienteDeLlamada([SF], { titulo: 'Reunión', mails: ['obj@x.test'], fecha: '2026-11-05' }), null)
+    assert.equal(FIN.clienteDeLlamada([SF], { titulo: 'Reunión', mails: ['obj@x.test'], fecha: '2026-11-05' }, new Set(['A120'])), null)
+    const hist = { ...SF, estado: 'FINALIZADO', fechaBaja: '2026-09-01' }
+    assert.deepEqual(FIN.historicosParaRecontacto([hist], '2026-11-01'), [])
+    assert.equal(FIN.historicosParaRecontacto([{ ...hist, sinFin: false }], '2026-11-01').length, 1)
+  })
+  test('nunca se propone FINALIZADO por fin vencido (i02/i04): se pregunta', () => {
+    const e = FIN.estadoParaBaja({ ...SF, finPeriodo: '2026-10-11' }, '2026-11-01')
+    assert.equal(e.dudoso, true); assert.match(e.motivo, /por objetivos/)
+  })
+  test('el cron del bot real no abre el aviso de fin de un ID de la variable (lee el CRM y lo marca)', async () => {
+    const almacen = A.almacenBajasEnMemoria()
+    const env = { BOT_BAJAS_MODO: 'real', BOT_BAJAS_CAPACIDADES: 'baja_aviso_fin', BOT_ALTA_APROBADORES: '5491100000001', BOT_CLIENTES_SIN_FIN: 'A120' }
+    const deps = S.depsBajasReales({ env, almacen, leerClientes: async () => [{ ...SF, sinFin: undefined }], log: SILENCIO, dry: true })
+    const leidos = await deps.leerClientes()
+    assert.equal(leidos[0].sinFin, true)
+    assert.deepEqual(FIN.candidatosAvisoFin(leidos, '2026-11-01'), [])
+    const sinVar = S.depsBajasReales({ env: { ...env, BOT_CLIENTES_SIN_FIN: '' }, almacen, leerClientes: async () => [{ ...SF, sinFin: undefined }], log: SILENCIO, dry: true })
+    assert.equal(FIN.candidatosAvisoFin(await sinVar.leerClientes(), '2026-11-01').length, 1)
+  })
+  test('GET ?estado=1 informa cuántos hay (solo la cantidad, nunca los IDs)', async () => {
+    const e = await L.leerEstadoBajas({ env: { BOT_CLIENTES_SIN_FIN: 'A120,A121' }, almacen: A.almacenBajasEnMemoria() })
+    assert.equal(e.sinFin, 2); assert.ok(!JSON.stringify(e).includes('A121'))
+  })
+})
+
 describe('fin real, avisos, históricos y cruce de la llamada (puro)', () => {
   test('el fin real toma la mayor fecha (columna del CRM y Extensiones de Renovaciones) y, sin nada, Día 1 + 120', () => {
     assert.equal(FIN.finReal({ dia1: '2026-07-01', finPeriodo: '2026-10-29', periodos: [{ fin: '2026-10-29', meses: null, periodo: 0 }, { fin: '2026-11-19', meses: null, periodo: 1 }] }), '2026-11-19')
