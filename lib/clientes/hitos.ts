@@ -9,6 +9,11 @@
 //     (puntaje de 8 o más).
 //   · Un hito posterior hecho implica los anteriores: si grabó, hubo guiones y kickoff aunque no se sepa la fecha (se
 //     marca "hecho, sin fecha", inferido).
+//   · Respaldo (2/11/2026, pedido de CONSULTOR: un cliente con 4 meses adentro mostraba Kickoff y Guiones «Pendiente»): el estado
+//     de la tarea en ClickUp y la renovación también completan el registro («hecho, sin fecha»), pero marcados respaldo: se
+//     muestran en la tarjeta y NO mueven la etapa (ClickUp ya entra a la etapa con sus propias reglas en recorrido.ts).
+//   · Una fecha que es posterior a la de un hito que vino después no es «la primera vez» (el Doc de guiones da su última
+//     edición): se muestra el hito hecho, sin fecha.
 //   · etapaPorHitos: la etapa que sale del último hito hecho (la usa recorrido.ts junto con el resto de las reglas).
 import type { Etapa } from './recorrido'
 import type { Ymd } from './fechas'
@@ -34,6 +39,7 @@ export interface Hito {
   fuente: FuenteHito | null
   detalle: string           // "Doc «Guiones - X» de Drive", "Tanda 1 aprobada", "último crudo subido"…
   manual: HitoManual | null // lo anotado a mano (manda sobre lo automático)
+  respaldo?: boolean        // solo lo dice ClickUp o la renovación (o se deduce de eso): se muestra, pero no mueve la etapa
 }
 
 // Lo que cada fuente sabe del cliente (todo opcional: con una fuente caída, ese dato no está)
@@ -48,6 +54,7 @@ export interface EvidenciaHitos {
   // crudos / editados: el PRIMER archivo de cada carpeta (el registro es histórico: la primera vez que pasó)
   drive: { guion: Ymd | null; guionCreado: Ymd | null; crudos: Ymd | null; editados: Ymd | null } | null
   clickupGuiones: Ymd | null                       // primera subtarea "Guion N" hecha
+  clickupEstado?: string | null                    // estado de la tarea del cliente en ClickUp, en minúsculas ('verde', 'edición'…)
   lanzamiento: Ymd | null                          // Meta: el PRIMER lanzamiento que se conoce (la etapa usa el último, aparte)
   campanaActiva: boolean
   exito: Ymd | null                                // día del PRIMER puntaje de 8 o más (con la promesa no incumplida)
@@ -58,6 +65,17 @@ export interface EvidenciaHitos {
 const primera = (...xs: (Ymd | null | undefined)[]): Ymd | null => xs.filter((x): x is Ymd => !!x).sort()[0] ?? null
 const ultima = (...xs: (Ymd | null | undefined)[]): Ymd | null => xs.filter((x): x is Ymd => !!x).sort().pop() ?? null
 type Auto = { fecha: Ymd | null; fuente: FuenteHito; detalle: string } | null
+
+// El hito que el estado de ClickUp da por hecho: estar en Grabación quiere decir que los guiones ya están, en Edición que ya
+// grabó, en Creación de campaña que ya se editó, y en Campañas activas o un semáforo que ya se lanzó. Pausa y Final del
+// servicio no dicen hasta dónde llegó.
+const HITO_CLICKUP: Record<string, ClaveHito> = {
+  'en espera de tópicos': 'kickoff', guionizar: 'kickoff', 'opt. guiones': 'kickoff',
+  'grabación': 'guiones', 'edición': 'grabacion', 'creación de campaña': 'edicion',
+  'campañas activas': 'lanzamiento', verde: 'lanzamiento', amarillo: 'lanzamiento', rojo: 'lanzamiento',
+}
+// Del alta a la campaña, un hito hecho implica los anteriores (la revisión del cliente va antes de grabar)
+const CADENA: ClaveHito[] = ['alta', 'kickoff', 'guiones', 'revision', 'grabacion', 'edicion', 'lanzamiento']
 
 /** Lo que dicen las fuentes de cada hito (sin lo manual ni lo inferido). */
 function automatico(e: EvidenciaHitos): Record<ClaveHito, Auto> {
@@ -101,21 +119,46 @@ export function hitosDelCliente(e: EvidenciaHitos): Hito[] {
     if (m) return { clave, hecho: true, fecha: m.fecha ?? a?.fecha ?? null, fuente: 'manual', detalle: m.nota || 'Anotado a mano', manual: m }
     return a ? { clave, hecho: true, fecha: a.fecha, fuente: a.fuente, detalle: a.detalle, manual: null } : { clave, hecho: false, fecha: null, fuente: null, detalle: '', manual: null }
   })
-  // Inferidos: del alta a la campaña, un hito hecho implica los anteriores. Éxito y renovación NO infieren nada hacia atrás
+  const de = (k: ClaveHito) => base.find(h => h.clave === k)!
+  // Inferidos: del alta a la campaña, un hito hecho implica los anteriores. Éxito y renovación NO infieren la etapa hacia atrás
   // (un 9 en Seguimiento o una renovación no prueban que se grabó o se lanzó la tanda actual)
-  const cadena: ClaveHito[] = ['alta', 'kickoff', 'guiones', 'grabacion', 'edicion', 'lanzamiento']
-  const ultimoHecho = Math.max(...cadena.map((k, i) => (base.find(h => h.clave === k)!.hecho ? i : -1)))
-  return base.map(h => {
-    const i = cadena.indexOf(h.clave)
-    if (h.hecho || i < 0 || i >= ultimoHecho) return h
-    return { ...h, hecho: true, fuente: 'inferido', detalle: `Se deduce: ya hay «${NOMBRE_HITO[cadena[ultimoHecho]]}»` }
+  const ultimoHecho = Math.max(...CADENA.map((k, i) => (de(k).hecho ? i : -1)))
+  // Respaldo: hasta dónde llegó según ClickUp o la renovación (renovó = el primer período llegó a lanzar)
+  const hitoCU = e.clickupEstado ? HITO_CLICKUP[e.clickupEstado.trim().toLowerCase()] ?? null : null
+  const iCU = hitoCU ? CADENA.indexOf(hitoCU) : -1
+  const iRenovo = /^r\d/i.test(e.renovo.trim()) ? CADENA.indexOf('lanzamiento') : -1
+  const ultimoRespaldo = Math.max(iCU, iRenovo)
+  const conInferidos = base.map((h): Hito => {
+    const i = CADENA.indexOf(h.clave)
+    if (h.hecho || i < 0) return h
+    if (i < ultimoHecho) return { ...h, hecho: true, fuente: 'inferido', detalle: `Se deduce: ya hay «${NOMBRE_HITO[CADENA[ultimoHecho]]}»` }
+    if (i === iCU && iCU >= iRenovo) return { ...h, hecho: true, fuente: 'clickup', detalle: `En ClickUp: ${e.clickupEstado!.trim()}`, respaldo: true }
+    if (i === iRenovo) return { ...h, hecho: true, fuente: 'inferido', detalle: `Se deduce: renovó (${e.renovo.trim()})`, respaldo: true }
+    if (i < ultimoRespaldo) return { ...h, hecho: true, fuente: 'inferido', detalle: iCU >= iRenovo ? `Se deduce de ClickUp (${e.clickupEstado!.trim()})` : `Se deduce: renovó (${e.renovo.trim()})`, respaldo: true }
+    return h
   })
+  // El registro es de la PRIMERA vez: una fecha posterior a la de un hito que vino después no lo es (el Doc de guiones da su
+  // última edición, una carpeta puede tener un crudo nuevo). Se deja el hito hecho, sin fecha. Lo anotado a mano no se toca.
+  let siguiente = null as Ymd | null
+  const resultado = [...conInferidos]
+  for (let i = CADENA.length - 1; i >= 0; i--) {
+    const j = resultado.findIndex(h => h.clave === CADENA[i])
+    const h = resultado[j]
+    if (!h.hecho || !h.fecha || h.fuente === 'inferido') continue
+    if (siguiente && h.fecha > siguiente && h.fuente !== 'manual') {
+      resultado[j] = { ...h, fecha: null, detalle: `${h.detalle} · su fecha es posterior a lo que siguió: no es la primera vez` }
+      continue
+    }
+    siguiente = siguiente && siguiente < h.fecha ? siguiente : h.fecha
+  }
+  return resultado
 }
 
 /** La etapa que sale del último hito hecho del recorrido (null = ninguno además del alta). */
 // anotado: el día en que se anotó a mano (si el hito que da la etapa es manual): lo que está en curso le gana solo si es posterior
 export function etapaPorHitos(hitos: Hito[]): { etapa: Etapa; desde: Ymd | null; detalle: string; fuente: FuenteHito | null; anotado: Ymd | null } | null {
-  const h = (k: ClaveHito) => hitos.find(x => x.clave === k)!
+  // Lo que es solo respaldo (ClickUp, renovación) no cuenta para la etapa
+  const h = (k: ClaveHito): Hito => { const x = hitos.find(y => y.clave === k)!; return x.respaldo ? { ...x, hecho: false } : x }
   const conFecha = (k: ClaveHito) => (h(k).fuente === 'inferido' ? null : h(k).fecha)
   const anotadoEl = (k: ClaveHito): Ymd | null => {
     const c = h(k).manual?.cuando

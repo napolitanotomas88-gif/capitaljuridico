@@ -89,7 +89,7 @@ const armarCartera = cache(async (vista: VistaCRM) => {
         tanda: base.tanda ? { creado: base.tanda.creado ?? null, estado: base.tanda.estado, aprobada: base.tanda.aprobada ?? null, enviada: base.tanda.enviada ?? null, notaCliente: base.tanda.notaCliente ?? null } : null,
         videos: base.videos ? { crudos: base.videos.crudoRecibido ?? null, editados: base.videos.editado ?? null } : null,
         drive: carpeta ? { guion: carpeta.guion?.modificado ?? null, guionCreado: carpeta.guion?.creado ?? null, crudos: carpeta.crudos?.cantidad ? carpeta.crudos.primero ?? carpeta.crudos.ultimo : null, editados: carpeta.editados?.cantidad ? carpeta.editados.primero ?? carpeta.editados.ultimo : null } : null,
-        clickupGuiones: t?.guionesHechos.slice().sort()[0] ?? null,
+        clickupGuiones: t?.guionesHechos.slice().sort()[0] ?? null, clickupEstado: t?.estado ?? null,
         lanzamiento: m?.primerLanzamiento ?? base.meta?.ultimoLanzamiento ?? null,
         campanaActiva: !!base.meta?.activa,
         // Éxito por puntaje: el PRIMER 8 o más (con la promesa no incumplida)
