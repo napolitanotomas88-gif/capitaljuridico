@@ -16,7 +16,8 @@ export const DIAS_VENTANA_D02 = 10
 
 const db = () => { const u = process.env.DATABASE_URL?.trim(); return u ? neon(u, { fetchOptions: { signal: AbortSignal.timeout(8_000) } }) : null }
 
-/** Marca hecho el día 0 abierto del cliente (o el paso indicado). Devuelve cuántos pasos cambió. */
+/** Marca hecho el día 0 abierto del cliente (o el paso indicado). Sin paso indicado, nunca toca el día 0 de una regrabación
+ *  (ese pedido es otro y sigue saliendo aparte). Devuelve cuántos pasos cambió. */
 export async function marcarDia0Hecho(p: { idCrm: string; pasoId?: number | null; por: string; texto?: string }): Promise<number> {
   const q = db()
   if (!q) return 0
@@ -26,7 +27,7 @@ export async function marcarDia0Hecho(p: { idCrm: string; pasoId?: number | null
     ? await q`UPDATE cj_grab_seguimientos SET hecho = ${hecho}::jsonb, texto = ${(p.texto ?? '').slice(0, 4_000)}, version = version + 1, actualizado = now()
         WHERE id = ${p.pasoId} AND upper(id_crm) = ${id} AND escalon = 'dia0' AND estado = 'abierto' AND hecho IS NULL RETURNING id`
     : await q`UPDATE cj_grab_seguimientos SET hecho = ${hecho}::jsonb, texto = ${(p.texto ?? '').slice(0, 4_000)}, version = version + 1, actualizado = now()
-        WHERE upper(id_crm) = ${id} AND escalon = 'dia0' AND estado = 'abierto' AND hecho IS NULL RETURNING id`
+        WHERE upper(id_crm) = ${id} AND escalon = 'dia0' AND motivo <> 'regrabar' AND estado = 'abierto' AND hecho IS NULL RETURNING id`
   return r.length
 }
 
