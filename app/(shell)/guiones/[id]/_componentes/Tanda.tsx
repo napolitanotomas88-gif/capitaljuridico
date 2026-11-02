@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Boton } from '@/components/ui'
 import type { SeccionGuion } from '@/lib/bot/guiones/tipos'
@@ -36,6 +36,9 @@ export function Tanda({ idCliente, t, aprobador, soloLectura = false }: { idClie
   const [notaGuion, setNotaGuion] = useState('')
   const editable = !soloLectura && t.estado === 'a_revisar'
   const faltan = t.guiones.filter(g => !g.verificado).map(g => g.numero)
+  // Editados sin «✓ Verificado» (2/11, A164 y A165): guardar no publica, y sin el aviso la tanda quedaba frenada sin que nadie lo notara
+  const editadosSinVerificar = editable ? t.guiones.filter(g => g.editado && !g.verificado).map(g => g.numero) : []
+  const ancla = (n: number) => `guion-${t.id}-${n}`
 
   async function hacer(cuerpo: Record<string, unknown>): Promise<boolean> {
     if (ocupado || soloLectura) return false
@@ -60,11 +63,22 @@ export function Tanda({ idCliente, t, aprobador, soloLectura = false }: { idClie
       {t.docPendiente && <div className="cj-aviso" role="status"><p>Documento pendiente: {t.docPendiente}</p></div>}
       {(t.error || t.colgada) && <div className="cj-aviso" role="alert"><p>{t.error ?? 'Hace un rato que no avanza.'}</p>{!soloLectura && <Boton variante="secundario" disabled={ocupado} onClick={() => hacer({ accion: 'reanudar' })}>Retomar</Boton>}</div>}
       {!soloLectura && t.esperandoMac && aprobador && <div className="cj-aviso" role="alert"><p>Hace más de 2 horas que la Mac no la toma (¿está apagada?). Se puede armar con la API (~USD 2).</p><Boton variante="secundario" disabled={ocupado} onClick={() => hacer({ accion: 'armar_api' })}>Armar con la API</Boton></div>}
+      {editadosSinVerificar.length > 0 && (
+        <div className="cj-aviso gu-pendiente" role="status">
+          <p><strong>{editadosSinVerificar.length === 1 ? 'Hay 1 guion editado sin verificar' : `Hay ${editadosSinVerificar.length} guiones editados sin verificar`}</strong>{' '}
+            ({editadosSinVerificar.map((n, i) => <span key={n}>{i > 0 && ', '}<a className="gu-enlace" href={`#${ancla(n)}`}>{n}</a></span>)}).
+            Tildá «✓ Verificado» en cada uno y después dá el check final. Guardar solo no publica.</p>
+        </div>
+      )}
       {msj && <p className={msj.error ? 'gu-msj gu-msj--error' : 'gu-msj'} role="status">{msj.texto}</p>}
 
       <ol className="gu-lista">
-        {t.guiones.map(g => <GuionVista key={g.numero} g={g} editable={editable} aprobador={aprobador} ocupado={ocupado}
-          onGuardar={secciones => { void hacer({ accion: 'editar', numero: g.numero, secciones }) }}
+        {t.guiones.map(g => <GuionVista key={g.numero} id={ancla(g.numero)} g={g} editable={editable} aprobador={aprobador} ocupado={ocupado}
+          onGuardar={async secciones => {
+            const ok = await hacer({ accion: 'editar', numero: g.numero, secciones })
+            if (ok) setMsj({ texto: `Guion ${g.numero} guardado. Falta tildar «✓ Verificado»: guardar solo no publica.`, error: false })
+            return ok
+          }}
           onVerificar={si => { void hacer({ accion: 'verificar', numero: g.numero, si }) }} />)}
       </ol>
 
@@ -106,20 +120,34 @@ export function Tanda({ idCliente, t, aprobador, soloLectura = false }: { idClie
   )
 }
 
-function GuionVista({ g, editable, aprobador, ocupado, onGuardar, onVerificar }: {
-  g: TandaVista['guiones'][number]; editable: boolean; aprobador: boolean; ocupado: boolean
-  onGuardar: (s: { seccion: string; indicacion: string; texto: string }[]) => void
+function GuionVista({ id, g, editable, aprobador, ocupado, onGuardar, onVerificar }: {
+  id: string; g: TandaVista['guiones'][number]; editable: boolean; aprobador: boolean; ocupado: boolean
+  onGuardar: (s: { seccion: string; indicacion: string; texto: string }[]) => Promise<boolean>
   onVerificar: (si: boolean) => void
 }) {
   const [editando, setEditando] = useState(false)
   const [secs, setSecs] = useState(g.secciones.map(s => ({ seccion: s.seccion, indicacion: s.indicacion, texto: s.texto })))
+  // Recién guardado: el «✓ Verificado» de la cabecera queda enfocado (a mano, sin bajar hasta el pie del guion)
+  // (se espera al refresco: recién ahí el guion figura editado y sin verificar)
+  const recienGuardado = useRef(false)
+  const verificarRef = useRef<HTMLDivElement>(null)
+  const pendiente = editable && !!g.editado && !g.verificado
+  useEffect(() => {
+    if (!recienGuardado.current || !pendiente || !verificarRef.current) return
+    recienGuardado.current = false
+    verificarRef.current.querySelector('button')?.focus({ preventScroll: true })
+    verificarRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
   return (
-    <li className="gu-guion">
+    <li id={id} className={pendiente ? 'gu-guion gu-guion--pendiente' : 'gu-guion'}>
       <div className="gu-guion__cab">
         <span className="gu-num">{g.numero}</span>
         <h3>{g.titulo}</h3>
         <span className="gu-meta">{g.largo} caracteres{g.editado ? ` · editado por ${g.editado}` : ''}{g.estado !== 'listo' ? ' · corrigiendo' : ''}</span>
-        {g.verificado ? <span className="gu-verificado">✓ Verificado por {g.verificado}</span> : <span className="gu-meta gu-sin-verificar">Sin verificar</span>}
+        {g.verificado ? <span className="gu-verificado">✓ Verificado por {g.verificado}</span>
+          : pendiente ? <span className="gu-sello-pendiente">Editado · sin verificar</span>
+          : <span className="gu-meta gu-sin-verificar">Sin verificar</span>}
+        {pendiente && aprobador && !editando && <div ref={verificarRef} className="gu-verificar-ya"><Boton disabled={ocupado} onClick={() => onVerificar(true)}>✓ Verificado</Boton></div>}
       </div>
       {g.utileria.length > 0 && <p className="gu-meta">Para tener a mano: {g.utileria.join(', ')}</p>}
       {g.secciones.map((s, k) => (
@@ -143,11 +171,11 @@ function GuionVista({ g, editable, aprobador, ocupado, onGuardar, onVerificar }:
       )}
       <div className="gu-acciones">
         {/* Al abrir el editor se toma el texto de AHORA (el bot pudo haberlo corregido desde la última vez) */}
-        {editable && aprobador && !editando && (g.verificado
+        {editable && aprobador && !editando && !pendiente && (g.verificado
           ? <Boton variante="secundario" disabled={ocupado} onClick={() => onVerificar(false)}>Sacar verificación</Boton>
           : <Boton disabled={ocupado} onClick={() => onVerificar(true)}>✓ Verificado</Boton>)}
         {editable && !editando && <Boton variante="secundario" onClick={() => { setSecs(g.secciones.map(s => ({ seccion: s.seccion, indicacion: s.indicacion, texto: s.texto }))); setEditando(true) }}>Editar</Boton>}
-        {editando && <><Boton disabled={ocupado} onClick={() => { onGuardar(secs); setEditando(false) }}>Guardar</Boton><Boton variante="secundario" onClick={() => { setEditando(false); setSecs(g.secciones.map(s => ({ seccion: s.seccion, indicacion: s.indicacion, texto: s.texto }))) }}>Cancelar</Boton></>}
+        {editando && <><Boton disabled={ocupado} onClick={async () => { if (await onGuardar(secs)) { recienGuardado.current = true; setEditando(false) } }}>Guardar</Boton><Boton variante="secundario" onClick={() => { setEditando(false); setSecs(g.secciones.map(s => ({ seccion: s.seccion, indicacion: s.indicacion, texto: s.texto }))) }}>Cancelar</Boton></>}
       </div>
     </li>
   )
