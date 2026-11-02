@@ -3,6 +3,8 @@
 // código: se editan en Vercel (ver docs/ACCESO-Y-ROLES.md). Una cuenta que no figura acá no entra, aunque Google la
 // reconozca. La entrada inválida se ignora con un aviso en el servidor que NO incluye mails ni el contenido de la variable.
 import { MATRIZ_ROLES, SECCIONES, SECCIONES_ASIGNABLES, esRol, type Rol, type Seccion } from './roles'
+import { normalizarEmail } from './email'
+import { idPortalDeMail } from './portal'
 
 /** Persona de la lista fija AUTH_USUARIOS (Vercel). */
 export type Usuario = { readonly email: string; readonly nombre: string; readonly rol: Rol }
@@ -17,26 +19,14 @@ export type Acceso = Usuario & {
   readonly secciones: readonly Seccion[]
   /** Pestañas del CRM de ventas que puede abrir (además de las que le dé AUTH_VENTAS_PESTANAS). Vacío para los administradores: ven todas. */
   readonly pestanas: readonly string[]
-  readonly origen: 'vercel' | 'planilla'
+  readonly origen: 'vercel' | 'planilla' | 'portal'
+  /** Solo el rol 'cliente' (portal, 2/11/2026): el ID del CRM al que está atado su mail (PORTAL_CLIENTES_JSON). */
+  readonly clienteId?: string | null
 }
 
-const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const SOLO_ASCII_IMPRIMIBLE = /^[\x21-\x7e]+$/
-const LARGO_MAX_EMAIL = 254
 const LARGO_MAX_NOMBRE = 80
 
-/**
- * Mismo criterio en todos lados: sin espacios y en minúsculas. Solo ASCII imprimible, y se controla ANTES de pasar a
- * minúsculas: toLowerCase() convierte el signo Kelvin (U+212A) en una "k" común y haría pasar por listado a un mail
- * distinto. Fallar cerrado cuesta poco: las cuentas de Google de esta lista no usan caracteres fuera de ASCII.
- */
-export function normalizarEmail(valor: unknown): string | null {
-  if (typeof valor !== 'string') return null
-  const recortado = valor.trim()
-  if (!SOLO_ASCII_IMPRIMIBLE.test(recortado)) return null
-  const email = recortado.toLowerCase()
-  return email.length <= LARGO_MAX_EMAIL && RE_EMAIL.test(email) ? email : null
-}
+export { normalizarEmail }
 
 /**
  * Parsea AUTH_USUARIOS. Función pura (el aviso se inyecta para poder probarla). Reglas:
@@ -75,7 +65,7 @@ export function parsearUsuarios(
     if (!mail) return avisar(`[auth] AUTH_USUARIOS: entrada ${n} ignorada (mail inválido)`)
     const nom = typeof nombre === 'string' ? nombre.trim() : ''
     if (!nom || nom.length > LARGO_MAX_NOMBRE) return avisar(`[auth] AUTH_USUARIOS: entrada ${n} ignorada (nombre inválido)`)
-    if (!esRol(rol) || rol === 'acceso') return avisar(`[auth] AUTH_USUARIOS: entrada ${n} ignorada (rol inválido)`)
+    if (!esRol(rol) || rol === 'acceso' || rol === 'cliente') return avisar(`[auth] AUTH_USUARIOS: entrada ${n} ignorada (rol inválido)`)
     const lista = porEmail.get(mail) ?? []
     lista.push(Object.freeze({ email: mail, nombre: nom, rol }))
     porEmail.set(mail, lista)
@@ -125,7 +115,11 @@ export function buscarUsuario(email: unknown): Acceso | null {
   if (!mail) return null
   const fija = cargar().get(mail)
   if (fija) return deLaListaFija(fija)
-  return desdePlanilla.get(mail) ?? null
+  const dePlanilla = desdePlanilla.get(mail)
+  if (dePlanilla) return dePlanilla
+  // Portal del cliente (2/11/2026): solo si NO es del equipo. Sin secciones; su único lugar es /clientes/portal/<ID>.
+  const clienteId = idPortalDeMail(mail)
+  return clienteId ? Object.freeze({ email: mail, nombre: 'Cliente', rol: 'cliente' as const, admin: false, secciones: [], pestanas: [], origen: 'portal' as const, clienteId }) : null
 }
 
 /** Todas las personas con acceso: primero la lista fija de Vercel y después las de la planilla (sin repetir mails). */

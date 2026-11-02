@@ -10,6 +10,8 @@ export function enlacesDelCliente(quien: Quien, id: string): { etiqueta: string;
     { etiqueta: 'Kickoff', href: `/clientes/${enc}/kickoff`, icono: 'tarea', ok: puedeVer(quien, 'clientes') },
     { etiqueta: 'Guiones', href: `/guiones/${enc}`, icono: 'guiones', ok: puedeVer(quien, 'guiones') },
     { etiqueta: 'Edición', href: `/clientes/edicion/cliente/${enc}`, icono: 'edicion', ok: puedeVer(quien, 'edicion') },
+    // Portal del cliente (2/11/2026): lo que ve el cliente (objetivo, plan, guiones, proceso) y su panel de edición
+    { etiqueta: 'Portal del cliente', href: `/clientes/portal/${enc}`, icono: 'clientes', ok: puedeVer(quien, 'clientes') },
   ].filter((e) => e.ok).map(({ etiqueta, href, icono }) => ({ etiqueta, href, icono }))
 }
 

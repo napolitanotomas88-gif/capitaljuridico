@@ -41,7 +41,8 @@ const MENSAJES: Record<CodigoError, string> = {
 }
 
 export default async function EntrarPage({ searchParams }: Props) {
-  const sesion = await obtenerSesion()
+  // incluirCliente: el cliente del portal que ya entró va directo a su portal (rutaInicial)
+  const sesion = await obtenerSesion({ incluirCliente: true })
   if (sesion) {
     const destino = rutaInicial(sesion)
     // Sin ninguna sección no hay a dónde mandarla: se muestra el aviso en vez de redirigir en bucle

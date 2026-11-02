@@ -12,24 +12,28 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { asegurarUsuarios } from './accesos'
 import { COOKIE_SESION } from './cookie'
-import { sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
+import { esSesionCliente, sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
 import { destinoSinPermiso } from './hubClientes'
 import { puedeVer, rutaInicial, type Seccion } from './roles'
 
 export type { Sesion }
 
-export async function obtenerSesion(): Promise<Sesion | null> {
+/**
+ * `incluirCliente`: por defecto la sesión de un CLIENTE (portal, lib/auth/portal.ts) vale como "sin sesión" para todo el
+ * Despacho. Solo lo piden a propósito el marco, el hub de Clientes, /entrar y la página del portal.
+ */
+export async function obtenerSesion(opciones: { incluirCliente?: boolean } = {}): Promise<Sesion | null> {
   // Siempre dinámico: la sesión depende de la cookie de la petición
   await connection()
 
   // La lista de la planilla de Accesos se renueva (caché de 60 s) antes de decidir quién es
   await asegurarUsuarios()
   const real = sesionDesdeCookie((await cookies()).get(COOKIE_SESION)?.value)
-  if (real) return real
-
   // Solo fuera de producción. Aunque el servidor de desarrollo escuche solo en 127.0.0.1, esto frena a quien llegue
   // por otro host (red, túnel). Es la misma función que usa el proxy.
-  return sesionDePrueba(await headers())
+  const sesion = real ?? sesionDePrueba(await headers())
+  if (esSesionCliente(sesion) && !opciones.incluirCliente) return null
+  return sesion
 }
 
 /**

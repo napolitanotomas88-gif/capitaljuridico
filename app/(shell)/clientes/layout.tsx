@@ -13,8 +13,11 @@ import { obtenerSesion } from '@/lib/auth/sesion'
 // cobros), edicion/layout.tsx pide 'edicion' y referidos/layout.tsx pide 'referidos'. Guiones (/guiones) y Anuncios
 // (/anuncios) viven fuera de /clientes y dibujan las mismas pestañas desde sus layouts. Tabla completa: lib/auth/hubClientes.ts.
 export default async function ClientesHubLayout({ children }: { children: React.ReactNode }) {
-  const sesion = await obtenerSesion()
+  const sesion = await obtenerSesion({ incluirCliente: true })
   if (!sesion) redirect('/entrar')
+  // Portal del cliente (2/11/2026): el cliente no ve pestañas. Su única página (/clientes/portal/<ID>) se protege sola
+  // (accesoPortal); cualquier otra que pida la manda a su portal (exigirAcceso → /entrar → rutaInicial).
+  if (sesion.rol === 'cliente') return <div className="cj-hub-cuerpo">{children}</div>
   const pestanas = pestanasVisibles(sesion)
   if (pestanas.length === 0) redirect(rutaInicial(sesion))
   return (

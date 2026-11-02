@@ -6,7 +6,7 @@ Este repositorio no se autoconfigura contra una operación real. No incluye valo
 
 | Grupo | Variables o contrato |
 |---|---|
-| Sesión | `AUTH_SECRET`, `AUTH_USUARIOS`, `AUTH_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Sesión | `AUTH_SECRET`, `AUTH_USUARIOS`, `AUTH_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PORTAL_CLIENTES_JSON` (portal del cliente: `{"mail":"ID"}`, ver ACCESO-Y-ROLES.md) |
 | Google servidor | `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`, permisos explícitos sobre los recursos requeridos |
 | Base | `DATABASE_URL`; seleccionar y verificar el destino antes de importar mutadores |
 | CRM y Finanzas | `SHEET_ID_CLIENTES`, `SHEET_ID_FINANZAS`, `SHEET_ID_VENTAS`, `SHEET_ID_VENTAS_ORIGINAL`, `SHEET_ID_GUIONES` |

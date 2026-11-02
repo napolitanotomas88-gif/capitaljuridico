@@ -2,15 +2,19 @@
 // Lo usan el proxy (primera barrera) y las rutas /api de datos (segunda barrera, por si el proxy no corre o cambia su
 // matcher), así los dos deciden con exactamente la misma lógica. Sin imports de Next: se prueba con node:test.
 import { COOKIE_SESION, igualesSeguro, leerCookie } from './cookie'
-import { sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
+import { esSesionCliente, sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
 import type { Seccion } from './roles'
 import { ERROR_SIN_PERMISO, ERROR_SIN_SESION, veredicto, type Contexto } from './rutas'
 
 type Cabeceras = { get(nombre: string): string | null }
 
-/** Sesión de Google de la petición (cookie cj_sesion) o, solo en desarrollo y desde esta compu, el usuario de prueba. */
-export function sesionDePeticion(headers: Cabeceras): Sesion | null {
-  return sesionDesdeCookie(leerCookie(headers.get('cookie'), COOKIE_SESION)) ?? sesionDePrueba(headers)
+/**
+ * Sesión de Google de la petición (cookie cj_sesion) o, solo en desarrollo y desde esta compu, el usuario de prueba.
+ * La de un CLIENTE (portal) vale como "sin sesión" salvo que se pida `incluirCliente` (solo el proxy, para redirigirlo).
+ */
+export function sesionDePeticion(headers: Cabeceras, opciones: { incluirCliente?: boolean } = {}): Sesion | null {
+  const sesion = sesionDesdeCookie(leerCookie(headers.get('cookie'), COOKIE_SESION)) ?? sesionDePrueba(headers)
+  return esSesionCliente(sesion) && !opciones.incluirCliente ? null : sesion
 }
 
 /**
@@ -27,7 +31,7 @@ export function accesoMaquina(headers: Cabeceras): boolean {
 /** Quién pide. Nunca lanza: ante cualquier falla inesperada se lo trata como anónimo (cerrado). */
 export function contextoDePeticion(headers: Cabeceras): Contexto {
   try {
-    return { sesion: sesionDePeticion(headers), maquina: accesoMaquina(headers) }
+    return { sesion: sesionDePeticion(headers, { incluirCliente: true }), maquina: accesoMaquina(headers) }
   } catch {
     return { sesion: null, maquina: false }
   }
