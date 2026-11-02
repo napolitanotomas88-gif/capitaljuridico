@@ -415,6 +415,7 @@ describe('WhatsApp al grupo Ventas del cliente', async () => {
     assert.deepEqual(W.elegirGrupoVentas('Dra. Laura Cristina Ortiz Molina', gs), { id: '2@g.us', nombre: 'Ventas - Laura Ortiz Molina' })
     assert.equal(W.elegirGrupoVentas('Estudio Jurídico', gs), null, 'solo palabras genéricas')
     assert.equal(W.elegirGrupoVentas('Laura Pérez', gs), null, 'dos candidatos')
+    assert.equal(W.elegirGrupoVentas('Juan Gómez', gs), null, 'una sola palabra en común no alcanza')
   })
   test('grupo fijado a mano por cuenta (nombres cortos como «Ventas - FlorT»)', () => {
     assert.equal(W.grupoFijado('act_1', { ANUNCIOS_WHATSAPP_GRUPOS: '{"act_1":"120363000000000001@g.us"}' }), '120363000000000001@g.us')
@@ -423,7 +424,9 @@ describe('WhatsApp al grupo Ventas del cliente', async () => {
   })
   test('apagado por defecto; con la lista de prueba, solo esas cuentas', () => {
     assert.equal(W.permitidaWhatsApp('act_1', {}), false)
-    assert.equal(W.permitidaWhatsApp('act_1', { ANUNCIOS_WHATSAPP: 'real' }), true)
+    assert.equal(W.permitidaWhatsApp('act_1', { ANUNCIOS_WHATSAPP: 'real' }), false, 'sin lista no habilita a nadie')
+    assert.equal(W.permitidaWhatsApp('act_1', { ANUNCIOS_WHATSAPP: 'real', ANUNCIOS_WHATSAPP_SOLO: 'act_mal, 123' }), false, 'lista mal escrita = nadie')
+    assert.equal(W.permitidaWhatsApp('act_1', { ANUNCIOS_WHATSAPP: 'real', ANUNCIOS_WHATSAPP_SOLO: 'todas' }), true)
     assert.equal(W.permitidaWhatsApp('act_1', { ANUNCIOS_WHATSAPP: 'real', ANUNCIOS_WHATSAPP_SOLO: 'act_2' }), false)
     assert.equal(W.permitidaWhatsApp('act_2', { ANUNCIOS_WHATSAPP: 'real', ANUNCIOS_WHATSAPP_SOLO: 'act_2, act_3' }), true)
   })

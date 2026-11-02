@@ -7,6 +7,7 @@ import { leerOptimizaciones, registrarOptimizacion } from '@/lib/anuncios/optimi
 import { enviarDiscord, idDiscord } from '@/lib/fathomAnuncios/discord'
 import { leerDetalles } from './metaDetalle'
 import { elegirGrupoVentas, enviarAlGrupo, grupoFijado, gruposDelBot, permitidaWhatsApp } from './whatsapp'
+import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
 import { anotarWhatsapp, avisoReciente, avisosRegistrados, marcarAvisoDudoso, marcarAvisoEnviado, reclamarAviso, soltarAviso, videosAvisadosHasta } from './registro'
 import { leerEditados } from './editadosDrive'
 import { avisarVideosNuevos, type DepsVideos, type ResultadoVideos } from './videos'
@@ -40,11 +41,13 @@ export function depsSeguimiento(): DepsSeguimiento {
       const ids = await enviarDiscord(webhook, [texto], valentino ? [valentino] : [], { deadline })
       return ids[0] ?? ''
     },
-    whatsapp: { permitida: c => permitidaWhatsApp(c), grupos: () => gruposDelBot(), elegir: (cliente, grupos, cuenta) => {
-      // Fijado a mano: tiene que estar entre los grupos del bot (si no, el bot no está adentro y no puede escribir)
+    // WhatsApp seguro: al cliente solo de 9 a 20 h de Argentina (fuera de horario el texto va a Valentino para pegar)
+    whatsapp: { permitida: c => permitidaWhatsApp(c) && enHorario(Date.now()), grupos: () => gruposDelBot(), elegir: (cliente, grupos, cuenta) => {
+      // Fijado a mano: tiene que estar entre los grupos del bot (si no, el bot no está adentro y no puede escribir).
+      // Si la cuenta tiene grupo fijo y el bot no está ahí, NO se busca por nombre (podría caer en el grupo de otro cliente).
       const id = grupoFijado(cuenta)
-      const g = id ? grupos.find(x => x.id === id) : null
-      return g?.id ? { id: g.id, nombre: g.name ?? g.id } : elegirGrupoVentas(cliente, grupos)
+      if (id) { const g = grupos.find(x => x.id === id); return g?.id ? { id: g.id, nombre: g.name ?? g.id } : null }
+      return elegirGrupoVentas(cliente, grupos)
     }, enviar: enviarAlGrupo, anotar: anotarWhatsapp },
     valentino,
     ahora: () => Date.now(),

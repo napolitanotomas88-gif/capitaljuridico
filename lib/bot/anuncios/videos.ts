@@ -258,7 +258,11 @@ export async function avisarVideosNuevos(t: Pick<Tablero, 'filas' | 'porLanzar'>
     const fila = c?.fila ?? null, pl = c?.pl ?? null
     let texto = textoVideos(s, fila, pl, deps.valentino, deps.ahora())
     const cliente = fila?.cliente ?? pl?.cliente ?? s.cliente
-    if (deps.clienteOperativo && !await deps.clienteOperativo(pl?.kickoff?.idCrm ?? null, fila?.clienteCRM ?? cliente)) continue
+    // Un cliente que no se puede cruzar con el CRM (nombre distinto, duplicado) queda afuera solo él: no corta la corrida
+    if (deps.clienteOperativo) {
+      try { if (!await deps.clienteOperativo(pl?.kickoff?.idCrm ?? null, fila?.clienteCRM ?? cliente)) continue }
+      catch (e) { errores.push(`CRM de «${cliente}»: ${motivo(e)}`); continue }
+    }
     if (op.dry) { avisos.push({ clave: s.clave, cliente, texto, estado: 'dry' }); continue }
     if (op.deadline && deps.ahora() > op.deadline - RESERVA_MS) { avisos.push({ clave: s.clave, cliente, texto, estado: 'sin_tiempo' }); continue }
     try {

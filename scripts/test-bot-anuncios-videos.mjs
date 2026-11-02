@@ -165,6 +165,12 @@ describe('avisarVideosNuevos', () => {
     assert.equal((await V.avisarVideosNuevos(t, r2.deps, { desde: DESDE })).avisos[0].estado, 'dudoso')
     assert.equal(r2.log.at(-1)[0], 'dudoso')
   })
+  test('un cliente que no se cruza con el CRM queda afuera solo él: no corta la corrida', async () => {
+    const a = base({ clienteOperativo: async () => { throw new Error('No se pudo verificar el estado actual del cliente en el CRM.') } })
+    const r = await V.avisarVideosNuevos(t, a.deps, { desde: DESDE })
+    assert.equal(r.avisos.length, 0); assert.ok(r.carpetas > 0); assert.match(r.errores[0], /^CRM de «/)
+    assert.deepEqual(a.log, [])
+  })
   test('Drive o la base caídos: no manda nada y lo dice', async () => {
     const r = await V.avisarVideosNuevos(t, base({ editados: async () => { throw new Error('403') } }).deps, { desde: DESDE })
     assert.equal(r.avisos.length, 0); assert.match(r.errores[0], /^drive/)

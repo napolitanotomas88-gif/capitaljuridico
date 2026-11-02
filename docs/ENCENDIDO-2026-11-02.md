@@ -34,6 +34,24 @@ nada de crear grupos sumando clientes (`BOT_COMUNIDAD_AGREGAR_DIRECTO` no se toc
   «enviada» y no se crea el aviso de entrega manual; si no sale (apagado, fuera de horario, sin grupo, error), queda el aviso
   a Aylu/Gero como siempre. Un «reenviar» de una tanda aprobada antes del corte nunca le escribe al cliente.
 
+## Correcciones del mismo día (después de las dos revisiones)
+
+- **g01/g03 (videos nuevos y borradores):** un cliente que no se podía cruzar con el CRM por nombre cortaba toda la corrida
+  («No se pudo verificar el estado actual del cliente en el CRM»). Ahora queda afuera solo ese cliente y aparece en `errores`.
+  Lo mismo en el seguimiento de g02/g04: antes un nombre sin cruce dejaba el seguimiento entero sin correr.
+- **g04 (WhatsApp al grupo Ventas):** la alerta diaria pasa de 8:45 a **9:05** (cron `5 12 * * *` UTC). Fuera de 9 a 20 h no le
+  escribe al cliente (el texto va a Valentino). `ANUNCIOS_WHATSAPP_SOLO` vacía o mal escrita ya no habilita a todas las cuentas
+  (para todas hay que escribir `todas`). Si la cuenta tiene grupo fijo y el bot no está ahí, no busca otro grupo por nombre; la
+  búsqueda por nombre exige 2 palabras del cliente.
+- **f04 (video final):** fuera de 9 a 20 h la entrega queda «en espera» y el vigía la manda al abrir el horario (sigue el tope
+  de 24 h). Tope diario `EDICION_WHATSAPP_MAX_DIA` (por defecto 8 mensajes por día de Argentina).
+- **Éxito:** se sumó `exito_mensaje_cliente` a `BOT_EXITO_CAPACIDADES` (con el OK en Verificaciones el mensaje de testimonio sí
+  sale al General). Un OK fuera de 9 a 20 h no escribe: el pedido sigue abierto y el bot pide repetir el OK en horario.
+- **Altas:** `BOT_ALTA_MAX_COMUNIDADES_DIA` recargada en 1.
+
+Para apagar estas dos variables nuevas: `printf 'exito_pedido_ok,exito_testimonio,encuesta_mensual' | vercel env add BOT_EXITO_CAPACIDADES production --force`
+y `printf '0' | vercel env add EDICION_WHATSAPP_MAX_DIA production --force` (0 = no sale ninguna entrega).
+
 ## Cómo apagar
 
 Cada pieza por separado (después hace falta un redeploy de producción, o el próximo merge a main):

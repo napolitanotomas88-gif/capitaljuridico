@@ -78,3 +78,7 @@ test('la ficha conserva la espera y explica que la entrega anterior requiere rev
   const t = tarjetaDesdeFila({ id: 'tarjeta_antigua', nombre: 'Video QA', etapa: 'revisión', version: 3, actualizado: new Date(ahora), espera_whatsapp: true, revision_entrega: true })
   assert.equal(t.espera_whatsapp, true); assert.match(t.avisos.join(' '), /nueva revisión de Aylu o Tomás/)
 })
+test('fuera de 9 a 20 h de Argentina la entrega queda en espera', () => {
+  const noche = Date.parse('2026-10-29T23:30:00Z')   // 20:30 en Argentina
+  assert.throws(() => exigirEntregaTarjetasHabilitada([salida('n', 'Z001', '2026-10-29T23:00:00Z')], env, noche), e => e.antesEnvio === true && /horario/.test(e.message))
+})

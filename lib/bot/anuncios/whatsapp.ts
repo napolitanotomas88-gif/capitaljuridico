@@ -2,8 +2,8 @@
 // Decisión de Tomás (25/10/2026): los textos para el cliente (campaña al aire, optimización hecha, ganadores elegidos) van
 // al grupo «Ventas - <cliente>» de su comunidad («<Nombre> - C.J», lib/bot/alta/motor/comunidad.ts), donde también está
 // Valentino. Probar primero con UN cliente.
-//   · APAGADO por defecto: solo sale con ANUNCIOS_WHATSAPP=real. Con ANUNCIOS_WHATSAPP_SOLO=<act_…,act_…> sale solo para
-//     esas cuentas (la prueba controlada). Sin eso, el texto sigue yendo a Valentino para que lo pegue.
+//   · APAGADO por defecto: solo sale con ANUNCIOS_WHATSAPP=real Y ANUNCIOS_WHATSAPP_SOLO=<act_…,act_…> (esas cuentas) o
+//     «todas». Lista vacía o mal escrita = nadie. Fuera de 9 a 20 h (Argentina) no sale: el texto va a Valentino.
 //   · El grupo se busca entre los del número del bot (GET /groups): nombre que empieza con «Ventas» y contiene una palabra
 //     del nombre del cliente (de 3 letras o más). Tiene que haber uno solo; si hay cero o varios, no se manda (y a Valentino
 //     le llega el texto para pegar, con el motivo). El bot solo está en las comunidades que armó él (clientes nuevos):
@@ -14,13 +14,13 @@ import { crearClienteWhapi } from '../whapi/cliente'
 import { tokenWhapi } from '../whapi/config'
 
 export const whatsappEncendido = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP?.trim() === 'real'
-/** Cuentas de la prueba controlada (vacío = todas). */
+/** Cuentas habilitadas (ANUNCIOS_WHATSAPP_SOLO). Desde el 2/11 la lista vacía o mal escrita NO habilita a nadie:
+ *  para abrirlo a todas las cuentas hay que escribir «todas» a propósito. */
 export const cuentasPermitidas = (env: NodeJS.ProcessEnv = process.env): Set<string> =>
   new Set((env.ANUNCIOS_WHATSAPP_SOLO ?? '').split(',').map(s => s.trim()).filter(s => /^act_\d+$/.test(s)))
-export const permitidaWhatsApp = (cuenta: string, env: NodeJS.ProcessEnv = process.env): boolean => {
-  const solo = cuentasPermitidas(env)
-  return whatsappEncendido(env) && (!solo.size || solo.has(cuenta))
-}
+export const todasLasCuentas = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP_SOLO?.trim().toLowerCase() === 'todas'
+export const permitidaWhatsApp = (cuenta: string, env: NodeJS.ProcessEnv = process.env): boolean =>
+  whatsappEncendido(env) && (todasLasCuentas(env) || cuentasPermitidas(env).has(cuenta))
 
 /** El grupo fijado a mano para la cuenta (ANUNCIOS_WHATSAPP_GRUPOS), o null. */
 export function grupoFijado(cuenta: string, env: NodeJS.ProcessEnv = process.env): string | null {
@@ -40,7 +40,8 @@ export function elegirGrupoVentas(cliente: string, grupos: { id?: string; name?:
   if (!palabras.length) return null
   const candidatos = grupos.filter(g => g.id && /@g\.us$/.test(g.id) && g.name && /^\s*ventas\b/i.test(g.name)
     && !/^\s*ventas\s*c\.?\s*j\.?\s*$/i.test(g.name)   // «Ventas C.J.» es el grupo interno del equipo
-    && palabras.some(w => normal(g.name!).includes(w)))
+    // Con dos palabras o más del nombre, tienen que coincidir al menos dos («Juan» solo no alcanza)
+    && palabras.filter(w => normal(g.name!).includes(w)).length >= Math.min(2, palabras.length))
   return candidatos.length === 1 ? { id: candidatos[0].id!, nombre: candidatos[0].name! } : null
 }
 

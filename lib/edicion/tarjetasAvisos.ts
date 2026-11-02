@@ -10,6 +10,7 @@ import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
 import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { guardiaWhapi } from '@/lib/bot/whapi/salud'
 import { enviarDiscord } from '@/lib/fathomAnuncios/discord'
+import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
 import { mencionesEdicion, urlDespacho, webhookAds, webhookEdicion } from './avisos/entorno'
 import { mailsDelRol } from './permisos'
 import { modoEdicion, avisosReales } from './config'
@@ -47,6 +48,8 @@ export function exigirEntregaTarjetasHabilitada(grupo: SalidaTarjeta[], env: Rec
   const corte = Date.parse(desde)
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(desde) || !Number.isFinite(corte) || new Date(corte).toISOString().replace('.000Z', 'Z') !== desde.replace('.000Z', 'Z') || corte > ahora) throw antesEnvio('Entrega en espera: falta una fecha de habilitación válida de WhatsApp de Edición.')
   if (!grupo.length || grupo.some(s => s.canal !== 'cliente' || !s.datos.id_crm || s.datos.id_crm !== grupo[0].datos.id_crm)) throw antesEnvio('Entrega en espera: el lote no corresponde a un único cliente.')
+  // WhatsApp seguro: al cliente solo de 9 a 20 h de Argentina. Queda en espera y el vigía lo retoma dentro del horario.
+  if (!enHorario(ahora)) throw antesEnvio('Entrega en espera: fuera del horario de WhatsApp (9 a 20 h).')
   for (const s of grupo) {
     const fecha = Date.parse(s.evento_fecha ?? '')
     if (!Number.isFinite(fecha) || fecha < corte || fecha > ahora || ahora - fecha > MAX_ANTIGUEDAD_ENTREGA_MS) throw Object.assign(antesEnvio('Entrega anterior a la habilitación o de más de 24 horas: requiere una nueva revisión de Aylu o Tomás. El aviso se conserva en espera.'), { requiereRevision: true })
@@ -87,6 +90,17 @@ async function discordReal(grupo: SalidaTarjeta[], texto: string): Promise<strin
   const ids = await enviarDiscord(webhook, [contenido], id ? [id] : [], { esperas5xx: [], reintentos429: 0, timeoutMs: 12000 })
   return ids[0] || null
 }
+/** Tope diario de entregas al cliente (mensajes, no videos). EDICION_WHATSAPP_MAX_DIA, por defecto 8. Día de Argentina. */
+export const MAX_ENTREGAS_DIA_POR_DEFECTO = 8
+export function maxEntregasDia(env: Record<string, string | undefined> = process.env): number {
+  const n = Number(env.EDICION_WHATSAPP_MAX_DIA)
+  return Number.isInteger(n) && n >= 0 && n <= 50 ? n : MAX_ENTREGAS_DIA_POR_DEFECTO
+}
+async function exigirTopeDiarioEntregas(): Promise<void> {
+  const q = neon(process.env.DATABASE_URL!, { fetchOptions: { signal: AbortSignal.timeout(8000) } })
+  const r = await q`SELECT count(DISTINCT COALESCE(mensaje_id, id::text))::int n FROM cj_edicion_tarjetas_outbox WHERE canal='cliente' AND estado IN ('enviado','dudoso') AND enviado >= (date_trunc('day', now() AT TIME ZONE 'America/Argentina/Buenos_Aires') AT TIME ZONE 'America/Argentina/Buenos_Aires')`
+  if (Number(r[0]?.n ?? 0) >= maxEntregasDia()) throw antesEnvio(`Entrega en espera: se alcanzó el tope diario de ${maxEntregasDia()} entregas por WhatsApp.`)
+}
 async function clienteReal(grupo: SalidaTarjeta[], texto: string): Promise<string | null> {
   exigirEntregaTarjetasHabilitada(grupo)
   const token = tokenWhapi()
@@ -99,6 +113,7 @@ async function clienteReal(grupo: SalidaTarjeta[], texto: string): Promise<strin
   await exigirClienteNoArchivado(idCrm, await leerArchivados({ forzar: true }))
   for (const s of grupo) if (!salidaTarjetaVigente(s, await leerTarjeta(s.tarjeta_id))) throw antesEnvio('La revisión cambió antes del envío; se volverá a evaluar la cola.')
   exigirEntregaTarjetasHabilitada(grupo)
+  await exigirTopeDiarioEntregas()
   const r = await crearClienteWhapi({ token }).enviarTexto({ chatId: chat.id, texto })
   // Evidencia de envío y constancia del motor, sin modificar la aprobación ni enviar eventos antiguos otra vez.
   await transaccionTarjetas(async c => {
