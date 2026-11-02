@@ -231,7 +231,9 @@
   .cj-noche[aria-checked='true'] .cj-noche__llave > span { transform: translateX(16px); }
   .cj-noche--compacto { justify-content: center; padding: 0; }
   .cj-noche--compacto .cj-nav__txt, .cj-noche--compacto .cj-noche__llave { display: none; }
-  .cj-hoja .cj-noche { min-height: 52px; padding: 0 8px; margin: 4px 0; color: #f2eadc; font-size: 15px; }
+  .cj-hoja .cj-noche { min-height: 52px; padding: 0 8px; margin: 4px 0; color: #f2eadc; font-size: 15px; gap: 14px; }
+  /* Mismo ícono y separación que los enlaces de la hoja: el texto queda alineado con «Trazabilidad», «Finanzas»… */
+  .cj-hoja .cj-noche .cj-icono { width: 22px; height: 22px; }
   @media (max-width: 768px) { .cj-lateral__pie { display: none; } }
 
   /* ── Celular: barra de arriba, barra de pestañas y hoja «Más» de cristal ── */
@@ -572,6 +574,62 @@
   :root:has(.cj-cristal) .rc-capa .rc-doc { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.14); }
   :root:has(.cj-cristal) .rc-capa .rc-saltos-marco { --rc-saltos-fondo: rgba(4, 24, 20, 0.96); }
   :root:has(.cj-cristal) .rc-capa .rc-saltos-flecha { background: rgba(30, 58, 50, 0.96); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+
+  /* ── Revisión de UX (2/11/2026) ── */
+  /* Menú «Atajos y pendientes»: los accesos rápidos tenían fondo blanco fijo (#fffdf8) con texto marfil: no se leían (1,04:1) */
+  .cj-cristal .mr-accion { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.26); color: #fbf8f2; font-weight: 500; }
+  .cj-cristal .mr-accion:hover { background: rgba(255, 255, 255, 0.12); border-color: #eed6a8; }
+  /* Cifras grandes en negrita también dentro de la tarjeta del cliente (va en un portal, fuera de .cj-cristal) y en Anuncios */
+  :root:has(.cj-cristal) .rc-capa :is(.cj-cifra__valor, .cj-dato__valor), .cj-cristal .skw .anu-tarjeta__valor { font-weight: 700; font-variation-settings: normal; }
+  /* Superficies sueltas sobre el fondo (sin panel detrás) que usaban --cj-sala (6 % de blanco): sin base oscura, donde asoma
+     el logo el texto humo bajaba a 4,2:1. Pasan a cristal liso, como las tarjetas */
+  .cj-cristal :is(.ed-paso, .ed-vinculo) { background: var(--cjc-panel-liso); border-color: var(--cjc-borde); border-top-color: var(--cjc-borde-arriba); }
+  .cj-cristal .crm-raiz article.bg-gris-fondo { background-color: rgba(4, 24, 20, 0.62); background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)); }
+  /* Verde de estado directo sobre el fondo (semáforo, capas de Trazabilidad): un punto más claro, como en Finanzas */
+  .cj-cristal :is(.cj-semaforo--verde, .traz-capa--si, .traz-lectura--dispara) { color: #b5ecd0; }
+  /* Dorado de marca usado como TEXTO en Ventas («Tablero», «Volver a Mi día»): el oro de texto del cristal */
+  .cj-cristal .text-dorado:not([class*='bg-']) { color: var(--cj-laton); }
+  /* Finanzas clásico: sus tonos de aviso eran del tema claro (bordó #7f202c y marrón #6e4f22 sobre verde oscuro: 1,8 y 2:1) */
+  .cj-cristal .fin-verde {
+    --fin-mal: #f0b1b8; --fin-mal-bg: rgba(240, 177, 184, 0.13);
+    --fin-aviso: #ecca8f; --fin-aviso-bg: rgba(236, 202, 143, 0.14);
+    --fin-bien-bg: rgba(159, 220, 192, 0.12);
+    --fin-pista: rgba(255, 255, 255, 0.1);
+    --fin-sobre-dorado: #1d1d1b;
+  }
+  .cj-cristal .fin-verde .fin-boton { color: #fbf8f2; }
+  .cj-cristal .fin-tabla th { font-size: 12px; font-weight: 600; }
+  /* Finanzas clásico, pestañas de Finanzas SKWD (Pagos, Gastos, Equipo…): seguían en el tema claro. El fondo verde liso tapaba
+     el cristal; las superficies (--card) pasan a cristal liso; los botones bordó tenían el texto en --cj-sala (6 % de blanco:
+     invisible, 1,1:1); los avisos en #6f6859 (2,7:1) y «Quitar/Borrar» en bordó oscuro (1,3:1). */
+  .cj-cristal .fin-verde { --bg: transparent; --card: var(--cjc-panel-liso); }
+  .cj-cristal .fin-fondo { background: transparent; }
+  .cj-cristal .fin-skwd {
+    --cj-sala: #fbf8f2;
+    --sk-campo: var(--cjc-campo); --sk-thead: transparent; --sk-realce: rgba(255, 255, 255, 0.06); --sk-texto-3: #e3dac8;
+    --sk-oro-suave: rgba(238, 214, 168, 0.14); --sk-verde-suave: rgba(159, 220, 192, 0.12);
+  }
+  .cj-raiz.cj-cristal .fin-skwd .subtabs button:disabled { background: #f2eadc; color: #0b2c25; border-color: #f2eadc; }
+  .cj-raiz.cj-cristal .fin-skwd button.quitar { color: #f0b1b8; border-color: rgba(240, 177, 184, 0.5); }
+  .cj-raiz.cj-cristal .fin-skwd :is(.pe-obligatorio, .pe-error) { color: #f0b1b8; }
+  .cj-raiz.cj-cristal .fin-skwd .er-vacio { color: #e3dac8; }
+  .cj-raiz.cj-cristal .fin-skwd .pe-grupo { background: rgba(255, 255, 255, 0.05); }
+  .cj-raiz.cj-cristal .fin-skwd .er-tabla :is(td, th):first-child { background: #0a2a23; }
+  .cj-raiz.cj-cristal .fin-skwd :is(thead th, .et, .kpi small, .er-subfila td, .pe-grupo legend, .pe-monto span) { font-size: 12px; }
+  /* Tarjetas destacadas (Tablero): el oro suave iba sin base oscura (3,8:1 donde asoma el logo) */
+  .cj-raiz.cj-cristal .fin-skwd :is(.tarjetas .destacada, .kpi.destacada, .tarjeta-alerta) { background: linear-gradient(rgba(238, 214, 168, 0.14), rgba(238, 214, 168, 0.14)), var(--cjc-panel-liso) !important; }
+  .cj-cristal .fin-verde { --fin-bien: #b5ecd0; }
+  /* cj.css baja el latón a #d0a45a dentro de Finanzas clásico y Anuncios (era para el verde liso): sobre el cristal, el oro de texto */
+  .cj-cristal .cj-contenido:is(:has(.fin-verde), :has(.anu-verde)) { --cj-laton: #eed6a8; }
+  /* Pestañas del Hub en el celular: «Anuncios», «Referidos» y «Cargar alta» quedaban cortadas con «…». Sin el relleno lateral
+     entran las palabras sueltas y «Cargar alta» pasa a dos renglones */
+  @media (max-width: 480px) {
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana { padding: 6px 0; font-size: 12px; letter-spacing: -0.01em; }
+    .cj-cristal .cj-hub__txt { white-space: normal; text-overflow: clip; text-align: center; line-height: 1.15; }
+    /* Etapas de la Cartera: «Por lanzar» y «Renovación» se cortaban por 4–7 px */
+    .cj-cristal .rc-barra__btn { padding-inline: 5px; }
+    .cj-cristal .rc-barra__nombre { letter-spacing: -0.01em; }
+  }
 }
 
 /* ── Piezas nuevas de la tarjeta del cliente (con los tokens de siempre: andan con y sin cristal, también al imprimir) ── */
@@ -616,3 +674,28 @@
 
 /* Registro de la tarjeta: el aviso de «Guardado…» vacío ya no deja un hueco (era un párrafo de 1,4 em más dos separaciones) */
 .rc-hito__estado:empty { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media screen {
+  /* ── Gráficos (Recharts) en nocturno: ejes y cuadrícula visibles, rótulos un punto más firmes (aviso de Finanzas, 2/11) ── */
+  /* Finanzas clásico pone 11 px en línea en los ejes: con el cristal, 12 px */
+  .cj-cristal :is(.recharts-cartesian-axis-tick-value, .recharts-cartesian-axis-tick text) { font-weight: 500; font-size: 12px !important; }
+  .cj-cristal .recharts-cartesian-axis-line, .cj-cristal .recharts-cartesian-axis-tick-line { stroke: rgba(255, 255, 255, 0.38); }
+  .cj-cristal .recharts-cartesian-grid line { stroke: rgba(255, 255, 255, 0.12); }
+  .cj-cristal :is(.recharts-label, .recharts-pie-label-text) { fill: #e3dac8; }
+  .cj-cristal .recharts-default-tooltip .recharts-tooltip-label, .cj-cristal .recharts-default-tooltip .recharts-tooltip-item { color: #fbf8f2 !important; }
+
+  /* ── Celular: un solo desenfoque, el del fondo ──
+     Con decenas de paneles con backdrop-filter el scroll se traba en equipos modestos. En el celular el fondo ya va
+     esmerilado de antemano (un filtro sobre una capa fija, que se pinta una vez) y los paneles pasan a cristal liso, un poco
+     más opaco: se ve igual y cada pantalla dibuja un solo desenfoque. Quedan con backdrop-filter solo las piezas que flotan
+     sobre contenido que se mueve (barra de pestañas, hoja «Más», tarjeta del cliente, menú rápido). */
+  @media (max-width: 767px) {
+    .cj-cristal .cj-cristal__logo { filter: blur(10px); }
+    .cj-cristal :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio, .rc-col, .rc-tramo, .rc-regla, .card, .glass-board, .glass-alert, .marca-barra, .marca-banda, .anu-tarjeta, .cj-hub, .cj-lateral) {
+      -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    }
+    :root:has(.cj-cristal) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 38%, rgba(190, 143, 73, 0.05) 100%), rgba(5, 30, 25, 0.72); }
+    :root:has(.cj-cristal[data-noche='true']) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.035) 100%), rgba(2, 16, 13, 0.8); }
+    :root:has(.cj-cristal) .rc-capa .rc-panel { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  }
+}
