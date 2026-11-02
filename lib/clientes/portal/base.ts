@@ -82,3 +82,17 @@ export async function guardarPortal(idCrudo: string, datos: DatosPortal, version
   const actual = await q`SELECT version FROM cj_portal_cliente WHERE id_crm = ${id}`
   return { ok: false, conflicto: true, version: Number(actual[0]?.version) || 0 }
 }
+
+/**
+ * Portales armados con su título (datos.nombre; vacío si no tiene), para las pestañas del hub Clientes (2/11/2026). Ordenados por
+ * creación. Nunca lanza: ante una falla, ninguno (las pestañas de siempre salen igual).
+ */
+export async function portalesArmados(): Promise<{ id: string; titulo: string }[]> {
+  if (!basePortalConfigurada()) return []
+  try {
+    const filas = await sql()`SELECT id_crm, COALESCE(datos->>'nombre', '') AS titulo FROM cj_portal_cliente ORDER BY creado, id_crm`
+    return filas.map(f => ({ id: String(f.id_crm).toUpperCase(), titulo: String(f.titulo ?? '').trim().slice(0, 80) }))
+  } catch {
+    return []
+  }
+}
