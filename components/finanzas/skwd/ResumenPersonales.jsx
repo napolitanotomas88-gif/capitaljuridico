@@ -31,7 +31,7 @@ function TooltipMes({ active, payload }) {
       <strong>{d.nombre}</strong>
       <div style={{ color: COLOR.gero }}>● Gero pagó: {fmt(d.gero)}</div>
       <div style={{ color: COLOR.tomi }}>● Tomi pagó: {fmt(d.tomi)}</div>
-      <div>Total: {fmt(d.total)} ({d.n} gasto(s))</div>
+      <div>Total: <strong>{fmt(d.total)}</strong> ({d.n} gasto(s))</div>
     </div>
   )
 }

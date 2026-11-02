@@ -421,7 +421,6 @@ export default function Equipo() {
 
   return (
     <>
-      <h2>Equipo</h2>
       {error && <p className="error">Error: {error}</p>}
       {mensaje && (
         <p className="ok">

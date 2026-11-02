@@ -277,7 +277,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .pe-sin-linea button { margin: 4px 6px 0 0; background: var(--card); color: var(--text); border: 1px solid var(--cj-control); font-weight: 500; }
 
 /* «Pagado por» repartido (1/11/2026): filas Quién / % / = USD, chips en tablas y cierre */
-.fin-skwd .pe-reparto { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fin-skwd .pe-reparto { display: flex; flex-direction: column; gap: 8px; min-width: 0; container-type: inline-size; }
 .fin-skwd .pe-reparto__cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .fin-skwd .pe-reparto__titulo { font-size: 13px; font-weight: 600; color: var(--text); }
 .fin-skwd .pe-reparto__atajos, .fin-skwd .pe-reparto__pie { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -304,6 +304,15 @@ export const ESTILOS_SKWD = `
 @media (max-width: 767px) {
   .fin-skwd .pe-reparto__fila { grid-template-columns: minmax(0, 1fr) 96px auto; }
   .fin-skwd .pe-reparto__usd { grid-column: 1 / -2; grid-row: 2; font-size: 13px; color: var(--text-muted); }
+}
+/* Muy angosto (celular de 375 px): «Quién» ocupa toda la fila (antes quedaba en ~86 px y «— quién —» se cortaba);
+   abajo van %, = USD y quitar */
+@container (max-width: 400px) {
+  .fin-skwd .pe-reparto__fila { grid-template-columns: 96px minmax(0, 1fr) auto; row-gap: 6px; }
+  .fin-skwd .pe-reparto__fila select { grid-column: 1 / -1; grid-row: 1; }
+  .fin-skwd .pe-reparto__pct { grid-column: 1; grid-row: 2; }
+  .fin-skwd .pe-reparto__usd { grid-column: 2; grid-row: 2; white-space: normal; }
+  .fin-skwd .pe-reparto__fila > button { grid-column: 3; grid-row: 2; }
 }
 
 @media (max-width: 1023px) {

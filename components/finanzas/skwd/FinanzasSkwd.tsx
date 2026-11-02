@@ -11,6 +11,7 @@ import { NavFinanzas } from '../NavFinanzas'
 import { EstilosSkwd } from './estilos'
 import { prepararBase } from './supabase'
 import { VISTAS_SKWD, type VistaSkwd } from './vistas'
+import { BASE_FINANZAS } from '../cristal/rutas'
 import { SeccionTitulo } from '@/components/ui/SeccionTitulo'
 import { Boton } from '@/components/ui/Boton'
 
@@ -21,14 +22,15 @@ import Equipo from './Equipo'
 import PagosEquipo from './PagosEquipo'
 import Correcciones from './Correcciones'
 import EstadoResultados from './EstadoResultados'
-import Dashboard from './Dashboard'
+import DashboardJs from './Dashboard'
 import GastosPersonales from './GastosPersonales'
 
 type Objetivo = { tabla: string; id: string | number }
 // Correcciones.jsx declara sus props con valores por defecto null (JavaScript): se le da el tipo real
+const Dashboard = DashboardJs as unknown as (p: { cristal?: boolean }) => React.ReactElement
 const CorreccionesConObjetivo = Correcciones as unknown as (p: { objetivo: Objetivo | null; onConsumido: () => void }) => React.ReactElement
 
-// base: dónde viven las pantallas (/finanzas; la prueba del diseño de cristal las monta en /finanzas/prueba)
+// base: dónde viven las pantallas (/finanzas con el diseño de cristal; /finanzas/clasico con el diseño anterior)
 export function FinanzasSkwd({ vista, base: rutaBase = '/finanzas' }: { vista: VistaSkwd; base?: string }) {
   const router = useRouter()
   const params = useSearchParams()
@@ -58,7 +60,7 @@ export function FinanzasSkwd({ vista, base: rutaBase = '/finanzas' }: { vista: V
           </div>
         } />
 
-        <NavFinanzas actual={vista} />
+        <NavFinanzas actual={vista} base={rutaBase} />
 
         <div className="fin-skwd">
           {!base ? (
@@ -75,7 +77,7 @@ export function FinanzasSkwd({ vista, base: rutaBase = '/finanzas' }: { vista: V
               {vista === 'pagos-equipo' && <PagosEquipo onCorregir={irACorregir} />}
               {vista === 'correcciones' && <CorreccionesConObjetivo objetivo={objetivo} onConsumido={() => router.replace(`${rutaBase}/correcciones`)} />}
               {vista === 'estado' && <EstadoResultados />}
-              {vista === 'tablero' && <Dashboard />}
+              {vista === 'tablero' && <Dashboard cristal={rutaBase === BASE_FINANZAS} />}
               {vista === 'personales' && <GastosPersonales />}
             </>
           )}

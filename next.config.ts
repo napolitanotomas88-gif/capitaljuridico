@@ -10,6 +10,14 @@ export const REDIRECCIONES_HUB = [
   { source: "/referidos/:ruta*", destination: "/clientes/referidos/:ruta*", permanent: true },
 ];
 
+// Finanzas (1/11/2026, pedido de Tomás: «lanzalo todo»): el diseño de cristal que se probaba en /finanzas/prueba pasó a ser
+// /finanzas. Las direcciones de la prueba (marcadores, links pasados por chat) siguen andando: redirigen a la misma pantalla.
+// 307 (no permanente) por si algún día se vuelve atrás. El diseño anterior quedó en /finanzas/clasico.
+export const REDIRECCIONES_FINANZAS = [
+  { source: "/finanzas/prueba", destination: "/finanzas", permanent: false },
+  { source: "/finanzas/prueba/:ruta*", destination: "/finanzas/:ruta*", permanent: false },
+];
+
 // Encabezados de seguridad (31/10/2026, pedido de Tomás: «mejorar la seguridad del Despacho», con el paso a
 // software.capitaljuridico.com.ar). Van en TODAS las respuestas. Sin Content-Security-Policy de scripts a propósito: una
 // política estricta podría romper la app; solo se prohíbe que otra página la meta en un iframe (frame-ancestors).
@@ -32,7 +40,7 @@ export const MEDIOS_URL = "https://capitaljuridico-medios.vercel.app";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async redirects() {
-    return REDIRECCIONES_HUB;
+    return [...REDIRECCIONES_HUB, ...REDIRECCIONES_FINANZAS];
   },
   async rewrites() {
     return { beforeFiles: [], afterFiles: [], fallback: [{ source: "/v/:archivo", destination: `${MEDIOS_URL}/v/:archivo` }] };
