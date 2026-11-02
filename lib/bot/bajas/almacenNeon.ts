@@ -20,20 +20,19 @@ type Sql = NeonQueryFunction<false, false>
 const sqlReal = (url: string): Sql => neon(url, { fetchOptions: { signal: AbortSignal.timeout(TOPE_CONSULTA_MS) } })
 let crearSql: (url: string) => Sql = sqlReal
 let tablasListas: Promise<void> | null = null
-let sqlCache: { url: string; q: Sql } | null = null
 
 /** Solo para los tests: reemplaza el cliente de Neon (null vuelve al real) y olvida las tablas creadas. */
 export function sqlBajasParaPruebas(f: ((url: string) => Sql) | null): void {
   crearSql = f ?? sqlReal
   tablasListas = null
-  sqlCache = null
 }
 
 function sql(): Sql {
   const url = process.env.DATABASE_URL?.trim()
   if (!url) throw new Error('falta DATABASE_URL')
-  if (!sqlCache || sqlCache.url !== url) sqlCache = { url, q: crearSql(url) }
-  return sqlCache.q
+  // Un cliente por consulta: la señal de AbortSignal.timeout corre desde que se crea el cliente, así que uno guardado en
+  // caché quedaba vencido a los 10 s y todas las consultas siguientes abortaban («Error connecting to database»). 2/11
+  return crearSql(url)
 }
 
 const faltaTabla = (e: unknown): boolean => (e as { code?: string })?.code === '42P01' || /relation "\w+" does not exist/i.test((e as Error)?.message ?? '')

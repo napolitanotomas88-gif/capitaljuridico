@@ -21,6 +21,7 @@
 //     está conectado, la vuelta se pausa sin leer grupos ni tocar pasos (sin aviso: la guardia de salud ya avisa una vez a
 //     Discord) y se reintenta en la vuelta siguiente. Si se cae en medio de la vuelta (ErrorWhapi 'sin_numero'), el paso se
 //     devuelve tal cual (sin «No salió»: lo vuelve a tomar el bot) y la vuelta se corta.
+import { grupoContenidoFijo } from '../whapi/gruposFijos'
 import type { IdCrm, PasoSeguimiento, Ymd } from '@/lib/edicion/tipos'
 import { fechaSugeridaE01, nombreDeSaludo, textoE01 } from '@/lib/edicion/textos'
 import { linkDoc } from '@/lib/edicion/vista'
@@ -129,7 +130,8 @@ export function elegibles(pasos: readonly PasoSeguimiento[], hoy: Ymd, cfg: { de
 }
 
 /** El grupo «Contenido - …» del cliente: todas las palabras del nombre (3+ letras) como palabras ENTERAS. null si no hay uno solo. */
-export function grupoDe(cliente: string, grupos: readonly GrupoWhatsapp[]): GrupoWhatsapp | null {
+export function grupoDe(cliente: string, grupos: readonly GrupoWhatsapp[], fijo?: string | null): GrupoWhatsapp | null {
+  if (fijo) return grupos.find(g => g.id === fijo) ?? null      // WHAPI_GRUPOS_CONTENIDO: el grupo fijado manda (si el bot está)
   const buscadas = palabras(cliente).filter(w => w.length >= 3)
   if (!buscadas.length) return null
   const xs = grupos.filter(g => /@g\.us$/.test(g.id) && /^contenido\s*-/.test(normal(g.nombre).trim()) && (ws => buscadas.every(w => ws.has(w)))(new Set(palabras(g.nombre))))
@@ -161,7 +163,7 @@ export async function enviarE01(deps: DepsE01Whatsapp, op: { ahora: Date; modo: 
     if (out.enviados >= MAX_ENVIOS_POR_VUELTA || Date.now() > op.deadline - MARGEN_POR_PASO_MS) break
     const t = textoE01({ paso: p, nombre: nombreDeSaludo(p.cliente), linkGuiones: linkDoc(docs.get(p.id_crm.toUpperCase()) ?? null), fechaSugerida: fechaSugeridaE01(hoy), videos: p.videos.length })
     if (t.para !== 'grupo_contenido') continue
-    const g = grupoDe(p.cliente, grupos)
+    const g = grupoDe(p.cliente, grupos, grupoContenidoFijo(p.cliente, p.id_crm, deps.env))
     if (!g) {
       out.sin_grupo.push(p.cliente)
       await deps.anotarNoSalio(p.id, p.version, 'el bot no encontró un solo grupo «Contenido» de este cliente. Mandalo a mano')
