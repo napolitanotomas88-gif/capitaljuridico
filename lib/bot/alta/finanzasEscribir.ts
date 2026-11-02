@@ -45,7 +45,7 @@
 import { google } from 'googleapis'
 import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
-import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, formulaMes, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
+import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
 import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
 import { CARPETA_COMPROBANTES, ErrorPuente, MAXIMO_BYTES_ARCHIVO, bytesDeBase64, noRepetirAntesDe, puenteDriveReal, type ArchivoSubido, type PuenteDrive } from './puenteDrive'
 
@@ -341,9 +341,12 @@ export function armarCarga(fila: FilaRegistroPagos, lectura: LecturaRegistro, op
     const texto = String(v).replace(/^'/, '').trim()
     if (regla.lista.includes(texto)) { enLista.push(col); return }
     const msg = `El valor "${texto}" de la columna ${col} no está en su lista desplegable (${regla.lista.join(', ')})`
+    // Columna B (plan declarado por el closer): con la opción más cercana de la lista de HOY, para cargarla a mano
+    const plan = col === 'B' ? leerOpcionPrograma(texto) : null
+    const sugerida = plan ? programaDeLista(plan, regla.lista).sugerida : null
     if (regla.strict) errores.push(col === 'R' && texto === OPCION_EMPRESA
       ? `${msg}: primero hay que sumar "${OPCION_EMPRESA}" a la lista (scripts/bot-finanzas-validacion.mjs --real).`
-      : `${msg}: la lista es estricta, no se carga.`)
+      : `${msg}: la lista es estricta, no se carga.${sugerida ? ` Sugerida para el plan que declaró el closer: "${sugerida}".` : ''}`)
     else avisos.push(`${msg}: queda marcado como inválido en la planilla.`)
   })
 

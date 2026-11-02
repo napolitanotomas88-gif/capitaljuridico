@@ -595,6 +595,30 @@ describe('flujos completos (real, almacén en memoria)', () => {
     assert.equal(m.dj.llamadas.finanzas.length, 1); assert.equal(m.dj.llamadas.crm.length, 1); assert.equal(m.dj.llamadas.contrato.filter((x) => x.a).length, 1)
   })
 
+  test('columna B fuera de la lista estricta: Finanzas pregunta en Verificaciones y el resto del alta sigue (2/11/2026)', async () => {
+    const m = motorDe()
+    m.dj.colas.finanzas.push((fila) => finOk({
+      ok: false, escribio: false, etapa: 'control', comprobanteId: null, comprobanteUrl: null, nombreArchivo: null, chip: 'no', fila: null,
+      motivo: `El valor "${fila.celdas.B}" de la columna B no está en su lista desplegable (…): la lista es estricta, no se carga. Sugerida para el plan que declaró el closer: "DFY | PP | $3300". No se escribió nada.`,
+    }))
+    const ev = evAlta()
+    const id = `alta_${ev.mensajeId}`
+    const r1 = await m.correr([ev])
+    assert.deepEqual(r1.errores, [])
+    const est = await estadosPasos(m, id)
+    assert.equal(est.finanzas, 'revisar')
+    assert.deepEqual([est.crm, est.drive, est.skool, est.contrato, est.comunidad], ['hecho', 'hecho', 'hecho', 'hecho', 'espera'])
+    const pregunta = m.whapi.enviados.find((x) => x.chatId === GRUPOS.verificaciones && /Finanzas no cargó el pago/.test(x.texto))
+    assert.ok(pregunta, 'falta la pregunta en Verificaciones')
+    assert.match(pregunta.texto, /columna B/); assert.match(pregunta.texto, /Sugerida para el plan que declaró el closer: "DFY \| PP \| \$3300"/)
+    assert.match(pregunta.texto, /OK = ya lo cargué a mano en "Registro de Pagos", seguí/)
+    // OK citando la pregunta: Finanzas queda resuelto a mano (no se vuelve a intentar la carga)
+    const pedido = await pedidoDe(m, id, 'revisar')
+    await m.correr([evResp('OK', { citado: { id: pedido, autor: null } })])
+    assert.equal((await estadosPasos(m, id)).finanzas, 'hecho')
+    assert.equal(m.dj.llamadas.finanzas.length, 1)
+  })
+
   test('el #ALTA en texto y la imagen después (suelta): se suma sola; la espera de 3 minutos no pide nada', async () => {
     const m = motorDe()
     const ev = evAlta(TEXTO, { medios: [] })

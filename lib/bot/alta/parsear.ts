@@ -486,8 +486,16 @@ export function parsearAlta(mensaje: string): AltaParseada {
   // Formato libre (ej. Carlos: "Ingresa pago PIF 2400 usd efectivo + 200 usd en transferencia en pesos" + nombre suelto)
   for (const s of sueltas) {
     if (!r.modalidad && /\b(PIF|PP)\b/i.test(s)) {
-      leerTipoPago(r, s)
-      const montos = [...s.matchAll(/(\d[\d.,]*)\s*(usd|u\$s|dolares|\$)/gi)].map(m => monto(m[1])).filter((n): n is number => n !== null)
+      // El plan es el monto que sigue a PIF/PP. Un pago escrito ANTES ("Paga hoy 300 USD, mañana completa PIF 3300") es
+      // este pago (un Fee o una primera cuota), nunca el total del plan (Tomás, 2/11/2026)
+      const iTipo = s.search(/\b(PIF|PP)\b/i)
+      const antes = s.slice(0, iTipo), delPlan = s.slice(iTipo)
+      const pagoAntes = RE_PAGO_ANTES_DEL_PLAN.test(norm(antes)) && (RE_DICE_USD.test(antes) || /\$\s*\d/.test(antes)) && !pagoEnPesos(antes)
+        ? montoSuelto(antes) : null
+      const tramo = pagoAntes !== null ? delPlan : s
+      leerTipoPago(r, tramo)
+      if (pagoAntes !== null && r.estePagoUsd === null) r.estePagoUsd = pagoAntes
+      const montos = [...tramo.matchAll(/(\d[\d.,]*)\s*(usd|u\$s|dolares|\$)/gi)].map(m => monto(m[1])).filter((n): n is number => n !== null)
       if (montos.length > 1) {
         const suma = montos.reduce((a, b) => a + b, 0)
         r.totalUsd = suma
@@ -579,5 +587,7 @@ export function cuotasDe(texto: string): { n: number; cuota: number; total: numb
   return { n, cuota, total: n * cuota }
 }
 
+// Pago de hoy escrito antes del plan en la misma línea ("Paga hoy 300 USD, mañana completa PIF 3300")
+const RE_PAGO_ANTES_DEL_PLAN = /\b(paga|pago|pagan|abona|abono|sena|senas|fee|anticipo|ingresa|ingreso|transfiere|deposita|hoy)\b/
 // Línea de pago en formato libre sin PIF/PP ("Seña 300 USD", "Pagó 1000 usd por transferencia"): el monto de este pago
 const RE_LINEA_PAGO = /\b(sena|senas|fee|parcial|pago|pagos|pagado|pagada|abono|abona|abonado|anticipo|ingresa|ingreso|entro|entraron|transferencia|deposito)\b/

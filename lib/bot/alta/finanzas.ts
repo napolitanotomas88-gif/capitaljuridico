@@ -225,18 +225,58 @@ const montoLista = (n: number, conPunto: boolean) => `$${n.toLocaleString('de-DE
 // El prefijo de la col B (DFY, DFY+R, DFY+R++, DWY) lo deduce prefijoPrograma() de parsear.ts, que también avisa en el
 // #ALTA si es una renovación.
 
-/** Columna B: "DFY | PP | $3300". Si no está en la lista se devuelve igual, con aviso. */
-export function programaPlanilla(a: Pick<AltaParseada, 'programa' | 'modalidad' | 'totalUsd'>): { valor: string; enLista: boolean } | null {
-  if (!a.modalidad || a.totalUsd === null) return null
-  const base = `${prefijoPrograma(a.programa)} | ${a.modalidad} | `
-  const lista = OPCIONES_PROGRAMA as readonly string[]
-  const sinPunto = base + montoLista(a.totalUsd, false)
-  const conPunto = base + montoLista(a.totalUsd, true)
-  if (lista.includes(sinPunto)) return { valor: sinPunto, enLista: true }
-  if (lista.includes(conPunto)) return { valor: conPunto, enLista: true }
-  // Fuera de la lista: misma convención que la lista ($3300 sin punto, $6.000 con punto)
-  return { valor: a.totalUsd >= 6000 ? conPunto : sinPunto, enLista: false }
+/** Una opción de la lista de programas leída: "DFY | PIF | $6.000" → { prefijo: 'DFY', modalidad: 'PIF', total: 6000 }. */
+export function leerOpcionPrograma(op: string): { prefijo: string; modalidad: 'PP' | 'PIF'; total: number } | null {
+  const m = /^\s*(\S+)\s*\|\s*(PP|PIF)\s*\|\s*\$\s*([\d.,]+)\s*$/i.exec(op)
+  if (!m) return null
+  const total = Number(m[3].replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))
+  return Number.isFinite(total) ? { prefijo: m[1], modalidad: m[2].toUpperCase() as 'PP' | 'PIF', total } : null
 }
+
+export interface ProgramaPlanilla {
+  valor: string
+  /** El valor está en la lista desplegable (se puede cargar). */
+  enLista: boolean
+  /** Se cargó la opción con el mismo total pero el otro tipo (PIF/PP): va al reporte de Verificaciones C.J. */
+  nota: string | null
+  /** Sin ninguna opción con ese total: la opción más cercana, para preguntarla en Verificaciones C.J. */
+  sugerida: string | null
+}
+
+/** Elige la opción de la lista para un plan (Tomás, 2/11/2026: la columna B sale del PLAN que declara el closer, nunca del
+ *  monto de este pago, que puede ser un Fee o una primera cuota). Mismo producto y total: 1) el tipo exacto; 2) si con ese
+ *  total solo existe el otro tipo (PIF/PP), ese, con nota; 3) si no hay ninguno con ese total, el valor armado queda fuera de
+ *  la lista (no se carga) y se sugiere la opción más cercana del mismo producto. */
+export function programaDeLista(plan: { prefijo: string; modalidad: 'PP' | 'PIF'; total: number }, lista: readonly string[]): ProgramaPlanilla {
+  const base = `${plan.prefijo} | ${plan.modalidad} | `
+  const sinPunto = base + montoLista(plan.total, false)
+  const conPunto = base + montoLista(plan.total, true)
+  if (lista.includes(sinPunto)) return { valor: sinPunto, enLista: true, nota: null, sugerida: null }
+  if (lista.includes(conPunto)) return { valor: conPunto, enLista: true, nota: null, sugerida: null }
+  const opciones = lista.map((op) => ({ op, l: leerOpcionPrograma(op) })).filter((x) => x.l && x.l.prefijo === plan.prefijo)
+  const mismoTotal = opciones.find((x) => Math.abs(x.l!.total - plan.total) < 0.01)
+  if (mismoTotal) {
+    return {
+      valor: mismoTotal.op, enLista: true, sugerida: null,
+      nota: `El closer declaró ${plan.prefijo} ${plan.modalidad} ${num(plan.total)} USD y en la lista de la columna B ese total solo está como "${mismoTotal.op}": se cargó ese`,
+    }
+  }
+  // Fuera de la lista: misma convención que la lista ($3300 sin punto, $6.000 con punto)
+  const cercana = [...opciones].sort((x, y) =>
+    Math.abs(x.l!.total - plan.total) - Math.abs(y.l!.total - plan.total) || Number(y.l!.modalidad === plan.modalidad) - Number(x.l!.modalidad === plan.modalidad))[0]
+  return { valor: plan.total >= 6000 ? conPunto : sinPunto, enLista: false, nota: null, sugerida: cercana?.op ?? null }
+}
+
+/** Columna B: "DFY | PP | $3300", del plan declarado (tipo de pago y total), con la lista de la planilla. */
+export function programaPlanilla(a: Pick<AltaParseada, 'programa' | 'modalidad' | 'totalUsd'>): ProgramaPlanilla | null {
+  if (!a.modalidad || a.totalUsd === null) return null
+  return programaDeLista({ prefijo: prefijoPrograma(a.programa), modalidad: a.modalidad, total: a.totalUsd }, OPCIONES_PROGRAMA)
+}
+
+/** Texto para Verificaciones C.J cuando el plan no tiene ninguna opción con su total en la lista de la columna B. */
+export const textoProgramaFueraDeLista = (p: ProgramaPlanilla): string =>
+  `El programa "${p.valor}" (el plan que declaró el closer) no tiene ninguna opción con ese total en la lista de la columna B` +
+  (p.sugerida ? `. Sugerida: "${p.sugerida}". Cargá la fila a mano con la que corresponda y respondé OK` : '. Cargá la fila a mano con la que corresponda y respondé OK')
 
 type ExtrasEfectivo = Partial<Pick<ExtrasRegistro, 'fecha' | 'pesosArs' | 'mepDiaAnterior' | 'fechaMep'>>
 
@@ -329,7 +369,8 @@ export function filaRegistroPagos(a: AltaParseada, extras: ExtrasRegistro): Fila
   const renovacion = prefijo === 'DFY+R' || prefijo === 'DFY+R++'
   const programa = programaPlanilla(a)
   if (!programa) pendientes.push('Programa: falta el tipo de pago (PP o PIF) y el total en USD')
-  else if (!programa.enLista) avisos.push(`El programa "${programa.valor}" no está en la lista de la planilla`)
+  else if (!programa.enLista) avisos.push(textoProgramaFueraDeLista(programa))
+  else if (programa.nota) avisos.push(programa.nota)
   if (renovacion) {
     avisos.push(`${prefijo} es una renovación, no un alta nueva: revisar antes de cargarlo`)
     pendientes.push('Tipos de venta: una renovación no va como "Front-end"; falta que Tomás confirme si va "Back-end"')

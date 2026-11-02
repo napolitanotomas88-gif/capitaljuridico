@@ -199,6 +199,16 @@ describe('parseo desde la pantalla: el mismo evento que arma el webhook', () => 
     const no = await m.post({ accion: 'previsualizar', texto: 'hola', closer: 'Yami' })
     assert.equal(no.status, 422)
   })
+  test('vista previa: la columna B de Finanzas sale del plan declarado, no del Fee (2/11/2026)', async () => {
+    const m = armar()
+    const fee = TEXTO.replace(/Tipo de pago: .*\n/, 'Tipo de pago: PIF 3300 USD\n').replace(/Este pago: .*\n/, 'Este pago: 300 USD · Transferencia\n')
+    const r = await m.post({ accion: 'previsualizar', texto: fee, closer: 'Yami' }, [['c.jpg', JPG, 'image/jpeg']])
+    assert.equal(r.status, 200)
+    assert.equal(r.json.datos.estePagoUsd, 300)
+    assert.equal(r.json.datos.columnaB, 'DFY | PP | $3300')
+    assert.ok(r.json.avisos.some((x) => /declaró DFY PIF 3\.300 USD .*"DFY \| PP \| \$3300"/.test(x)), r.json.avisos.join(' | '))
+    assert.deepEqual(await m.almacen.ultimas(5), [])
+  })
 })
 
 describe('permisos', () => {

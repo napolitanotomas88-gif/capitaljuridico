@@ -51,6 +51,7 @@ export function FormCargar({ closers, closerFijo }: { closers: string[]; closerF
     ['Cliente', (d.nombre as string) ?? null], ['Closer', (d.closer as string) ?? null], ['Programa', (d.programa as string) ?? null],
     ['Teléfono', (d.telefono as string) ?? null], ['Correo', (d.correo as string) ?? null],
     ['Pago', [d.modalidad, usd(d.totalUsd)].filter(Boolean).join(' ') || null], ['Este pago', usd(d.estePagoUsd) ?? (d.pagoEnPesos ? 'En pesos' : null)],
+    ['Finanzas (col. B)', (d.columnaB as string) ?? null],
     ['Inicio', fecha(d.inicio)], ['Socios', (d.socios as string) ?? null],
   ]
 
