@@ -93,7 +93,7 @@ async function clienteReal(grupo: SalidaTarjeta[], texto: string): Promise<strin
   if (!token) throw antesEnvio('Entrega en espera: falta la conexión de WhatsApp.')
   await guardiaWhapi().antesDeEscribir({ token, fetch, ahora: Date.now })
   const idCrm = grupo[0].datos.id_crm, cliente = (await leerClienteFresco(idCrm)).cliente
-  const chat = await buscarGrupoContenido(cliente.nombre)
+  const chat = await buscarGrupoContenido(cliente.nombre, { idCrm })
   if (!chat) throw antesEnvio('Entrega en espera: no hay un grupo Contenido único para el cliente.')
   // Se vuelve a comprobar después de resolver el grupo y justo antes del efecto externo.
   await exigirClienteNoArchivado(idCrm, await leerArchivados({ forzar: true }))

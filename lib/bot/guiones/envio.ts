@@ -18,6 +18,7 @@ import { tokenWhapi } from '../whapi/config'
 import { NOMBRE_SECCION, type Guion } from './tipos'
 import type { FilaTanda } from './registro'
 import { contienePalabras } from './revisar'
+import { grupoContenidoFijo } from '../whapi/gruposFijos'
 import { exigirClienteNoArchivado, leerArchivados } from '@/lib/clientes/archivados'
 
 export interface ParrafoChip { tipo: 'seccion' | 'velocidad' | 'indicacion' | 'texto' | 'vacio'; texto: string }
@@ -88,7 +89,7 @@ export async function marcarParaGrabar(docId: string, tanda: number, cantidad: n
   return /acci[oó]n desconocida/i.test(d) ? { estado: 'pendiente', motivo: 'el Puente Drive todavía no tiene la acción estadoChips' } : { estado: 'error', motivo: `el puente no cambió los chips: ${d}` }
 }
 
-/** El mensaje al grupo Contenido del cliente. BORRADOR: el texto lo aprueba Tomás antes de prender GUIONES_WHATSAPP. */
+/** El mensaje al grupo Contenido del cliente (texto aprobado por Tomás al prender GUIONES_WHATSAPP el 2/11/2026). */
 export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
   const nombre = (fila.cliente ?? '').trim().split(/\s+/)[0] || ''
   const n = Object.keys(fila.guiones).length
@@ -101,12 +102,18 @@ export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 /** Busca el grupo «Contenido - <cliente>» entre los grupos del número del bot (GET /groups). null si no hay uno solo claro. */
-export async function buscarGrupoContenido(cliente: string, op: { fetch?: typeof fetch } = {}): Promise<{ id: string; nombre: string } | null> {
+export async function buscarGrupoContenido(cliente: string, op: { fetch?: typeof fetch; idCrm?: string | null } = {}): Promise<{ id: string; nombre: string } | null> {
   const token = tokenWhapi()
   if (!token || !cliente.trim()) return null
   const r = await (op.fetch ?? fetch)('https://gate.whapi.cloud/groups?count=500', { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000), cache: 'no-store' })
   if (!r.ok) return null
   const j = (await r.json().catch(() => null)) as { groups?: { id?: string; name?: string }[] } | null
+  // Grupo fijado a mano (WHAPI_GRUPOS_CONTENIDO): manda sobre el nombre, pero solo si el bot está en ese grupo
+  const fijo = grupoContenidoFijo(cliente, op.idCrm)
+  if (fijo) {
+    const g = (j?.groups ?? []).find(x => x.id === fijo)
+    return g?.id ? { id: g.id, nombre: g.name ?? 'Contenido' } : null
+  }
   // TODAS las palabras ENTERAS del nombre (revisión del 25/10: con una sola, «Estudio Hammer» caía en «Contenido - Estudio
   // Cova»; la del 26/10: por pedazos, «Ana Ruiz» caía en «Contenido - Mariana Ruiz»)
   const candidatos = (j?.groups ?? []).filter(g => g.id && g.name && /^contenido\s*-/i.test(normal(g.name)) && contienePalabras(g.name, cliente))

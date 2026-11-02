@@ -19,6 +19,8 @@ export interface DepsPublicacion {
   altaEdicion?(fila: FilaTanda, docId: string, tanda: number): Promise<ResultadoAlta>
   error(id: number, motivo: string, dudoso: boolean): Promise<void>
   exigirActivo?(idCrm: string | null): Promise<void>
+  /** d02: el link al grupo Contenido del cliente (solo con GUIONES_WHATSAPP=real y la aprobación posterior al corte). */
+  whatsapp?(fila: FilaTanda): Promise<{ estado: string; motivo?: string }>
 }
 const reales: DepsPublicacion = {
   reservar: reg.reservarPublicacion, leer: reg.leerTanda,
@@ -31,8 +33,10 @@ const reales: DepsPublicacion = {
     guiones: Object.values(fila.guiones).map(g => g.guion).filter(Boolean),
   }),
   exigirActivo: exigirClienteNoArchivado,
+  whatsapp: async (fila) => (await import('./whatsappCliente')).enviarGuionesAlCliente(fila),
 }
-/** Una aprobación publica el Doc y deja el link para Aylu/Gero. Nunca manda al cliente. */
+/** Una aprobación publica el Doc y, con GUIONES_WHATSAPP=real (d02), manda el link al grupo Contenido del cliente;
+ *  si no sale por WhatsApp, deja el link para que Aylu/Gero lo entreguen (como antes). */
 export async function publicarParaEntrega(id: number, hasta: number, deps: DepsPublicacion = reales): Promise<void> {
   let dudoso = false, reservada = false
   try {
@@ -61,7 +65,15 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
       }
     }
     const publicada = await deps.leer(id)
-    if (publicada?.estado === 'aprobada') { await deps.exigirActivo?.(publicada.id_crm); await deps.notificar(publicada) }
+    if (publicada?.estado === 'aprobada') {
+      await deps.exigirActivo?.(publicada.id_crm)
+      const w = deps.whatsapp ? await deps.whatsapp(publicada).catch((e): { estado: string; motivo?: string } => ({ estado: 'error', motivo: String((e as Error)?.message ?? e) })) : null
+      if (w?.estado === 'enviado') console.log(`Guiones: publicación ${id}, link enviado al grupo Contenido del cliente (d02)`)
+      else {
+        if (w && w.estado !== 'apagado') console.warn(`Guiones: publicación ${id}, el link no salió por WhatsApp (${w.estado}: ${(w.motivo ?? '').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)}); queda para Aylu/Gero`)
+        await deps.notificar(publicada)
+      }
+    }
   } catch (e) {
     const motivo = String((e as Error)?.message ?? 'No se pudo publicar el documento').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 180)
     if (reservada) await deps.error(id, motivo, dudoso)
