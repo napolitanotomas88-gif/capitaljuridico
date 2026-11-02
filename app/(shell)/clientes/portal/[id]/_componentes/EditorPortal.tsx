@@ -95,11 +95,11 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
       </fieldset>
 
       <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
-        <legend className="cj-etiqueta cj-etiqueta--laton">Casos ganados (barra de progreso)</legend>
-        <span className="cj-formulario__ayuda">Casos ganados ACUMULADOS desde que arrancamos. Al guardar, el conteo queda en el historial con su fecha (uno por día): de ahí salen los casos de cada mes del reporte.</span>
+        <legend className="cj-etiqueta cj-etiqueta--laton">Casos conseguidos (barra de progreso)</legend>
+        <span className="cj-formulario__ayuda">Casos conseguidos ACUMULADOS desde que arrancamos. Al guardar, el conteo queda en el historial con su fecha (uno por día): de ahí salen los casos de cada mes del reporte.</span>
         <div className="cj-fila" style={{ gap: 24, flexWrap: 'wrap' }}>
           <div className="cj-formulario__campo" style={{ flex: '1 1 140px' }}>
-            <label htmlFor={campo('casos')} className="cj-etiqueta">Casos ganados hoy</label>
+            <label htmlFor={campo('casos')} className="cj-etiqueta">Casos conseguidos hoy</label>
             <input id={campo('casos')} type="number" inputMode="numeric" min={0} step={1} className="cj-campo__entrada" value={d.progreso.casos ?? ''} onChange={e => prog({ casos: ent(e.target.value), actualizado: d.progreso.actualizado ?? hoy })} />
           </div>
           <div className="cj-formulario__campo" style={{ flex: '1 1 160px' }}>

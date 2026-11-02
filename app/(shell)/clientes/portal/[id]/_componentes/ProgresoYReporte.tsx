@@ -3,7 +3,7 @@ import { barraCasos, fechaLarga, type ProgresoCasos } from '@/lib/clientes/porta
 import { nombreMes, numero, usd, type MesReporte, type Reporte } from '@/lib/clientes/portal/reporte'
 import './portal.css'
 
-// Portal del cliente (2/11/2026, pedido de Tomás para un estudio cliente): la barra de casos ganados (con la marca intermedia) y el
+// Portal del cliente (2/11/2026, pedido de Tomás para un estudio cliente): la barra de casos conseguidos (con la marca intermedia) y el
 // reporte de anuncios (inversión, costo por mensaje y por caso, ingresos estimados, profit y retorno). Pautas de la skill dataviz:
 // un medidor de una sola serie con su marca, el número escrito al lado (nunca solo color), cifras como tarjetas y una tabla por
 // mes como vista de datos. Colores: solo tokens del Despacho (oro mate para el avance; sin brillos).
@@ -11,15 +11,15 @@ import './portal.css'
 /** Barra de progreso de casos: avance hasta el objetivo final, con la marca intermedia (ej.: 200 para noviembre). */
 export function ProgresoCasosVista({ progreso }: { progreso: ProgresoCasos }) {
   const b = barraCasos(progreso)
-  if (!b) return <VacioGuiado titulo="Lo estamos contando" texto="Cuando carguemos los casos ganados, vas a ver acá cuánto falta para el objetivo." />
-  const texto = `${numero(b.casos)} de ${numero(b.meta)} casos ganados (${Math.floor(b.porcentaje)} %)${b.hito ? `. Meta intermedia: ${numero(b.hito.casos)}${b.hito.fecha ? ` para el ${fechaLarga(b.hito.fecha)}` : ''}${b.hito.logrado ? ', lograda' : `, faltan ${numero(b.hito.faltan)}`}` : ''}.`
+  if (!b) return <VacioGuiado titulo="Lo estamos contando" texto="Cuando carguemos los casos conseguidos, vas a ver acá cuánto falta para el objetivo." />
+  const texto = `${numero(b.casos)} de ${numero(b.meta)} casos conseguidos (${Math.floor(b.porcentaje)} %)${b.hito ? `. Meta intermedia: ${numero(b.hito.casos)}${b.hito.fecha ? ` para el ${fechaLarga(b.hito.fecha)}` : ''}${b.hito.logrado ? ', lograda' : `, faltan ${numero(b.hito.faltan)}`}` : ''}.`
   return (
     <div className="pc-progreso">
       <p className="pc-progreso__cifra">
         <span className="pc-progreso__n cj-num">{numero(b.casos)}</span>
-        <span className="pc-progreso__de">de {numero(b.meta)} casos ganados</span>
+        <span className="pc-progreso__de">de {numero(b.meta)} casos conseguidos</span>
       </p>
-      <div className="pc-barra" role="progressbar" aria-label="Casos ganados" aria-valuemin={0} aria-valuemax={b.meta} aria-valuenow={b.casos} aria-valuetext={texto}>
+      <div className="pc-barra" role="progressbar" aria-label="Casos conseguidos" aria-valuemin={0} aria-valuemax={b.meta} aria-valuenow={b.casos} aria-valuetext={texto}>
         <div className="pc-barra__pista">
           <div className="pc-barra__relleno" style={{ width: `${b.porcentaje}%` }} />
           {b.hito && <div className="pc-barra__marca" data-logrado={b.hito.logrado} style={{ left: `${b.hito.porcentaje}%` }} aria-hidden="true" />}
@@ -70,14 +70,14 @@ export function ReporteAnunciosVista({ reporte, leido }: { reporte: Reporte; lei
   const acumulado: DatoResumen[] = [
     { etiqueta: 'Inversión en anuncios', icono: 'anuncios', valor: usd(a.inversion), contexto: desde ? `Desde ${desde}` : 'Todavía sin inversión' },
     { etiqueta: 'Mensajes recibidos', icono: 'guiones', valor: numero(a.mensajes), contexto: `Cada uno te costó ${usd2(a.costoMensaje)}` },
-    { etiqueta: 'Costo por caso', icono: 'tarea', valor: usd(a.costoCaso), contexto: a.casos !== null ? `${numero(a.casos)} casos ganados` : 'Falta cargar los casos' },
+    { etiqueta: 'Costo por caso', icono: 'tarea', valor: usd(a.costoCaso), contexto: a.casos !== null ? `${numero(a.casos)} casos conseguidos` : 'Falta cargar los casos' },
     { etiqueta: 'Ingresos estimados', icono: 'dinero', valor: usd(a.ingresos), contexto: a.casos !== null ? `${numero(a.casos)} casos × ${valor}` : 'Falta cargar los casos' },
     { etiqueta: 'Profit estimado', icono: 'ok', destacado: true, valor: usd(a.profit), contexto: a.retorno !== null ? `Retorno: ${veces(a.retorno)} lo invertido` : 'Ingresos estimados menos inversión' },
   ]
   const esteMes: DatoResumen[] = [
     { etiqueta: 'Inversión del mes', icono: 'anuncios', valor: usd(m.inversion), contexto: nombreMes(m.mes) },
     { etiqueta: 'Mensajes del mes', icono: 'guiones', valor: numero(m.mensajes), contexto: `Costo por mensaje: ${usd2(m.costoMensaje)}` },
-    { etiqueta: 'Casos del mes', icono: 'tarea', valor: numero(m.casos), contexto: m.casos !== null ? `Costo por caso: ${usd(m.costoCaso)}` : 'Se calcula con el conteo de cierre del mes anterior' },
+    { etiqueta: 'Casos del mes', icono: 'tarea', valor: numero(m.casos), contexto: m.casos !== null ? `Costo por caso: ${usd(m.costoCaso)}` : 'Se calcula con el próximo conteo de casos' },
   ]
   const columnas: Columna<MesReporte>[] = [
     { clave: 'mes', titulo: 'Mes', celda: f => nombreMes(f.mes) },
@@ -96,7 +96,7 @@ export function ReporteAnunciosVista({ reporte, leido }: { reporte: Reporte; lei
         <Resumen titulo="Reporte acumulado de anuncios" datos={acumulado} />
         <p className="cj-parrafo cj-texto-2 pc-nota">
           Los ingresos y el profit son <strong>estimados</strong>: casos
-          ganados × {valor}, el valor promedio de un caso. El costo por mensaje toma solo las campañas de mensajes.
+          conseguidos × {valor}, el valor promedio de un caso. El costo por mensaje toma solo las campañas de mensajes.
         </p>
       </div>
       <div className="cj-pila cj-pila--chica">

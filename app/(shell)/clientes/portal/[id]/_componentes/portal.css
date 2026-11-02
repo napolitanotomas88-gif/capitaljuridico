@@ -1,4 +1,4 @@
-/* Portal del cliente (2/11/2026): barra de casos ganados y notas del reporte. Solo tokens del Despacho (claro y nocturno):
+/* Portal del cliente (2/11/2026): barra de casos conseguidos y notas del reporte. Solo tokens del Despacho (claro y nocturno):
    pista con el color del texto muy bajo, avance en oro mate (--cj-dorado), marca intermedia en el color del texto. Sin brillos.
    El número siempre va escrito (la barra nunca es la única forma de leerlo). */
 .pc-progreso { display: flex; flex-direction: column; gap: 18px; }
@@ -33,7 +33,7 @@
 }
 .pc-objetivo__lista li::marker { color: var(--cj-laton); }
 
-/* Celular: en el portal las cifras son largas («USD 127.949», «500 casos ganados»): la tarjeta compacta del hub (número a la
+/* Celular: en el portal las cifras son largas («USD 127.949», «500 casos conseguidos»): la tarjeta compacta del hub (número a la
    derecha) aplastaba el rótulo y el contexto. Acá va apilada: rótulo, número y contexto, a todo el ancho. */
 @media (max-width: 768px) {
   .pc-portal .cj-dato__cuerpo { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'cab' 'valor' 'contexto' 'pie'; gap: 6px; }

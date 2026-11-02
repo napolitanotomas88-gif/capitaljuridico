@@ -16,17 +16,17 @@ export const SECCIONES_PORTAL = ['objetivo', 'progreso', 'reporte', 'plan', 'pro
 export type SeccionPortal = (typeof SECCIONES_PORTAL)[number]
 export type SeccionesPortal = Record<SeccionPortal, boolean>
 export const NOMBRE_SECCION_PORTAL: Record<SeccionPortal, string> = {
-  objetivo: 'El objetivo', progreso: 'Casos ganados (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
+  objetivo: 'El objetivo', progreso: 'Casos conseguidos (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
 }
 /** Por defecto (portal nuevo o guardado antes de que existieran): las de siempre visibles; casos y reporte, ocultas hasta tildarlas. */
 export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true }
 /** Secciones sumadas después (2/11/2026): en un portal guardado ANTES (sin la clave) quedan ocultas hasta que el equipo las tilde. */
 const SECCIONES_NUEVAS: ReadonlySet<SeccionPortal> = new Set(['progreso', 'reporte'])
 
-/** Un punto del contador de casos: cuántos casos llevaba ganados el estudio a esa fecha (acumulado). */
+/** Un punto del contador de casos: cuántos casos llevaba conseguidos el estudio a esa fecha (acumulado). */
 export interface PuntoCasos { fecha: string; casos: number }
 export interface ProgresoCasos {
-  /** Casos ganados hasta hoy (acumulado desde que arrancamos). null = sin cargar. */
+  /** Casos conseguidos hasta hoy (acumulado desde que arrancamos). null = sin cargar. */
   casos: number | null
   /** Fecha del último conteo */
   actualizado: string | null
@@ -145,7 +145,7 @@ function validarProgreso(x: unknown): ProgresoCasos | string {
   if (typeof x !== 'object' || Array.isArray(x)) return 'Casos: formato inválido.'
   const o = x as Record<string, unknown>
   const casos = entero(o.casos, 0, TOPES.casos), meta = entero(o.meta, 1, TOPES.casos), actualizado = fecha(o.actualizado)
-  if (casos === undefined) return 'Casos ganados: tiene que ser un número entero (0 o más).'
+  if (casos === undefined) return 'Casos conseguidos: tiene que ser un número entero (0 o más).'
   if (meta === undefined) return 'Objetivo final de casos: tiene que ser un número entero mayor que 0.'
   if (actualizado === undefined) return 'La fecha del conteo de casos tiene que ser una fecha real.'
   let hito: ProgresoCasos['hito'] = null
@@ -191,15 +191,18 @@ function validarReporte(x: unknown): ConfigReporte | string {
 }
 
 /**
- * Casos ganados en un mes ("2026-11"), con los conteos acumulados del historial: el último conteo hasta el fin del mes menos
- * el último conteo ANTES de que empiece. null si falta alguno de los dos (no se inventa: sin conteo previo, no se sabe).
+ * Casos conseguidos en un mes ("2026-11"), con los conteos acumulados del historial: el último conteo hasta el fin del mes menos
+ * el último conteo ANTES de que empiece. Si no hay conteo anterior al mes (el primer mes del contador: el conteo inicial se cargó
+ * ya empezado el mes), la base es el PRIMER conteo del mes y se cuentan los casos desde esa fecha. null si no hay dos conteos
+ * (no se inventa: con un solo conteo, no se sabe cuántos fueron del mes).
  */
 export function casosDelMes(historial: readonly PuntoCasos[], mes: string): number | null {
   const inicio = `${mes}-01`, fin = `${mes}-31`
-  const antes = historial.filter(p => p.fecha < inicio).at(-1)
   const alCierre = historial.filter(p => p.fecha <= fin).at(-1)
-  if (!antes || !alCierre || alCierre.fecha < inicio) return null
-  return Math.max(0, alCierre.casos - antes.casos)
+  if (!alCierre || alCierre.fecha < inicio) return null
+  const base = historial.filter(p => p.fecha < inicio).at(-1) ?? historial.find(p => p.fecha >= inicio && p.fecha < alCierre.fecha)
+  if (!base) return null
+  return Math.max(0, alCierre.casos - base.casos)
 }
 
 /** Lo que dibuja la barra: porcentajes sobre el objetivo final (topeados a 100) y si la marca ya se pasó. null sin datos. */
