@@ -124,6 +124,20 @@ test('alertarCon: ensayo va al sistema con 🧪 PRUEBA y sin notificar; apagado 
   assert.equal((await A.alertarCon({ canal: 'verificaciones', tipo: 'x', clave: 'k3', titulo: 'Hola' }, deps({ DISCORD_WEBHOOK_VERIFICACIONES: wh(1) }, enviados, reg))).estado, 'enviado')
 })
 
+test('alertarCon: el cliente «PRUEBA BOT…» sale a su canal con 🧪 PRUEBA y sin notificar a nadie', async () => {
+  const enviados = []
+  const env = { ...envIds, DISCORD_WEBHOOK_VERIFICACIONES: wh(1), DISCORD_WEBHOOK_SISTEMA: wh(2) }
+  await A.alertarCon({ canal: 'verificaciones', tipo: 'alta_ok', clave: 'pb1', titulo: 'Alta: hace falta un OK', cliente: 'PRUEBA BOT Ensayo', menciones: ['aprobadores'] }, deps(env, enviados))
+  assert.equal(enviados[0].url, wh(1))
+  assert.deepEqual(enviados[0].menciones, [])
+  assert.match(enviados[0].texto, /^🧪 PRUEBA/)
+  assert.ok(!/<@\d+>/.test(enviados[0].texto))
+  // Un cliente real sigue notificando
+  await A.alertarCon({ canal: 'verificaciones', tipo: 'alta_ok', clave: 'pb2', titulo: 'Alta: hace falta un OK', cliente: 'Ana Prueba', menciones: ['aprobadores'] }, deps(env, enviados))
+  assert.equal(enviados[1].menciones.length, 4)
+  assert.ok(!enviados[1].texto.startsWith('🧪'))
+})
+
 test('alertarCon: tope de 60 por hora y canal; el exceso avisa una sola vez en el sistema', async () => {
   const enviados = []
   const env = { DISCORD_WEBHOOK_PARA_ENVIAR: wh(5), DISCORD_WEBHOOK_SISTEMA: wh(2) }
