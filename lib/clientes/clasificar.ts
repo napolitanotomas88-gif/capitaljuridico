@@ -11,6 +11,7 @@ import type { Ymd } from './fechas'
 import { semaforoDeCliente } from './semaforo'
 import { diasEntre } from './fechas'
 import { clavesTelefono, normTxt } from './texto'
+import { clientesSinFin, esSinFin } from './sinFin'
 
 export { UMBRAL_CLIENTE_USD }
 export { esExtension, esRenovacionPaga, parsearRenovo } from './renovaciones'
@@ -21,7 +22,11 @@ export { esExtension, esRenovacionPaga, parsearRenovo } from './renovaciones'
 // producción lo hace así porque la columna "LTV cobrado" quedó vieja en algunos clientes.
 // Una fila vieja de alguien que volvió (otra fila ACTIVO/PAUSADO con el mismo nombre o teléfono)
 // no es "no cliente". Solo Agencia: Consultora no tiene precios cargados y su cobrado no es comparable.
-export interface OpcionesNoCliente { umbral?: number; cobradoExterno?: ReadonlyMap<string, number> }
+export interface OpcionesNoCliente {
+  umbral?: number; cobradoExterno?: ReadonlyMap<string, number>
+  /** IDs sin fecha de fin (servicio por objetivos, lib/clientes/sinFin.ts). Por defecto, los de BOT_CLIENTES_SIN_FIN. */
+  sinFin?: readonly string[]
+}
 
 export function marcarNoClientes(clientes: ClienteBase[], op: OpcionesNoCliente = {}): Set<ClienteBase> {
   const umbral = op.umbral ?? UMBRAL_CLIENTE_USD
@@ -47,12 +52,15 @@ export function marcarNoClientes(clientes: ClienteBase[], op: OpcionesNoCliente 
 // Recibe lo leído de la planilla y devuelve los Cliente completos a la fecha `hoy`.
 export function derivarClientes(base: ClienteBase[], hoy: Ymd, op: OpcionesNoCliente = {}): Cliente[] {
   const noClientes = marcarNoClientes(base, op)
+  const listaSinFin = op.sinFin ?? clientesSinFin()
   return base.map(c => {
     const sinId = !c.id
-    const info = semaforoDeCliente(c, hoy)
+    // Sin fecha de fin (servicio por objetivos): el fin del CRM se muestra pero no vence: semáforo «Sin fecha», sin días
+    const sinFin = esSinFin(c.id, listaSinFin)
+    const info = semaforoDeCliente(sinFin ? { estado: c.estado, finPeriodo: null } : c, hoy)
     const faltantes: string[] = []
     if (sinId) faltantes.push('id')
-    if (!c.finPeriodo) faltantes.push('fin_periodo')
+    if (!c.finPeriodo && !sinFin) faltantes.push('fin_periodo')
     if (c.linea === 'agencia' && c.ltvContratado === null && c.ltvCobrado === null) faltantes.push('ltv')
     const esNoCliente = noClientes.has(c)
     const inicial = c.periodos.find(p => p.periodo === 0)
@@ -61,7 +69,8 @@ export function derivarClientes(base: ClienteBase[], hoy: Ymd, op: OpcionesNoCli
       sinId,
       faltantes,
       semaforo: info?.color ?? null,
-      diasParaVencer: c.finPeriodo ? diasEntre(hoy, c.finPeriodo) : null,
+      diasParaVencer: c.finPeriodo && !sinFin ? diasEntre(hoy, c.finPeriodo) : null,
+      sinFin,
       esNoCliente,
       cuentaEnMetricas: c.linea === 'agencia' && !sinId && !esNoCliente,
       renovacionesPagas: c.periodos.filter((p: Periodo) => p.esRenovacionPaga).length,

@@ -184,6 +184,14 @@ Sigue el mismo criterio que el motor y que Éxito, con un interruptor propio.
 
 `BOT_BAJAS=no` apaga la etapa entera.
 
+### Clientes sin fecha de fin (02/11/2026): `BOT_CLIENTES_SIN_FIN`
+
+Hay clientes cuyo servicio es **por objetivos**: no tienen fin aunque el CRM traiga una fecha (la fila del CRM no se toca). Sus IDs van en `BOT_CLIENTES_SIN_FIN` (separados por coma; nunca en el código: el repo es público). Para esos IDs (`lib/clientes/sinFin.ts`):
+
+- Bajas: sin aviso de fin (i01), sin cruce de la llamada de renovación por cercanía al fin, sin FINALIZADO propuesto por fin vencido (i02/i04: si se van, se pregunta) y fuera del recontacto (i05).
+- Despacho: semáforo «Sin fecha», sin días para vencer, fuera de «Renovación pendiente», de las llamadas de proyección y de la etapa Renovación.
+- `GET /api/bot/bajas?estado=1` informa solo la cantidad (`sinFin`).
+
 ### Modo prueba (01/11/2026): `BOT_CLIENTES_PRUEBA`
 
 Para hacer una corrida punta a punta con un **cliente ficticio** sin tocar a nadie más. Usa la variable **común** a todas las etapas, `BOT_CLIENTES_PRUEBA`; el código de esta etapa está en `lib/bot/bajas/prueba.ts` (propio, para no chocar con las otras etapas: se puede unificar después).
@@ -240,6 +248,7 @@ El código está en `lib/bot/bajas/crm.ts` y sigue el criterio de `crmEscribir.t
 | `BOT_BAJAS_MODO` | `seco` (por defecto), `ensayo` o `real`. |
 | `BOT_BAJAS_CAPACIDADES` | Lista separada por coma con las capacidades de arriba. |
 | `BOT_BAJAS` | `no` apaga todo (también el modo prueba). |
+| `BOT_CLIENTES_SIN_FIN` | IDs del CRM con servicio por objetivos (sin fecha de fin): fuera de avisos de fin, renovación y recontacto. Ver "Clientes sin fecha de fin". |
 | `BOT_CLIENTES_PRUEBA` | Lista blanca común de IDs del CRM de prueba (filas "PRUEBA BOT…"): real solo para ellos. Ver "Modo prueba". |
 | `BOT_BAJAS_PRUEBA_CAPACIDADES` | Opcional: recorta las capacidades del modo prueba (por defecto todas, menos Meta que nunca va). |
 | `BAJA_CALENDLY_URL` | Opcional. Por defecto, el Calendly de renovación que pasó RESPONSABLE_HUB el 25/10: `<URL_CONFIGURADA_PRIVADAMENTE>`. Está en el código; la variable sirve solo para cambiarlo. Ese evento no figura en la organización de `CALENDLY_VENTAS_TOKEN` (que tiene 4 eventos y ninguno de RESPONSABLE_HUB): es de su cuenta personal. |

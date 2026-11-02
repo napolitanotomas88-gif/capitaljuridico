@@ -65,6 +65,7 @@ export interface Cliente {
   faltantes: string[]           // datos que deberían estar y no están ('id', 'fin_periodo', 'ltv', 'duracion')
   semaforo: ColorSemaforo | null  // solo ACTIVO tiene semáforo; el resto null
   diasParaVencer: number | null // negativo = ya venció; null = sin fecha de fin
+  sinFin?: boolean              // servicio por objetivos (BOT_CLIENTES_SIN_FIN): el fin del CRM no vence ni pide renovación
   esNoCliente: boolean          // FINALIZADO/INACTIVO con cobrado < UMBRAL_CLIENTE_USD: fuera de las métricas
   cuentaEnMetricas: boolean     // Agencia + con ID + no es "no cliente"
   renovacionesPagas: number     // períodos > 0 que no son extensión ni precio 0
@@ -113,7 +114,7 @@ export interface Referido {
 }
 
 // Lo que parsear.ts lee de la planilla; clasificar.ts agrega los campos derivados para armar el Cliente
-export type CamposDerivados = 'sinId' | 'faltantes' | 'semaforo' | 'diasParaVencer' | 'esNoCliente'
+export type CamposDerivados = 'sinId' | 'faltantes' | 'semaforo' | 'diasParaVencer' | 'esNoCliente' | 'sinFin'
   | 'cuentaEnMetricas' | 'renovacionesPagas' | 'extensiones' | 'precioInicial'
 export type ClienteBase = Omit<Cliente, CamposDerivados>
 

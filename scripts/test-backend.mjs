@@ -94,6 +94,11 @@ describe('lectura de celdas de la planilla', () => {
 })
 
 describe('reglas del tablero', () => {
+  test('un cliente sin fecha de fin (servicio por objetivos) no aparece en renovaciones ni en proyecciones', () => {
+    const t = tablero({ clientes: [cliente({ sinFin: true, finPeriodo: sumarDias(HOY, 10) }), cliente({ id: 'A002', finPeriodo: sumarDias(HOY, 10) })] })
+    assert.deepEqual(t.renovaciones.map(r => r.idCliente), ['A002'])
+    assert.deepEqual(t.proyecciones.map(r => r.idCliente), ['A002'])
+  })
   test('"Renovó = NO" por defecto NO es una decisión: el cliente que vence queda por contactar', () => {
     const t = tablero({ clientes: [cliente()] })
     assert.equal(t.renovaciones.length, 1)

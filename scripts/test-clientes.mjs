@@ -164,6 +164,17 @@ describe('semáforo por vencimiento', () => {
   test('cruce de año', () => assert.equal(semaforoVencimiento('2027-01-03', '2026-12-25').color, 'amarillo'))
 })
 
+describe('clientes sin fecha de fin (BOT_CLIENTES_SIN_FIN)', () => {
+  test('el fin del CRM se conserva pero no vence: semáforo «Sin fecha», sin días y sin faltante', () => {
+    const b = parsearHojas(hojasBase()).base
+    const a = derivarClientes(b, HOY, { sinFin: ['A001'] }).find(c => c.id === 'A001')
+    assert.equal(a.finPeriodo, '2026-12-01'); assert.equal(a.sinFin, true)
+    assert.equal(a.semaforo, 'gris'); assert.equal(a.diasParaVencer, null); assert.ok(!a.faltantes.includes('fin_periodo'))
+    const n = derivarClientes(b, HOY, { sinFin: [] }).find(c => c.id === 'A001')
+    assert.equal(n.sinFin, false); assert.equal(n.semaforo, 'verde'); assert.equal(typeof n.diasParaVencer, 'number')
+  })
+})
+
 describe('"no clientes" y métricas solo de Agencia', () => {
   const base = () => parsearHojas(hojasBase()).base
   test('el umbral es el de producción (400)', () => assert.equal(UMBRAL_CLIENTE_USD, 400))

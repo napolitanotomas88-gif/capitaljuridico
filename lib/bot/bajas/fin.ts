@@ -17,10 +17,13 @@ export interface ClienteBaja {
   id: string; nombre: string; estado: string; linea: string; mail: string; celular: string
   dia1: Ymd | null; finPeriodo: Ymd | null; periodos: { fin: Ymd | null; meses: number | null; periodo: number }[]
   fechaBaja: Ymd | null; satisfaccion: number | null; esNoCliente?: boolean
+  /** Sin fecha de fin (BOT_CLIENTES_SIN_FIN, lib/clientes/sinFin.ts): servicio por objetivos. El fin del CRM no cuenta. */
+  sinFin?: boolean
 }
 
 /** El fin real del programa (con pausas y extensiones). null si no hay con qué calcularlo. */
-export function finReal(c: Pick<ClienteBaja, 'dia1' | 'finPeriodo' | 'periodos'>): Ymd | null {
+export function finReal(c: Pick<ClienteBaja, 'dia1' | 'finPeriodo' | 'periodos' | 'sinFin'>): Ymd | null {
+  if (c.sinFin) return null   // servicio por objetivos: no tiene fin aunque el CRM traiga una fecha
   const fechas = [c.finPeriodo, ...c.periodos.map((p) => p.fin)].filter((x): x is Ymd => !!x && /^\d{4}-\d{2}-\d{2}$/.test(x)).sort()
   if (fechas.length) return fechas[fechas.length - 1]
   return c.dia1 ? finDelPeriodo(c.dia1) : null
@@ -32,7 +35,7 @@ export interface CandidatoAviso { cliente: ClienteBaja; fin: Ymd; dias: number }
 export function candidatosAvisoFin(clientes: readonly ClienteBaja[], hoy: Ymd): CandidatoAviso[] {
   const out: CandidatoAviso[] = []
   for (const c of clientes) {
-    if (c.linea !== 'agencia' || c.estado !== 'ACTIVO' || !c.id) continue
+    if (c.linea !== 'agencia' || c.estado !== 'ACTIVO' || !c.id || c.sinFin) continue
     const fin = finReal(c)
     if (!fin) continue
     const dias = diasEntre(hoy, fin)
@@ -50,7 +53,7 @@ export interface HistoricoCandidato { cliente: ClienteBaja; seFue: Ymd; dias: nu
 export function historicosParaRecontacto(clientes: readonly ClienteBaja[], hoy: Ymd, minDias: number = RECONTACTO_MIN_DIAS): HistoricoCandidato[] {
   const out: HistoricoCandidato[] = []
   for (const c of clientes) {
-    if (!esHistorico(c) || c.esNoCliente) continue
+    if (!esHistorico(c) || c.esNoCliente || c.sinFin) continue
     const seFue = c.fechaBaja ?? finReal(c)
     if (!seFue) continue
     const dias = diasEntre(seFue, hoy)
@@ -72,7 +75,7 @@ export interface DatosLlamada { titulo: string; mails: string[]; fecha: Ymd }
  *  entre dos. */
 export function clienteDeLlamada(clientes: readonly ClienteBaja[], l: DatosLlamada, conAviso: ReadonlySet<string> = new Set()): ClienteBaja | null {
   const cerca = clientes.filter((c) => {
-    if (c.linea !== 'agencia' || !c.id || (c.estado !== 'ACTIVO' && c.estado !== 'PAUSADO')) return false
+    if (c.linea !== 'agencia' || !c.id || c.sinFin || (c.estado !== 'ACTIVO' && c.estado !== 'PAUSADO')) return false
     if (conAviso.has(c.id.toUpperCase())) return true
     const fin = finReal(c)
     if (!fin) return false
@@ -95,7 +98,8 @@ export function clienteDeLlamada(clientes: readonly ClienteBaja[], l: DatosLlama
  *   · Se va ANTES del fin (faltan más de 14 días) → dudoso (cortó antes de terminar).
  *   · Sin fecha de fin, o un estado raro → dudoso.
  *  Con dudas no se propone nada: se pregunta "OK FINALIZADO / OK INACTIVO". PURO. */
-export function estadoParaBaja(c: Pick<ClienteBaja, 'estado' | 'dia1' | 'finPeriodo' | 'periodos'>, hoy: Ymd): PropuestaEstado {
+export function estadoParaBaja(c: Pick<ClienteBaja, 'estado' | 'dia1' | 'finPeriodo' | 'periodos' | 'sinFin'>, hoy: Ymd): PropuestaEstado {
+  if (c.sinFin) return { dudoso: true, motivo: 'su servicio es por objetivos (no tiene fecha de fin)' }
   if (c.estado === 'PAUSADO') return { dudoso: true, motivo: 'estaba en pausa' }
   if (c.estado !== 'ACTIVO') return { dudoso: true, motivo: `figura ${c.estado || 'sin estado'} en el CRM` }
   const fin = finReal(c)
