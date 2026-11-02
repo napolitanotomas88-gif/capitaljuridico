@@ -342,3 +342,19 @@ describe('pestañas de los portales en el hub Clientes (2/11/2026)', () => {
     base.usarSqlDePrueba(null)
   })
 })
+
+describe('secciones visibles por portal (2/11/2026)', () => {
+  test('sin dato: todas visibles (los portales viejos se ven igual que antes)', () => {
+    const r = validarDatosPortal({ nombre: 'X' })
+    assert.equal(r.ok, true)
+    assert.deepEqual(r.datos.secciones, { objetivo: true, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true })
+    assert.deepEqual(PORTAL_VACIO.secciones, r.datos.secciones)
+  })
+  test('solo false oculta; claves desconocidas no entran; formato malo se rechaza', () => {
+    const r = validarDatosPortal({ secciones: { plan: false, proximos: false, proceso: false, seguimiento: false, guiones: 'no', inventada: false } })
+    assert.equal(r.ok, true)
+    assert.deepEqual(r.datos.secciones, { objetivo: true, plan: false, proximos: false, proceso: false, guiones: true, seguimiento: false })
+    assert.equal(validarDatosPortal({ secciones: ['plan'] }).ok, false)
+    assert.equal(validarDatosPortal({ secciones: 'plan' }).ok, false)
+  })
+})

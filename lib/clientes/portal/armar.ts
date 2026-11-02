@@ -9,7 +9,7 @@ import { cargarVista } from '@/lib/clientes/vista'
 import { tandasDelCliente } from '@/lib/bot/guiones/registro'
 import { documentoVinculadoCliente } from '@/lib/bot/guiones/documento'
 import { leerPortal } from './base'
-import { procesoParaCliente, tandasParaCliente, type PasoProceso, type PortalGuardado, type TandaPortal } from './modelo'
+import { PORTAL_VACIO, procesoParaCliente, tandasParaCliente, type PasoProceso, type PortalGuardado, type TandaPortal } from './modelo'
 
 export interface PaginaPortal {
   id: string
@@ -52,7 +52,7 @@ export async function armarPortal(idCrudo: string): Promise<PaginaPortal | null>
   })
   return {
     id, nombreCRM: c.nombre,
-    portal: portal ?? { datos: { nombre: '', objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [] }, version: -1, actualizado: null },
+    portal: portal ?? { datos: PORTAL_VACIO, version: -1, actualizado: null },
     tandas: tandasParaCliente(filas),
     proceso: procesoParaCliente(hitos),
     documento: doc?.url ?? null,

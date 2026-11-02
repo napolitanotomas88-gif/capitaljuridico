@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
 import { Boton } from '@/components/ui'
-import { ESTADOS_ETAPA, NOMBRE_ESTADO_ETAPA, TOPES, type DatosPortal, type EstadoEtapa } from '@/lib/clientes/portal/modelo'
+import { ESTADOS_ETAPA, NOMBRE_ESTADO_ETAPA, NOMBRE_SECCION_PORTAL, SECCIONES_PORTAL, TOPES, type DatosPortal, type EstadoEtapa } from '@/lib/clientes/portal/modelo'
 
 // Panel del EQUIPO para armar el portal del cliente (2/11/2026). Guarda todo junto con la versión que leyó: si otra persona
 // guardó en el medio, avisa y no pisa. Solo lo ve el equipo (la página no lo dibuja para el cliente y la API le da 403).
@@ -58,6 +58,19 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
         <input id={campo('nombre')} className="cj-campo__entrada" value={d.nombre} maxLength={TOPES.nombre} placeholder={nombreCRM} onChange={e => cambiar({ nombre: e.target.value })} />
         <span className="cj-formulario__ayuda">Vacío = el nombre del CRM. Es el título que ve el cliente.</span>
       </div>
+
+      <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
+        <legend className="cj-etiqueta cj-etiqueta--laton">Qué secciones ve el cliente</legend>
+        <span className="cj-formulario__ayuda">El resumen de arriba siempre se ve. Lo que destildes queda guardado acá pero el cliente no lo ve.</span>
+        <div className="cj-fila" style={{ gap: '4px 20px', flexWrap: 'wrap' }}>
+          {SECCIONES_PORTAL.map(k => (
+            <label key={k} className="cj-fila" style={{ gap: 8, minHeight: 44 }}>
+              <input type="checkbox" checked={d.secciones[k]} onChange={e => cambiar({ secciones: { ...d.secciones, [k]: e.target.checked } })} />
+              {NOMBRE_SECCION_PORTAL[k]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
         <legend className="cj-etiqueta cj-etiqueta--laton">Objetivo</legend>
