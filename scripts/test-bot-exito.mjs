@@ -290,19 +290,19 @@ describe('directorio de grupos de cliente (General, Ventas y Contenido)', () => 
 
 // ── Núcleo con almacén en memoria, directorio fijo y Whapi / Claude / Discord falsos ──
 const FICHA = { clave: 'A123', cliente: 'Ana Pérez', idCrm: 'A123', grupos: { general: GENERAL, ventas: VENTAS_C, contenido: CONTENIDO }, invitacionGeneral: 'https://chat.whatsapp.com/AbCd1234', origen: 'motor' }
-function armar({ modo = 'real', caps = CFG.CAPACIDADES_EXITO, exito = true, sinId = false, fallaEnvio = null, sinDiscord = false, almacen = null, fichas = [FICHA] } = {}) {
+function armar({ modo = 'real', caps = CFG.CAPACIDADES_EXITO, exito = true, sinId = false, fallaEnvio = null, sinDiscord = false, almacen = null, fichas = [FICHA], diasContento = 0, ambito, prueba = false, clasificar } = {}) {
   const reloj = { t: AHORA }
   const enviados = [], discord = [], claude = []
   const al = almacen ?? A.almacenExitoEnMemoria()
-  const config = { ...CFG.configExito({}), modo, capacidades: new Set(modo === 'seco' ? [] : caps), aprobadores: [TOMI, GERO_A], verificaciones: GRUPOS.verificaciones }
+  const config = { ...CFG.configExito({}), modo, capacidades: new Set(modo === 'seco' ? [] : caps), aprobadores: [TOMI, GERO_A], verificaciones: GRUPOS.verificaciones, diasContento, prueba }
   const deps = {
-    config, almacen: al,
+    config, almacen: al, ambito,
     directorio: { deChat: async (chat) => { for (const f of fichas) for (const [g, id] of Object.entries(f.grupos)) if (id === chat) return { ficha: f, grupo: g }; return null }, todas: async () => fichas },
     async enviarTexto(p) {
       if (fallaEnvio && fallaEnvio(p)) { const e = fallaEnvio(p); throw e }
       enviados.push(p); return { id: sinId ? null : `wa-${enviados.length}` }
     },
-    clasificar: modo === 'seco' ? undefined : async (t) => { claude.push(t); if (exito === 'tira') throw new Error('Claude caído'); return { exito, hablaDeResultados: true, buenos: exito, confianza: 'alta', cita: t.slice(0, 40), motivo: '' } },
+    clasificar: modo === 'seco' ? undefined : clasificar ? async (t) => { claude.push(t); return clasificar(t) } : async (t) => { claude.push(t); if (exito === 'tira') throw new Error('Claude caído'); return { exito, hablaDeResultados: true, buenos: exito, confianza: 'alta', cita: t.slice(0, 40), motivo: '' } },
     discord: sinDiscord ? undefined : async (texto, menciones) => { discord.push({ texto, menciones }); return 'dc-1' },
     mencionGeroM: '100000000000000004', ahora: () => reloj.t, esperar: async () => {}, log: { info() {}, warn() {}, error() {} },
   }

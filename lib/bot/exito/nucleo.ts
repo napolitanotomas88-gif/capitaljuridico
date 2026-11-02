@@ -14,14 +14,16 @@
 // Modo: seco = nada sale y nada se escribe (solo el registro); ensayo = lecturas reales y, como mucho, un reporte SIMULACIÓN
 // en Verificaciones; real = por capacidad (config.ts). Nunca tira: los errores van al resumen.
 import { conPrefijoEnsayo } from '@/lib/bot/whapi/compuerta'
+import { conPrefijoPrueba } from '@/lib/bot/clientesPrueba'
 import type { AutorWhapi } from '@/lib/bot/alta/motor/tipos'
 import type { AlmacenExito, ClienteLote, Lote, Pedido } from './almacen'
 import type { ClasificarExito } from './claude'
 import {
-  MAX_CLAUDE_CLIENTE_DIA, MAX_PEDIDOS_ENCUESTA_DIA, PUNTAJE_EXITO, RECORDATORIO_ENCUESTA_MS, VENCE_PEDIDO_MS, VENTANA_TESTIMONIO_MS,
+  MAX_CLAUDE_CLIENTE_DIA, MAX_PEDIDOS_ENCUESTA_DIA, PUNTAJE_EXITO, RECORDATORIO_ENCUESTA_MS, VENCE_PEDIDO_MS, VENTANA_MEDIDOR_MS, VENTANA_TESTIMONIO_MS,
   reporteEnsayo, saleReal, type CapacidadExito, type ConfigExito,
 } from './config'
 import { normNombre, type Directorio, type FichaCliente } from './directorio'
+import { medirContento, type Medicion } from './medidor'
 import type { CandidatosExito } from './filtro'
 import { rondasVigentes, vinculos, type RespuestaEncuesta } from './rondas'
 import {
@@ -47,6 +49,11 @@ export interface DepsExito {
   /** Pausa entre encuesta y encuesta (para no mandar decenas de mensajes de golpe con un número no oficial). */
   esperar?: (ms: number) => Promise<void>
   log: RegistroLogExito
+  /** Ámbito de la corrida. Sin esto, todos los clientes (como siempre). Con BOT_CLIENTES_PRUEBA, servidor.ts arma DOS
+   *  núcleos: 'general' ignora a los clientes de prueba y 'prueba' (config real con todo) atiende SOLO a ellos. */
+  ambito?: { tipo: 'general' | 'prueba'; esPrueba(idCrm: string | null): boolean }
+  /** Recordatorio de la encuesta (por defecto 3 días; la prueba lo puede acortar). */
+  recordatorioMs?: number
 }
 
 export interface ResumenExito {
@@ -78,10 +85,23 @@ export function crearNucleo(d: DepsExito) {
   const { config: c, almacen } = d
   const real = (cap: CapacidadExito) => saleReal(cap, c.modo, c.capacidades)
   const ensayo = (cap: CapacidadExito) => reporteEnsayo(cap, c.modo, c.capacidades)
+  // Ámbito (clientes de prueba): cada núcleo atiende solo a los suyos; los lotes de la encuesta de prueba van con "-prueba"
+  const amb = d.ambito
+  const esNucleoPrueba = amb?.tipo === 'prueba'
+  const mio = (idCrm: string | null | undefined): boolean => (!amb ? true : esNucleoPrueba ? amb.esPrueba(idCrm ?? null) : !amb.esPrueba(idCrm ?? null))
+  const mioClave = (clave: string): boolean => mio(/^[A-Za-z]\d{1,6}$/.test(clave) ? clave : null)
+  const SUFIJO_LOTE = '-prueba'
+  const loteMio = (mes: string): boolean => (esNucleoPrueba ? mes.endsWith(SUFIJO_LOTE) : !mes.endsWith(SUFIJO_LOTE))
+  const recordatorioMs = d.recordatorioMs ?? RECORDATORIO_ENCUESTA_MS
+  /** El texto tal cual sale: al equipo, con la marca de PRUEBA (si es la corrida de prueba); en ensayo, con SIMULACIÓN. */
+  const paraSalir = (texto: string, chatId: string | null): string => {
+    const t = c.prueba && chatId !== null && chatId === c.verificaciones ? conPrefijoPrueba(texto) : texto
+    return c.modo === 'ensayo' ? conPrefijoEnsayo(t) : t
+  }
 
   /** Manda un texto si `permitido`; en ensayo, con el prefijo SIMULACIÓN. Nunca tira. */
   async function salir(permitido: boolean, chatId: string | null, texto: string, citar: string | null = null): Promise<Salida & { texto: string }> {
-    const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
+    const final = paraSalir(texto, chatId)
     if (!permitido || !chatId) return { estado: 'simulado', texto: final }
     try {
       const r = await d.enviarTexto({ chatId, texto: final, citar })
@@ -94,6 +114,7 @@ export function crearNucleo(d: DepsExito) {
 
   /** Abre un pedido de OK en Verificaciones (o el reporte SIMULACIÓN en ensayo). Respeta el bloqueo (abierto / 60 días). */
   async function abrirPedido(r: ResumenExito, ficha: FichaCliente, motivo: MotivoExito, origen: string, idCrm: string | null = ficha.idCrm): Promise<boolean> {
+    if (!mio(idCrm)) { r.ignorados++; return false }
     if (d.clienteOperativo && !await d.clienteOperativo(idCrm, ficha.cliente)) { r.ignorados++; return false }
     const general = ficha.grupos.general
     if (!general) { r.registro.push(`${ficha.cliente}: éxito detectado, pero no se conoce su grupo General: no se pide el OK`); return false }
@@ -103,7 +124,7 @@ export function crearNucleo(d: DepsExito) {
     const texto = textoPedidoOk(ficha.cliente, motivo)
     if (!permitido) { r.registro.push(`haría: pedir el OK del testimonio de ${ficha.cliente} en Verificaciones (sin la capacidad exito_pedido_ok)`); return false }
     if (!c.verificaciones) { r.errores.push('falta WHAPI_GRUPO_VERIFICACIONES: no se puede pedir el OK'); return false }
-    const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
+    const final = paraSalir(texto, c.verificaciones)
     const id = `p_${idSeguro(origen)}`
     const creado = await almacen.crearPedido({ id, clave: ficha.clave, cliente: ficha.cliente, idCrm, general, invitacion: ficha.invitacionGeneral, motivo, modo: c.modo, mensajePedidoId: null, huella: huellaTexto(final), creado: iso(d.ahora()) })
     if (!creado) { r.ignorados++; return false }
@@ -123,9 +144,12 @@ export function crearNucleo(d: DepsExito) {
   // ── Webhook ──
   async function aplicarEco(r: ResumenExito, e: CandidatosExito['ecos'][number]) {
     const p = await almacen.pedidoSinIdPorHuella(huellaTexto(e.texto), iso(Date.parse(e.enviadoEn) - 3600_000))
+    if (p && !mio(p.idCrm)) return
     if (!p) {
       const lote = await almacen.loteSinIdPorHuella(huellaTexto(e.texto))
+      if (lote && !loteMio(lote.mes)) return
       if (lote) { await almacen.actualizarLote(lote.mes, { mensajeId: e.mensajeId }, ['pedido']); r.ecos++; return }
+      if (esNucleoPrueba) return
       const dud = await almacen.dudosaSinIdPorHuella(huellaTexto(e.texto))
       if (dud) { await almacen.marcarSenal(dud.id, 'consultada', { mensajeId: e.mensajeId }); r.ecos++ }
       return
@@ -137,9 +161,11 @@ export function crearNucleo(d: DepsExito) {
     const p = await almacen.pedidoPorMensaje(x.citado)
     if (!p) {
       const lote = await almacen.lotePorMensaje(x.citado)
-      if (lote) return aplicarRespuestaLote(r, x, lote)
+      if (lote) return loteMio(lote.mes) ? aplicarRespuestaLote(r, x, lote) : undefined
+      if (esNucleoPrueba) return
       return aplicarRespuestaDudosa(r, x)   // o cita otra cosa (un pedido del motor de altas): no es de esta etapa
     }
+    if (!mio(p.idCrm)) return   // lo atiende el otro núcleo (cliente de prueba o no)
     if (!enLista(x.autor, c.aprobadores)) { r.ignorados++; r.registro.push(`respuesta a ${p.cliente} de alguien que no es aprobador: se ignora`); return }
     if (p.estado !== 'abierto') { r.ignorados++; return }
     if (d.clienteOperativo && !await d.clienteOperativo(p.idCrm, p.cliente)) { r.ignorados++; return }
@@ -196,6 +222,7 @@ export function crearNucleo(d: DepsExito) {
     const e = await d.directorio.deChat(m.chatId)
     if (!e) return   // no es un grupo de cliente
     const { ficha, grupo } = e
+    if (!mio(ficha.idCrm)) return
     if (d.clienteOperativo && !await d.clienteOperativo(ficha.idCrm, ficha.cliente)) { r.ignorados++; return }
     if (!d.clasificar) { r.registro.push(`haría: evaluar con Claude un mensaje de ${ficha.cliente} (grupo ${grupo})`); return }
     if (await almacen.bloqueo(ficha.clave, d.ahora())) { r.ignorados++; return }
@@ -211,16 +238,39 @@ export function crearNucleo(d: DepsExito) {
       r.errores.push(`${ficha.cliente}: no se pudo evaluar el mensaje (${motivoDe(err)})`)
       return
     }
-    await almacen.marcarSenal(sid, l.exito ? 'exito' : 'no', { confianza: l.confianza, motivo: l.motivo, habla: l.hablaDeResultados, buenos: l.buenos })
+    await almacen.marcarSenal(sid, l.exito ? 'exito' : 'no', { confianza: l.confianza, motivo: l.motivo, habla: l.hablaDeResultados, buenos: l.buenos, grupo, ...(l.exito ? { cita: l.cita } : {}) })
     if (!l.exito) return
     r.detectados++
-    await abrirPedido(r, ficha, { tipo: 'mensaje', cita: l.cita, grupo }, `m_${m.mensajeId}`)
+    // h01: con el medidor (EXITO_DIAS_CONTENTO > 0) se pide recién a los N días contento; 0 = en la primera señal
+    if (c.diasContento <= 0) await abrirPedido(r, ficha, { tipo: 'mensaje', cita: l.cita, grupo }, `m_${m.mensajeId}`)
+    else await revisarMedidor(r, [ficha.clave], ficha)
   }
+
+  /** h01, el medidor: pide el OK del testimonio a los clientes contentos hace c.diasContento días (sin una señal mala en el
+   *  medio). `solo`: solo esas claves (lo llama el webhook al llegar una señal buena); sin `solo`, todas (el cron). */
+  async function revisarMedidor(r: ResumenExito, solo?: string[], fichaConocida?: FichaCliente) {
+    if (c.diasContento <= 0) return
+    const ahora = d.ahora()
+    const medidas = medirContento(await almacen.senalesDesde(iso(ahora - VENTANA_MEDIDOR_MS)), ahora, c.diasContento)
+    let todas: FichaCliente[] | null = null
+    for (const m of medidas) {
+      if (solo && !solo.includes(m.clave)) continue
+      if (!mioClave(m.clave)) continue
+      if (!m.listo) { r.registro.push(`medidor: ${m.clave} contento hace ${m.dias} día(s) (${m.senales} señal(es) buena(s)); el testimonio se pide a los ${c.diasContento}`); continue }
+      let ficha: FichaCliente | null = fichaConocida?.clave === m.clave ? fichaConocida : null
+      if (!ficha) { todas ??= await d.directorio.todas(); ficha = todas.find((f) => f.clave === m.clave) ?? null }
+      if (!ficha && m.chatId) ficha = (await d.directorio.deChat(m.chatId))?.ficha ?? null
+      if (!ficha || ficha.clave !== m.clave) { r.registro.push(`medidor: ${m.clave} listo, pero no se encuentra su grupo General`); continue }
+      await abrirPedido(r, ficha, motivoMedidor(m), `med_${m.clave}_${diaAR(Date.parse(m.desde))}`)
+    }
+  }
+  const motivoMedidor = (m: Medicion) => ({ tipo: 'contento' as const, dias: m.dias, senales: m.senales, desde: diaAR(Date.parse(m.desde)), cita: m.ultima.cita, grupo: m.ultima.grupo, puntaje: m.ultima.puntaje })
 
   async function aplicarVideo(r: ResumenExito, v: CandidatosExito['videos'][number]) {
     const e = await d.directorio.deChat(v.chatId)
     if (!e) return
     const { ficha, grupo } = e
+    if (!mio(ficha.idCrm)) return
     if (d.clienteOperativo && !await d.clienteOperativo(ficha.idCrm, ficha.cliente)) { r.ignorados++; return }
     const p = await almacen.pedidoParaTestimonio(ficha.clave, iso(d.ahora() - VENTANA_TESTIMONIO_MS))
     if (!p || Date.parse(v.enviadoEn) < Date.parse(p.resuelto ?? p.creado)) return
@@ -240,7 +290,7 @@ export function crearNucleo(d: DepsExito) {
       let discordId: string | null = null
       if (d.discord) {
         try {
-          discordId = await d.discord(textoDiscordTestimonio({ cliente: p.cliente, mencion: d.mencionGeroM, grupo, link: p.invitacion, mensajeId, fecha: diaAR(Date.parse(enviadoEn)).split('-').reverse().join('/') }), d.mencionGeroM ? [d.mencionGeroM] : [])
+          discordId = await d.discord((c.prueba ? conPrefijoPrueba : (t: string) => t)(textoDiscordTestimonio({ cliente: p.cliente, mencion: d.mencionGeroM, grupo, link: p.invitacion, mensajeId, fecha: diaAR(Date.parse(enviadoEn)).split('-').reverse().join('/') })), d.mencionGeroM ? [d.mencionGeroM] : [])
         } catch (e) {
           r.errores.push(`${p.cliente}: no salió el aviso de Discord (${motivoDe(e)})`)
         }
@@ -289,7 +339,7 @@ export function crearNucleo(d: DepsExito) {
     const pasos: [string, () => Promise<void>][] = [
       ['vencer pedidos', () => vencerPedidos(r)],
       ['encuesta', async () => {
-        const candidatos = await l.clientesActivos()
+        const candidatos = (await l.clientesActivos()).filter((k) => mio(k.id))
         const controles = await Promise.all(candidatos.map(k => d.clienteOperativo ? d.clienteOperativo(k.id, k.nombre) : true))
         const clientes = candidatos.filter((_, i) => controles[i])
         const fichas = await d.directorio.todas()
@@ -299,10 +349,11 @@ export function crearNucleo(d: DepsExito) {
           const conAsignacion = respuestas.map((x) => (x.idCliente || !asignadas.has(x.clave) ? x : { ...x, idCliente: asignadas.get(x.clave)!.toUpperCase() }))
           await vincularRondas(r, conAsignacion)
           await senalesDeEncuesta(r, clientes, fichas)
-          await consultarDudosas(r, conAsignacion)
+          if (!esNucleoPrueba) await consultarDudosas(r, conAsignacion)
         }
         await encuestaMensual(r, clientes, fichas, !!respuestas, ahora, !!op.forzarLista)
       }],
+      ['medidor', () => revisarMedidor(r)],
     ]
     for (const [que, f] of pasos) {
       try { await f() } catch (e) { r.errores.push(`${que}: ${motivoDe(e)}`) }
@@ -311,10 +362,12 @@ export function crearNucleo(d: DepsExito) {
   }
 
   const desdeRondas = () => iso(d.ahora() - 400 * DIA_MS)
+  /** Las rondas de ESTE núcleo (los clientes de prueba van solo al núcleo de prueba). */
+  const misRondas = async () => (await almacen.rondasDesde(desdeRondas())).filter((x) => mio(x.idCrm ?? (mioClave(x.clave) && /^[A-Za-z]\d/.test(x.clave) ? x.clave : null)))
 
   /** Vincula cada respuesta a SU ronda (envío ≤ submitted_at < envío de la siguiente). Las viejas no tocan la ronda vigente. */
   async function vincularRondas(r: ResumenExito, respuestas: RespuestaEncuesta[]) {
-    for (const v of vinculos(await almacen.rondasDesde(desdeRondas()), respuestas)) {
+    for (const v of vinculos(await misRondas(), respuestas)) {
       if (await almacen.vincularRespuesta(v.ronda.id, { respuestaId: v.respuesta.clave, puntaje: v.respuesta.valor, respondidaEn: v.respuesta.enviadaEn })) {
         r.registro.push(`encuesta ${v.ronda.mes} de ${v.ronda.cliente}: respondió ${v.respuesta.valor ?? '?'}/10`)
       }
@@ -324,7 +377,7 @@ export function crearNucleo(d: DepsExito) {
   /** Éxito por la encuesta: SOLO el puntaje de la ronda vigente (la última enviada a cada cliente), 8 o más. */
   async function senalesDeEncuesta(r: ResumenExito, clientes: ClienteActivo[], fichas: FichaCliente[]) {
     let abiertos = 0
-    for (const ronda of rondasVigentes(await almacen.rondasDesde(desdeRondas()))) {
+    for (const ronda of rondasVigentes(await misRondas())) {
       if (ronda.puntaje === null || ronda.puntaje < PUNTAJE_EXITO || !ronda.respuestaId) continue
       if (abiertos >= MAX_PEDIDOS_ENCUESTA_DIA) { r.registro.push(`tope de ${MAX_PEDIDOS_ENCUESTA_DIA} pedidos por la encuesta en el día: el resto sigue mañana`); break }
       const id = ronda.idCrm ?? ronda.clave
@@ -337,13 +390,14 @@ export function crearNucleo(d: DepsExito) {
       await almacen.marcarSenal(sid, 'exito')
       r.detectados++
       const fecha = ronda.respondidaEn ? diaAR(Date.parse(ronda.respondidaEn)).split('-').reverse().join('/') : null
+      if (c.diasContento > 0) continue   // h01: lo levanta el medidor (paso 'medidor' del cron) a los N días contento
       if (await abrirPedido(r, { ...ficha, idCrm: ficha.idCrm ?? cli.id }, { tipo: 'encuesta', puntaje: ronda.puntaje, fecha }, `ronda_${ronda.id}`, cli.id)) abiertos++
     }
   }
 
   /** Respuestas que no cruzan con un único cliente y pueden ser de la ronda vigente: se pregunta en Verificaciones. */
   async function consultarDudosas(r: ResumenExito, respuestas: RespuestaEncuesta[]) {
-    const vigentes = rondasVigentes(await almacen.rondasDesde(desdeRondas()))
+    const vigentes = rondasVigentes(await misRondas())
     if (!vigentes.length) return
     const ultimoMes = vigentes.map((x) => x.mes).sort().at(-1)!
     const desde = vigentes.filter((x) => x.mes === ultimoMes).map((x) => x.enviadaEn!).sort()[0]
@@ -354,7 +408,7 @@ export function crearNucleo(d: DepsExito) {
       if (consultadas >= MAX_PEDIDOS_ENCUESTA_DIA) break
       if (!permitido || !c.verificaciones) { r.registro.push(`haría: preguntar en Verificaciones de qué cliente es una respuesta de la encuesta (${x.quien})`); continue }
       const texto = textoDudosa(x)
-      const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
+      const final = paraSalir(texto, c.verificaciones)
       const sid = `dud:${idSeguro(x.clave)}`
       if (!(await almacen.reclamarSenal({ id: sid, tipo: 'dudosa', clave: '__dudosa', chatId: null, detalle: { respuesta: x.clave, quien: x.quien, valor: x.valor, fecha: x.enviadaEn, huella: huellaTexto(final) } }, iso(d.ahora())))) continue
       consultadas++
@@ -369,18 +423,19 @@ export function crearNucleo(d: DepsExito) {
    *  (2) con el lote aprobado manda (o sigue mandando) la encuesta; (3) el recordatorio a los 3 días, sin pedir OK de nuevo. */
   async function encuestaMensual(r: ResumenExito, clientes: ClienteActivo[], fichas: FichaCliente[], conPlanilla: boolean, ahora: number, forzarLista: boolean) {
     const hoy = diaAR(ahora)
-    const mes = hoy.slice(0, 7)
+    const mesVisible = hoy.slice(0, 7)
+    const mes = `${mesVisible}${esNucleoPrueba ? SUFIJO_LOTE : ''}`   // el lote de prueba no pisa el del mes
     const dia = Number(hoy.slice(8, 10))
-    // 1. La lista para el OK
-    if ((dia === c.diaEncuesta || forzarLista) && !(await almacen.lote(mes))) {
+    // 1. La lista para el OK (la de prueba, solo si hay algún cliente de prueba activo)
+    if ((dia === c.diaEncuesta || forzarLista) && !(esNucleoPrueba && !clientes.length) && !(await almacen.lote(mes))) {
       const conGrupo = clientes.map((k) => ({ k, f: fichaDeCliente(k, fichas) }))
       const van = conGrupo.filter((x) => x.f?.grupos.general).map((x) => ({ id: x.k.id.toUpperCase(), nombre: x.k.nombre, general: x.f!.grupos.general! }))
       const sinGrupo = conGrupo.filter((x) => !x.f?.grupos.general).map((x) => x.k.nombre)
       const permitido = real('encuesta_mensual') || ensayo('encuesta_mensual')
       if (!permitido || !c.verificaciones) r.registro.push(`haría: pedir el OK para mandar la encuesta de ${mes} a ${van.length} cliente(s) activo(s) (sin la capacidad encuesta_mensual)`)
       else {
-        const texto = textoListaEncuesta(mes, van.map((x) => x.nombre), sinGrupo)
-        const final = c.modo === 'ensayo' ? conPrefijoEnsayo(texto) : texto
+        const texto = textoListaEncuesta(mesVisible, van.map((x) => x.nombre), sinGrupo)
+        const final = paraSalir(texto, c.verificaciones)
         if (await almacen.crearLote({ mes, modo: c.modo, clientes: van, sinGrupo, mensajeId: null, huella: huellaTexto(final), creado: iso(ahora) })) {
           const s = await salir(true, c.verificaciones, texto)
           if (s.estado === 'enviado' && s.id) await almacen.actualizarLote(mes, { mensajeId: s.id })
@@ -393,7 +448,7 @@ export function crearNucleo(d: DepsExito) {
     const lote = await almacen.lote(mes)
     if (lote?.estado === 'aprobado') await enviarLote(r, lote)
     // 3. Recordatorio a los 3 días, solo de la ronda de este mes y si esa ronda no tiene respuesta vinculada
-    const pendientes = (await almacen.encuestasDelMes(mes)).filter((e) => e.clave !== '__reporte' && e.estado === 'enviada' && !e.recordatorioEn && !e.respuestaId && e.enviadaEn && Date.parse(e.enviadaEn) <= ahora - RECORDATORIO_ENCUESTA_MS)
+    const pendientes = (await almacen.encuestasDelMes(mes)).filter((e) => e.clave !== '__reporte' && e.estado === 'enviada' && !e.recordatorioEn && !e.respuestaId && e.enviadaEn && Date.parse(e.enviadaEn) <= ahora - recordatorioMs && mio(e.idCrm))
     if (!pendientes.length) return
     if (!conPlanilla) { r.registro.push('recordatorio de la encuesta: sin la planilla del Typeform no se sabe quién respondió, no se manda'); return }
     for (const e of pendientes) {
@@ -412,17 +467,18 @@ export function crearNucleo(d: DepsExito) {
   async function enviarLote(r: ResumenExito, lote: Lote) {
     if (!real('encuesta_mensual') || lote.modo !== 'real') { r.registro.push(`haría: mandar la encuesta de ${lote.mes} a ${lote.clientes.length - lote.excluidos.length} cliente(s)`); return }
     const inicio = d.ahora()
-    let pendientes = 0
+    let pendientes = 0, salieron = 0
     for (const k of lote.clientes) {
       if (lote.excluidos.includes(k.id)) continue
       if (d.clienteOperativo && !await d.clienteOperativo(k.id, k.nombre)) { r.ignorados++; continue }
-      if (d.ahora() - inicio > TIEMPO_LOTE_MS) { pendientes++; continue }
+      if (d.ahora() - inicio > TIEMPO_LOTE_MS || salieron >= c.maxEncuestasCorrida) { pendientes++; continue }
       const id = `${lote.mes}:${k.id}`
       if (!(await almacen.reclamarEncuesta({ id, mes: lote.mes, clave: k.id, idCrm: k.id, cliente: k.nombre, general: k.general, estado: 'enviando', enviadaEn: null, mensajeId: null, recordatorioEn: null, recordatorioEstado: null, respondida: false }, iso(d.ahora())))) continue
       // La fecha de envío se fija ANTES de mandar: una respuesta no puede quedar antes del envío de su propia ronda
       const enviada = iso(d.ahora())
       const s = await salir(true, k.general, textoEncuesta(k.nombre, c.typeformUrl))
       await almacen.actualizarEncuesta(id, { estado: s.estado === 'enviado' ? 'enviada' : s.estado === 'error' && s.dudoso ? 'dudosa' : 'error', enviadaEn: s.estado === 'enviado' || (s.estado === 'error' && s.dudoso) ? enviada : null, mensajeId: s.estado === 'enviado' ? s.id : null })
+      salieron++
       if (s.estado === 'enviado') r.encuestas++
       else r.errores.push(`${k.nombre}: no salió la encuesta${s.estado === 'error' ? ` (${s.motivo})` : ''}`)
       if (d.esperar) await d.esperar(ESPERA_ENTRE_ENCUESTAS_MS)

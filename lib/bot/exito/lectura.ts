@@ -6,17 +6,23 @@
 //     'testimonio_recibido' (mandó el video) · 'rechazado' · 'vencido' · 'error' · 'simulado' (ensayo).
 import { almacenExitoNeon } from './almacenNeon'
 import type { AlmacenExito, Pedido } from './almacen'
-import { configExito, faltantesExito } from './config'
+import { clientesPrueba } from '@/lib/bot/clientesPrueba'
+import { configExito, configPruebaExito, faltantesExito, VENTANA_MEDIDOR_MS } from './config'
+import { medirContento, type Medicion } from './medidor'
 
 export type EstadoExitoCliente = 'pedido_abierto' | 'testimonio_pedido' | 'testimonio_recibido' | 'rechazado' | 'vencido' | 'error' | 'simulado'
 export interface ExitoCliente {
   clave: string; idCrm: string | null; cliente: string; estado: EstadoExitoCliente
-  motivo: 'mensaje' | 'encuesta'; desde: string; testimonioEn: string | null
+  motivo: 'mensaje' | 'encuesta' | 'contento'; desde: string; testimonioEn: string | null
 }
 export interface EstadoExito {
   modo: string; capacidades: string[]; faltan: string[]
   clientes: ExitoCliente[]
   conteos: Record<string, number>
+  /** h01: clientes contentos (racha buena vigente), con los días que llevan y si ya toca pedir el testimonio. */
+  medidor?: Medicion[]
+  /** Corrida de prueba (BOT_CLIENTES_PRUEBA): qué IDs y qué falta para que salga (nombres de variables). */
+  prueba?: { clientes: string[]; faltan: string[]; diasContento: number }
 }
 
 export function estadoDePedido(p: Pedido): EstadoExitoCliente {
@@ -47,10 +53,17 @@ export function resumirPedidos(pedidos: readonly Pedido[]): { clientes: ExitoCli
 export async function leerEstadoExito(op: { almacen?: AlmacenExito; env?: NodeJS.ProcessEnv } = {}): Promise<EstadoExito> {
   const env = op.env ?? process.env
   const c = configExito(env)
-  const base = { modo: c.modo, capacidades: [...c.capacidades], faltan: faltantesExito(env) }
+  const ids = [...clientesPrueba(env)]
+  const base = {
+    modo: c.modo, capacidades: [...c.capacidades], faltan: faltantesExito(env),
+    ...(ids.length ? { prueba: { clientes: ids, faltan: faltantesExito(env, true), diasContento: configPruebaExito(env).diasContento } } : {}),
+  }
   if (!env.DATABASE_URL?.trim() && !op.almacen) return { ...base, clientes: [], conteos: {} }
   try {
-    return { ...base, ...resumirPedidos(await (op.almacen ?? almacenExitoNeon()).listarPedidos(500)) }
+    const al = op.almacen ?? almacenExitoNeon()
+    const ahora = Date.now()
+    const medidor = medirContento(await al.senalesDesde(new Date(ahora - VENTANA_MEDIDOR_MS).toISOString()), ahora, c.diasContento)
+    return { ...base, ...resumirPedidos(await al.listarPedidos(500)), medidor }
   } catch {
     return { ...base, clientes: [], conteos: {} }
   }

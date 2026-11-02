@@ -99,14 +99,27 @@ export function citaCorta(t: string, max = 160): string {
   return `${corte}…`
 }
 
-export type MotivoExito = { tipo: 'mensaje'; cita: string; grupo: GrupoCliente } | { tipo: 'encuesta'; puntaje: number; fecha: string | null }
+export type MotivoExito =
+  | { tipo: 'mensaje'; cita: string; grupo: GrupoCliente }
+  | { tipo: 'encuesta'; puntaje: number; fecha: string | null }
+  /** h01, el medidor: contento hace `dias` días con `senales` señales buenas; la última, para mostrarla. */
+  | { tipo: 'contento'; dias: number; senales: number; desde: string; cita: string | null; grupo: GrupoCliente | null; puntaje: number | null }
 
 /** El pedido de permiso en Verificaciones C.J (corto). */
 export function textoPedidoOk(cliente: string, motivo: MotivoExito): string {
   const por = motivo.tipo === 'mensaje'
     ? `Escribió en el grupo ${NOMBRE_GRUPO[motivo.grupo]}: "${citaCorta(motivo.cita)}"`
-    : `Encuesta mensual: ${motivo.puntaje}/10${motivo.fecha ? ` (${motivo.fecha})` : ''}`
+    : motivo.tipo === 'encuesta'
+      ? `Encuesta mensual: ${motivo.puntaje}/10${motivo.fecha ? ` (${motivo.fecha})` : ''}`
+      : textoContento(motivo)
   return `🏆 Éxito de cliente: ${cliente}\n${por}\n\n¿Le mando el mensaje de testimonio? Respondé citando: OK / NO`
+}
+
+function textoContento(m: Extract<MotivoExito, { tipo: 'contento' }>): string {
+  const desde = m.desde.split('-').reverse().join('/')
+  const cab = `Contento hace ${m.dias} ${m.dias === 1 ? 'día' : 'días'} (desde el ${desde}, ${m.senales} ${m.senales === 1 ? 'señal buena' : 'señales buenas'}, ninguna mala)`
+  const ultima = m.cita && m.grupo ? `\nÚltima: en el grupo ${NOMBRE_GRUPO[m.grupo]}: "${citaCorta(m.cita)}"` : m.puntaje !== null ? `\nÚltima: encuesta mensual ${m.puntaje}/10` : ''
+  return `${cab}${ultima}`
 }
 
 /** Aviso en Discord #🤝-exito-y-bajas cuando llega el video. WhatsApp no tiene links a un mensaje: va el link del grupo. */
