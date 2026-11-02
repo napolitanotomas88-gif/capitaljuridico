@@ -78,7 +78,7 @@ export function FinanzasDashboard() {
           <div style={{ opacity: cargando ? 0.6 : 1, transition: 'opacity .2s' }}>
             {/* Resultado del mes: las tarjetas de dato del Despacho */}
             <Resumen titulo="Resultado del mes" className="fin-resumen" datos={[
-              { etiqueta: 'Entró (cash)', valor: fmtUsd(r.ingresos), contexto: `${d.entradas.pagos} pagos`, destacado: true },
+              { etiqueta: 'Entró (cash)', valor: fmtUsd(r.ingresos), contexto: `${d.entradas.pagos} ${d.entradas.pagos === 1 ? 'pago' : 'pagos'}`, destacado: true },
               { etiqueta: 'Gastos', valor: fmtUsd(r.gastos), contexto: d.gastos.anunciosEstimado ? 'Incluye anuncios estimados' : undefined },
               { etiqueta: 'Ganancia neta', valor: fmtUsd(r.neto), estado: { tono: r.neto >= 0 ? 'ok' : 'alerta', texto: r.neto >= 0 ? 'Positiva' : 'Negativa' } },
               { etiqueta: 'Margen', valor: fmtPct(r.margen), estado: r.margen == null ? undefined : { tono: r.margen >= 0 ? 'ok' : 'alerta', texto: r.margen >= 0 ? 'Sobre el cash' : 'En rojo' } },
