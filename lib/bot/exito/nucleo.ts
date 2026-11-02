@@ -328,6 +328,7 @@ export function crearNucleo(d: DepsExito) {
   // ── Cron diario ──
   async function vencerPedidos(r: ResumenExito) {
     for (const p of await almacen.pedidosAbiertosAntesDe(iso(d.ahora() - VENCE_PEDIDO_MS))) {
+      if (!mio(p.idCrm)) continue   // cada núcleo vence solo los suyos (la prueba nunca toca un pedido de un cliente real)
       if (await almacen.actualizarPedido(p.id, { estado: 'vencido', resuelto: iso(d.ahora()) }, ['abierto'])) { r.vencidos++; r.registro.push(`venció el pedido de ${p.cliente} (14 días sin respuesta)`) }
     }
   }
