@@ -11,12 +11,14 @@ describe('textos', () => {
   test('Discord → WhatsApp: sin mención de Discord, negrita simple, links a la vista', () => {
     assert.equal(W.discordAWhatsapp('<@366> 🗣️ **Nota del cliente** · Ana \\| Zona\n[Ver la nota en el Despacho](<https://d/anuncios?nota=7#notas>)'),
       '🗣️ *Nota del cliente* · Ana | Zona\nVer la nota en el Despacho: https://d/anuncios?nota=7#notas')
-    assert.equal(W.textoSuelto('**Hola**', '5490000000000'), '@5490000000000 Pelado, *Hola*')
+    assert.equal(W.textoSuelto('**Hola** Ana Pérez', '5490000000000', () => 0, { ANUNCIOS_APODOS_CLIENTES: '{"Ana Pérez":"tu gran amiga Ana"}' }), '@5490000000000 Pelado botón de Oberá 👋 *Hola* tu gran amiga Ana')
+    assert.equal(W.saludo(() => 0.15), 'Misionero pelado'); assert.ok(W.SALUDOS.every(x => /pelado/i.test(x)))
+    assert.equal(W.conApodos('x', { ANUNCIOS_APODOS_CLIENTES: 'roto' }), 'x')
   })
   test('resumen: uno solo, con mención y tope de líneas', () => {
     assert.equal(W.textoResumen([], 'l', null), null)
-    const t = W.textoResumen([{ tipo: 'optimizar', cliente: 'Ana' }, { tipo: 'videos', cliente: 'Beto' }], 'https://d/anuncios', '5490000000000')
-    assert.match(t, /^@5490000000000 Pelado, 📣 \*Anuncios de hoy\* · 2 avisos/)
+    const t = W.textoResumen([{ tipo: 'optimizar', cliente: 'Ana' }, { tipo: 'videos', cliente: 'Beto' }], 'https://d/anuncios', '5490000000000', () => 0.15, {})
+    assert.match(t, /^@5490000000000 Misionero pelado 👋 📣 \*Anuncios de hoy\* · 2 avisos/)
     assert.match(t, /• Ana — Optimizar\n• Beto — Videos nuevos para subir/)
     assert.match(t, /Tablero: https:\/\/d\/anuncios$/)
     const muchos = W.textoResumen(Array.from({ length: 25 }, (_, i) => ({ tipo: 'lanzada', cliente: `C${i}` })), 'l', null)
