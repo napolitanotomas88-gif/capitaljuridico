@@ -34,7 +34,7 @@
     },
     {
       "path": "/api/alerta-anuncios",
-      "schedule": "45 11 * * *"
+      "schedule": "5 12 * * *"
     },
     {
       "path": "/api/fathom-anuncios/reintentar",

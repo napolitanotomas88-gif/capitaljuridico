@@ -29,7 +29,7 @@ El tablero de anuncios ya arma el ciclo de cada campaña (día 1 = anuncios nuev
 
 ### Cuándo corre
 
-Después de la alerta diaria (`/api/alerta-anuncios`, cron 8:45 AR), con el mismo tablero (no vuelve a leer Meta entero). Corre aunque la alerta no tenga nada que mandar. Lee de Meta, en un solo batch y con los tokens de lectura, solo las campañas con recordatorio: anuncios, gasto y mensajes por anuncio (en pedidos separados) y el historial de la cuenta. `?preview=1` devuelve los textos (`seguimiento.avisos`) sin escribir nada (ni base, ni planilla, ni Discord). `ANUNCIOS_SEGUIMIENTO=0` lo apaga.
+Después de la alerta diaria (`/api/alerta-anuncios`, cron 9:05 AR), con el mismo tablero (no vuelve a leer Meta entero). Corre aunque la alerta no tenga nada que mandar. Lee de Meta, en un solo batch y con los tokens de lectura, solo las campañas con recordatorio: anuncios, gasto y mensajes por anuncio (en pedidos separados) y el historial de la cuenta. `?preview=1` devuelve los textos (`seguimiento.avisos`) sin escribir nada (ni base, ni planilla, ni Discord). `ANUNCIOS_SEGUIMIENTO=0` lo apaga.
 
 ### Una sola vez — `cj_anuncios_avisos` (Neon)
 
@@ -48,7 +48,7 @@ Clave `tipo:campaña:fecha del ciclo`. Se reclama antes de mandar (`INSERT … O
 
 ## g01 + g03 · Videos nuevos en Editados y borrador en pausa (25–26/10/2026)
 
-- **g01 (en producción desde el 25/10, r2d8ykd93).** Corre en la alerta de las 8:45 (`lib/bot/anuncios/videos.ts` + `editadosDrive.ts`).
+- **g01 (en producción desde el 25/10, r2d8ykd93).** Corre en la alerta de las 9:05 (antes 8:45) (`lib/bot/anuncios/videos.ts` + `editadosDrive.ts`).
   - Mira «Editados - X» y sus subcarpetas.
   - Avisa una vez por subida: espera 12 h sin videos nuevos.
   - Solo toma lo subido desde `ANUNCIOS_VIDEOS_DESDE` (por defecto el 26/10).
@@ -61,7 +61,7 @@ Clave `tipo:campaña:fecha del ciclo`. Se reclama antes de mandar (`INSERT … O
   - **Interruptor:** apagado salvo `ANUNCIOS_BORRADOR=real`; `ANUNCIOS_BORRADOR_SOLO=act_…` lo limita a esas cuentas.
   - **Token:** `META_ANUNCIOS_TOKEN`.
   - **Tiempo:** la ruta de la alerta pasó a `maxDuration` 300, porque los videos tardan en procesarse en Meta. Si no terminan a tiempo, el conjunto no se crea y el aviso lo dice.
-- **g04 (WhatsApp al cliente).** Construido y publicado, APAGADO: solo sale con `ANUNCIOS_WHATSAPP=real` (+ `ANUNCIOS_WHATSAPP_SOLO` y `ANUNCIOS_WHATSAPP_GRUPOS`). Sin eso, el texto para el cliente le llega a ADS para que lo pegue.
+- **g04 (WhatsApp al cliente).** Construido y publicado, APAGADO: solo sale con `ANUNCIOS_WHATSAPP=real` (+ `ANUNCIOS_WHATSAPP_SOLO` y `ANUNCIOS_WHATSAPP_GRUPOS`). Sin eso, el texto para el cliente le llega a ADS para que lo pegue. Desde el 2/11: `ANUNCIOS_WHATSAPP_SOLO` vacía o mal escrita no habilita a nadie (para todas, escribir `todas`); fuera de 9 a 20 h no sale; con grupo fijo y el bot afuera, no busca por nombre; por nombre exige 2 palabras del cliente.
 
 ## Regla del 26/10: el «🚀 Para lanzar» sale con los videos, no en la kickoff
 
@@ -168,7 +168,7 @@ Los avisos de Anuncios que salen por #📣-ads también le llegan a Valen por Wh
 
 - **Encendido:** `ANUNCIOS_WHATSAPP_EQUIPO=real`. La mención usa `ANUNCIOS_WHATSAPP_TEL_VALENTINO` (solo dígitos); sin
   esa variable, el mensaje sale sin mención.
-- **Alerta diaria (8:45):** UN solo mensaje con el resumen de lo que salió por Discord (cliente y tipo de aviso), nunca un
+- **Alerta diaria (9:05):** UN solo mensaje con el resumen de lo que salió por Discord (cliente y tipo de aviso), nunca un
   mensaje por aviso. El detalle sigue en Discord.
 - **Notas del cliente:** cuando el aviso a Valen sale por Discord, sale también por WhatsApp.
 - **WhatsApp seguro:** el cliente de Whapi mira `/health` antes de escribir (si el número no está en AUTH, no sale). Entre

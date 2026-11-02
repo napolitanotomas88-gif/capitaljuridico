@@ -14,6 +14,7 @@
 // Modo: seco = nada sale y nada se escribe (solo el registro); ensayo = lecturas reales y, como mucho, un reporte SIMULACIÓN
 // en Verificaciones; real = por capacidad (config.ts). Nunca tira: los errores van al resumen.
 import { conPrefijoEnsayo } from '@/lib/bot/whapi/compuerta'
+import { enHorario } from '@/lib/notificaciones/whatsapp/modelo'
 import { conPrefijoPrueba } from '@/lib/bot/clientesPrueba'
 import type { AutorWhapi } from '@/lib/bot/alta/motor/tipos'
 import type { AlmacenExito, ClienteLote, Lote, Pedido } from './almacen'
@@ -180,6 +181,13 @@ export function crearNucleo(d: DepsExito) {
         r.aprobados++
         r.registro.push(`haría: mandar el mensaje de testimonio a ${p.cliente} (modo ${c.modo}${c.modo === 'real' ? ', sin exito_mensaje_cliente' : ''})`)
       }
+      return
+    }
+    // WhatsApp seguro: al cliente solo de 9 a 20 h de Argentina. Fuera de horario el pedido sigue abierto y se avisa.
+    if (!enHorario(d.ahora())) {
+      r.ignorados++
+      r.registro.push(`OK al testimonio de ${p.cliente} fuera de horario: el pedido sigue abierto`)
+      if (real('exito_pedido_ok')) await salir(true, c.verificaciones, `Es fuera del horario de WhatsApp (9 a 20 h): no le escribí a ${p.cliente}. Respondé OK de nuevo citando el pedido dentro del horario.`, x.mensajeId)
       return
     }
     if (!(await almacen.actualizarPedido(p.id, { estado: 'aprobado', por, respuesta: `OK ${x.resto}`.trim() }, ['abierto']))) return

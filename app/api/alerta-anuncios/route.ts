@@ -9,7 +9,8 @@ import { resumenEquipoWhatsapp } from '@/lib/bot/anuncios/whatsappEquipoServidor
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300   // los borradores de g03 esperan que Meta procese los videos
 
-// Alerta DIARIA de anuncios (cron de Vercel 11:45 UTC = 8:45 AR). Solo manda si hay rojos nuevos
+// Alerta DIARIA de anuncios (cron de Vercel 12:05 UTC = 9:05 AR; desde el 2/11, para que el WhatsApp al cliente de g04
+// caiga dentro del horario 9 a 20 h). Solo manda si hay rojos nuevos
 // o algo urgente (pago, saldo, gasto sin mensajes, token por vencer); si todo está bien, no manda.
 // Después, con el MISMO tablero, el seguimiento del bot C.J. (lib/bot/anuncios, docs/BOT-ANUNCIOS-CJ.md): los
 // recordatorios de optimización a Valentino y los textos para avisarle al cliente, una vez cada uno. Corre aunque la

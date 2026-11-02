@@ -1,5 +1,5 @@
 // ── Orquestador del seguimiento de anuncios (g04, g05, g06) ─────────────────────────────────────────
-// Corre después de la alerta diaria (app/api/alerta-anuncios, cron 8:45 AR) con el MISMO tablero, así no se vuelve a
+// Corre después de la alerta diaria (app/api/alerta-anuncios, cron 9:05 AR) con el MISMO tablero, así no se vuelve a
 // leer Meta entero. Pasos, con las dependencias inyectadas (los tests usan falsas):
 //   0. si el tablero no pudo leer «Ads Optimizaciones», no corre (todo parecería sin optimizar);
 //   1. candidatos(tablero): qué campaña tiene aviso hoy (seguimiento.ts);
@@ -72,10 +72,13 @@ export async function seguimientoAnuncios(t: Pick<Tablero, 'hoy' | 'filas' | 'op
   let cands: Candidato[]
   try { cands = candidatos(t) } catch (e) { return vacio(`candidatos: ${motivo(e)}`) }
   if (deps.clienteOperativo) {
-    let controles: boolean[]
-    try { controles = await Promise.all(cands.map(c => deps.clienteOperativo!(null, c.fila.clienteCRM ?? c.fila.cliente))) }
-    catch (e) { return vacio(`estado actual del CRM: ${motivo(e)}`) }
-    cands = cands.filter((_, i) => controles[i])
+    // Cliente por cliente: uno que no se cruza con el CRM queda afuera solo él. Si no se pudo verificar ninguno, hoy no corre.
+    const controles = await Promise.allSettled(cands.map(c => deps.clienteOperativo!(null, c.fila.clienteCRM ?? c.fila.cliente)))
+    const fallidos = controles.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+    if (cands.length && fallidos.length === cands.length) return vacio(`estado actual del CRM: ${motivo(fallidos[0].reason)}`)
+    const sinCruce = [...new Set(cands.filter((_, i) => controles[i].status === 'rejected').map(c => c.fila.cliente))]
+    if (sinCruce.length) errores.push(`estado actual del CRM sin verificar (quedan afuera): ${sinCruce.join(', ')}`.slice(0, 300))
+    cands = cands.filter((_, i) => { const r = controles[i]; return r.status === 'fulfilled' && r.value })
   }
 
   // 2. Detalle de Meta para los recordatorios
@@ -177,7 +180,11 @@ export async function seguimientoAnuncios(t: Pick<Tablero, 'hoy' | 'filas' | 'op
   let mandados = 0
   let gruposWa: { id?: string; name?: string }[] | null = null
   for (const e of envios) {
-    if (deps.clienteOperativo && !await deps.clienteOperativo(null, e.cs[0].fila.clienteCRM ?? e.cs[0].fila.cliente)) { omitidos.push('Cliente archivado: sin envíos nuevos'); continue }
+    if (deps.clienteOperativo) {
+      // Un cliente que no se puede cruzar con el CRM queda afuera solo él: no corta el seguimiento de los demás
+      try { if (!await deps.clienteOperativo(null, e.cs[0].fila.clienteCRM ?? e.cs[0].fila.cliente)) { omitidos.push('Cliente archivado: sin envíos nuevos'); continue } }
+      catch (err) { errores.push(`estado actual del CRM de ${e.cs[0].fila.cliente}: ${motivo(err)}`); continue }
+    }
     if (mandados >= MAX_AVISOS_POR_CORRIDA) break
     if (deadline - deps.ahora() < RESERVA_ENVIO_MS) { avisos.push(salida(e.cs, '', 'sin_tiempo')); continue }
     // Reclamar cada campaña del envío (las que ya salieron quedan afuera del mensaje)
