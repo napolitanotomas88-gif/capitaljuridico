@@ -23,8 +23,10 @@ export const TOPE_CONSULTA_MS = 10_000
 /** Una tanda en un estado de trabajo sin movimiento hace más que esto se considera colgada (una invocación dura ≤ 300 s). */
 export const VENCIDO_S = 330
 
-export const ESTADOS_TANDA = ['pendiente', 'mercado', 'plan', 'escribiendo', 'a_revisar', 'aprobada', 'enviada', 'con_notas', 'corrigiendo', 'error'] as const
+export const ESTADOS_TANDA = ['pendiente', 'mercado', 'plan', 'escribiendo', 'a_revisar', 'aprobada', 'enviada', 'con_notas', 'corrigiendo', 'error', 'cerrada'] as const
 export type EstadoTanda = (typeof ESTADOS_TANDA)[number]
+/** «cerrada»: la tanda se resolvió fuera del bot (guiones hechos a mano, el cliente ya grabó o lanzó). Es final: no se
+ *  revisa, no se publica en el Doc, no toma notas del grupo ni aparece en pendientes. doc.cierre guarda motivo y estado previo. */
 export const ESTADOS_TRABAJO: EstadoTanda[] = ['mercado', 'plan', 'escribiendo', 'con_notas', 'corrigiendo']
 
 export interface GuionGuardado {

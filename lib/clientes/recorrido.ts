@@ -57,7 +57,7 @@ export interface ClienteRecorrido {
   promesa: string; satisfaccion: number | null
 }
 export interface KickoffResumen { fecha: Ymd | null; frenos: number; ideas: string }
-export type EstadoTandaResumen = 'pendiente' | 'mercado' | 'plan' | 'escribiendo' | 'a_revisar' | 'aprobada' | 'enviada' | 'con_notas' | 'corrigiendo' | 'error'
+export type EstadoTandaResumen = 'pendiente' | 'mercado' | 'plan' | 'escribiendo' | 'a_revisar' | 'aprobada' | 'enviada' | 'con_notas' | 'corrigiendo' | 'error' | 'cerrada'
 export interface TandaResumen {
   tanda: number; estado: EstadoTandaResumen; actualizado: Ymd | null; guiones: number
   // para el registro de hitos (de TODAS las tandas del cliente): primera tanda aprobada o enviada, primera aprobación,
@@ -112,10 +112,10 @@ const ORDEN = (e: Etapa) => ETAPAS.indexOf(e)
 const diaArgentino = (iso: string): Ymd | null => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) }
 const fuenteDeHito = (f: FuenteHito | null): FuenteEtapa =>
   f === 'drive' || f === 'manual' || f === 'meta' || f === 'clickup' || f === 'despacho' ? f : f === 'crm' || f === 'seguimiento' || f === 'exito_bot' ? 'crm' : 'despacho'
-const TANDA_HECHA: readonly EstadoTandaResumen[] = ['aprobada', 'enviada']
+const TANDA_HECHA: readonly EstadoTandaResumen[] = ['aprobada', 'enviada', 'cerrada']
 const TEXTO_TANDA: Record<EstadoTandaResumen, string> = {
   pendiente: 'por arrancar', mercado: 'leyendo el mercado', plan: 'armando el plan', escribiendo: 'escribiendo', a_revisar: 'a revisar por el equipo',
-  aprobada: 'aprobada', enviada: 'enviada al cliente', con_notas: 'con notas del cliente', corrigiendo: 'corrigiendo', error: 'con error',
+  aprobada: 'aprobada', enviada: 'enviada al cliente', con_notas: 'con notas del cliente', corrigiendo: 'corrigiendo', error: 'con error', cerrada: 'cerrada fuera del bot',
 }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 const maxFecha = (...xs: (Ymd | null | undefined)[]): Ymd | null => xs.filter((x): x is Ymd => !!x).sort().pop() ?? null
@@ -139,7 +139,7 @@ function desdeDespacho(f: FuentesCliente): Candidata | null {
   const t = f.tanda
   if (t) {
     const hecha = TANDA_HECHA.includes(t.estado)
-    return { etapa: hecha ? 'grabacion' : 'guiones', fuente: 'despacho', desde: t.actualizado, detalle: `Tanda ${t.tanda} · ${TEXTO_TANDA[t.estado] ?? t.estado}${hecha ? ' (falta grabar)' : ''}` }
+    return { etapa: hecha ? 'grabacion' : 'guiones', fuente: 'despacho', desde: t.actualizado, detalle: `Tanda ${t.tanda} · ${TEXTO_TANDA[t.estado] ?? t.estado}${hecha && t.estado !== 'cerrada' ? ' (falta grabar)' : ''}` }
   }
   if (f.kickoff) return { etapa: 'kickoff', fuente: 'despacho', desde: f.kickoff.fecha, detalle: f.kickoff.frenos ? `Ficha lista · ${plural(f.kickoff.frenos, 'cosa frena', 'cosas frenan')} el lanzamiento` : 'Ficha de kickoff lista' }
   return null

@@ -62,7 +62,7 @@ const diaAR = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZ
 const ETIQUETA_TANDA: Record<string, string> = {
   pendiente: 'Por arrancar',
   mercado: 'Leyendo el mercado', plan: 'Armando el plan', escribiendo: 'Escribiendo', a_revisar: 'A revisar por el equipo', aprobada: 'Aprobada',
-  enviada: 'Enviada al cliente', con_notas: 'Con notas del cliente', corrigiendo: 'Corrigiendo', error: 'Con error',
+  enviada: 'Enviada al cliente', con_notas: 'Con notas del cliente', corrigiendo: 'Corrigiendo', error: 'Con error', cerrada: 'Cerrada (fuera del bot)',
 }
 
 export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos, demo, accionInicial }: Props) {

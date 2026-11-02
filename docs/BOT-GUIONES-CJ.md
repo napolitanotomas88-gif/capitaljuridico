@@ -141,3 +141,11 @@ Decisión de RESPONSABLE_HUB («hagamos eso siempre»), después de gastar ~USD 
 - **Pruebas:** `scripts/test-bot-guiones.mjs` (sin red ni base).
 - **En seco:** `scripts/probar-tanda.mjs`, `probar-ganchos.mjs` y `rehacer-indicaciones.mjs` (solo `api.anthropic.com`).
 - **Calibración:** el Taller de guiones (<URL_CONFIGURADA_PRIVADAMENTE>) y la investigación en `.cache/guiones/investigacion/`.
+
+## Tanda «cerrada»: resuelta fuera del bot (1/11/2026)
+Estado final para una tanda que el bot armó pero que ya se resolvió a mano (guiones hechos antes del bot, el cliente ya grabó o lanzó).
+No se revisa, no se publica en el Doc, no toma notas del grupo y sale de los pendientes y avisos. En `doc.cierre` quedan el motivo y el
+estado previo (para volver atrás: `estado = doc->'cierre'->>'previo'`). Primer caso: la tanda 1 del bot de un cliente cuyo Doc ya tenía
+la TANDA 1 manual con todos los chips en «Grabado completo» y anuncios lanzados.
+Antes de pedir una revisión, cruzar con el Doc: si la TANDA 1 ya tiene chips más allá de «No iniciado», el cliente ya avanzó solo
+(lectura con `estadoChips` y `soloLeer: true`, no cambia nada).
