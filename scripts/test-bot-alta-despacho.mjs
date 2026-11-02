@@ -436,5 +436,10 @@ describe('archivos del Despacho', () => {
     await assert.rejects(c.descargarMedio({ id: 'whapi-1', tipo: 'image', mime: 'image/jpeg' }), /no puede pedirse a Whapi/)
     const seco = AR.clienteConArchivosDespacho({ ...w, modo: 'seco' }, () => archivos)
     await assert.rejects(seco.descargarMedio(EV.refMedio(pa.archivos[0])), (e) => e.tipo === 'bloqueado')
+    // WhatsApp del bot cortado (2/11/2026): el cliente de adentro dice 'seco', pero el alta corre en real → se lee igual
+    const cortado = AR.clienteConArchivosDespacho({ ...w, modo: 'seco' }, () => archivos, 'real')
+    assert.equal((await cortado.descargarMedio(EV.refMedio(pa.archivos[0]))).sha256, sha(JPG))
+    const motorSeco = AR.clienteConArchivosDespacho(w, () => archivos, 'seco')
+    await assert.rejects(motorSeco.descargarMedio(EV.refMedio(pa.archivos[0])), (e) => e.tipo === 'bloqueado')
   })
 })
