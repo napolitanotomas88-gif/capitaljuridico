@@ -699,3 +699,20 @@
     :root:has(.cj-cristal) .rc-capa .rc-panel { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   }
 }
+
+@media screen {
+  /* ── Colores de estado en gráficos y cuadraditos (2/11, pedido de Tomás): el bordó y el verde oscuro de la marca casi no
+     se ven sobre el cristal. Ahí pasan a sus tonos claros (≥ 3:1 como elemento gráfico; los rellenos con texto no cambian). ── */
+  .cj-cristal .skw .anu-cuadro { width: 12px !important; height: 12px !important; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.35) !important; }
+  .cj-cristal .skw .anu-cuadro[data-estado='rojo'] { background: #f0b1b8 !important; }
+  .cj-cristal .skw .anu-cuadro[data-estado='verde'] { background: #9fdcc0 !important; }
+  .cj-cristal .skw .anu-cuadro[data-estado='amarillo'] { background: #ecca8f !important; }
+  /* Finanzas clásico (Recharts con colores fijos en el atributo fill): barras y porciones */
+  .cj-cristal .recharts-wrapper :is([fill='#012d25'], [fill='#012D25']) { fill: #9fdcc0; }
+  .cj-cristal .recharts-wrapper :is([fill='#7f202c'], [fill='#7F202C']) { fill: #f0b1b8; }
+  .cj-cristal .recharts-wrapper [fill='#8c8574'] { fill: #cfc4ae; }
+  /* El verde suave (comparación) queda más apagado que el principal para que se sigan distinguiendo */
+  .cj-cristal .recharts-wrapper [fill='#9db5ac'] { fill: #6e9488; }
+  .cj-cristal .recharts-wrapper [fill='#605747'] { fill: #e3dac8; }
+  .cj-cristal .recharts-wrapper [stroke='#cdbf9f'] { stroke: rgba(255, 255, 255, 0.38); }
+}

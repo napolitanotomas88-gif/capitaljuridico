@@ -213,7 +213,7 @@ export function TableroAnuncios() {
             className="anu-tarjeta"
           >
             <span className="anu-tarjeta__rotulo">
-              <span style={{ width: 10, height: 10, background: COLOR[k], border: k === 'verde' ? '1px solid rgba(239,233,220,0.25)' : 'none', display: 'inline-block', flex: 'none' }} />
+              <span className="anu-cuadro" data-estado={k} style={{ width: 10, height: 10, background: COLOR[k], border: k === 'verde' ? '1px solid rgba(239,233,220,0.25)' : 'none', display: 'inline-block', flex: 'none' }} />
               {txt.charAt(0).toUpperCase() + txt.slice(1)}
             </span>
             <span className="serif num anu-tarjeta__valor">{n}</span>
