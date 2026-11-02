@@ -1,7 +1,7 @@
 // ── Alertas por Discord: el ÚNICO lugar que manda una alerta del sistema (2/11/2026) ─────────────────────────────────────
 // alertar() nunca tira. En orden:
 //   1. Interruptor ALERTAS_DISCORD: real (por defecto) | ensayo (todo va a #🧰-sistema-bot con «🧪 PRUEBA» y sin menciones)
-//      | apagado (no sale nada; queda registrada).
+//      | apagado (no sale nada; queda registrada). Un cliente «PRUEBA BOT…» sale a su canal, con «🧪 PRUEBA» y sin menciones.
 //   2. Deduplicación por `clave` en Neon (cj_alertas_discord, UNIQUE): la misma clave no sale dos veces. Una que falló seguro
 //      (4xx, sin webhook) se puede volver a intentar hasta 5 veces cuando el que avisa la vuelve a pedir; una dudosa (timeout)
 //      no se repite sola. Los recordatorios usan su propia clave («…:rec1»).
@@ -21,6 +21,9 @@ export const modoAlertas = (env: Entorno = process.env): ModoAlertas => {
   const v = env.ALERTAS_DISCORD?.trim().toLowerCase()
   return v === 'ensayo' || v === 'apagado' ? v : 'real'
 }
+/** Cliente ficticio de las pruebas punta a punta («PRUEBA BOT Ensayo»): su alerta sale a SU canal, marcada «🧪 PRUEBA» y
+ *  sin notificar a nadie (regla de Tomás: en pruebas no se menciona a nadie salvo en mensajes marcados). */
+export const esClienteDePrueba = (cliente: string | null | undefined): boolean => /^\s*PRUEBA BOT\b/i.test(String(cliente ?? ''))
 export const TOPE_POR_HORA = 60
 export const MAX_INTENTOS = 5
 
@@ -83,6 +86,7 @@ export async function alertarCon(a: Alerta, d: DepsAlerta): Promise<ResultadoAle
   if (modo === 'apagado') { await cerrar('apagado', null, 'ALERTAS_DISCORD=apagado'); return { estado: 'apagado' } }
 
   const prueba = modo === 'ensayo'
+  const marcada = prueba || esClienteDePrueba(a.cliente)
   let canal: Canal = prueba ? 'sistema' : a.canal
   // Tope por hora (solo en real): el exceso va al canal del sistema con un único aviso por hora
   if (!prueba && d.registro && canal !== 'sistema') {
@@ -104,10 +108,10 @@ export async function alertarCon(a: Alerta, d: DepsAlerta): Promise<ResultadoAle
   const m = resolverMenciones(a.menciones ?? [], d.env)
   const texto = armarTexto({
     menciones: m.texto, emoji: a.emoji, titulo: a.titulo, cliente: a.cliente, lineas: a.lineas, copiar: a.copiar,
-    link: linkDespacho(d.base, a.link), prueba, ibaA: !prueba && destino.respaldo ? NOMBRE_CANAL[a.canal] : null,
+    link: linkDespacho(d.base, a.link), prueba: marcada, ibaA: !prueba && destino.respaldo ? NOMBRE_CANAL[a.canal] : null,
   })
   try {
-    const id = await d.enviar(destino.url, texto, prueba ? [] : m.ids, flagsDe(d.ahora(), !!a.urgente))
+    const id = await d.enviar(destino.url, texto, marcada ? [] : m.ids, flagsDe(d.ahora(), !!a.urgente))
     await cerrar('enviado', id, destino.respaldo ? `salió por el respaldo (${destino.sale})` : null)
     return { estado: 'enviado', mensajeId: id, sale: destino.sale }
   } catch (e) {
