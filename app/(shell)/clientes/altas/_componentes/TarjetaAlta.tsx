@@ -6,6 +6,14 @@ import { Boton } from '@/components/ui'
 import type { AltaVista, EsperaVista, Opcion } from '@/lib/bot/alta/despacho/vista'
 import { enviarAccion, nuevoId, type Respuesta } from './enviar'
 
+/** Saca las líneas «Clave:» que quedaron vacías (copiadas del ejemplo), pero NO los encabezados de bloque «Cuotas:» y
+ *  «Socios:»: el cronograma y los socios van en las líneas de abajo (prueba punta a punta 2/11/2026: se perdían las cuotas). */
+const limpiarDatos = (texto: string) => {
+  const ls = texto.split('\n')
+  const sigueAlgo = (i: number) => ls.slice(i + 1).some((x) => x.trim() && !/:\s*$/.test(x))
+  return ls.filter((l, i) => !/:\s*$/.test(l) || (/^\s*(cuotas|socios)\s*:\s*$/i.test(l) && sigueAlgo(i))).join('\n')
+}
+
 // Un alta abierta: estado, pasos, pedidos abiertos (el mismo texto de Verificaciones C.J o el pedido al closer) con sus
 // respuestas y lo que queda a mano. Cada botón manda UNA acción a /api/clientes/altas; el motor la procesa en segundo plano
 // y la pantalla se recarga sola a los pocos segundos.
@@ -82,7 +90,7 @@ function DatosCloser({ alta, espera, opcion }: { alta: string; espera: EsperaVis
       <textarea id={`datos-${alta}-${espera.id}`} className="cj-campo__entrada" rows={Math.max(3, opcion.plantilla.split('\n').length + 1)} value={texto} onChange={(e) => setTexto(e.target.value)} />
       {opcion.conArchivos && <input type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="cj-campo__entrada" aria-label="Comprobante" onChange={(e) => setArchivos(e.target.files)} />}
       <div className="cj-altas__botones">
-        <Boton variante="marca" disabled={ocupado} onClick={() => void accion({ accion: 'datos', espera_id: espera.id, id: nuevoId(), texto: texto.split('\n').filter((l) => !/:\s*$/.test(l)).join('\n') }, archivos)}>{ocupado ? 'Enviando…' : 'Enviar datos'}</Boton>
+        <Boton variante="marca" disabled={ocupado} onClick={() => void accion({ accion: 'datos', espera_id: espera.id, id: nuevoId(), texto: limpiarDatos(texto) }, archivos)}>{ocupado ? 'Enviando…' : 'Enviar datos'}</Boton>
       </div>
       <Resultado res={res} />
     </div>
