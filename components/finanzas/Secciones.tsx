@@ -27,7 +27,7 @@ export function Entradas({ d }: P) {
       <p className="text-[11px] font-semibold uppercase tracking-wider mt-4" style={{ color: 'var(--text-muted)' }}>Por cuenta que recibió</p>
       {cuentas.map(c => (
         <Barra key={c.k} label={c.label} valor={e.porCuenta[c.k]} max={maxCta}
-          texto={`${fmtUsd(e.porCuenta[c.k])} · ${e.cantPorCuenta[c.k]} pagos`} />
+          texto={`${fmtUsd(e.porCuenta[c.k])} · ${e.cantPorCuenta[c.k]} ${e.cantPorCuenta[c.k] === 1 ? 'pago' : 'pagos'}`} />
       ))}
       {e.fuenteCuenta === 'app' && (
         <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>

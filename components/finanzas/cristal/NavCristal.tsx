@@ -14,7 +14,8 @@ import { IconoCristal } from './iconos'
 import { BASE_PRUEBA } from './rutas'
 export { BASE_PRUEBA }
 const COOKIE_NAV = 'fin_cristal_nav'
-const COOKIE_NOCHE = 'fin_cristal_noche'
+// v2 (1/11): el nocturno pasó a ser el predeterminado; la cookie vieja guardaba el «claro» de antes
+const COOKIE_NOCHE = 'fin_cristal_noche_v2'
 
 type Item = { id: string; etiqueta: string; href: string; insignia?: 'gris' | 'roja'; rotuloInsignia?: string }
 type Grupo = { titulo: string; items: (Item | { id: 'reportes'; etiqueta: string; hijos: (Item & { punto: string })[] })[] }
@@ -57,8 +58,19 @@ function vistaDe(pathname: string): string {
 
 const sinAcentos = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-function guardarCookie(nombre: string, valor: string) {
+function escribirCookie(nombre: string, valor: string) {
   try { document.cookie = `${nombre}=${valor}; path=/finanzas; max-age=31536000; samesite=lax` } catch { /* sin cookies: solo no se recuerda */ }
+}
+
+function guardarCookie(nombre: string, valor: string) {
+  escribirCookie(nombre, valor)
+  // Además, en la cuenta (Neon): así cada uno ve lo suyo en cualquier navegador. La cookie es la caché para que no parpadee.
+  // En el celular la barra se abre y se cierra para navegar: eso no cambia cómo la quiere en la compu.
+  const celular = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  const cambio = nombre === COOKIE_NOCHE ? { noche: valor === '1' } : nombre === COOKIE_NAV && !celular ? { nav: valor } : null
+  if (!cambio) return
+  fetch('/api/finanzas/preferencias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio), keepalive: true })
+    .catch(() => { /* sin red: queda la cookie de este navegador */ })
 }
 
 /** Resorte crítico-amortiguado simple (masa 1) para cada borde de la píldora activa. */
@@ -90,6 +102,8 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   const medidor = useRef<HTMLSpanElement>(null)
 
   useEffect(() => { onCambio({ abierta, noche }) }, [abierta, noche, onCambio])
+  // La caché del navegador se alinea con lo que mandó la cuenta (si en otro navegador eligió otra cosa, acá no parpadea)
+  useEffect(() => { escribirCookie(COOKIE_NOCHE, nocheInicial ? '1' : '0') }, [nocheInicial])
   // En el celular se entra siempre con el riel (el panel abierto taparía el contenido), aunque en la compu se haya dejado abierto
   useEffect(() => {
     const raf = requestAnimationFrame(() => { if (window.matchMedia('(max-width: 767px)').matches) setAbierta(false) })
