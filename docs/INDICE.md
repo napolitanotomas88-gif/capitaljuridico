@@ -24,6 +24,7 @@ Esta edición pública conserva arquitectura, contratos, guardas, procedimientos
 | Grabación y Edición | [Tarjetas actuales](EDICION-TARJETAS-20261029.md), [bot](BOT-EDICION-CJ.md), [motor](edicion/MOTOR.md), [avisos](edicion/AVISOS.md), [pantalla](edicion/PANTALLA.md) |
 | Anuncios | [Bot](BOT-ANUNCIOS-CJ.md), [Fathom](FATHOM-ANUNCIOS.md) |
 | Éxito y bajas | [Éxito](BOT-EXITO-CJ.md), [bajas](BOT-BAJAS-CJ.md) |
+| Prueba con cliente ficticio | [Punta a punta y limpieza](PRUEBA-PUNTA-A-PUNTA.md) |
 | Ventas, cuotas y atribución | [Ventas](CRM-VENTAS-INTEGRADO.md), [integración](VENTAS-INTEGRACION.md), [contrato histórico](CRM-VENTAS-JERO.md), [cuotas](CUOTAS.md), [trazabilidad](TRAZABILIDAD.md), [atribución](EOD_ATRIBUCION_HISTORIAS.md) |
 | Presentación | [Diseño](DISENO-CAPITAL-JURIDICO.md), [relevamiento histórico saneado](RELEVAMIENTO-EDICION-CJ.md) |
 | Mensajería | [Whapi](BOT-WHAPI-CJ.md), [guardas vigentes](FLUJOS-VIGENTES.md) |
