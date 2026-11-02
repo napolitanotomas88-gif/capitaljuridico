@@ -7,6 +7,7 @@ import { baseConfigurada } from '@/lib/edicion/db/base'
 import { corridasDesde, ultimaCorrida } from '@/lib/edicion/db/corridas'
 import { listarVideos } from '@/lib/edicion/operativo'
 import { conArchivadosActuales } from '@/lib/clientes/archivados'
+import { despacharNotifWhatsappReal } from '@/lib/notificaciones/whatsapp/servidor'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
       return json({ ok: false, dry: true, error: motivo(e) }, 500)
     }
   }
+  // Salida única de WhatsApp de la bandeja (docs/NOTIF-WHATSAPP.md): el vigía corre cada 15 min de 8 a 22 y es su reloj.
+  // Con NOTIF_WHATSAPP apagado no hace nada. Va aparte del modo de Edición y nunca frena al vigía.
+  after(() => despacharNotifWhatsappReal().then(() => undefined).catch(e => { console.error('notif-whatsapp: falla inesperada —', motivo(e)) }))
   if (modoEdicion() !== 'real') return json({ ok: true, dry: true, nada: 'EDICION_MODO no es real: el vigía no corre (probá con ?dry=1)' }, 202)
   after(async () => {
     try {

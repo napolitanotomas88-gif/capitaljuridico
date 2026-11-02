@@ -63,6 +63,6 @@ export async function proxy(req: NextRequest) {
 // sumala acá Y en lib/auth/rutas.ts: scripts/test-rutas.mjs avisa si una de las dos listas queda desfasada.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico$|v/[^/%]+$|api/(?:analista|resumen-diario|recordatorio-formularios|reporte-enrutamiento|agenda-slots|finanzas-cierre|reporte-anuncios|alerta-anuncios|reporte-eod|calendly-webhook|fathom-anuncios|fathom-anuncios/reintentar|bot/kickoff|bot/kickoff/mapa|bot/guiones|bot/guiones/respuesta|bot/whapi|bot/alta/motor|bot/exito|bot/bajas|bot/grabacion/vigia|bot/grabacion/transcripcion|bot/grabacion/diario|clientes/sincronizar|clientes/inactivos/cron|trazabilidad/botonera|trazabilidad/procesar|trazabilidad/semanal|trazabilidad/manychat)/?$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico$|v/[^/%]+$|api/(?:analista|resumen-diario|recordatorio-formularios|reporte-enrutamiento|agenda-slots|finanzas-cierre|reporte-anuncios|alerta-anuncios|reporte-eod|calendly-webhook|fathom-anuncios|fathom-anuncios/reintentar|bot/kickoff|bot/kickoff/mapa|bot/guiones|bot/guiones/respuesta|bot/whapi|bot/alta/motor|bot/exito|bot/bajas|bot/grabacion/vigia|bot/grabacion/transcripcion|bot/grabacion/diario|clientes/sincronizar|clientes/inactivos/cron|notificaciones/whatsapp|trazabilidad/botonera|trazabilidad/procesar|trazabilidad/semanal|trazabilidad/manychat)/?$).*)',
   ],
 }

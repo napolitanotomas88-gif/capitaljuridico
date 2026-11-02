@@ -27,7 +27,7 @@ Esta edición pública conserva arquitectura, contratos, guardas, procedimientos
 | Prueba con cliente ficticio | [Punta a punta y limpieza](PRUEBA-PUNTA-A-PUNTA.md) |
 | Ventas, cuotas y atribución | [Ventas](CRM-VENTAS-INTEGRADO.md), [integración](VENTAS-INTEGRACION.md), [contrato histórico](CRM-VENTAS-JERO.md), [cuotas](CUOTAS.md), [trazabilidad](TRAZABILIDAD.md), [atribución](EOD_ATRIBUCION_HISTORIAS.md) |
 | Presentación | [Diseño](DISENO-CAPITAL-JURIDICO.md), [relevamiento histórico saneado](RELEVAMIENTO-EDICION-CJ.md) |
-| Mensajería | [Whapi](BOT-WHAPI-CJ.md), [guardas vigentes](FLUJOS-VIGENTES.md) |
+| Mensajería | [Whapi](BOT-WHAPI-CJ.md), [guardas vigentes](FLUJOS-VIGENTES.md), [WhatsApp de la bandeja al equipo](NOTIF-WHATSAPP.md) |
 
 Los documentos heredados preservan decisiones técnicas fechadas. Sus estados «pendiente», «sin publicar» o resultados de pruebas históricas no describen automáticamente una instalación nueva. No usar un documento histórico para saltar las reglas vigentes o activar servicios externos.
 
