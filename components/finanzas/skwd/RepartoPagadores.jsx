@@ -38,7 +38,7 @@ export function RepartoPagadores({ id = 'pe-pagado_por', filas, onChange, total 
               <input type="number" inputMode="decimal" step="0.01" min="0.01" max="100" value={f.porcentaje} onChange={(e) => cambiar(i, 'porcentaje', e.target.value)} aria-label={`Porcentaje (fila ${i + 1})`} aria-invalid={error ? true : undefined} />
               <span aria-hidden="true">%</span>
             </div>
-            <span className="pe-reparto__usd" aria-label={`Monto en USD (fila ${i + 1})`}>= USD {usd(montos[i])}</span>
+            <span className="pe-reparto__usd" aria-label={`Monto en USD (fila ${i + 1})`}>= {usd(montos[i])}</span>
             <button type="button" className="quitar" onClick={() => quitar(i)} disabled={filas.length === 1 && !f.quien} aria-label={`Quitar fila ${i + 1}`} title="Quitar">✕</button>
           </li>
         ))}

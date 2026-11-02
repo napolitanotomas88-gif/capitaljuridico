@@ -686,7 +686,7 @@ export default function PagosEquipo({ onCorregir }) {
                   <td colSpan={14}>
                     <div className="pe-reparto-linea">
                       <RepartoPagadores id={`pe-reparto-${l.id}`} filas={repartoAbierto.filas} onChange={(filas) => setRepartoAbierto({ ...repartoAbierto, filas, error: null })} total={Number(l.total_usd)} error={repartoAbierto.error}
-                        ayuda={`Línea #${l.id} · ${nombreDe(l) ?? l.nombre_original} · ${mesDe(l.mes)} · total ${usd(l.total_usd)}`} />
+                        ayuda={`Línea #${l.id} · ${nombreDe(l) ?? l.nombre_original} · ${mesLargo(mesDe(l.mes))} · total ${usd(l.total_usd)}`} />
                       <div className="pe-acciones">
                         <Boton variante="marca" onClick={() => guardarReparto(l)} disabled={repartoAbierto.guardando}>{repartoAbierto.guardando ? 'Guardando…' : 'Guardar reparto'}</Boton>
                         <Boton variante="secundario" onClick={() => setRepartoAbierto(null)}>Cancelar</Boton>
