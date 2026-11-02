@@ -457,10 +457,33 @@ export function Saltos({ secciones }: { secciones: [string, string][] }) {
     const barra = el.closest<HTMLElement>('.rc-saltos')?.offsetHeight ?? 0
     cuerpo.scrollTo({ top: sec.getBoundingClientRect().top - cuerpo.getBoundingClientRect().top + cuerpo.scrollTop - barra - 8, behavior: 'smooth' })
   }
+  // Si las secciones no entran a lo ancho, se nota que la fila sigue (2/11/2026, Tomás: «queda cortada sin ninguna señal»):
+  // sombra en el borde que tiene más y una flecha para deslizar (en el celular alcanza con el dedo)
+  const fila = useRef<HTMLElement>(null)
+  const [bordes, setBordes] = useState({ antes: false, despues: false })
+  useEffect(() => {
+    const el = fila.current
+    if (!el) return
+    const medir = () => setBordes({ antes: el.scrollLeft > 2, despues: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 })
+    medir()
+    el.addEventListener('scroll', medir, { passive: true })
+    const obs = new ResizeObserver(medir)
+    obs.observe(el)
+    return () => { el.removeEventListener('scroll', medir); obs.disconnect() }
+  }, [])
+  const deslizar = (sentido: 1 | -1) => fila.current?.scrollBy({ left: sentido * Math.max(160, (fila.current?.clientWidth ?? 0) * 0.6), behavior: 'smooth' })
   return (
-    <nav className="rc-saltos" aria-label="Secciones del cliente">
-      {secciones.map(([ancla, texto]) => <button key={ancla} type="button" className="rc-salto" onClick={e => ir(ancla, e.currentTarget)}>{texto}</button>)}
-    </nav>
+    <div className="rc-saltos-marco" data-antes={bordes.antes} data-despues={bordes.despues}>
+      <nav ref={fila} className="rc-saltos" aria-label="Secciones del cliente">
+        {secciones.map(([ancla, texto]) => <button key={ancla} type="button" className="rc-salto" onClick={e => ir(ancla, e.currentTarget)}>{texto}</button>)}
+      </nav>
+      <button type="button" className="rc-saltos-flecha rc-saltos-flecha--antes" onClick={() => deslizar(-1)} aria-label="Ver las secciones anteriores" tabIndex={-1}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+      </button>
+      <button type="button" className="rc-saltos-flecha rc-saltos-flecha--despues" onClick={() => deslizar(1)} aria-label="Ver más secciones" tabIndex={-1}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
+    </div>
   )
 }
 

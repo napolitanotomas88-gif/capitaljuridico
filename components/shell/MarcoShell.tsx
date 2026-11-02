@@ -6,9 +6,12 @@ import { Navegacion } from '@/components/shell/Navegacion'
 import { menuDe, type ItemNavegacion } from '@/components/shell/secciones'
 import { COOKIE_NAV, anchoVisible, leerPreferencia } from '@/components/shell/preferenciaNav'
 import { ETIQUETA_ROL, rutaInicial } from '@/lib/auth/roles'
+import { leerPreferenciasSinDemora, resolverPreferencias } from '@/lib/finanzasSkwd/preferencias'
+import { COOKIE_NOCHE } from '@/components/shell/preferenciaNav'
 import type { Sesion } from '@/lib/auth/sesion'
 import '@/app/(shell)/cj.css'
 import '@/app/(shell)/pantallas.css'
+import '@/components/shell/cristal.css'
 import { clasesFuentes } from '@/app/(shell)/fuentes'
 
 // Solo en desarrollo y para el rol socio: acceso directo a la página de revisión de marca
@@ -21,14 +24,23 @@ const SISTEMA: ItemNavegacion = { clave: 'sistema', etiqueta: 'Sistema', href: '
  */
 export async function MarcoShell({ sesion, children }: { sesion: Sesion; children: React.ReactNode }) {
   // Barra lateral chica o abierta y su ancho (cookie de la persona): se dibuja bien desde el servidor, sin parpadeo
-  const nav = leerPreferencia((await cookies()).get(COOKIE_NAV)?.value)
+  const galletas = await cookies()
+  const nav = leerPreferencia(galletas.get(COOKIE_NAV)?.value)
+  // Cristal (2/11/2026, «todo el tema nuevo»): el mismo de Finanzas en todo el Despacho. Modo nocturno por defecto; lo que la
+  // cuenta eligió (Neon, la misma tabla que Finanzas) manda sobre la cookie de este navegador, que queda como caché.
+  const { noche } = resolverPreferencias(sesion.esDePrueba ? null : await leerPreferenciasSinDemora(sesion.email), { noche: galletas.get(COOKIE_NOCHE)?.value })
   // "Clientes" agrupa Cartera, Guiones, Edición, Anuncios y Referidos: aparece con una sola de ellas (components/shell/secciones.ts)
   const items = menuDe(sesion)
   const aparte = process.env.NODE_ENV !== 'production' && sesion.rol === 'socio' ? [SISTEMA] : []
 
   return (
     // lang="es" explícito aunque el <html> del layout raíz (app/layout.tsx) ya lo trae: no depende de que ese archivo no cambie
-    <div className={`cj-raiz ${clasesFuentes}`} lang="es" data-nav={nav.chica ? 'chica' : 'abierta'} style={{ '--cj-ancho-lateral': `${anchoVisible(nav)}px` } as React.CSSProperties}>
+    <div className={`cj-raiz cj-cristal ${clasesFuentes}`} lang="es" data-noche={noche} data-nav={nav.chica ? 'chica' : 'abierta'} style={{ '--cj-ancho-lateral': `${anchoVisible(nav)}px` } as React.CSSProperties}>
+      <div className="cj-cristal__fondo" aria-hidden="true">
+        <span className="cj-cristal__manchas" />
+        <span className="cj-cristal__logo" />
+        <span className="cj-cristal__grano" />
+      </div>
       <a href="#cj-contenido" className="cj-saltar">
         Saltar al contenido
       </a>
@@ -41,6 +53,7 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
         esDePrueba={sesion.esDePrueba}
         preferencia={nav}
         verConectados
+        noche={noche}
       />
       <Latido />
       <Aviso />

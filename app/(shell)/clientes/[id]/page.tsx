@@ -23,6 +23,7 @@ import { ComoLeVa } from './_componentes/ComoLeVa'
 import { AccionesCliente } from '../(cartera)/_componentes/AccionesCliente'
 import { puedeHacerAcciones } from '@/lib/clientes/acciones/permisos'
 import { AccesosCliente } from './_componentes/AccesosCliente'
+import { DocGuiones } from '../(cartera)/_componentes/DocGuiones'
 import { BotonMontos } from '@/components/clientes/BotonMontos'
 import { Monto } from '@/components/clientes/Monto'
 import { leerSeguimiento, leerTypeform } from '@/lib/seguimiento/hojas'
@@ -139,7 +140,7 @@ export default async function FichaClientePage({ params, searchParams }: Props) 
           {verMontos && <BotonMontos />}
         </div>
         <AccesosCliente quien={sesion} id={ficha.id} />
-        {documento && <p><a className="cj-enlace" href={documento.url} target="_blank" rel="noreferrer">Documento de guiones del cliente</a></p>}
+        <DocGuiones url={documento?.url ?? null} guionesHref={puedeVer(sesion, 'guiones') ? `/guiones/${encodeURIComponent(ficha.id)}${vista.esDemo ? '?demo=1' : ''}` : null} />
       </div>
 
       <Resumen titulo="Resumen del cliente" datos={resumenFicha} />

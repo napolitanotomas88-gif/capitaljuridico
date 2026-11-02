@@ -1,0 +1,618 @@
+/* ── Cristal en todo el Despacho (2/11/2026) ─────────────────────────────────────────────────────────────────────────────
+   Pedido de Tomás: «acomodá toda la interfaz cuando lancemos glass liquidity, o sea todo el tema nuevo». Es el mismo material
+   del Finanzas oficial (components/finanzas/cristal/cristal.css, PR #41–#43): verde Toga ahumado con el imagotipo grande de
+   fondo, paneles de cristal esmerilado, texto marfil y oro mate. Dos modos, guardados por cuenta (como en Finanzas):
+     · claro    → el fondo con más luz y el cristal más translúcido;
+     · nocturno → el fondo baja de luz y el cristal se ahúma más (el predeterminado).
+   Cómo: .cj-raiz lleva .cj-cristal y data-noche (components/shell/MarcoShell.tsx). Los tokens --cj-*, los del dashboard viejo
+   (--bg, --card…) y los del CRM de ventas (--color-* de Tailwind) se redefinen en :root:has(.cj-cristal): así toman el cristal
+   también la tarjeta del cliente y las hojas que van en un portal sobre <body>. Lo que no usa tokens se corrige abajo, por
+   pantalla. Estética sobria: sin glow ni brillos dorados; el oro va mate. Contraste medido (AA) en docs/DISENO-CAPITAL-JURIDICO.md.
+   Solo presentación: no toca lógica ni cálculos. */
+
+/* Todo el tema va solo en pantalla: al imprimir (el «Descargar PDF» del Resumen usa window.print) sale el diseño claro de
+   siempre, blanco y negro, sin cristal. */
+@media screen {
+  :root:has(.cj-cristal) {
+    /* Material (el mismo de Finanzas) */
+    --cjc-curva: cubic-bezier(0.22, 1, 0.36, 1);
+    --cjc-blur: blur(22px) saturate(140%);
+    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.56);
+    --cjc-panel-liso: rgba(8, 36, 30, 0.82);
+    --cjc-anidado: rgba(255, 255, 255, 0.055);
+    --cjc-borde: rgba(255, 255, 255, 0.15);
+    --cjc-borde-arriba: rgba(255, 255, 255, 0.3);
+    --cjc-brillo: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    --cjc-sombra: 0 18px 44px -22px rgba(0, 0, 0, 0.6);
+    --cjc-campo: rgba(255, 255, 255, 0.08);
+    --cjc-campo-borde: rgba(255, 255, 255, 0.34);
+    --cjc-sans: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    /* Paleta del Despacho sobre cristal oscuro (nombres heredados: tinta = fondo, hueso = texto, sala = superficie) */
+    --cj-tinta: #0b2c25;
+    --cj-sala: rgba(255, 255, 255, 0.06);
+    --cj-hueso: #fbf8f2;
+    --cj-hueso-2: #e9e1d1;
+    --cj-humo: #e3dac8;
+    --cj-humo-claro: #e3dac8;
+    /* Oro de texto: más claro que el de Finanzas porque en el Despacho hay títulos y etiquetas directo sobre el fondo, donde
+       asoma el oro del logo. Peor punto calculado (modo claro, borde superior del logo sobre la luz de arriba = #44624a):
+       oro 4,8:1, humo 4,8:1, marfil 6,3:1. Sigue mate: sin brillo ni degradado. */
+    --cj-laton: #eed6a8;
+    --cj-dorado: #be8f49;
+    --cj-borgona: #7f202c;
+    --cj-error: #f0b1b8;
+    --cj-ok: #9fdcc0;
+    --cj-atencion: #ecca8f;
+    --cj-alerta: var(--cj-atencion);
+    --cj-verde: #012d25;
+    --cj-filete: rgba(255, 255, 255, 0.13);
+    --cj-filete-fuerte: rgba(255, 255, 255, 0.26);
+    --cj-control: rgba(255, 255, 255, 0.46);
+    --cj-radio: 10px;
+    --cj-radio-s: 10px;
+    --cj-radio-m: 16px;
+    --cj-radio-l: 22px;
+    --cj-sombra-1: var(--cjc-brillo), var(--cjc-sombra);
+    --cj-sombra-2: var(--cjc-brillo), 0 22px 48px -20px rgba(0, 0, 0, 0.7);
+
+    /* Dashboard viejo (globals.css): Resumen, /anuncios, Finanzas clásico */
+    --bg: #0b2c25;
+    --card: rgba(8, 36, 30, 0.7);
+    --text: #fbf8f2;
+    --text-muted: #e3dac8;
+    --border: rgba(255, 255, 255, 0.15);
+    --shadow: var(--cjc-brillo), 0 10px 30px -18px rgba(0, 0, 0, 0.6);
+    --shadow-md: var(--cjc-brillo), 0 18px 40px -18px rgba(0, 0, 0, 0.65);
+    --brand-num: #fbf8f2;
+    --brand-texto: #eed6a8;
+    --brand-red: #f0b1b8;
+    --brand-gray: #e3dac8;
+    --on-brand: #1d1d1b;
+    --tono-bueno: #9fdcc0;
+    --tono-malo: #f0b1b8;
+    --s-bordo: #f0a59a; --s-dorado: #d9b574; --s-dorado-claro: #ecd29f; --s-dorado-osc: #d0a45a;
+    --s-verde: #8fd6b4; --s-verde-prof: #f2eadc; --s-gris: #cfc4ae; --s-taupe: #e3dac8; --s-arena: #a99f8c;
+
+    /* CRM de ventas (utilidades de Tailwind): la escala neutra se invierte. Los fondos blancos y marfil pasan a cristal más abajo */
+    --color-negro: #fbf8f2;
+    --color-blanco: #0b2c25;
+    --color-marfil: #0b2c25;
+    --color-gris-fondo: #0b2c25;
+    --color-gris-linea: rgba(255, 255, 255, 0.14);
+    --color-gris-borde: rgba(255, 255, 255, 0.42);
+    --color-gris-texto: #e3dac8;
+    --color-gris-medio: #b9ae99;
+    --color-dorado-oscuro: #eed6a8;
+    --color-verde: #9fdcc0;
+    --color-bordo: #f0b1b8;
+    --color-rojo: #f0b1b8;
+    --color-ambar: #ecca8f;
+    --color-ambar-fondo: rgba(236, 202, 143, 0.14);
+    --color-rojo-fondo: rgba(240, 177, 184, 0.13);
+
+    /* Tarjetas del Hub (components/ui/tarjetas.css) */
+    --cj-superficie: var(--cjc-panel);
+    --cj-sombra: var(--cj-sombra-1);
+    --cj-tono-ok: #9fdcc0;
+    --cj-tono-atencion: #ecca8f;
+    --cj-tono-alerta: #f0b1b8;
+    --cj-tono-neutro: #e3dac8;
+    --cj-radio-tarjeta: 18px;
+
+    background: #03221c;
+    color-scheme: dark;
+  }
+  :root:has(.cj-cristal[data-noche='true']) {
+    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.04) 100%), rgba(2, 16, 13, 0.7);
+    --cjc-panel-liso: rgba(4, 22, 18, 0.88);
+    --card: rgba(4, 22, 18, 0.74);
+  }
+  body:has(.cj-cristal) { background: #03221c; color: var(--cj-hueso); }
+  :root:has(.cj-cristal) ::selection { background: rgba(208, 164, 90, 0.45); color: #fff; }
+
+  /* ── El marco ── */
+  .cj-raiz.cj-cristal {
+    --cj-fuente-texto: var(--cjc-sans);
+    --cj-texto-2: var(--cj-humo);
+    /* tarjetas.css los vuelve a poner en .cj-raiz (los de la paleta clara): acá se repiten para que ganen */
+    --cj-superficie: var(--cjc-panel);
+    --cj-sombra: var(--cj-sombra-1);
+    --cj-tono-ok: #9fdcc0;
+    --cj-tono-atencion: #ecca8f;
+    --cj-tono-alerta: #f0b1b8;
+    --cj-tono-neutro: #e3dac8;
+    --cj-radio-tarjeta: 18px;
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+    color: var(--cj-hueso);
+    font-family: var(--cjc-sans);
+  }
+  .cj-cristal :focus-visible { outline-color: #eed6a8; }
+  .cj-cristal .marca-barra :focus-visible, .cj-cristal .bg-negro :focus-visible { outline-color: #1d1d1b; }
+
+  /* Fondo: el imagotipo de Capital Jurídico grande sobre verde Toga con textura (lo que el cristal esmerila) */
+  .cj-cristal__fondo { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+  .cj-cristal__fondo > span { position: absolute; inset: 0; }
+  .cj-cristal__manchas {
+    background:
+      radial-gradient(70vmax 42vmax at 50% -6%, rgba(120, 160, 140, 0.24), transparent 62%),
+      radial-gradient(60vmax 40vmax at 55% 52%, rgba(0, 8, 6, 0.5), transparent 70%),
+      radial-gradient(70vmax 38vmax at 62% 112%, rgba(190, 143, 73, 0.42), transparent 64%),
+      radial-gradient(40vmax 30vmax at 4% 88%, rgba(127, 32, 44, 0.18), transparent 70%),
+      linear-gradient(180deg, #0f4236 0%, #06302a 38%, #03221c 62%, #0a2b20 100%);
+    transition: filter 400ms ease;
+  }
+  .cj-cristal__fondo > .cj-cristal__logo {
+    inset: auto; left: calc(50% + var(--cj-ancho-lateral, 0px) / 2); top: 50%;
+    width: min(80vw, 1120px);
+    aspect-ratio: 927.41 / 446.75;
+    translate: -50% -52%;
+    /* Oro mate parejo (sin la parte clara de arriba que tiene el de Finanzas): detrás hay texto suelto, no solo paneles */
+    background: linear-gradient(180deg, #be8f49 0%, #a97d3c 55%, #8c6631 100%);
+    -webkit-mask: url('/marca/logo-claro.svg') center / contain no-repeat;
+    mask: url('/marca/logo-claro.svg') center / contain no-repeat;
+    opacity: 0.2;
+    transition: opacity 400ms ease;
+  }
+  .cj-cristal__grano {
+    opacity: 0.09;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+  }
+  .cj-cristal[data-noche='true'] .cj-cristal__manchas { filter: brightness(0.55) saturate(0.85); }
+  .cj-cristal[data-noche='true'] .cj-cristal__logo { opacity: 0.17; }
+
+  /* ── Barra lateral: un panel de cristal que flota (escritorio) ── */
+  .cj-cristal .cj-lateral {
+    --cj-hueso: #fbf8f2;
+    --cj-humo: #ddd3c1;
+    --cj-laton: #eed6a8;
+    --cj-control: rgba(255, 255, 255, 0.4);
+    --cj-filete: rgba(255, 255, 255, 0.12);
+    --cj-filete-fuerte: rgba(255, 255, 255, 0.26);
+    --cj-tinta: #0b2c25;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 18%, rgba(0, 14, 10, 0.1) 45%, rgba(190, 143, 73, 0.1) 100%), rgba(4, 27, 22, 0.5);
+    -webkit-backdrop-filter: var(--cjc-blur);
+    backdrop-filter: var(--cjc-blur);
+    border-right: 0;
+    font-family: var(--cjc-sans);
+  }
+  .cj-cristal[data-noche='true'] .cj-lateral { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(190, 143, 73, 0.06) 100%), rgba(2, 14, 11, 0.68); }
+  @media (min-width: 769px) {
+    .cj-cristal .cj-lateral {
+      top: 16px;
+      height: calc(100vh - 32px);
+      height: calc(100dvh - 32px);
+      margin: 16px 0 16px 16px;
+      padding-top: 28px;
+      border-radius: 26px;
+      box-shadow: var(--cjc-brillo), 0 20px 50px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15);
+      outline: 1px solid rgba(255, 255, 255, 0.14);
+      outline-offset: -1px;
+    }
+    .cj-cristal .cj-cabecera { padding: 0 22px 28px; }
+    .cj-cristal .cj-nav { padding: 0 10px; gap: 3px; }
+    /* Secciones: píldoras de cristal, en minúscula y legibles (antes, versalitas de 12 px) */
+    .cj-cristal .cj-nav a {
+      min-height: 42px; padding: 0 14px; border-radius: 13px;
+      font-size: 14.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: #ddd3c1;
+    }
+    .cj-cristal .cj-nav a:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .cj-cristal .cj-nav a[aria-current='page'] {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.12);
+      color: #fff; font-weight: 600;
+    }
+    .cj-cristal .cj-nav a[aria-current='page'] .cj-icono { color: #eed6a8; }
+    .cj-cristal .cj-plegar { border-radius: 12px; }
+    .cj-cristal .cj-plegar:hover { background: rgba(255, 255, 255, 0.08); }
+    .cj-cristal .cj-borde::after { background: rgba(255, 255, 255, 0.4); border-radius: 2px; }
+    .cj-cristal[data-nav='chica'] .cj-nav a { padding: 0; }
+    .cj-cristal .cj-contenido { padding-top: 48px; }
+  }
+  .cj-cristal .cj-cuenta__nombre { font-weight: 600; }
+  .cj-cristal .cj-salir .cj-boton { border-radius: 13px; }
+
+  /* Interruptor del modo nocturno (al pie de la barra; en el celular, en la hoja «Más») */
+  .cj-lateral__pie { margin-top: auto; padding: 16px 10px 0; }
+  .cj-lateral__pie + .cj-salir { margin-top: 0; padding-top: 8px; }
+  .cj-noche {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 14px;
+    border: 0; border-radius: 13px; background: none; color: #ddd3c1; font: inherit; font-size: 14.5px; font-weight: 500; text-align: left; cursor: pointer;
+  }
+  .cj-noche:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+  .cj-noche .cj-icono { width: 18px; height: 18px; }
+  .cj-noche .cj-nav__txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cj-noche__llave { position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3); transition: background-color 200ms ease; }
+  .cj-noche__llave > span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fbf8f2; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); transition: transform 220ms var(--cjc-curva); }
+  .cj-noche[aria-checked='true'] .cj-noche__llave { background: #be8f49; }
+  .cj-noche[aria-checked='true'] .cj-noche__llave > span { transform: translateX(16px); }
+  .cj-noche--compacto { justify-content: center; padding: 0; }
+  .cj-noche--compacto .cj-nav__txt, .cj-noche--compacto .cj-noche__llave { display: none; }
+  .cj-hoja .cj-noche { min-height: 52px; padding: 0 8px; margin: 4px 0; color: #f2eadc; font-size: 15px; }
+  @media (max-width: 768px) { .cj-lateral__pie { display: none; } }
+
+  /* ── Celular: barra de arriba, barra de pestañas y hoja «Más» de cristal ── */
+  @media (max-width: 768px) {
+    .cj-cristal .cj-lateral { border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+    .cj-cristal .cj-tabbar {
+      left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      padding: 0 6px;
+      border: 0; border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 30%, rgba(190, 143, 73, 0.08)), rgba(4, 27, 22, 0.62);
+      -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+      box-shadow: var(--cjc-brillo), 0 14px 34px rgba(0, 0, 0, 0.4);
+      outline: 1px solid rgba(255, 255, 255, 0.14); outline-offset: -1px;
+    }
+    .cj-cristal[data-noche='true'] .cj-tabbar { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 30%), rgba(2, 14, 11, 0.78); }
+    .cj-cristal .cj-tabbar a, .cj-cristal .cj-tabbar button { color: #ddd3c1; text-transform: none; letter-spacing: 0; font-size: 12px; }
+    .cj-cristal .cj-tabbar [aria-current='page'] { color: #fff; font-weight: 600; }
+    .cj-cristal .cj-tabbar [aria-current='page']::before { left: 22%; right: 22%; top: 6px; bottom: 6px; height: auto; border-radius: 14px; background: rgba(255, 255, 255, 0.12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24); z-index: -1; }
+    .cj-cristal .cj-tabbar [aria-current='page'] .cj-icono { color: #eed6a8; }
+    .cj-cristal .cj-tabbar a, .cj-cristal .cj-tabbar button { isolation: isolate; }
+    .cj-cristal .cj-contenido { padding-bottom: calc(var(--cj-alto-tabbar) + env(safe-area-inset-bottom, 0px) + 40px); }
+  }
+  .cj-cristal .cj-hoja, :root:has(.cj-cristal) .cj-hoja {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 30%), rgba(4, 24, 20, 0.86);
+    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    border-top: 1px solid rgba(255, 255, 255, 0.24); border-radius: 24px 24px 0 0;
+    font-family: var(--cjc-sans);
+  }
+  .cj-cristal .cj-hoja-fondo { background: rgba(0, 10, 8, 0.5); }
+  .cj-cristal .cj-hoja__cerrar { border-radius: 14px; text-transform: none; letter-spacing: 0; font-size: 15px; }
+  .cj-cristal .cj-ptr { background: rgba(4, 27, 22, 0.8); border-color: rgba(255, 255, 255, 0.3); color: #eed6a8; }
+
+  /* ── Tipografía: sans para leer, serif de la marca para títulos; lo destacado en negrita ── */
+  .cj-cristal .cj-etiqueta, :root:has(.cj-cristal) .rc-capa .cj-etiqueta { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; }
+  .cj-cristal .cj-titulo { font-weight: 500; text-wrap: balance; }
+  .cj-cristal .cj-cifra__valor, .cj-cristal .cj-dato__valor, .cj-cristal .rc-conteo__n, :root:has(.cj-cristal) .rc-conteo__n { font-weight: 700; font-variation-settings: normal; }
+  .cj-cristal .cj-tabla th { font-weight: 600; color: var(--cj-hueso); }
+  .cj-cristal .cj-tabla tbody tr:hover td { background: rgba(255, 255, 255, 0.05); }
+  .cj-cristal .cj-tabla-scroll { scrollbar-color: rgba(255, 255, 255, 0.3) transparent; }
+  :root:has(.cj-cristal) .cj-enlace { font-family: var(--cjc-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: var(--cj-laton); border-bottom-color: rgba(238, 214, 168, 0.5); }
+  .cj-cristal .cj-saltar { border-radius: 999px; background: #fbf7ef; color: #102a24; }
+
+  /* ── Superficies: paneles de cristal (pocos por pantalla llevan desenfoque; las listas, cristal liso) ── */
+  .cj-cristal :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio, .rc-col, .rc-tramo, .rc-regla) {
+    background: var(--cjc-panel);
+    border: 1px solid var(--cjc-borde);
+    border-top-color: var(--cjc-borde-arriba);
+    border-radius: var(--cj-radio-tarjeta);
+    box-shadow: var(--cj-sombra-1);
+    -webkit-backdrop-filter: var(--cjc-blur);
+    backdrop-filter: var(--cjc-blur);
+  }
+  .cj-cristal .cj-vacio { padding: 32px 28px; }
+  .cj-cristal :is(.cj-panel, .cj-bloque, .cj-ficha-seccion, .rc-col, .rc-tramo) :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio) {
+    background: var(--cjc-anidado); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  }
+  .cj-cristal :is(.cj-tarjeta, .ed-tarjeta, .gs-item) {
+    background: var(--cjc-panel-liso);
+    border-color: var(--cjc-borde);
+    border-top-color: var(--cjc-borde-arriba);
+    box-shadow: var(--cjc-brillo), 0 10px 26px -20px rgba(0, 0, 0, 0.7);
+  }
+  .cj-cristal .cj-ficha-seccion { padding: 24px 28px; gap: 20px; }
+  .cj-cristal .cj-ficha-seccion > .cj-filete:first-child { display: none; }
+  @media (max-width: 768px) { .cj-cristal .cj-ficha-seccion, :root:has(.cj-cristal) .rc-capa .cj-ficha-seccion { padding: 18px 16px; } }
+
+  /* El Hub ya no lleva su cristal claro ni el isotipo propio: lo reemplaza el fondo de todo el Despacho */
+  .cj-cristal .cj-contenido:has(.cj-hub) { background: none; }
+  .cj-cristal .cj-contenido:has(.cj-hub)::before { display: none; }
+  .cj-cristal .cj-contenido:has(.cj-hub), .cj-cristal .cj-hub-cuerpo, .cj-cristal .cj-hub {
+    --cj-laton: #eed6a8; --cj-humo: #e3dac8; --cj-texto-2: #e3dac8; --cj-ok: #9fdcc0; --cj-atencion: #ecca8f; --cj-alerta: #ecca8f;
+    --cj-vidrio: var(--cjc-panel); --cj-vidrio-borde: var(--cjc-borde); --cj-vidrio-sombra: var(--cj-sombra-1); --cj-desenfoque: var(--cjc-blur);
+    --cj-sala: rgba(255, 255, 255, 0.06); --cj-superficie: var(--cjc-panel); --cj-sombra: var(--cj-sombra-1);
+  }
+  .cj-cristal .cj-hub-cuerpo :is(.cj-panel, .cj-ficha-seccion, .rc-col, .rc-tramo) :is(.rc-tarjeta, .rc-mini__item, .cj-dato, .rc-lista li, .rc-conteo li, .rc-recorrido) {
+    background: var(--cjc-anidado); border-color: var(--cjc-borde);
+  }
+  .cj-cristal .cj-hub-cuerpo :is(.cj-tarjeta, .ed-tarjeta, .gs-item) { background: var(--cjc-panel-liso); border-color: var(--cjc-borde); }
+  .cj-cristal .cj-hub-cuerpo :is(input:not([type='checkbox']):not([type='radio']), select, textarea) { background-color: var(--cjc-campo); }
+  /* Pestañas del Hub: barra de cristal, la elegida en píldora clara */
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub {
+    background: var(--cjc-panel); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
+    border-radius: 18px; box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur); padding: 4px 6px;
+  }
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana { border-radius: 13px; color: #ddd3c1; }
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana:hover { color: #fff; background: rgba(255, 255, 255, 0.07); }
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana[aria-current='page'] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08)); color: #fff; font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+
+  /* ── Controles ── */
+  .cj-cristal .cj-boton { border-radius: 12px; letter-spacing: 0.08em; font-weight: 600; }
+  .cj-cristal .cj-boton--primario, :root:has(.cj-cristal) .rc-capa .cj-boton--primario { background: #f2eadc; color: #0b2c25; border-color: #f2eadc; }
+  .cj-cristal .cj-boton--primario:hover { background: #fff; border-color: #fff; }
+  .cj-cristal a.cj-boton--primario { color: #0b2c25; }
+  .cj-cristal .cj-boton--secundario { background: rgba(255, 255, 255, 0.06); }
+  .cj-cristal .cj-boton--secundario:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.7); }
+  .cj-cristal .cj-boton--marca { background: #7f202c; color: #fbf8f2; border-color: rgba(255, 255, 255, 0.18); }
+  .cj-cristal .cj-chip { border-radius: 999px; letter-spacing: 0.08em; font-weight: 600; color: #e3dac8; }
+  .cj-cristal .cj-chip[aria-pressed='true'] { color: #0b2c25; background: #f2eadc; border-color: #f2eadc; }
+  .cj-cristal .cj-aviso { border-radius: 14px; border-color: rgba(255, 255, 255, 0.2); }
+  :root:has(.cj-cristal) :is(.cj-raiz, .rc-capa, .cj-hoja) :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+    color-scheme: dark;
+  }
+  .cj-cristal .cj-campo__entrada { color: var(--cj-hueso); }
+  .cj-cristal .cj-estado { background: rgba(255, 255, 255, 0.08); }
+  .cj-cristal .cj-estado--ok { background: rgba(159, 220, 192, 0.12); }
+  .cj-cristal .cj-estado--atencion { background: rgba(236, 202, 143, 0.13); }
+  .cj-cristal .cj-estado--alerta { background: rgba(240, 177, 184, 0.12); }
+  .cj-cristal .cj-dato__icono { background: rgba(238, 214, 168, 0.13); }
+
+  /* ── CRM de ventas y Cobro de cuotas (utilidades de Tailwind): los fondos claros pasan a cristal ── */
+  .cj-cristal :is(.bg-blanco, .bg-marfil) { background-color: var(--cjc-panel-liso); }
+  .cj-cristal .bg-gris-fondo { background-color: rgba(255, 255, 255, 0.05); }
+  .cj-cristal .bg-gris-fondo\/60 { background-color: rgba(255, 255, 255, 0.04); }
+  .cj-cristal .bg-gris-linea { background-color: rgba(255, 255, 255, 0.16); }
+  .cj-cristal .crm-raiz { background: transparent; }
+  .cj-cristal .crm-raiz :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { background-color: var(--cjc-campo); border-color: var(--cjc-campo-borde); color: var(--cj-hueso); }
+  .cj-cristal .crm-raiz ::placeholder { color: #b9ae99; }
+
+  /* ── Tarjeta abierta del cliente (portal sobre <body>) ── */
+  :root:has(.cj-cristal) .rc-capa {
+    --cj-fuente-texto: var(--cjc-sans);
+    --cj-texto-2: #e3dac8;
+    --rc-exito: #9fdcc0; --rc-freno: #f0b1b8;
+    color: var(--cj-hueso);
+    font-family: var(--cjc-sans);
+  }
+  :root:has(.cj-cristal) .rc-capa .rc-fondo { background: rgba(0, 10, 8, 0.45); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  :root:has(.cj-cristal) .rc-capa .rc-panel {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(190, 143, 73, 0.05) 100%), rgba(5, 30, 25, 0.84);
+    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: -24px 0 60px -30px rgba(0, 0, 0, 0.8);
+    color: var(--cj-hueso);
+  }
+  :root:has(.cj-cristal[data-noche='true']) .rc-capa .rc-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 30%, rgba(190, 143, 73, 0.035) 100%), rgba(2, 16, 13, 0.9); }
+  :root:has(.cj-cristal) .rc-capa .rc-panel__cab { background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)); border-top: 0; border-bottom-color: rgba(255, 255, 255, 0.12); }
+  :root:has(.cj-cristal) .rc-capa .rc-panel__titulo { font-weight: 600; }
+  :root:has(.cj-cristal) .rc-capa .rc-cerrar { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); }
+  :root:has(.cj-cristal) .rc-capa .rc-cerrar:hover { background: rgba(255, 255, 255, 0.16); }
+  :root:has(.cj-cristal) .rc-capa .rc-saltos { background: rgba(4, 24, 20, 0.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom-color: rgba(255, 255, 255, 0.12); }
+  :root:has(.cj-cristal) .rc-capa .rc-salto { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.22); color: #f2eadc; font-weight: 500; }
+  :root:has(.cj-cristal) .rc-capa .rc-salto:hover { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+  :root:has(.cj-cristal) .rc-capa .cj-ficha-seccion {
+    background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.13); border-top-color: rgba(255, 255, 255, 0.24);
+    border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); padding: 22px 24px; gap: 18px;
+  }
+  :root:has(.cj-cristal) .rc-capa .cj-ficha-seccion > .cj-filete:first-child { display: none; }
+  :root:has(.cj-cristal) .rc-capa :is(.rc-recorrido, .rc-lista li, .rc-conteo li, .cj-dato, .cj-panel) {
+    background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.14); border-radius: 14px; box-shadow: none;
+  }
+  :root:has(.cj-cristal) .rc-capa .rc-paso__punto { background: #0b2c25; }
+  :root:has(.cj-cristal) .rc-capa .rc-paso--hecho .rc-paso__punto { background: var(--cj-laton); }
+  :root:has(.cj-cristal) .rc-capa .rc-paso--actual .rc-paso__punto { background: #fbf8f2; border-color: #fbf8f2; box-shadow: 0 0 0 4px rgba(238, 214, 168, 0.28); }
+  :root:has(.cj-cristal) .rc-capa .rc-alertas li { background: rgba(240, 177, 184, 0.12); border: 1px solid rgba(240, 177, 184, 0.3); }
+  :root:has(.cj-cristal) .rc-capa .cj-boton--primario { background: #f2eadc; color: #0b2c25; border-color: #f2eadc; }
+  :root:has(.cj-cristal) .rc-capa .cj-boton { border-radius: 12px; }
+  :root:has(.cj-cristal) .rc-capa :is(input:not([type='checkbox']):not([type='radio']), select, textarea) { background-color: var(--cjc-campo); color: var(--cj-hueso); border-color: var(--cjc-campo-borde); }
+
+  /* ── Accesibilidad: sin transparencia o sin backdrop-filter, superficies sólidas ── */
+  @media (prefers-reduced-transparency: reduce) {
+    :root:has(.cj-cristal) { --cjc-panel: #0a2f27; --cjc-panel-liso: #0a2f27; --card: #0a2f27; }
+    .cj-cristal .cj-lateral, .cj-cristal .cj-tabbar, :root:has(.cj-cristal) .rc-capa .rc-panel { background: #062a22; -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .cj-cristal .cj-cristal__logo, .cj-cristal .cj-cristal__grano { display: none; }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root:has(.cj-cristal) { --cjc-panel: rgba(8, 40, 33, 0.94); }
+    .cj-cristal .cj-lateral, .cj-cristal .cj-tabbar { background: #062a22; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cj-cristal__manchas, .cj-cristal__logo, .cj-noche__llave, .cj-noche__llave > span { transition: none; }
+  }
+  /* Celular: menos desenfoque (rinde mejor en equipos modestos) */
+  @media (max-width: 767px) {
+    :root:has(.cj-cristal) { --cjc-blur: blur(14px) saturate(130%); }
+  }
+
+  /* El desenfoque necesita ver el fondo: nada entre el fondo y los paneles puede ser su propio contexto de apilamiento.
+     La transición entre pantallas queda solo en opacidad (con transform, el contenedor cortaba el cristal) y el contenido del
+     Hub deja de aislarse (lo hacía para su atmósfera clara, que ya no va). */
+  .cj-cristal .cj-transicion { animation-name: cj-entrada-cristal; }
+  @keyframes cj-entrada-cristal { from { opacity: 0; } to { opacity: 1; } }
+  .cj-cristal .cj-contenido:has(.cj-hub) { isolation: auto; position: static; }
+  .cj-cristal .cj-dato__accion { color: var(--cj-laton); }
+
+  /* ── Cartera (recorrido): etapas en cristal; el avance se lee por la intensidad del oro y lo que ya rinde en verde claro ── */
+  :root:has(.cj-cristal) .rc, :root:has(.cj-cristal) .rc-capa {
+    --rc-avance-0: rgba(238, 214, 168, 0.1);
+    --rc-avance-1: rgba(238, 214, 168, 0.22);
+  }
+  .cj-cristal .rc { border-left: 1px solid var(--cjc-borde); }
+  .cj-cristal .rc-barra__btn { border-color: rgba(255, 255, 255, 0.12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); color: var(--cj-hueso); }
+  .cj-cristal .cj-hub-cuerpo :is(.rc-barra__btn--lanzado, .rc-barra__btn--exito, .rc-barra__btn--renovacion) { color: var(--cj-hueso); }
+  .cj-cristal .rc-barra__btn--lanzado { background: linear-gradient(160deg, rgba(159, 220, 192, 0.26), rgba(159, 220, 192, 0.14)); }
+  .cj-cristal .rc-barra__btn--exito { background: linear-gradient(160deg, rgba(159, 220, 192, 0.4), rgba(159, 220, 192, 0.22)); }
+  .cj-cristal .rc-barra__btn--renovacion { background: linear-gradient(160deg, rgba(238, 214, 168, 0.4), rgba(238, 214, 168, 0.26)); }
+  .cj-cristal .rc-barra__btn[aria-pressed='true'] { border-color: #fbf8f2; box-shadow: 0 0 0 1px #fbf8f2; }
+  .cj-cristal .rc .rc-barra__btn:focus-visible { outline-color: #fbf8f2; box-shadow: 0 0 0 2px #0b2c25; }
+  .cj-cristal .rc-barra__n { font-weight: 700; }
+  .cj-cristal .rc-barra__nombre { font-size: 12px; font-weight: 600; letter-spacing: 0; }
+  .cj-cristal .rc-barra__freno { color: #2a0b10; }
+  .cj-cristal .rc-barra--zoom .rc-barra__btn[aria-pressed='false'] { opacity: 0.55; }
+  .cj-cristal .rc-aviso { background: rgba(238, 214, 168, 0.1); }
+  :root:has(.cj-cristal) .rc-pto { border-color: #0b2c25; }
+  :root:has(.cj-cristal) .rc-pto--prod { background: rgba(238, 214, 168, 0.55); }
+  :root:has(.cj-cristal) .rc-pto--exito { background: #3f9a6a; }
+  :root:has(.cj-cristal) .rc-pto--renov { background: #f2dcae; }
+  :root:has(.cj-cristal) .rc-pto--activo { outline-color: #fbf8f2; }
+  .cj-cristal .rc-regla .rc-pto { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+  .cj-cristal .rc-tramo { background: rgba(255, 255, 255, 0.04); }
+  /* Más específico que la regla del cristal claro del Hub (.cj-hub-cuerpo :is(…) { color: #fffdf8 }), que va después */
+  .cj-raiz.cj-cristal.cj-cristal :is(.rc-vista[aria-pressed='true'], .rc-tramo__n, .rc-interruptor[aria-pressed='true'], .rc-abrir-filtros[aria-expanded='true']) { background: #f2eadc; color: #0b2c25; }
+  .cj-raiz.cj-cristal.cj-cristal .rc-interruptor--freno[aria-pressed='true'] { background: #f0b1b8; border-color: #f0b1b8; color: #2a0b10; }
+  .cj-cristal .rc-vistas { background: rgba(255, 255, 255, 0.06); }
+
+  /* ── Hub de Clientes: pestañas, menú rápido y montos ── */
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub { margin-bottom: 28px; }
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana { border-bottom: 0; margin-bottom: 0; min-height: 44px; }
+  .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana[aria-current='page'] .cj-icono { color: #eed6a8; }
+  .cj-raiz.cj-cristal .cj-hub--oscuro { margin: 16px clamp(16px, 4vw, 48px) 0; }
+  .cj-cristal .mr-boton { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.3); font-weight: 600; }
+  .cj-cristal .mr-boton--urgente { border-color: #f0b1b8; }
+  .cj-cristal .mr-boton[aria-expanded='true'] { background: #f2eadc; color: #0b2c25; border-color: #f2eadc; }
+  .cj-cristal .mr-cuenta { background: #f2eadc; color: #0b2c25; font-weight: 700; }
+  .cj-cristal .mr-boton--urgente .mr-cuenta { background: #f0b1b8; color: #2a0b10; }
+  .cj-cristal .mr-boton[aria-expanded='true'] .mr-cuenta { background: #0b2c25; color: #fbf8f2; }
+  .cj-cristal .mr-panel {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 30%), rgba(4, 24, 20, 0.92);
+    border-color: rgba(255, 255, 255, 0.18); box-shadow: var(--cjc-brillo), 0 24px 50px -20px rgba(0, 0, 0, 0.75);
+  }
+  .cj-cristal .mr-item { background: rgba(255, 255, 255, 0.05); }
+  .cj-cristal .mr-urgente { background: #f0b1b8; color: #2a0b10; }
+  .cj-cristal :is(.mr-hecho, .mr-acceso) { background: rgba(255, 255, 255, 0.06); }
+  .cj-cristal .cj-boton-montos { background: rgba(255, 255, 255, 0.07); }
+  .cj-cristal .cj-boton-montos[aria-pressed='true'] { background: #f2eadc; color: #0b2c25; border-color: #f2eadc; }
+
+  /* ── Chips de color lleno: texto oscuro sobre los tonos claros del cristal ── */
+  .cj-cristal :is(.pr-cuenta, .gs-alerta, .gs-prioridad--5) { color: #2a0b10; }
+  .cj-cristal .gs-prioridad--4 { background: #ecca8f; color: #2b1a05; }
+  .cj-cristal .gs-prioridad--3 { color: #2b1a05; }
+  .cj-cristal .gs-prioridad--1 { color: #062a1e; }
+  .cj-cristal .gs-buscar { background: var(--cjc-campo); }
+  .cj-cristal :is(.cfg-casilla:has(input:checked), .cfg-chip--admin) { background: rgba(159, 220, 192, 0.18); border-color: rgba(159, 220, 192, 0.6); color: #fbf8f2; }
+
+  /* ── Edición: diálogo de la tarjeta ── */
+  .cj-cristal .et-dialogo, :root:has(.cj-cristal) .et-dialogo { background: rgba(4, 24, 20, 0.95); color: var(--cj-hueso); border-color: rgba(255, 255, 255, 0.2); }
+  :root:has(.cj-cristal) .et-dialogo > header { background: rgba(4, 24, 20, 0.98); }
+  :root:has(.cj-cristal) .et-dialogo::backdrop { background: rgba(0, 10, 8, 0.55); }
+
+  /* ── Letras: nada por debajo de 12 px (Tomás: «que las letras se vean bien») ── */
+  .cj-cristal :is(.cj-marca__rotulo, .cj-semaforo, .cj-chip, .gs-datos dt, .gu-etq, .traz-grupo, .traz-lectura, .traz-dl dt, .rc-regla__marca > span) { font-size: 12px; }
+  :root:has(.cj-cristal) .rc-paso { font-size: 12px; }
+  .cj-cristal :is(.gs-datos dt, .gu-etq, .traz-grupo, .traz-dl dt, .cj-base-datos dt) { color: var(--cj-humo); font-weight: 600; }
+  .cj-cristal :is(.text-\[10px\], .text-\[11px\], .text-xs) { font-size: 12px; }
+
+  /* ── Resumen (dashboard viejo, globals.css): cristal en vez de su fondo propio ── */
+  /* Su botón «Modo oscuro/claro» queda oculto: el modo lo decide el interruptor de la cuenta (el mismo en todo el Despacho) */
+  .cj-cristal .resumen-tema { display: none !important; }
+  .cj-cristal .resumen-marca { background: transparent !important; isolation: auto; }
+  .cj-cristal .resumen-marca::before { display: none; }
+  /* Con el modo oscuro viejo guardado en el navegador, sus tokens sólidos no pisan el cristal */
+  .cj-cristal .resumen-marca[data-theme], :root:has(.cj-cristal)[data-theme] {
+    --bg: #0b2c25; --card: rgba(8, 36, 30, 0.7); --text: #fbf8f2; --text-muted: #e3dac8; --border: rgba(255, 255, 255, 0.15);
+    --brand-num: #fbf8f2; --brand-texto: #eed6a8; --brand-red: #f0b1b8; --tono-bueno: #9fdcc0; --tono-malo: #f0b1b8;
+  }
+  :root:has(.cj-cristal[data-noche='true'])[data-theme], .cj-cristal[data-noche='true'] .resumen-marca[data-theme] { --card: rgba(4, 22, 18, 0.74); }
+  .cj-cristal .marca-banda {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)), rgba(4, 27, 22, 0.55);
+    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    --card: rgba(255, 255, 255, 0.08); --border: rgba(255, 255, 255, 0.3); --text-muted: #e3dac8; --brand-texto: #eed6a8;
+  }
+  .cj-cristal .resumen-marca :is(.card, .glass-board, .goal-card, .big-metric, .small-metric) { border-top: 1px solid var(--cjc-borde-arriba); }
+  .cj-cristal .resumen-marca :is(.card, .glass-board) { border-radius: 18px; }
+  .cj-cristal :is(.card, .glass-board, .glass-alert) {
+    background: var(--cjc-panel); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
+    box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+  }
+  .cj-cristal :is(.card, .glass-board) :is(.card, .glass-tile, .glass-alert) { background: var(--cjc-anidado); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+  .cj-cristal .glass-tile { background: var(--cjc-anidado); border-color: var(--cjc-borde); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+  /* El Resumen y los paneles viejos (Grabaciones, Meta, embudo) traen tamaños en línea de 8,5 a 11 px (unos 300 textos): piso de 12 px */
+  .cj-cristal :is([style*='font-size: 8px'], [style*='font-size: 8.5px'], [style*='font-size: 9px'], [style*='font-size: 9.5px'], [style*='font-size: 10px'], [style*='font-size: 10.4px'], [style*='font-size: 10.5px'], [style*='font-size: 11px'], [style*='font-size: 11.5px']) { font-size: 12px !important; }
+  .cj-cristal .resumen-marca :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]) { font-size: 12px; }
+  .cj-cristal .resumen-marca .section-title { font-size: 12px; }
+  /* Rótulos de las métricas chicas del Resumen (globals.css: 0,65 rem = 10,4 px) */
+  .cj-cristal .small-metric .sm-label { font-size: 12px; }
+  /* Ejes y leyendas de los gráficos (Recharts): legibles sobre el cristal (antes 2,4:1 en el modo oscuro del Resumen) */
+  .cj-cristal :is(.recharts-cartesian-axis-tick-value, .recharts-cartesian-axis-tick text, .recharts-legend-item-text) { fill: #e3dac8; font-size: 12px; }
+  .cj-cristal .recharts-legend-item-text { color: #e3dac8 !important; }
+  .cj-cristal .recharts-cartesian-grid line { stroke: rgba(255, 255, 255, 0.1); }
+  .cj-cristal .recharts-default-tooltip { background: rgba(4, 24, 20, 0.95) !important; border-color: rgba(255, 255, 255, 0.2) !important; border-radius: 12px; color: #fbf8f2; }
+
+  /* ── CRM de ventas y Cuotas: barras y rellenos ──
+     La escala neutra está invertida (negro = texto claro, blanco = verde oscuro): un botón elegido bg-negro/text-blanco queda
+     en píldora clara con texto oscuro, igual que en Finanzas. Las BARRAS oscuras (encabezados, columnas, cabeceras de tabla) no
+     se invierten: pasan a cristal con texto marfil. Y sobre los rellenos de color (oro, bordó, verde) el texto va oscuro. */
+  .cj-cristal :is(.marca-barra, .marca-columna, thead.bg-negro, tr.bg-negro, th.bg-negro, td.bg-negro, .rounded-2xl.bg-negro, .bg-negro.px-4.py-3, .rounded-t-xl.bg-negro, .rounded-t-xl.bg-rojo) {
+    --color-blanco: #fbf8f2; --color-negro: #fbf8f2;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)), rgba(4, 27, 22, 0.55);
+    color: #fbf8f2;
+  }
+  .cj-cristal .marca-barra {
+    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .cj-cristal .marca-barra :focus-visible, .cj-cristal :is(thead, tr, th).bg-negro :focus-visible { outline-color: #eed6a8; }
+  .cj-cristal .marca-columna { border-top: 1px solid rgba(255, 255, 255, 0.28); }
+  .cj-raiz.cj-cristal .rounded-t-xl.bg-rojo, .cj-raiz.cj-cristal .marca-columna:is([data-grupo='noShow'], [data-grupo='postCall']) { background: linear-gradient(180deg, rgba(240, 177, 184, 0.22), rgba(240, 177, 184, 0.12)), rgba(4, 27, 22, 0.55); }
+  .cj-cristal .bg-negro\/50 { background-color: rgba(0, 10, 8, 0.55); }
+  .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro, .bg-rojo, .bg-bordo, .bg-verde) { --color-negro: #1d1d1b; --color-blanco: #1d1d1b; color: #1d1d1b; }
+  .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro, .bg-rojo, .bg-bordo, .bg-verde) :focus-visible, .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro):focus-visible { outline-color: #fbf8f2; }
+  .cj-cristal .bg-verde { background-color: #9fdcc0; }
+
+  /* ── Anuncios (tablero verde propio, /anuncios dentro del marco) y Finanzas clásico: sobre el fondo de cristal ── */
+  .cj-cristal .cj-contenido:is(:has(.fin-verde), :has(.anu-verde)) { background: transparent; }
+  .cj-cristal .skw { background: transparent; font-family: var(--cjc-sans); --laton: #eed6a8; --humo: #e3dac8; --filete: rgba(255, 255, 255, 0.13); --filete-fuerte: rgba(255, 255, 255, 0.28); }
+  .cj-cristal .skw .anu-tarjeta {
+    background: var(--cjc-panel); border-color: var(--cjc-borde); border-top-color: var(--cjc-borde-arriba); border-radius: 16px;
+    box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+  }
+  .cj-cristal .skw .anu-tarjeta[aria-pressed='true'] { border-color: #fbf8f2; }
+  .cj-cristal .skw :is(.etq, .etq-laton, .enlace, .chip, .boton) { font-size: 12px; letter-spacing: 0.1em; font-weight: 600; }
+  .cj-cristal .skw .chip { border-radius: 999px; }
+  .cj-cristal .skw .boton { border-radius: 12px; }
+
+  /* ── Anchos medianos (tablet y notebook chica, 769–1279 px): las etapas en dos filas y las pestañas más compactas ── */
+  @media (min-width: 769px) and (max-width: 1279px) {
+    .cj-cristal .rc-barra { flex-wrap: wrap; }
+    .cj-cristal .rc-barra__item { flex: 1 1 calc(20% - 4px); min-width: 0; }
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana { padding: 0 11px; gap: 7px; font-size: 14px; }
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana:not([aria-current='page']) .cj-icono { display: none; }
+  }
+  .cj-cristal .traz-capa--no { opacity: 1; }
+  .cj-cristal .skw { --azul: #c8daef; }
+
+  :root:has(.cj-cristal) .rc-capa .rc-doc { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.14); }
+  :root:has(.cj-cristal) .rc-capa .rc-saltos-marco { --rc-saltos-fondo: rgba(4, 24, 20, 0.96); }
+  :root:has(.cj-cristal) .rc-capa .rc-saltos-flecha { background: rgba(30, 58, 50, 0.96); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+}
+
+/* ── Piezas nuevas de la tarjeta del cliente (con los tokens de siempre: andan con y sin cristal, también al imprimir) ── */
+/* Documento de guiones del cliente: una fila con su acción (antes era un rótulo suelto que no parecía enlace) */
+.rc-doc {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0; padding: 14px 16px;
+  border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-m); background: var(--cj-sala);
+}
+.rc-doc__ico { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: rgba(190, 143, 73, 0.14); color: var(--cj-laton); }
+.rc-doc__textos { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rc-doc__titulo { font-weight: 600; line-height: 1.3; }
+.rc-doc__detalle { font-size: 13.5px; color: var(--cj-texto-2); }
+.rc-panel a.rc-doc__accion, .rc-doc__accion {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 12px;
+  border: 1px solid var(--cj-control); color: var(--cj-hueso); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.rc-doc__accion:hover { border-color: var(--cj-hueso); background: color-mix(in srgb, var(--cj-hueso) 8%, transparent); }
+.rc-doc--vacio .rc-doc__ico { background: color-mix(in srgb, var(--cj-texto-2) 12%, transparent); color: var(--cj-texto-2); }
+
+/* Fila de secciones de la tarjeta: se ve que sigue (sombra y flechas en los bordes) */
+.rc-saltos-marco { position: sticky; top: -20px; z-index: 2; margin: 0 -24px; }
+.rc-saltos-marco > .rc-saltos { position: static; margin: 0; }
+.rc-saltos-marco::before, .rc-saltos-marco::after {
+  content: ''; position: absolute; top: 1px; bottom: 1px; width: 56px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 160ms ease;
+}
+.rc-saltos-marco::before { left: 0; background: linear-gradient(90deg, var(--rc-saltos-fondo, var(--cj-tinta)) 30%, transparent); }
+.rc-saltos-marco::after { right: 0; background: linear-gradient(270deg, var(--rc-saltos-fondo, var(--cj-tinta)) 30%, transparent); }
+.rc-saltos-marco[data-antes='true']::before, .rc-saltos-marco[data-despues='true']::after { opacity: 1; }
+.rc-saltos-flecha {
+  position: absolute; top: 50%; z-index: 2; display: none; place-items: center; width: 36px; height: 36px; margin-top: -18px;
+  border-radius: 50%; border: 1px solid var(--cj-filete-fuerte); background: var(--cj-sala); color: var(--cj-hueso); cursor: pointer;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.5);
+}
+.rc-saltos-flecha--antes { left: 8px; }
+.rc-saltos-flecha--despues { right: 8px; }
+.rc-saltos-marco[data-antes='true'] .rc-saltos-flecha--antes, .rc-saltos-marco[data-despues='true'] .rc-saltos-flecha--despues { display: grid; }
+@media (max-width: 767px) {
+  .rc-saltos-marco { margin: 0 -16px; top: -16px; }
+  .rc-saltos-marco > .rc-saltos { margin: 0; padding: 8px 16px; }
+  .rc-saltos-flecha { display: none !important; }
+}
+
+/* Registro de la tarjeta: el aviso de «Guardado…» vacío ya no deja un hueco (era un párrafo de 1,4 em más dos separaciones) */
+.rc-hito__estado:empty { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }

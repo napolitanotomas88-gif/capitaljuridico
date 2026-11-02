@@ -558,6 +558,7 @@ export default function Dashboard() {
                 {loading ? 'Actualizando...' : timeAgo !== null ? `hace ${timeAgo < 60 ? `${timeAgo}s` : `${Math.floor(timeAgo/60)}m`}` : ''}
               </div>
               <button
+                className="resumen-tema"
                 onClick={() => setDarkMode(d => !d)}
                 style={{
                   padding: '5px 12px', borderRadius: 8,

@@ -31,3 +31,6 @@ export function alArrastrar(x: number, previa: PreferenciaNav): PreferenciaNav {
   if (x < UMBRAL_CHICA) return { chica: true, ancho: previa.ancho }
   return { chica: false, ancho: limitarAncho(x) }
 }
+
+/** Modo nocturno del cristal en este navegador ("1" / "0"): caché de lo que guarda la cuenta (components/shell/ModoNocturno.tsx) */
+export const COOKIE_NOCHE = 'cj_noche'
