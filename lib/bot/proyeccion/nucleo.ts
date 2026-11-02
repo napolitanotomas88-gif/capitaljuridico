@@ -22,6 +22,9 @@ export interface DepsProyeccion {
   leerMarcas(): Promise<MarcaProyeccion[]>
   /** Eventos próximos de proyección en Calendly (solo se piden si hay a quién mirar). */
   eventosCalendly(): Promise<EventoCalendly[]>
+  /** Avisos de fin de Bajas (i01 con OK, de antes de esta etapa) ya resueltos a mano para ese cliente y fin: enviado o
+   *  descartado. Con eso la invitación de −14 no vuelve a salir (no se duplica). Claves `ID:fin`. Opcional. */
+  avisosFinResueltos?(): Promise<Set<string>>
   /** ¿El cliente sigue operativo (no archivado)? Opcional. */
   clienteOperativo?(idCrm: string, nombre: string): Promise<boolean>
   paraEnviar(p: { idCrm: string; cliente: string; clave: string; texto: string; fin: Ymd }): Promise<{ estado: string }>
@@ -50,7 +53,14 @@ export async function correrProyeccion(d: DepsProyeccion): Promise<ResumenProyec
   try { marcas = await d.leerMarcas() } catch (e) { r.errores.push(`marcas: ${motivo(e)}`); return r }   // sin marcas no se avisa (podría avisar de más)
   let eventos: EventoCalendly[] = []
   try { eventos = await d.eventosCalendly() } catch (e) { r.errores.push(`Calendly: ${motivo(e)}`) }       // sin Calendly igual corta la marca manual
+  let resueltos = new Set<string>()
+  if (d.avisosFinResueltos) try { resueltos = await d.avisosFinResueltos() } catch (e) { r.errores.push(`avisos de Bajas: ${motivo(e)}`); return r }   // sin eso podría duplicar
   const plan = planDelDia(cands, marcas, eventos)
+  plan.acciones = plan.acciones.filter((a) => {
+    if (a.paso !== 'invitar' || !resueltos.has(`${a.cliente.id.toUpperCase()}:${a.fin}`)) return true
+    plan.cortados.push({ cliente: a.cliente, motivo: 'aviso de fin ya resuelto en Bajas' })
+    return false
+  })
   const finDe = new Map(cands.map((c) => [c.cliente.id, c]))
   r.cortados = plan.cortados.map((x) => ({ id: x.cliente.id, cliente: x.cliente.nombre, fin: finDe.get(x.cliente.id)!.fin, dias: finDe.get(x.cliente.id)!.dias, motivo: x.motivo }))
 
@@ -59,7 +69,7 @@ export async function correrProyeccion(d: DepsProyeccion): Promise<ResumenProyec
     if (d.dry) { r.agendadas.push(fila('anotaría y avisaría en ✅')); continue }
     try {
       await d.anotarAgendada({ idCrm: det.cliente.id.toUpperCase(), fin: det.fin, fecha: det.evento.inicio })
-      const t = textoDeteccion(det)
+      const t = textoDeteccion(det, d.hoy)
       const s = await d.verificaciones({ idCrm: det.cliente.id.toUpperCase(), cliente: det.cliente.nombre, clave: det.clave, ...t })
       r.agendadas.push(fila(s.estado))
     } catch (e) {
@@ -83,7 +93,7 @@ export async function correrProyeccion(d: DepsProyeccion): Promise<ResumenProyec
 
 async function ejecutar(d: DepsProyeccion, a: AccionProyeccion): Promise<string> {
   const id = a.cliente.id.toUpperCase()
-  const invitacion = textoInvitacion(a.cliente.nombre, d.calendlyUrl)
+  const invitacion = textoInvitacion(a.cliente.nombre, d.calendlyUrl, a.dias)
   if (a.paso === 'invitar') return (await d.paraEnviar({ idCrm: id, cliente: a.cliente.nombre, clave: a.clave, texto: invitacion, fin: a.fin })).estado
   const t = textoTarea(a, d.calendlyUrl)
   return (await d.tarea({ idCrm: id, cliente: a.cliente.nombre, clave: a.clave, ...t, copiar: a.avisado ? null : invitacion })).estado

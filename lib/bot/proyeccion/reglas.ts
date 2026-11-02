@@ -133,9 +133,20 @@ export function eventoEsDe(c: Pick<ClienteBaja, 'nombre' | 'mail'>, e: EventoCal
   return [...palabras(c.nombre)].filter((w) => inv.has(w)).length >= 2
 }
 
-/** El evento de Calendly del cliente (el más próximo), si hay uno. */
-export function eventoDe(c: Pick<ClienteBaja, 'nombre' | 'mail'>, eventos: readonly EventoCalendly[]): EventoCalendly | null {
-  return [...eventos].filter((e) => eventoEsDe(c, e)).sort((a, b) => a.inicio.localeCompare(b.inicio))[0] ?? null
+/** Cuánto antes del fin puede caer la llamada de proyección (a veces se hace antes del día −14: el caso real del 16/10). */
+export const CALENDLY_ANTES_DEL_FIN_DIAS = 40
+/** Una KickOff hasta esto después del día 1 es la PRIMERA (la del arranque), nunca la proyección. */
+export const PRIMERA_KICKOFF_DIAS = 30
+
+/** El evento de Calendly del cliente (el más próximo) que puede ser la proyección de ESE fin: entre 40 días antes del fin y
+ *  después, y nunca en el primer mes del programa (esa es la kickoff del arranque). */
+export function eventoDe(c: Pick<ClienteBaja, 'nombre' | 'mail'> & { dia1?: Ymd | null }, eventos: readonly EventoCalendly[], fin?: Ymd): EventoCalendly | null {
+  return [...eventos].filter((e) => {
+    if (!eventoEsDe(c, e)) return false
+    if (fin && diasEntre(e.inicio, fin) > CALENDLY_ANTES_DEL_FIN_DIAS) return false
+    if (c.dia1 && diasEntre(c.dia1, e.inicio) <= PRIMERA_KICKOFF_DIAS) return false
+    return true
+  }).sort((a, b) => a.inicio.localeCompare(b.inicio))[0] ?? null
 }
 
 // ── Estado (lo que muestran el panel y la tarjeta, y lo que decide el cron) ──
@@ -179,7 +190,7 @@ export function planDelDia(cands: readonly CandidatoProyeccion[], marcas: readon
   const cortados: { cliente: ClienteBaja; motivo: string }[] = []
   for (const cand of cands) {
     const k = cand.cliente
-    const s = estadoProyeccion(cand, marcaVigente(marcas, k.id, cand.fin), eventoDe(k, eventos))
+    const s = estadoProyeccion(cand, marcaVigente(marcas, k.id, cand.fin), eventoDe(k, eventos, cand.fin))
     if (s.calendlySinAnotar) detecciones.push({ cliente: k, fin: cand.fin, dias: cand.dias, evento: s.calendlySinAnotar, clave: `proyeccion:${up(k.id)}:${cand.fin}:calendly:${s.calendlySinAnotar.inicio}` })
     if (s.fase === 'hecha' || s.fase === 'agendada') {
       cortados.push({ cliente: k, motivo: s.fase === 'hecha' ? 'llamada hecha' : s.agendada?.fuente === 'calendly' ? 'agendada en Calendly' : 'llamada agendada' })
@@ -205,11 +216,14 @@ export function primerNombre(nombre: string): string {
 }
 
 /** El texto para el cliente (−14): tono de continuidad, nunca «se te termina». */
-export function textoInvitacion(nombre: string, calendly: string): string {
+export function textoInvitacion(nombre: string, calendly: string, dias: number = INVITAR_DIAS): string {
   const n = primerNombre(nombre)
-  return `${n ? `Hola ${n}` : 'Hola'}, ¿cómo estás? Queremos seguir acompañándote en lo que viene: en una semana hacemos la llamada de proyección con Tomi para repasar los resultados de estos meses y planificar juntos los próximos pasos.
+  // A −14 la llamada es «en una semana»; si ya quedan 7 días o menos (se pega desde la tarea), «en estos días»
+  const cuando = dias > AGENDAR_DIAS ? 'en una semana' : 'en estos días'
+  const plazo = dias > AGENDAR_DIAS ? ', de acá a una semana' : ' en los próximos días'
+  return `${n ? `Hola ${n}` : 'Hola'}, ¿cómo estás? Queremos seguir acompañándote en lo que viene: ${cuando} hacemos la llamada de proyección con Tomi para repasar los resultados de estos meses y planificar juntos los próximos pasos.
 
-Te dejo su calendario para que elijas el horario que mejor te quede, de acá a una semana:
+Te dejo su calendario para que elijas el horario que mejor te quede${plazo}:
 
 ${calendly || '[link del Calendly de Tomi]'}`
 }
@@ -238,7 +252,9 @@ export function textoTarea(a: Pick<AccionProyeccion, 'paso' | 'cliente' | 'fin' 
 }
 
 /** El aviso en ✅-verificaciones cuando aparece en Calendly. */
-export const textoDeteccion = (d: Pick<DeteccionCalendly, 'cliente' | 'evento' | 'fin'>): { titulo: string; lineas: string[] } => ({
-  titulo: `${d.cliente.nombre} agendó la llamada de proyección para el ${fechaCorta(d.evento.inicio)}`,
+export const textoDeteccion = (d: Pick<DeteccionCalendly, 'cliente' | 'evento' | 'fin'>, hoy?: Ymd): { titulo: string; lineas: string[] } => ({
+  titulo: hoy && d.evento.inicio < hoy
+    ? `${d.cliente.nombre} ya tuvo agendada la llamada de proyección el ${fechaCorta(d.evento.inicio)} (Calendly)`
+    : `${d.cliente.nombre} agendó la llamada de proyección para el ${fechaCorta(d.evento.inicio)}`,
   lineas: [`Evento de Calendly: ${d.evento.evento}.`, `Fin del programa: ${fechaCorta(d.fin)}.`, 'Quedó marcada «Agendada» y se cortan los avisos. Si no es la proyección, quitá la marca en su tarjeta.'],
 })
