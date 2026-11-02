@@ -1,6 +1,14 @@
 {
   "crons": [
     {
+      "path": "/api/bot/proyeccion",
+      "schedule": "40 13 * * *"
+    },
+    {
+      "path": "/api/bot/proyeccion?tarde=1",
+      "schedule": "0 21 * * *"
+    },
+    {
       "path": "/api/bot/guiones/recordatorio",
       "schedule": "0 12 * * 1-5"
     },

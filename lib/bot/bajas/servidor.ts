@@ -13,6 +13,7 @@ import { tokenWhapi } from '@/lib/bot/whapi/config'
 import { crearClienteWhapi } from '@/lib/bot/whapi/cliente'
 import { whatsappBotEncendido } from '@/lib/bot/whapi/corte'
 import { clientesSinFin, esSinFin } from '@/lib/clientes/sinFin'
+import { proyeccionPrendida } from '@/lib/bot/proyeccion/reglas'
 import { CHAT_VERIFICACIONES_DISCORD, enviarTextoSinWhatsapp, generalVirtual, tareaOperaciones } from '@/lib/bot/sinWhatsapp'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
 import { personasDelEquipo } from '@/lib/bot/whapi/guiones'
@@ -177,6 +178,9 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
     config,
     ...(sinWa ? { salidaManual: true, generalVirtual, tareaManual: (t: Parameters<NonNullable<DepsBajas['tareaManual']>>[0]) => tareaOperaciones({ ...t, menciones: ['aylu'] }) } : {}),
     clienteOperativo,
+    // Continuidad (2/11/2026): con la etapa Proyección prendida, i01 no pide OK (la invitación la deja Proyección en 📤).
+    // El modo prueba sigue con su i01 (los clientes de prueba están fuera de Proyección).
+    avisoFinPorProyeccion: !prueba && proyeccionPrendida(env),
     alcance,
     almacen: op.dry ? almacenSoloLectura(almacenBase) : almacenBase,
     grupos: prueba ? directorioSoloPrueba(directorio) : directorio,

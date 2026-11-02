@@ -50,6 +50,9 @@ export interface DepsBajas {
   /** Sin WhatsApp (2/11/2026): lo del cliente queda «para enviar», las respuestas cortas en Verificaciones no salen (las
    *  muestra el Despacho) y sacarlo de los grupos y borrar la comunidad pasa a ser una tarea en #🛠️-operaciones. */
   salidaManual?: boolean
+  /** Continuidad (2/11/2026, lib/bot/proyeccion): la invitación a la llamada de proyección a −14 la deja la etapa Proyección
+   *  directo en 📤, sin el pedido de OK. Con esto en true, i01 no abre su pedido (no se duplica el aviso). */
+  avisoFinPorProyeccion?: boolean
   generalVirtual?(idCrm: string | null): string | null
   /** Tarea humana (sacarlo de los 3 grupos, de Skool y borrar la comunidad). Nunca tira. */
   tareaManual?(t: { idCrm: string; cliente: string; clave: string; titulo: string; lineas: string[] }): Promise<void>
@@ -766,7 +769,8 @@ export function crearNucleoBajas(d: DepsBajas) {
     } catch (e) { r.errores.push(`vencer pedidos: ${motivoDe(e)}`) }
     let clientes: ClienteBaja[]
     try { clientes = await d.leerClientes() } catch (e) { r.errores.push(`no se pudo leer el CRM (${motivoDe(e)})`); return r }
-    try { await avisosFin(r, clientes) } catch (e) { r.errores.push(`avisos de fin: ${motivoDe(e)}`) }
+    if (d.avisoFinPorProyeccion) r.registro.push('aviso de fin (i01): lo hace la etapa Proyección (invitación en 📤 a −14, sin pedido de OK)')
+    else try { await avisosFin(r, clientes) } catch (e) { r.errores.push(`avisos de fin: ${motivoDe(e)}`) }
     try { await recontacto(r, clientes, !!op.forzarRecontacto) } catch (e) { r.errores.push(`recontacto: ${motivoDe(e)}`) }
     return r
   }
