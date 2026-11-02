@@ -21,10 +21,12 @@ export function mesLargo(m) {
   return i >= 0 && i < 12 ? `${MESES[i]} ${r[1]}` : m
 }
 
-// Monto en dólares (con espacio duro: «US$» no queda solo al final del renglón): 'US$ 1.300' / '−US$ 1.300,50'. decimales: 'auto' (hasta 2) o 2 fijos.
+// Monto en dólares (con espacio duro: «US$» no queda solo al final del renglón): 'US$ 1.300' / '−US$ 1.300,50'. decimales: 'auto'
+// (sin centavos si es redondo; si tiene centavos, siempre 2: «US$ 9.611,50», nunca «US$ 9.611,5») o 2 fijos.
 export function dolares(n, decimales = 'auto') {
   const v = Number(n || 0)
-  const opciones = decimales === 2 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 2 }
+  const conCentavos = decimales === 2 || Math.round(Math.abs(v) * 100) % 100 !== 0
+  const opciones = conCentavos ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 }
   return (v < 0 ? '−US$\u00a0' : 'US$\u00a0') + Math.abs(v).toLocaleString('es-AR', opciones)
 }
 

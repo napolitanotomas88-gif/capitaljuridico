@@ -684,6 +684,11 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 }
 .fin-cristal .pe .pe-kpi--destacada { box-shadow: var(--cr-brillo), inset 0 2px 0 rgba(190, 143, 73, 0.75), 0 14px 36px -18px rgba(0, 0, 0, 0.55); }
 .fin-cristal .pe :is(.pe-ayuda, .pe-kpi small, .pe-desglose dt) { color: var(--cr-texto-2); }
+/* Formulario de carga (grupos «Persona y período», «Montos»…) y fila del reparto «Pagado por»: traían el marfil al 38 % del
+   diseño clásico, que sobre el cristal lavaba el panel y dejaba el texto marfil sobre gris claro (control final, 1/11) */
+.fin-cristal .fin-skwd .pe-carga { background: var(--cr-panel); -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur); }
+.fin-cristal .fin-skwd .pe-grupo { background: rgba(4, 22, 18, 0.42); border-color: var(--cr-panel-borde); }
+.fin-cristal .fin-skwd .pe-fila-reparto > td { background: rgba(4, 22, 18, 0.55); }
 
 /* Tarjetas del Resultado del mes (Entró, Gastos, Ganancia neta, Margen, Devoluciones): misma separación que los paneles
    (24 px), número en UNA línea con tamaño que se ajusta al ancho de la fila, etiqueta arriba y chip/contexto abajo

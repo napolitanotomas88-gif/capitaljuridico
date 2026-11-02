@@ -24,6 +24,9 @@
 
 import type { PagoComprobante } from './finanzasCuentas'
 
+// Solo presentación (control final 1/11): montos de los textos de pantalla como «US$ 10.605» (es-AR, espacio duro).
+const usdTexto = (n: number, dec = 2) => 'US$\u00a0' + n.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+
 export type Celda = string | number | boolean | null | undefined
 export type Fila = Celda[]
 
@@ -539,7 +542,7 @@ export function calcularFinanzas(e: EntradaCalculo) {
     : pagosMes.some(p => p.fuenteCuenta === 'comprobantes') ? 'comprobantes' : tieneColCuenta ? 'columna' : null
   const cashEr = cashER(e.er, mes, e.anioPlanillas)
   if (cashEr != null && Math.abs(cashEr - cash) > 0.5)
-    revisar.push({ tipo: 'dato', texto: `El Estado de Resultados dice Cash Collected $${cashEr.toFixed(2)} y ${origenPagos} suma $${cash.toFixed(2)} para el mes. Este dashboard usa ${origenPagos} (el ER tiene fórmulas con fechas mal puestas).` })
+    revisar.push({ tipo: 'dato', texto: `El Estado de Resultados dice Cash Collected ${usdTexto(cashEr)} y ${origenPagos} suma ${usdTexto(cash)} para el mes. Este dashboard usa ${origenPagos} (el ER tiene fórmulas con fechas mal puestas).` })
   for (const p of pagosMes.filter(x => !x.montoEsNumero))
     revisar.push({ tipo: 'pago', texto: `Monto cargado como TEXTO ("${txt(p.montoCelda)}"): el sheet lo ignora en sus sumas — reingresarlo como número. ${p.cliente}`, monto: p.monto, fila: refPago(p) })
   for (const p of pagosMes.filter(x => x.montoEsNumero && x.monto < 0))
@@ -556,17 +559,17 @@ export function calcularFinanzas(e: EntradaCalculo) {
     revisar.push({
       tipo: 'pago',
       texto: e.app
-        ? `${sinCuenta.length} pagos sin «quién recibió» en la app de Finanzas${conComprobantes ? ' ni comprobante revisado que coincida' : ''}: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)} (${refPago(p)})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
+        ? `${sinCuenta.length} pagos sin «quién recibió» en la app de Finanzas${conComprobantes ? ' ni comprobante revisado que coincida' : ''}: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} ${usdTexto(p.monto, 0)} (${refPago(p)})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
         : conComprobantes
-        ? `${sinCuenta.length} pagos sin cuenta: no coinciden (fecha + cliente) con ningún comprobante revisado: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)} (fila ${p.fila})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
+        ? `${sinCuenta.length} pagos sin cuenta: no coinciden (fecha + cliente) con ningún comprobante revisado: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} ${usdTexto(p.monto, 0)} (fila ${p.fila})`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
         : tieneColCuenta
-          ? `${sinCuenta.length} pagos sin "Cuenta que recibió" válida: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} $${Math.round(p.monto)}${p.cuentaTexto ? ` ("${p.cuentaTexto}")` : ''}`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
+          ? `${sinCuenta.length} pagos sin "Cuenta que recibió" válida: ${sinCuenta.slice(0, 8).map(p => `${p.cliente || 'sin nombre'} ${usdTexto(p.monto, 0)}${p.cuentaTexto ? ` ("${p.cuentaTexto}")` : ''}`).join(', ')}${sinCuenta.length > 8 ? '…' : ''}`
           : `No se sabe a qué cuenta entraron los ${sinCuenta.length} pagos del mes: el Registro no tiene ese dato (solo jul–sep 2026 están revisados con los comprobantes). Falta decidir cómo registrarlo.`,
       monto: r2(total),
     })
   }
   for (const c of comprobantesSinUsar.filter(c => c[0].slice(0, 7) === mes))
-    revisar.push({ tipo: 'pago', texto: `Comprobante revisado que ya no coincide con ningún pago de ${origenPagos}: ${c[1]} $${c[2]} del ${c[0].split('-').reverse().join('/')} (¿se corrigió la fecha o el nombre?).`, monto: c[2] })
+    revisar.push({ tipo: 'pago', texto: `Comprobante revisado que ya no coincide con ningún pago de ${origenPagos}: ${c[1]} ${usdTexto(Number(c[2]))} del ${c[0].split('-').reverse().join('/')} (¿se corrigió la fecha o el nombre?).`, monto: c[2] })
 
   // ── Gastos ──
   const gastosMesTodos = gastos.filter(g => g.mes === mes)
@@ -595,7 +598,7 @@ export function calcularFinanzas(e: EntradaCalculo) {
     monto: r2(porCat[c]),
     estimado: c === 'Anuncios' && anunciosEstimado,
     detalle: c === 'Staff' ? (payrollMes ? `Pagos del equipo: ${payrollMes.length} ${payrollMes.length === 1 ? 'persona' : 'personas'} (honorarios + bonus)` : 'Todavía no hay pagos del equipo cargados para el mes')
-      : c === 'Comisiones' ? `Comisiones de closers y setters: US$ ${comisiones.aPagar.toFixed(0)}${comPlataforma ? ` + plataformas US$ ${comPlataforma.toFixed(0)}` : ''}`
+      : c === 'Comisiones' ? `Comisiones de closers y setters: ${usdTexto(comisiones.aPagar, 0)}${comPlataforma ? ` + plataformas ${usdTexto(comPlataforma, 0)}` : ''}`
       : c === 'Anuncios' && soloEstimadoMeta ? 'Estimado de Meta cargado en Gastos por la automatización de fin de mes (reemplazar con lo cobrado en Relay)'
       : c === 'Anuncios' && anunciosEstimado ? 'Estimado con el gasto de Meta (no hay anuncios cargados en Gastos)'
       : undefined,
@@ -613,16 +616,16 @@ export function calcularFinanzas(e: EntradaCalculo) {
   if (soloEstimadoMeta)
     revisar.push({ tipo: 'gasto', texto: `Los anuncios del mes son el estimado de Meta que cargó la automatización: reemplazarlo con lo cobrado en Relay (Facebook).`, monto: r2(porCat.Anuncios) })
   if (anunciosEstimado && !soloEstimadoMeta)
-    revisar.push({ tipo: 'gasto', texto: `Anuncios del mes no cargados en Gastos: se usa el gasto de Meta ($${meta!.toFixed(2)}) como estimado. El cobro real está en Relay (Facebook).`, monto: r2(meta!) })
+    revisar.push({ tipo: 'gasto', texto: `Anuncios del mes no cargados en Gastos: se usa el gasto de Meta (${usdTexto(meta!)}) como estimado. El cobro real está en Relay (Facebook).`, monto: r2(meta!) })
   if (!anunciosEnGastos && !anunciosEstimado)
     revisar.push({ tipo: 'gasto', texto: 'Sin anuncios en Gastos y sin dato de Meta para el mes.' })
   if (!payrollMes)
     revisar.push({ tipo: 'gasto', texto: 'Todavía no hay pagos del equipo cargados para este mes (Staff = US$ 0).' })
   const payrollPendiente = (payrollMes ?? []).filter(f => !f.pagado)
   if (payrollPendiente.length)
-    revisar.push({ tipo: 'gasto', texto: `Payroll pendiente de pago (casilla "Pagado" sin tildar): ${payrollPendiente.map(f => `${f.nombre} $${f.total}`).join(', ')}`, monto: r2(payrollPendiente.reduce((s, f) => s + f.total, 0)) })
+    revisar.push({ tipo: 'gasto', texto: `Pagos del equipo pendientes (casilla «Pagado» sin tildar): ${payrollPendiente.map(f => `${f.nombre} ${usdTexto(f.total)}`).join(', ')}`, monto: r2(payrollPendiente.reduce((s, f) => s + f.total, 0)) })
   for (const n of comisiones.noComisionados)
-    revisar.push({ tipo: 'comision', texto: `${n.pagos} pagos con Setter "${n.setter}" ($${n.base.toFixed(2)}) no generan comisión: ${n.motivo}. Si corresponde el 2,5% serían $${(n.base * 0.025).toFixed(2)}.`, monto: n.base })
+    revisar.push({ tipo: 'comision', texto: `${n.pagos} pagos con Setter "${n.setter}" (${usdTexto(n.base)}) no generan comisión: ${n.motivo}. Si corresponde el 2,5% serían ${usdTexto(n.base * 0.025)}.`, monto: n.base })
 
   const devoluciones = r2(porCat.Devoluciones)
   const neto = r2(cash - gastoTotal)
