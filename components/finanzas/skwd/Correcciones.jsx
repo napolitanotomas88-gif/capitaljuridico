@@ -4,6 +4,7 @@ import {
   CATALOGO, TABLAS, anotarEventos, avisosConciliacion, calcularImpacto, camposCorregidos, estaCorregido, formatearValor, normalizarEntrada,
   referenciaDe, valorOriginal, validarCorreccion,
 } from './calculoCorrecciones'
+import { dolares } from './formato'
 
 // Correcciones de datos importados.
 // - El ORIGINAL nunca se sobrescribe: cada corrección es un registro nuevo en la tabla `correcciones` (solo se agrega).
@@ -18,7 +19,7 @@ const COLUMNAS = {
   pagos_equipo: [['mes', 'Mes'], ['persona', 'Persona'], ['puesto', 'Puesto'], ['departamento', 'Depto'], ['honorarios_base', 'Honorarios'], ['bonuses', 'Bonus'], ['comision', 'Comisión'], ['total_usd', 'Total'], ['moneda', 'Moneda']],
 }
 const COMPONENTES_PAYROLL = ['honorarios_base', 'bonuses', 'comision']
-const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n) => dolares(n, 2)
 const cuando = (s) => (s ? new Date(s).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '')
 const ETIQUETA_ESTADO = { vigente: ['VIGENTE', 'et-verde'], reemplazada: ['REEMPLAZADA', 'et-gris'], revertida: ['REVERTIDA', 'et-gris'], reversion: ['REVERSIÓN AL ORIGINAL', 'et-azul'] }
 
@@ -167,13 +168,13 @@ export default function Correcciones({ objetivo = null, onConsumido = null }) {
       <h2>Correcciones de datos importados</h2>
       <div className="aviso-box">
         <strong>El dato original nunca se sobrescribe.</strong> Cada corrección se guarda aparte, con su motivo, quién la hizo y cuándo (los pone la base de datos), y se puede <strong>revertir al original</strong>.
-        Todos los módulos (Pagos, Gastos, Payroll, Estado de Resultados, Dashboard y, aunque hoy estén ocultas del menú, Cuentas y Conciliación) leen los <strong>valores vigentes</strong>: una corrección se ve en todas las pantallas.
+        Todas las pantallas (Pagos, Gastos, Pagos del equipo, Estado de resultados, Tablero y, aunque hoy estén ocultas del menú, Cuentas y Conciliación) leen los <strong>valores vigentes</strong>: una corrección se ve en todas las pantallas.
       </div>
       {error && <p className="error">Error: {error}</p>}
       {mensaje && <p className="ok">{mensaje}</p>}
 
       <div className="tarjetas">
-        {resumen.map((r) => <div key={r.t}><span>{CATALOGO[r.t].nombre}</span><strong>{r.vigentes}</strong><small>campo(s) con corrección vigente</small></div>)}
+        {resumen.map((r) => <div key={r.t}><span>{CATALOGO[r.t].nombre}</span><strong>{r.vigentes}</strong><small>{r.vigentes === 1 ? 'campo con corrección vigente' : 'campos con corrección vigente'}</small></div>)}
         <div><span>Eventos en el historial</span><strong>{eventos.length}</strong><small>solo se agregan, nunca se editan</small></div>
       </div>
 
@@ -187,7 +188,7 @@ export default function Correcciones({ objetivo = null, onConsumido = null }) {
           <div className="filtros">
             <strong>Módulo:</strong>
             {TABLAS.map((t) => <button key={t} type="button" disabled={modulo === t} onClick={() => setModulo(t)}>{CATALOGO[t].nombre}</button>)}
-            <input placeholder="Buscar (cliente, descripción, monto, fecha…)" value={buscar} onChange={(e) => { setBuscar(e.target.value); setLimite(100) }} />
+            <input type="search" aria-label="Buscar registros para corregir" placeholder="Buscar (cliente, descripción, monto, fecha…)" value={buscar} onChange={(e) => { setBuscar(e.target.value); setLimite(100) }} />
             <label className="check"><input type="checkbox" checked={soloCorregidos} onChange={(e) => setSoloCorregidos(e.target.checked)} /> Solo con correcciones</label>
           </div>
 
@@ -291,7 +292,7 @@ export default function Correcciones({ objetivo = null, onConsumido = null }) {
           <p><strong>{visibles.length}</strong> de {filas.length} registros importados {cargandoFilas && '(cargando…)'}</p>
           <div className="tabla-scroll">
             <table>
-              <thead><tr><th>#</th>{COLUMNAS[modulo].map(([k, l]) => <th key={k}>{l}</th>)}<th>✎</th><th></th></tr></thead>
+              <thead><tr><th>#</th>{COLUMNAS[modulo].map(([k, l]) => <th key={k}>{l}</th>)}<th title="Campos corregidos" aria-label="Campos corregidos">✎</th><th></th></tr></thead>
               <tbody>
                 {visibles.slice(0, limite).map((f) => (
                   <tr key={f.id} className={f.id === sel?.id ? 'fila-abierta' : ''}>
@@ -311,11 +312,11 @@ export default function Correcciones({ objetivo = null, onConsumido = null }) {
       {vista === 'historial' && (
         <>
           <div className="filtros">
-            <select value={filtroH.modulo} onChange={(e) => setFiltroH({ ...filtroH, modulo: e.target.value })}><option value="">Todos los módulos</option>{TABLAS.map((t) => <option key={t} value={t}>{CATALOGO[t].nombre}</option>)}</select>
-            <select value={filtroH.campo} onChange={(e) => setFiltroH({ ...filtroH, campo: e.target.value })}><option value="">Todos los campos</option>{[...new Set(eventos.map((e) => e.campo))].sort().map((c) => <option key={c}>{c}</option>)}</select>
-            <select value={filtroH.quien} onChange={(e) => setFiltroH({ ...filtroH, quien: e.target.value })}><option value="">Todas las personas</option>{[...new Set(eventos.map((e) => e.corregido_por))].sort().map((c) => <option key={c}>{c}</option>)}</select>
-            <select value={filtroH.estado} onChange={(e) => setFiltroH({ ...filtroH, estado: e.target.value })}><option value="">Todos los estados</option><option value="vigente">Vigentes</option><option value="reemplazada">Reemplazadas</option><option value="revertida">Revertidas</option><option value="reversion">Reversiones</option></select>
-            <input placeholder="Buscar en registro o motivo" value={filtroH.buscar} onChange={(e) => setFiltroH({ ...filtroH, buscar: e.target.value })} />
+            <select aria-label="Filtrar por pantalla" value={filtroH.modulo} onChange={(e) => setFiltroH({ ...filtroH, modulo: e.target.value })}><option value="">Todos los módulos</option>{TABLAS.map((t) => <option key={t} value={t}>{CATALOGO[t].nombre}</option>)}</select>
+            <select aria-label="Filtrar por campo" value={filtroH.campo} onChange={(e) => setFiltroH({ ...filtroH, campo: e.target.value })}><option value="">Todos los campos</option>{[...new Set(eventos.map((e) => e.campo))].sort().map((c) => <option key={c}>{c}</option>)}</select>
+            <select aria-label="Filtrar por persona" value={filtroH.quien} onChange={(e) => setFiltroH({ ...filtroH, quien: e.target.value })}><option value="">Todas las personas</option>{[...new Set(eventos.map((e) => e.corregido_por))].sort().map((c) => <option key={c}>{c}</option>)}</select>
+            <select aria-label="Filtrar por estado" value={filtroH.estado} onChange={(e) => setFiltroH({ ...filtroH, estado: e.target.value })}><option value="">Todos los estados</option><option value="vigente">Vigentes</option><option value="reemplazada">Reemplazadas</option><option value="revertida">Revertidas</option><option value="reversion">Reversiones</option></select>
+            <input type="search" aria-label="Buscar en el historial" placeholder="Buscar en registro o motivo" value={filtroH.buscar} onChange={(e) => setFiltroH({ ...filtroH, buscar: e.target.value })} />
           </div>
           {histo.length === 0 ? <p className="aviso">No hay correcciones registradas con esos filtros.</p> : (
             <div className="tabla-scroll">

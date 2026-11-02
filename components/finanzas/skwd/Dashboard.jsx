@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from './supabase'
 import { calcularDashboard, REGLAS } from './calculoDashboard'
+import { dolares, cant } from './formato'
 
 // Todo se calcula en vivo desde los pagos VIGENTES (pagos_vigentes: con las correcciones aplicadas) y la columna "comisión" de Payroll.
 // Solo lectura: no crea ni modifica pagos ni correcciones. No usa fórmulas ni tablas dinámicas del Excel.
@@ -10,7 +11,7 @@ import { calcularDashboard, REGLAS } from './calculoDashboard'
 // Paleta de gráficos: tonos de la marca (Verde Toga, Oro Capital, Bordó) sobre superficie Marfil. Los nombres de las claves se conservan.
 // Colores de la paleta del Despacho (marfil)
 const COLOR = { principal: '#012d25', suave: '#9db5ac', naranja: '#be8f49', aqua: '#7f202c', gris: '#8c8574', grilla: '#e3d9c6', tinta2: '#605747' }
-const fmt = (n) => (Number(n) < 0 ? '−$' : '$') + Math.abs(Number(n)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n) => dolares(n, 2)
 const fmt0 = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR')
 const compacto = (v) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 })}k` : `$${Math.round(v)}`)
 const pct = (x, signo = false) => (x === null || x === undefined ? 'n/d' : (signo && x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x * 100).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%')
@@ -43,7 +44,7 @@ function TooltipBarra({ active, payload }) {
     <div className="dash-tooltip">
       <strong>{d.etiqueta || d.nombre}</strong>
       <div>{fmt(d.usd)}</div>
-      <div className="aviso">{d.n} pago(s)</div>
+      <div className="aviso">{cant(d.n, 'pago')}</div>
     </div>
   )
 }
@@ -153,7 +154,7 @@ export default function Dashboard({ cristal = false }) {
             <div className="kpi destacada"><span>Cash collected</span><strong>{fmt(k.cash)}</strong><Delta valor={k.variacion.cash} /><small>Anterior: {fmt(k.anterior.cash)}</small></div>
             <div className="kpi"><span>Pagos</span><strong>{k.pagos}</strong><Delta valor={k.variacion.pagos} /><small>Anterior: {k.anterior.pagos}</small></div>
             <div className="kpi"><span>Ticket promedio</span><strong>{k.ticket === null ? 'n/d' : fmt(k.ticket)}</strong><Delta valor={k.variacion.ticket} /><small>Anterior: {k.anterior.ticket === null ? 'n/d' : fmt(k.anterior.ticket)}</small></div>
-            <div className="kpi"><span>Cobrado en pesos</span><strong>{k.pesos.pct === null ? 'n/d' : pct(k.pesos.pct)}</strong><small>{k.pesos.n} pago(s) · {fmt(k.pesos.usd)} equivalentes</small></div>
+            <div className="kpi"><span>Cobrado en pesos</span><strong>{k.pesos.pct === null ? 'n/d' : pct(k.pesos.pct)}</strong><small>{cant(k.pesos.n, 'pago')} · {fmt(k.pesos.usd)} equivalentes</small></div>
           </div>
 
           <div className="dash-grid">
@@ -166,7 +167,7 @@ export default function Dashboard({ cristal = false }) {
               <GraficoBarras horizontal datos={d.porFuente} titulo="Cash por fuente" colorDe={(x) => (x.nombre === 'Sin fuente' ? COLOR.gris : COLOR.principal)} />
             </TarjetaGrafico>
 
-            <TarjetaGrafico titulo="Pagos por concepto" subtitulo="monto; la cantidad está en la tabla" columnas={['Concepto', 'Cash', 'Pagos']} filas={d.porConcepto.map((x) => [x.nombre, fmt(x.usd), x.n])}>
+            <TarjetaGrafico titulo="Pagos por concepto" subtitulo="en dólares; la cantidad de pagos está en «Ver como tabla»" columnas={['Concepto', 'Cash', 'Pagos']} filas={d.porConcepto.map((x) => [x.nombre, fmt(x.usd), x.n])}>
               <GraficoBarras datos={d.porConcepto} titulo="Cash por concepto" />
             </TarjetaGrafico>
 
@@ -193,24 +194,24 @@ export default function Dashboard({ cristal = false }) {
           <section className="dash-seccion">
             <h3>FECCU · FECCP · BECC</h3>
             <div className="tarjetas">
-              <div><span>FECCU (Front-end Upfront)</span><strong>{fmt(d.clasificacion.feccu.usd)}</strong><small>{d.clasificacion.feccu.n} pago(s)</small></div>
-              <div><span>FECCP (Front-end Payment Plan)</span><strong>{fmt(d.clasificacion.feccp.usd)}</strong><small>{d.clasificacion.feccp.n} pago(s)</small></div>
-              <div><span>BECC (Back-end)</span><strong>{fmt(d.clasificacion.becc.usd)}</strong><small>{d.clasificacion.becc.n} pago(s)</small></div>
-              <div className={d.clasificacion.sinClasificar.n ? 'tarjeta-alerta' : ''}><span>Sin clasificar</span><strong>{fmt(d.clasificacion.sinClasificar.usd)}</strong><small>{d.clasificacion.sinClasificar.n} pago(s)</small></div>
+              <div><span title="Venta Front-end cobrada en un solo pago (Upfront)">FECCU · Front-end en un pago</span><strong>{fmt(d.clasificacion.feccu.usd)}</strong><small>{cant(d.clasificacion.feccu.n, 'pago')}</small></div>
+              <div><span title="Venta Front-end cobrada en cuotas (Payment Plan)">FECCP · Front-end en cuotas</span><strong>{fmt(d.clasificacion.feccp.usd)}</strong><small>{cant(d.clasificacion.feccp.n, 'pago')}</small></div>
+              <div><span title="Venta Back-end, en un pago o en cuotas">BECC · Back-end</span><strong>{fmt(d.clasificacion.becc.usd)}</strong><small>{cant(d.clasificacion.becc.n, 'pago')}</small></div>
+              <div className={d.clasificacion.sinClasificar.n ? 'tarjeta-alerta' : ''}><span>Sin clasificar</span><strong>{fmt(d.clasificacion.sinClasificar.usd)}</strong><small>{cant(d.clasificacion.sinClasificar.n, 'pago')}</small></div>
             </div>
             <p className="aviso">
-              "Sin clasificar" no se asigna solo: incluye {d.clasificacion.detalleSinClasificar.frontSinTipoPago.n} pago(s) Front-end sin tipo de pago ({fmt(d.clasificacion.detalleSinClasificar.frontSinTipoPago.usd)}) y {d.clasificacion.detalleSinClasificar.sinTipoVenta.n} sin tipo de venta ({fmt(d.clasificacion.detalleSinClasificar.sinTipoVenta.usd)}).
-              BECC solo necesita el tipo de venta Back-end{d.clasificacion.backSinTipoPago.n > 0 ? `; ${d.clasificacion.backSinTipoPago.n} de esos pago(s) no tienen tipo de pago` : ''}.
+              "Sin clasificar" no se asigna solo: incluye {cant(d.clasificacion.detalleSinClasificar.frontSinTipoPago.n, 'pago')} Front-end sin tipo de pago ({fmt(d.clasificacion.detalleSinClasificar.frontSinTipoPago.usd)}) y {d.clasificacion.detalleSinClasificar.sinTipoVenta.n} sin tipo de venta ({fmt(d.clasificacion.detalleSinClasificar.sinTipoVenta.usd)}).
+              BECC solo necesita el tipo de venta Back-end{d.clasificacion.backSinTipoPago.n > 0 ? `; ${d.clasificacion.backSinTipoPago.n === 1 ? '1 de esos pagos no tiene' : `${d.clasificacion.backSinTipoPago.n} de esos pagos no tienen`} tipo de pago` : ''}.
             </p>
           </section>
 
           <section className="dash-seccion">
             <h3>Comisiones</h3>
-            <p className="aviso">La comisión <strong>teórica</strong> sale de la regla del Excel y se muestra junto a la registrada en Payroll. No modifica Payroll.</p>
-            {d.comisiones.rangoParcial && <div className="aviso-box">ℹ El rango no es una sucesión de meses completos: la comisión de Payroll es mensual, por eso no se compara (muestra "—").</div>}
+            <p className="aviso">La comisión <strong>teórica</strong> sale de las reglas de comisión (las mismas de la planilla anterior) y se muestra junto a la cargada en Pagos del equipo. No cambia nada en Pagos del equipo.</p>
+            {d.comisiones.rangoParcial && <div className="aviso-box">ℹ El rango no es una sucesión de meses completos: la comisión de Pagos del equipo es mensual, por eso no se compara (muestra "—").</div>}
             <div className="tabla-scroll">
               <table>
-                <thead><tr><th>Persona</th><th>Cómo se calculó</th><th>Comisión teórica</th><th>Registrada en Payroll</th><th>Diferencia</th></tr></thead>
+                <thead><tr><th>Persona</th><th>Cómo se calculó</th><th>Comisión teórica</th><th>Cargada en Pagos del equipo</th><th>Diferencia</th></tr></thead>
                 <tbody>
                   {d.comisiones.personas.length === 0 && <tr><td colSpan={5}>No hay comisiones para calcular en este período.</td></tr>}
                   {d.comisiones.personas.map((p) => (
@@ -218,7 +219,7 @@ export default function Dashboard({ cristal = false }) {
                       <td><strong>{p.nombre}</strong>{p.alias.length > 0 && p.alias.join(' ') !== p.nombre && <div className="aviso">en Pagos: {p.alias.join(', ')}</div>}</td>
                       <td className="nota">{p.detalle.length ? p.detalle.map((x, i) => <div key={i}>{x.concepto} = {fmt(x.monto)}</div>) : <em>sin pagos atribuibles en el período</em>}</td>
                       <td>{p.estadoTeorica === 'sin_datos' ? <em>sin datos suficientes</em> : fmt(p.teorica)}</td>
-                      <td>{p.estadoPayroll === 'ok' ? fmt(p.payroll) : p.estadoPayroll === 'rango_parcial' ? '—' : <em>sin datos suficientes{' '}<span className="aviso">(no se encontró a la persona en Payroll)</span></em>}</td>
+                      <td>{p.estadoPayroll === 'ok' ? fmt(p.payroll) : p.estadoPayroll === 'rango_parcial' ? '—' : <em>sin datos suficientes{' '}<span className="aviso">(no se encontró a la persona en Pagos del equipo)</span></em>}</td>
                       <td>{p.diferencia === null ? '—' : Math.abs(p.diferencia) < 0.005 ? 'coincide ✔' : fmt(p.diferencia)}</td>
                     </tr>
                   ))}
@@ -239,14 +240,14 @@ export default function Dashboard({ cristal = false }) {
             )}
             {d.comisiones.notas.map((n, i) => <div key={i} className={n.tipo === 'sin_datos' ? 'aviso-box' : 'aviso'}>{n.tipo === 'sin_datos' ? '⚠ ' : 'ℹ '}{n.texto}</div>)}
             <details className="er-detalle">
-              <summary>Reglas de comisión usadas (las del Excel)</summary>
+              <summary>Reglas de comisión usadas (las de la planilla anterior)</summary>
               <ul>
                 <li><strong>Closers:</strong> {(REGLAS.closerPct * 100).toFixed(0)}% de todo el cash del closer en el período. Se calcula para todas las personas que aparecen en los datos (sin lista fija).</li>
                 <li><strong>Setter Mai:</strong> {(REGLAS.setterInboundPct * 100).toFixed(0)}% de Fee + PIF + 1ra Cuota con fuente "Inbound IG".</li>
                 <li><strong>ENRU / Mai:</strong> {(REGLAS.setterEnrutamientoPct * 100).toFixed(1)}% de Fee + PIF + 1ra Cuota con fuente "Enrutamiento" (pagos con setter "Mai" o "ENRU / Mai"; el Excel calculaba esta fila con el setter "Mai").</li>
-                <li><strong>Socios (Gero y Tomi):</strong> comisión teórica aparte; nunca se mezcla con las comisiones de Payroll.</li>
+                <li><strong>Socios (Gero y Tomi):</strong> comisión teórica aparte; nunca se mezcla con las comisiones de Pagos del equipo.</li>
                 <li>Si faltan datos (por ejemplo un pago sin setter, sin closer o sin fuente) se informa "sin datos suficientes"; no se asume nada.</li>
-                <li>La comisión de Payroll es mensual: solo se compara cuando el rango cubre meses completos.</li>
+                <li>La comisión de Pagos del equipo es mensual: solo se compara cuando el rango cubre meses completos.</li>
               </ul>
             </details>
           </section>
@@ -271,7 +272,7 @@ export default function Dashboard({ cristal = false }) {
               <li>Todo sale de la tabla <strong>Pagos</strong>, por la fecha exacta de cada pago, con el rango inclusivo (por ejemplo, el rango de septiembre no incluye los cobros del 1/10).</li>
               <li>El período anterior de comparación: si el rango son meses completos, los mismos meses inmediatamente anteriores; si no, la misma cantidad de días justo antes.</li>
               <li>Cash en pesos: pagos con "Pesos ARS" cargado; el importe en USD es el equivalente ya registrado en "Efectivo recaudado".</li>
-              <li>No intervienen Cuentas, Gastos, Gastos Personales ni los datos sensibles del equipo. De Payroll solo se lee el nombre y la comisión registrada.</li>
+              <li>No intervienen Cuentas, Gastos, Gastos Personales ni los datos sensibles del equipo. De Pagos del equipo solo se lee el nombre y la comisión cargada.</li>
               <li>Los gráficos tienen su versión en tabla ("Ver como tabla").</li>
             </ul>
           </details>

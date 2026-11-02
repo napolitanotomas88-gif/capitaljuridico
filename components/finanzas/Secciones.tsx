@@ -9,6 +9,8 @@ export function Entradas({ d }: P) {
   const e = d.entradas
   const cats = (['FECCU', 'FECCP', 'BECC', 'Sin categoría'] as const).filter(k => k !== 'Sin categoría' || e.porCategoria[k] > 0)
   const maxCat = Math.max(...cats.map(k => e.porCategoria[k]), 1)
+  // Las siglas se aclaran en pantalla (auditoría de UX 1/11/2026): son las mismas del Tablero
+  const NOMBRE_CAT: Record<string, string> = { FECCU: 'FECCU · Front-end en un pago', FECCP: 'FECCP · Front-end en cuotas', BECC: 'BECC · Back-end' }
   const cuentas = [
     { k: 'Tomi' as const, label: 'Cuenta de Tomi' },
     { k: 'Gero' as const, label: 'Cuenta de Gero' },
@@ -22,7 +24,7 @@ export function Entradas({ d }: P) {
     <Seccion titulo="Entradas" subtitulo={<>Cash del mes: <b style={{ color: 'var(--text)' }}>{fmtUsd(e.cash)}</b>{e.cashEr != null && Math.abs(e.cashEr - e.cash) < 0.5 ? ' · coincide con el Estado de Resultados' : ''}</>}>
       <p className="text-[11px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--text-muted)' }}>Por tipo</p>
       {cats.map(k => (
-        <Barra key={k} label={k} valor={e.porCategoria[k]} max={maxCat} texto={`${fmtUsd(e.porCategoria[k])} · ${fmtPct(e.cash ? e.porCategoria[k] / e.cash : null, 0)}`} />
+        <Barra key={k} label={NOMBRE_CAT[k] ?? k} valor={e.porCategoria[k]} max={maxCat} texto={`${fmtUsd(e.porCategoria[k])} · ${fmtPct(e.cash ? e.porCategoria[k] / e.cash : null, 0)}`} />
       ))}
       <p className="text-[11px] font-semibold uppercase tracking-wider mt-4" style={{ color: 'var(--text-muted)' }}>Por cuenta que recibió</p>
       {cuentas.map(c => (
@@ -62,7 +64,7 @@ export function Gastos({ d }: P) {
       ))}
       <details className="mt-3">
         <summary className="text-xs font-semibold cursor-pointer" style={{ color: 'var(--text-muted)' }}>
-          Ver detalle ({g.lista.length} gastos cargados · {g.payroll.length} personas en Payroll)
+          Ver detalle ({g.lista.length} gastos cargados · {g.payroll.length} {g.payroll.length === 1 ? 'persona' : 'personas'} en Pagos del equipo)
         </summary>
         <div className="fin-scroll mt-2">
           <table className="fin-tabla">
@@ -100,17 +102,17 @@ export function Comisiones({ d }: P) {
   return (
     <Seccion
       titulo="Comisiones a pagar del mes"
-      subtitulo="Mismas fórmulas que la pestaña Dashboard del sheet: closers 10% de lo cobrado; Mai 5% Inbound IG y 2,5% Enrutamiento (solo Fee, PIF y 1ra Cuota)."
+      subtitulo="Mismas reglas de la planilla anterior: closers, 10% de lo que cobraron; Mai, 5% de Inbound IG y 2,5% de Enrutamiento (solo Fee, PIF y 1ra Cuota)."
       accion={<div className="text-right shrink-0"><p className="text-[11px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>A pagar</p><p className="text-xl font-black tabular-nums">{fmtUsd(c.aPagar, 2)}</p></div>}
     >
       <div className="fin-scroll">
         <table className="fin-tabla">
-          <thead><tr><th>Persona</th><th>Regla</th><th className="num">Pagos</th><th className="num">Base</th><th className="num">Comisión</th><th className="num">En Payroll</th></tr></thead>
+          <thead><tr><th>Persona</th><th>Regla</th><th className="num">Pagos</th><th className="num">Base</th><th className="num">Comisión</th><th className="num" title="Comisión ya cargada en Pagos del equipo">Ya cargada</th></tr></thead>
           <tbody>
             {/* Tomi y Gero son socios y no cobran comisión (confirmado por el usuario 1/10): no se listan */}
             {c.lineas.filter(l => !l.socio).map((l, i) => (
               <tr key={i}>
-                <td style={{ whiteSpace: 'nowrap' }}>{l.persona}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{l.persona.replace('(ENRU)', '(Enrutamiento)')}</td>
                 <td>{l.regla}</td>
                 <td className="num">{l.pagos}</td>
                 <td className="num">{fmtUsd(l.base, 2)}</td>
@@ -230,7 +232,7 @@ export function Monotributo({ d }: P) {
 const TIPO: Record<string, string> = { gasto: 'Gasto', pago: 'Pago', devolucion: 'Devolución', comision: 'Comisión', dato: 'Dato' }
 export function Revisar({ d }: P) {
   return (
-    <Seccion titulo={`A revisar (${d.revisar.length})`} subtitulo="Lo que falta cargar o confirmar en el sheet para que los números del mes cierren.">
+    <Seccion titulo={`A revisar (${d.revisar.length})`} subtitulo="Lo que falta cargar o confirmar para que los números del mes cierren.">
       {!d.revisar.length && <p className="text-sm" style={{ color: 'var(--fin-bien)' }}>✓ Nada pendiente para este mes.</p>}
       <ul className="flex flex-col gap-2">
         {d.revisar.map((x, i) => (

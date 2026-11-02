@@ -1,6 +1,7 @@
 import { QUIENES_PAGAN, filaVacia, repartoUno, repartoMitades, montosReparto, chipsDeLinea } from './calculoPagadores'
+import { dolares } from './formato'
 
-const usd = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const usd = (n) => dolares(n, 2)
 const num = (v) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0 }
 
 // Editor de «Pagado por» repartido (pedido de Tomás, 1/11/2026): filas «Quién ▾ / % / = USD», agregar y quitar filas,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { ORDEN_CONCEPTOS } from './calculoDashboard'
+import { dolares, fechaCorta, mesLargo } from './formato'
 
 // Registro de pagos.
 // - LEE de la vista pagos_vigentes (los datos con las correcciones aplicadas; sin correcciones es idéntica a la tabla pagos).
@@ -59,7 +60,7 @@ function desdeFila(p) {
   return f
 }
 
-const usd = (n) => '$' + Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 })
+const usd = (n) => dolares(n)
 const esImportado = (p) => p.id_origen !== null && p.id_origen !== undefined
 const estaCorregido = (p, k) => !!(p.correcciones && k in p.correcciones)
 const originalDe = (p, k) => (p.valores_originales && k in p.valores_originales ? p.valores_originales[k] : p[k])
@@ -253,7 +254,7 @@ export default function Pagos({ onCorregir }) {
 
   const campo = (name, label, props = {}) => (
     <label>
-      {label}
+      <span>{label}{props.required && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>
       <input name={name} value={form[name]} onChange={cambiar} {...props} />
     </label>
   )
@@ -328,6 +329,7 @@ export default function Pagos({ onCorregir }) {
             <input type="checkbox" name="revisar" checked={form.revisar} onChange={cambiar} /> Marcar para revisar
           </label>
           {campo('nota_revision', 'Nota de revisión')}
+          <p className="pe-ayuda" style={{ gridColumn: '1 / -1' }}>Los campos con * son obligatorios. Concepto, fuente, closer, setter y los tipos sugieren los valores ya usados: elegí uno de la lista para que el pago entre bien en el Tablero y en las comisiones.</p>
           <div className="acciones">
             <button type="submit">{editandoId ? 'Guardar cambios' : 'Guardar pago'}</button>
             {editandoId && (
@@ -344,38 +346,38 @@ export default function Pagos({ onCorregir }) {
 
       <h2>Registro de pagos</h2>
       <div className="filtros">
-        <select name="mes" value={filtros.mes} onChange={cambiarFiltro}>
+        <select name="mes" aria-label="Filtrar por mes" value={filtros.mes} onChange={cambiarFiltro}>
           <option value="">Todos los meses</option>
           {opciones.meses.map((m) => (
-            <option key={m} value={m}>{m}</option>
+            <option key={m} value={m}>{mesLargo(m)}</option>
           ))}
         </select>
-        <select name="concepto" value={filtros.concepto} onChange={cambiarFiltro}>
+        <select name="concepto" aria-label="Filtrar por concepto" value={filtros.concepto} onChange={cambiarFiltro}>
           <option value="">Todos los conceptos</option>
           {opciones.conceptos.map((m) => (
             <option key={m}>{m}</option>
           ))}
         </select>
-        <select name="fuente" value={filtros.fuente} onChange={cambiarFiltro}>
+        <select name="fuente" aria-label="Filtrar por fuente" value={filtros.fuente} onChange={cambiarFiltro}>
           <option value="">Todas las fuentes</option>
           {opciones.fuentes.map((m) => (
             <option key={m}>{m}</option>
           ))}
         </select>
-        <select name="closer" value={filtros.closer} onChange={cambiarFiltro}>
+        <select name="closer" aria-label="Filtrar por closer" value={filtros.closer} onChange={cambiarFiltro}>
           <option value="">Todos los closers</option>
           {opciones.closers.map((m) => (
             <option key={m}>{m}</option>
           ))}
         </select>
-        <select name="quien" value={filtros.quien} onChange={cambiarFiltro}>
-          <option value="">Todos (quién recibió)</option>
+        <select name="quien" aria-label="Filtrar por quién recibió" value={filtros.quien} onChange={cambiarFiltro}>
+          <option value="">Quién recibió: todos</option>
           <option value="sin">Sin asignar</option>
           {QUIENES.map((q) => (
             <option key={q} value={q}>{q}</option>
           ))}
         </select>
-        <input name="buscar" placeholder="Buscar cliente, teléfono o comprobante" value={filtros.buscar} onChange={cambiarFiltro} />
+        <input name="buscar" type="search" aria-label="Buscar pagos" placeholder="Buscar cliente, teléfono o comprobante" value={filtros.buscar} onChange={cambiarFiltro} />
         <label className="check">
           <input type="checkbox" name="soloRevisar" checked={filtros.soloRevisar} onChange={cambiarFiltro} /> Solo para revisar
         </label>
@@ -400,7 +402,7 @@ export default function Pagos({ onCorregir }) {
           <tbody>
             {visibles.map((p) => (
               <tr key={p.id} className={p.revisar ? 'fila-revisar' : ''}>
-                <td>{celda(p, 'fecha', p.fecha)}</td>
+                <td className="nowrap">{celda(p, 'fecha', fechaCorta(p.fecha))}</td>
                 <td>{celda(p, 'cliente', p.cliente)}</td>
                 <td>{celda(p, 'monto_usd', usd(p.monto_usd))}</td>
                 <td>{celda(p, 'pesos_ars', p.pesos_ars !== null ? Number(p.pesos_ars).toLocaleString('es-AR') : '')}</td>
@@ -409,13 +411,14 @@ export default function Pagos({ onCorregir }) {
                 <td>{celda(p, 'closer', p.closer)}</td>
                 <td>{celda(p, 'setter', p.setter)}</td>
                 <td>{asignaciones[p.id] ?? <em className="aviso">Sin asignar</em>}</td>
-                <td title={p.nota_revision || ''}>
-                  <button type="button" onClick={() => alternarRevisar(p)}>{p.revisar ? '⚑ Sí' : '—'}</button>
+                <td title={p.nota_revision ? `Nota: ${p.nota_revision}` : ''}>
+                  <button type="button" onClick={() => alternarRevisar(p)} aria-pressed={!!p.revisar}
+                    title={p.revisar ? 'Marcado para revisar. Tocá para quitar la marca.' : 'Tocá para marcarlo para revisar.'}>{p.revisar ? '⚑ Sí' : 'No'}</button>
                 </td>
                 <td className="nowrap">
                   {esImportado(p) ? (
                     <>
-                      <button type="button" onClick={() => onCorregir && onCorregir({ tabla: 'pagos', id: p.id })}>Corregir</button>{' '}
+                      <button type="button" title="Pago importado: se corrige en Correcciones y el dato original queda guardado" onClick={() => onCorregir && onCorregir({ tabla: 'pagos', id: p.id })}>Corregir</button>{' '}
                       <button type="button" onClick={() => editar(p)}>Revisión / Quién recibió</button>
                     </>
                   ) : (
