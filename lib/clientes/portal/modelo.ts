@@ -12,13 +12,38 @@ export interface EtapaPlan { titulo: string; detalle: string; estado: EstadoEtap
 export interface NotaSeguimiento { fecha: string | null; titulo: string; texto: string }
 export interface ProximoPaso { texto: string; fecha: string | null; hecho: boolean }
 /** Secciones de la vista del cliente que el equipo puede mostrar u ocultar por portal (2/11/2026). Sin dato: todas visibles. */
-export const SECCIONES_PORTAL = ['objetivo', 'plan', 'proximos', 'proceso', 'guiones', 'seguimiento'] as const
+export const SECCIONES_PORTAL = ['objetivo', 'progreso', 'reporte', 'plan', 'proximos', 'proceso', 'guiones', 'seguimiento'] as const
 export type SeccionPortal = (typeof SECCIONES_PORTAL)[number]
 export type SeccionesPortal = Record<SeccionPortal, boolean>
 export const NOMBRE_SECCION_PORTAL: Record<SeccionPortal, string> = {
-  objetivo: 'El objetivo', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
+  objetivo: 'El objetivo', progreso: 'Casos ganados (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
 }
-export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true }
+/** Por defecto (portal nuevo o guardado antes de que existieran): las de siempre visibles; casos y reporte, ocultas hasta tildarlas. */
+export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true }
+/** Secciones sumadas después (2/11/2026): en un portal guardado ANTES (sin la clave) quedan ocultas hasta que el equipo las tilde. */
+const SECCIONES_NUEVAS: ReadonlySet<SeccionPortal> = new Set(['progreso', 'reporte'])
+
+/** Un punto del contador de casos: cuántos casos llevaba ganados el estudio a esa fecha (acumulado). */
+export interface PuntoCasos { fecha: string; casos: number }
+export interface ProgresoCasos {
+  /** Casos ganados hasta hoy (acumulado desde que arrancamos). null = sin cargar. */
+  casos: number | null
+  /** Fecha del último conteo */
+  actualizado: string | null
+  /** Objetivo final (ej.: 500) */
+  meta: number | null
+  /** Marca intermedia en la barra (ej.: 200 para el 30/11) */
+  hito: { casos: number; fecha: string | null } | null
+  /** Conteos anteriores (acumulados, por fecha): de acá salen los casos de cada mes */
+  historial: PuntoCasos[]
+}
+/** Reporte de anuncios: qué cuentas de Meta son del cliente (las elige el EQUIPO; el cliente nunca pide una) y cuánto vale un caso. */
+export interface ConfigReporte { cuentas: string[]; valorCaso: number }
+export const VALOR_CASO_POR_DEFECTO = 2000
+export const PROGRESO_VACIO: ProgresoCasos = { casos: null, actualizado: null, meta: null, hito: null, historial: [] }
+export const REPORTE_VACIO: ConfigReporte = { cuentas: [], valorCaso: VALOR_CASO_POR_DEFECTO }
+/** act_ + dígitos: nada más (va en la URL de Graph del lado del servidor) */
+export const ID_CUENTA_META = /^act_\d{5,25}$/
 
 export interface DatosPortal {
   /** Cómo se lo saluda en el portal ("Estudio Pérez"). Vacío = el nombre del CRM. */
@@ -29,13 +54,15 @@ export interface DatosPortal {
   etapas: EtapaPlan[]
   notas: NotaSeguimiento[]
   proximos: ProximoPaso[]
+  progreso: ProgresoCasos
+  reporte: ConfigReporte
 }
 export interface PortalGuardado { datos: DatosPortal; version: number; actualizado: string | null }
 
-export const PORTAL_VACIO: DatosPortal = { nombre: '', secciones: SECCIONES_TODAS, objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [] }
+export const PORTAL_VACIO: DatosPortal = { nombre: '', secciones: SECCIONES_TODAS, objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [], progreso: PROGRESO_VACIO, reporte: REPORTE_VACIO }
 
 // Topes: el portal es para leer de un vistazo (y una fila de Neon no tiene que crecer sin límite)
-export const TOPES = { nombre: 80, objetivo: 600, metrica: 120, titulo: 120, detalle: 800, nota: 2000, paso: 300, etapas: 12, notas: 40, proximos: 12 } as const
+export const TOPES = { nombre: 80, objetivo: 1500, casos: 1_000_000, historial: 60, cuentas: 5, valorCaso: 10_000_000, metrica: 120, titulo: 120, detalle: 800, nota: 2000, paso: 300, etapas: 12, notas: 40, proximos: 12 } as const
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
 const fechaReal = (f: unknown): f is string => typeof f === 'string' && FECHA.test(f) && new Date(`${f}T00:00:00Z`).toISOString().slice(0, 10) === f
 
@@ -57,7 +84,7 @@ export function validarDatosPortal(x: unknown): { ok: true; datos: DatosPortal }
   if (nombre === null) return { ok: false, error: `El nombre puede tener hasta ${TOPES.nombre} caracteres.` }
   if (o.secciones !== undefined && o.secciones !== null && (typeof o.secciones !== 'object' || Array.isArray(o.secciones))) return { ok: false, error: 'Secciones: formato inválido.' }
   const crudas = (o.secciones ?? {}) as Record<string, unknown>
-  const secciones = Object.fromEntries(SECCIONES_PORTAL.map(k => [k, crudas[k] === false ? false : true])) as SeccionesPortal
+  const secciones = Object.fromEntries(SECCIONES_PORTAL.map(k => [k, crudas[k] === undefined || crudas[k] === null ? !SECCIONES_NUEVAS.has(k) : crudas[k] !== false])) as SeccionesPortal
   const obj = o.objetivo && typeof o.objetivo === 'object' ? (o.objetivo as Record<string, unknown>) : {}
   const objetivo = { texto: texto(obj.texto, TOPES.objetivo, true), metrica: texto(obj.metrica, TOPES.metrica), fecha: fecha(obj.fecha) }
   if (objetivo.texto === null) return { ok: false, error: `El objetivo puede tener hasta ${TOPES.objetivo} caracteres.` }
@@ -102,7 +129,87 @@ export function validarDatosPortal(x: unknown): { ok: true; datos: DatosPortal }
     if (f === undefined) return { ok: false, error: `Próximo paso ${i + 1}: la fecha tiene que ser una fecha real.` }
     proximos.push({ texto: t, fecha: f, hecho: r.hecho === true })
   }
-  return { ok: true, datos: { nombre, secciones, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos } }
+  const progreso = validarProgreso(o.progreso)
+  if (typeof progreso === 'string') return { ok: false, error: progreso }
+  const reporte = validarReporte(o.reporte)
+  if (typeof reporte === 'string') return { ok: false, error: reporte }
+  return { ok: true, datos: { nombre, secciones, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos, progreso, reporte } }
+}
+
+const entero = (x: unknown, min: number, max: number): number | null | undefined =>
+  x === undefined || x === null || x === '' ? null : Number.isInteger(x) && (x as number) >= min && (x as number) <= max ? (x as number) : undefined
+
+/** Contador de casos. El último conteo (casos + fecha) entra solo al historial (uno por fecha: el nuevo reemplaza). */
+function validarProgreso(x: unknown): ProgresoCasos | string {
+  if (x === undefined || x === null) return PROGRESO_VACIO
+  if (typeof x !== 'object' || Array.isArray(x)) return 'Casos: formato inválido.'
+  const o = x as Record<string, unknown>
+  const casos = entero(o.casos, 0, TOPES.casos), meta = entero(o.meta, 1, TOPES.casos), actualizado = fecha(o.actualizado)
+  if (casos === undefined) return 'Casos ganados: tiene que ser un número entero (0 o más).'
+  if (meta === undefined) return 'Objetivo final de casos: tiene que ser un número entero mayor que 0.'
+  if (actualizado === undefined) return 'La fecha del conteo de casos tiene que ser una fecha real.'
+  let hito: ProgresoCasos['hito'] = null
+  if (o.hito !== undefined && o.hito !== null) {
+    const h = typeof o.hito === 'object' && !Array.isArray(o.hito) ? (o.hito as Record<string, unknown>) : null
+    const hc = h ? entero(h.casos, 1, TOPES.casos) : undefined, hf = h ? fecha(h.fecha) : undefined
+    if (hc === undefined) return 'Marca intermedia: los casos tienen que ser un número entero mayor que 0.'
+    if (hf === undefined) return 'Marca intermedia: la fecha tiene que ser una fecha real.'
+    if (hc !== null) {
+      if (meta !== null && hc > meta) return 'La marca intermedia no puede superar el objetivo final.'
+      hito = { casos: hc, fecha: hf }
+    }
+  }
+  if (o.historial !== undefined && o.historial !== null && !Array.isArray(o.historial)) return 'Historial de casos: formato inválido.'
+  const porFecha = new Map<string, number>()
+  for (const [i, p] of ((o.historial as unknown[] | undefined) ?? []).entries()) {
+    const r = p && typeof p === 'object' ? (p as Record<string, unknown>) : {}
+    const c = entero(r.casos, 0, TOPES.casos)
+    if (!fechaReal(r.fecha) || c === undefined || c === null) return `Historial de casos, fila ${i + 1}: fecha y cantidad válidas.`
+    porFecha.set(r.fecha, c)
+  }
+  if (casos !== null && actualizado) porFecha.set(actualizado, casos)
+  const historial = [...porFecha].map(([f, c]) => ({ fecha: f, casos: c })).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(-TOPES.historial)
+  return { casos, actualizado, meta, hito, historial }
+}
+
+function validarReporte(x: unknown): ConfigReporte | string {
+  if (x === undefined || x === null) return REPORTE_VACIO
+  if (typeof x !== 'object' || Array.isArray(x)) return 'Reporte: formato inválido.'
+  const o = x as Record<string, unknown>
+  if (o.cuentas !== undefined && o.cuentas !== null && !Array.isArray(o.cuentas)) return 'Cuentas de Meta: formato inválido.'
+  const cuentas: string[] = []
+  for (const c of (o.cuentas as unknown[] | undefined) ?? []) {
+    if (typeof c === 'string' && !c.trim()) continue
+    const id = typeof c === 'string' ? (/^\d+$/.test(c.trim()) ? `act_${c.trim()}` : c.trim()) : ''
+    if (!ID_CUENTA_META.test(id)) return 'Cuenta de Meta inválida: va act_ y los números (ej.: act_123456789).'
+    if (!cuentas.includes(id)) cuentas.push(id)
+  }
+  if (cuentas.length > TOPES.cuentas) return `Cuentas de Meta: hasta ${TOPES.cuentas}.`
+  const v = o.valorCaso === undefined || o.valorCaso === null || o.valorCaso === '' ? VALOR_CASO_POR_DEFECTO : o.valorCaso
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > TOPES.valorCaso) return 'Valor promedio por caso: tiene que ser un número mayor que 0.'
+  return { cuentas, valorCaso: Math.round(v * 100) / 100 }
+}
+
+/**
+ * Casos ganados en un mes ("2026-11"), con los conteos acumulados del historial: el último conteo hasta el fin del mes menos
+ * el último conteo ANTES de que empiece. null si falta alguno de los dos (no se inventa: sin conteo previo, no se sabe).
+ */
+export function casosDelMes(historial: readonly PuntoCasos[], mes: string): number | null {
+  const inicio = `${mes}-01`, fin = `${mes}-31`
+  const antes = historial.filter(p => p.fecha < inicio).at(-1)
+  const alCierre = historial.filter(p => p.fecha <= fin).at(-1)
+  if (!antes || !alCierre || alCierre.fecha < inicio) return null
+  return Math.max(0, alCierre.casos - antes.casos)
+}
+
+/** Lo que dibuja la barra: porcentajes sobre el objetivo final (topeados a 100) y si la marca ya se pasó. null sin datos. */
+export function barraCasos(p: ProgresoCasos): { casos: number; meta: number; porcentaje: number; hito: { casos: number; fecha: string | null; porcentaje: number; logrado: boolean; faltan: number } | null; faltan: number } | null {
+  if (p.casos === null || p.meta === null) return null
+  const pct = (n: number) => Math.min(100, Math.max(0, Math.round((n / p.meta!) * 10_000) / 100))
+  return {
+    casos: p.casos, meta: p.meta, porcentaje: pct(p.casos), faltan: Math.max(0, p.meta - p.casos),
+    hito: p.hito ? { ...p.hito, porcentaje: pct(p.hito.casos), logrado: p.casos >= p.hito.casos, faltan: Math.max(0, p.hito.casos - p.casos) } : null,
+  }
 }
 
 /** Lo guardado en Neon, leído sin confiar: si algo no valida, vale el portal vacío (nunca rompe la página del cliente). */

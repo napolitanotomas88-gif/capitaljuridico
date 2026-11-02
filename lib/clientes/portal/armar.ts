@@ -8,7 +8,10 @@ import { leerDespachoRecorrido } from '@/lib/clientes/recorridoFuentes'
 import { cargarVista } from '@/lib/clientes/vista'
 import { tandasDelCliente } from '@/lib/bot/guiones/registro'
 import { documentoVinculadoCliente } from '@/lib/bot/guiones/documento'
+import { unstable_cache } from 'next/cache'
 import { leerPortal } from './base'
+import { leerAnunciosPortal } from './meta'
+import { armarReporte, type Reporte } from './reporte'
 import { PORTAL_VACIO, procesoParaCliente, tandasParaCliente, type PasoProceso, type PortalGuardado, type TandaPortal } from './modelo'
 
 export interface PaginaPortal {
@@ -22,6 +25,15 @@ export interface PaginaPortal {
   hoy: string
   /** Qué no se pudo leer (solo se le muestra al equipo). */
   avisos: string[]
+  /** Reporte de anuncios: null sin cuentas cargadas; 'error' si Meta no respondió (al cliente: «lo estamos actualizando»). */
+  reporte: { datos: Reporte; leido: string } | 'error' | null
+}
+
+/** Meta, cacheado 1 h por juego de cuentas (compartido entre instancias). Solo las cuentas guardadas en el portal de ese ID. */
+const CACHE_S = 3600
+const anunciosCacheados = (cuentas: string[]) => {
+  const clave = [...cuentas].sort().join(',')
+  return unstable_cache(async () => ({ ...(await leerAnunciosPortal(cuentas)), leido: new Date().toISOString() }), ['portal-anuncios-v1', clave], { revalidate: CACHE_S, tags: ['portal-anuncios'] })()
 }
 
 const corto = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 160)
@@ -50,8 +62,22 @@ export async function armarPortal(idCrudo: string): Promise<PaginaPortal | null>
     drive: null, clickupGuiones: null, clickupEstado: null, lanzamiento: null, campanaActiva: false, exito: null,
     manuales: anotaciones?.hitos.get(id) ?? [],
   })
+  let reporte: PaginaPortal['reporte'] = null
+  const datosPortal = portal?.datos
+  if (datosPortal?.reporte.cuentas.length) {
+    try {
+      const lectura = await anunciosCacheados(datosPortal.reporte.cuentas)
+      for (const e of lectura.errores) avisos.push(`Anuncios: ${e}`)
+      const p = datosPortal.progreso
+      reporte = { datos: armarReporte(lectura.filas, { casos: p.casos, historial: p.historial, valorCaso: datosPortal.reporte.valorCaso, mesActual: vista.datos.hoy.slice(0, 7) }), leido: lectura.leido }
+    } catch (e) {
+      console.error('[portal] anuncios:', corto(e))
+      avisos.push(`No se pudieron leer los anuncios de Meta: ${corto(e)}`)
+      reporte = 'error'
+    }
+  }
   return {
-    id, nombreCRM: c.nombre,
+    id, nombreCRM: c.nombre, reporte,
     portal: portal ?? { datos: PORTAL_VACIO, version: -1, actualizado: null },
     tandas: tandasParaCliente(filas),
     proceso: procesoParaCliente(hitos),

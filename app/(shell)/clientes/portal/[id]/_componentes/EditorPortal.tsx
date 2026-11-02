@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
 import { Boton } from '@/components/ui'
-import { ESTADOS_ETAPA, NOMBRE_ESTADO_ETAPA, NOMBRE_SECCION_PORTAL, SECCIONES_PORTAL, TOPES, type DatosPortal, type EstadoEtapa } from '@/lib/clientes/portal/modelo'
+import { ESTADOS_ETAPA, fechaLarga, NOMBRE_ESTADO_ETAPA, NOMBRE_SECCION_PORTAL, SECCIONES_PORTAL, TOPES, type DatosPortal, type EstadoEtapa, type ProgresoCasos } from '@/lib/clientes/portal/modelo'
 
 // Panel del EQUIPO para armar el portal del cliente (2/11/2026). Guarda todo junto con la versión que leyó: si otra persona
 // guardó en el medio, avisa y no pisa. Solo lo ve el equipo (la página no lo dibuja para el cliente y la API le da 403).
@@ -48,6 +48,10 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
   }
 
   const campo = (sufijo: string) => `${base}-${sufijo}`
+  const prog = (parcial: Partial<ProgresoCasos>) => cambiar({ progreso: { ...d.progreso, ...parcial } })
+  // Número entero o null (campo vacío). Lo que no es número queda como está y lo rechaza el servidor con su motivo.
+  const ent = (v: string): number | null => (v.trim() === '' ? null : Number(v))
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
 
   return (
     <form className="cj-formulario cj-panel" style={{ maxWidth: 'none' }} onSubmit={e => { e.preventDefault(); void guardar() }} noValidate>
@@ -75,8 +79,8 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
       <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
         <legend className="cj-etiqueta cj-etiqueta--laton">Objetivo</legend>
         <div className="cj-formulario__campo">
-          <label htmlFor={campo('obj')} className="cj-etiqueta">El objetivo, en una o dos frases</label>
-          <textarea id={campo('obj')} className="cj-campo__entrada" rows={3} maxLength={TOPES.objetivo} value={d.objetivo.texto} onChange={e => cambiar({ objetivo: { ...d.objetivo, texto: e.target.value } })} />
+          <label htmlFor={campo('obj')} className="cj-etiqueta">El objetivo (las líneas que empiezan con «•» o «-» se ven como viñetas)</label>
+          <textarea id={campo('obj')} className="cj-campo__entrada" rows={6} maxLength={TOPES.objetivo} value={d.objetivo.texto} onChange={e => cambiar({ objetivo: { ...d.objetivo, texto: e.target.value } })} />
         </div>
         <div className="cj-fila" style={{ gap: 24, flexWrap: 'wrap' }}>
           <div className="cj-formulario__campo" style={{ flex: '2 1 240px' }}>
@@ -87,6 +91,68 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
             <label htmlFor={campo('fobj')} className="cj-etiqueta">Para cuándo</label>
             <input id={campo('fobj')} type="date" className="cj-campo__entrada" value={d.objetivo.fecha ?? ''} onChange={e => cambiar({ objetivo: { ...d.objetivo, fecha: e.target.value || null } })} />
           </div>
+        </div>
+      </fieldset>
+
+      <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
+        <legend className="cj-etiqueta cj-etiqueta--laton">Casos ganados (barra de progreso)</legend>
+        <span className="cj-formulario__ayuda">Casos ganados ACUMULADOS desde que arrancamos. Al guardar, el conteo queda en el historial con su fecha (uno por día): de ahí salen los casos de cada mes del reporte.</span>
+        <div className="cj-fila" style={{ gap: 24, flexWrap: 'wrap' }}>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 140px' }}>
+            <label htmlFor={campo('casos')} className="cj-etiqueta">Casos ganados hoy</label>
+            <input id={campo('casos')} type="number" inputMode="numeric" min={0} step={1} className="cj-campo__entrada" value={d.progreso.casos ?? ''} onChange={e => prog({ casos: ent(e.target.value), actualizado: d.progreso.actualizado ?? hoy })} />
+          </div>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 160px' }}>
+            <label htmlFor={campo('casosf')} className="cj-etiqueta">Fecha del conteo</label>
+            <input id={campo('casosf')} type="date" className="cj-campo__entrada" value={d.progreso.actualizado ?? ''} onChange={e => prog({ actualizado: e.target.value || null })} />
+          </div>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 140px' }}>
+            <label htmlFor={campo('meta')} className="cj-etiqueta">Objetivo final</label>
+            <input id={campo('meta')} type="number" inputMode="numeric" min={1} step={1} className="cj-campo__entrada" placeholder="Ej.: 500" value={d.progreso.meta ?? ''} onChange={e => prog({ meta: ent(e.target.value) })} />
+          </div>
+        </div>
+        <div className="cj-fila" style={{ gap: 24, flexWrap: 'wrap' }}>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 140px' }}>
+            <label htmlFor={campo('hito')} className="cj-etiqueta">Marca intermedia (casos)</label>
+            <input id={campo('hito')} type="number" inputMode="numeric" min={1} step={1} className="cj-campo__entrada" placeholder="Ej.: 200" value={d.progreso.hito?.casos ?? ''} onChange={e => { const n = ent(e.target.value); prog({ hito: n === null ? null : { casos: n, fecha: d.progreso.hito?.fecha ?? null } }) }} />
+          </div>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 160px' }}>
+            <label htmlFor={campo('hitof')} className="cj-etiqueta">Para cuándo</label>
+            <input id={campo('hitof')} type="date" className="cj-campo__entrada" disabled={!d.progreso.hito} value={d.progreso.hito?.fecha ?? ''} onChange={e => d.progreso.hito && prog({ hito: { ...d.progreso.hito, fecha: e.target.value || null } })} />
+          </div>
+        </div>
+        {d.progreso.historial.length > 0 && (
+          <details className="cj-detalles">
+            <summary>Historial de conteos ({d.progreso.historial.length})</summary>
+            <ul className="cj-lista" style={{ marginTop: 8 }}>
+              {[...d.progreso.historial].reverse().map(h => (
+                <li key={h.fecha} className="cj-fila" style={{ gap: 12, flexWrap: 'wrap' }}>
+                  <span>{fechaLarga(h.fecha)}: <strong>{h.casos}</strong> casos</span>
+                  <Boton variante="secundario" onClick={() => prog({ historial: d.progreso.historial.filter(x => x.fecha !== h.fecha) })} aria-label={`Quitar el conteo del ${fechaLarga(h.fecha)}`}>Quitar</Boton>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </fieldset>
+
+      <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
+        <legend className="cj-etiqueta cj-etiqueta--laton">Reporte de anuncios (Meta)</legend>
+        <span className="cj-formulario__ayuda">Las cuentas publicitarias del cliente (act_ y los números). Solo las lee el servidor, una vez por hora; el cliente no ve los IDs ni puede pedir otra cuenta.</span>
+        {d.reporte.cuentas.map((c, i) => (
+          <div key={i} className="cj-fila" style={{ gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="cj-formulario__campo" style={{ flex: '3 1 240px' }}>
+              <label htmlFor={campo(`cta-${i}`)} className="cj-etiqueta">Cuenta {i + 1}</label>
+              <input id={campo(`cta-${i}`)} className="cj-campo__entrada" value={c} placeholder="act_123456789" spellCheck={false} onChange={e => cambiar({ reporte: { ...d.reporte, cuentas: d.reporte.cuentas.map((y, j) => (j === i ? e.target.value.trim() : y)) } })} />
+            </div>
+            <Boton variante="secundario" onClick={() => cambiar({ reporte: { ...d.reporte, cuentas: quitar(d.reporte.cuentas, i) } })} aria-label={`Quitar la cuenta ${i + 1}`}>Quitar</Boton>
+          </div>
+        ))}
+        {d.reporte.cuentas.length < TOPES.cuentas && <div><Boton variante="secundario" onClick={() => cambiar({ reporte: { ...d.reporte, cuentas: [...d.reporte.cuentas, ''] } })}>Agregar cuenta</Boton></div>}
+        <div className="cj-formulario__campo" style={{ maxWidth: 260 }}>
+          <label htmlFor={campo('valor')} className="cj-etiqueta">Valor promedio por caso (USD)</label>
+          <input id={campo('valor')} type="number" inputMode="decimal" min={1} step="any" className="cj-campo__entrada" value={d.reporte.valorCaso} onChange={e => cambiar({ reporte: { ...d.reporte, valorCaso: Number(e.target.value) } })} />
+          <span className="cj-formulario__ayuda">Con esto se estiman ingresos y profit (casos × valor).</span>
         </div>
       </fieldset>
 

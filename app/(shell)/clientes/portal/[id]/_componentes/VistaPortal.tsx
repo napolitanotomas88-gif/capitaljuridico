@@ -1,5 +1,8 @@
 import { Bloque, Estado, Resumen, SeccionTitulo, VacioGuiado, type DatoResumen, type Tono } from '@/components/ui'
-import { avancePlan, fechaLarga, NOMBRE_ESTADO_ETAPA, type EstadoEtapa } from '@/lib/clientes/portal/modelo'
+import { avancePlan, barraCasos, fechaLarga, NOMBRE_ESTADO_ETAPA, type EstadoEtapa } from '@/lib/clientes/portal/modelo'
+import { numero } from '@/lib/clientes/portal/reporte'
+import { BloqueReporte, ProgresoCasosVista } from './ProgresoYReporte'
+import './portal.css'
 import type { PaginaPortal } from '@/lib/clientes/portal/armar'
 
 // Lo que ve el CLIENTE en su portal (2/11/2026). El equipo ve exactamente esto debajo de su panel de edición. Solo lectura y
@@ -16,32 +19,36 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
   const pasos = datos.proximos.filter(x => !x.hecho)
   const notas = [...datos.notas].sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''))
   const ver = datos.secciones
+  const barra = barraCasos(datos.progreso)
 
-  const resumen: DatoResumen[] = [
-    { etiqueta: 'Nuestro objetivo', icono: 'ok', destacado: true, valor: datos.objetivo.metrica || '—', contexto: datos.objetivo.fecha ? `Para el ${fechaLarga(datos.objetivo.fecha)}` : 'Lo definimos juntos' },
+  const resumen: (DatoResumen | null)[] = [
+    { etiqueta: 'Nuestro objetivo', icono: 'ok', destacado: true, valor: datos.objetivo.metrica || '—', contexto: datos.objetivo.fecha ? `Para el ${fechaLarga(datos.objetivo.fecha)}` : datos.objetivo.metrica ? 'El objetivo final' : 'Lo definimos juntos', ...(ver.objetivo && datos.objetivo.texto ? { href: '#objetivo', accion: 'Ver el objetivo' } : {}) },
     // «Cómo vamos» (antes «Avance del plan»): lleva al plan solo si esa sección se ve
-    { etiqueta: 'Cómo vamos', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', ...(ver.plan ? { href: '#plan', accion: 'Ver el plan' } : {}) },
+    // Sin plan visible ni etapas cargadas, la tarjeta solo diría «—»: no se muestra (2/11/2026)
+    !ver.plan && !avance ? null : { etiqueta: 'Cómo vamos', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', ...(ver.plan ? { href: '#plan', accion: 'Ver el plan' } : {}) },
     { etiqueta: 'Guiones listos', icono: 'guiones', valor: String(guiones), contexto: p.tandas.length ? `En ${p.tandas.length} ${p.tandas.length === 1 ? 'tanda' : 'tandas'}` : 'Se están preparando', ...(ver.guiones ? { href: '#guiones', accion: 'Ver los guiones' } : {}) },
   ]
+  // Casos ganados (2/11/2026): segunda tarjeta del resumen cuando hay conteo y la sección se ve
+  if (ver.progreso && barra) resumen.splice(1, 0, { etiqueta: 'Casos ganados', icono: 'estrategia', valor: <>{numero(barra.casos)}<span className="cj-dato__unidad">de {numero(barra.meta)}</span></>, contexto: barra.hito ? (barra.hito.logrado ? `Meta de ${numero(barra.hito.casos)} lograda` : `Próxima meta: ${numero(barra.hito.casos)}${barra.hito.fecha ? ` al ${fechaLarga(barra.hito.fecha)}` : ''}`) : `${Math.floor(barra.porcentaje)} % del objetivo`, href: '#progreso', accion: 'Ver el avance' })
   const intro = ver.plan
     ? 'Acá ves el objetivo que nos propusimos, el camino para llegar y cómo viene cada paso. Lo vamos actualizando con cada avance.'
     : 'Acá ves el objetivo que nos propusimos, cómo vamos y tus guiones. Lo vamos actualizando con cada avance.'
 
   return (
-    <div className="cj-pila">
+    <div className="cj-pila pc-portal">
       <SeccionTitulo etiqueta="Tu portal · Capital Jurídico" titulo={nombre} />
       <p className="cj-parrafo cj-texto-2" style={{ marginTop: -40 }}>
         {intro}
         {actualizado && <> Última actualización: {fechaLarga(actualizado.slice(0, 10))}.</>}
       </p>
 
-      <Resumen titulo="Resumen" datos={resumen} />
+      <Resumen titulo="Resumen" datos={resumen.filter((d): d is DatoResumen => d !== null)} />
 
       {ver.objetivo && (
       <Bloque titulo="El objetivo" etiqueta="Hacia dónde vamos" id="objetivo">
         {datos.objetivo.texto ? (
           <div className="cj-pila cj-pila--chica">
-            <p className="cj-parrafo" style={{ whiteSpace: 'pre-line', fontSize: 17 }}>{datos.objetivo.texto}</p>
+            <TextoObjetivo texto={datos.objetivo.texto} />
             {(datos.objetivo.metrica || datos.objetivo.fecha) && (
               <dl className="cj-datos" style={{ margin: 0 }}>
                 {datos.objetivo.metrica && <div><dt className="cj-etiqueta">Cómo lo medimos</dt><dd>{datos.objetivo.metrica}</dd></div>}
@@ -54,6 +61,14 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
         )}
       </Bloque>
       )}
+
+      {ver.progreso && (
+      <Bloque titulo="Casos ganados" etiqueta="El objetivo, en números" id="progreso">
+        <ProgresoCasosVista progreso={datos.progreso} />
+      </Bloque>
+      )}
+
+      {ver.reporte && <BloqueReporte reporte={p.reporte} />}
 
       {ver.plan && (
       <Bloque titulo="Cómo vamos a llegar" etiqueta="El plan, por etapas" id="plan" estado={avance ? { tono: avance.hechas === avance.total ? 'ok' : 'atencion', texto: `${avance.hechas} de ${avance.total} logradas` } : undefined}>
@@ -163,5 +178,26 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
       </Bloque>
       )}
     </div>
+  )
+}
+
+/** El objetivo: párrafos y, las líneas que empiezan con «•» o «-», como lista (así el equipo escribe el plan en viñetas). */
+function TextoObjetivo({ texto }: { texto: string }) {
+  const bloques: ({ tipo: 'p'; texto: string } | { tipo: 'ul'; items: string[] })[] = []
+  for (const linea of texto.split('\n').map(l => l.trim())) {
+    if (!linea) continue
+    const item = /^[•\-–*]\s*(.+)$/.exec(linea)
+    const ultimo = bloques.at(-1)
+    if (item) {
+      if (ultimo?.tipo === 'ul') ultimo.items.push(item[1])
+      else bloques.push({ tipo: 'ul', items: [item[1]] })
+    } else bloques.push({ tipo: 'p', texto: linea })
+  }
+  return (
+    <>
+      {bloques.map((b, i) => b.tipo === 'p'
+        ? <p key={i} className="cj-parrafo" style={{ fontSize: 17 }}>{b.texto}</p>
+        : <ul key={i} className="pc-objetivo__lista">{b.items.map((x, j) => <li key={j}>{x}</li>)}</ul>)}
+    </>
   )
 }
