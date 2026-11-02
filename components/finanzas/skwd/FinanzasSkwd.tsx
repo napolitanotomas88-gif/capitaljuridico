@@ -48,7 +48,8 @@ export function FinanzasSkwd({ vista }: { vista: VistaSkwd }) {
     <div className="fin-verde fin-fondo">
       <EstilosFinanzas />
       <EstilosSkwd />
-      <div className="fin-pagina">
+      {/* Pagos del equipo usa todo el ancho (pedido de Tomás 1/11/2026: «no ocupa toda la pantalla») */}
+      <div className={vista === 'pagos-equipo' ? 'fin-pagina fin-pagina--ancha' : 'fin-pagina'}>
         <SeccionTitulo etiqueta="Finanzas" titulo={TITULOS[vista]} acciones={
           <div className="fin-acciones no-print">
             {correo && <span className="cj-texto-2" style={{ fontSize: 13 }}>{correo}</span>}
