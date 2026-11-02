@@ -506,7 +506,7 @@ export default function PagosEquipo({ onCorregir }) {
               <tbody>
                 {cierre.filas.map((f) => (
                   <tr key={f.persona_id ?? f.nombre} className={f.activo === false ? 'fila-inactiva' : ''}>
-                    <td>{f.nombre}{f.activo === false && ' (inactiva)'}</td><td>{f.puesto}</td><td>{f.departamento}</td>
+                    <td className="nowrap">{f.nombre}{f.activo === false && ' (inactiva)'}</td><td className="nowrap">{f.puesto}</td><td className="nowrap">{f.departamento}</td>
                     <td className="num">{usd(f.honorarios)}</td><td className="num">{usd(f.bonus)}</td><td className="num">{usd(f.comision)}</td><td className="num">{usd(f.extras)}</td><td className="num"><strong>{usd(f.total)}</strong></td><td className="num">{usd(f.pagado)}</td><td className="num">{usd(f.pendiente)}</td>
                     <td><ChipSemaforo estado={Number(f.pendiente) > 0 ? 'amarillo' : 'verde'} className="pe-estado">{Number(f.pendiente) > 0 ? 'Pendiente' : 'Pagado'}</ChipSemaforo></td>
                     <td className="num">{f.lineas}</td>
@@ -607,12 +607,12 @@ export default function PagosEquipo({ onCorregir }) {
                   {!esImportado(l) && !l.pagado && <button type="button" className="quitar" onClick={() => borrarLinea(l)}>Borrar</button>}
                 </td>
                 <td className="nowrap"><Celda l={l} k="mes">{l.mes.slice(0, 7)}</Celda></td>
-                <td>
+                <td className="nowrap">
                   {nombreDe(l)}
                   {nombreDe(l) !== l.nombre_original && <div className="aviso">en el Excel: {l.nombre_original}</div>}
                 </td>
-                <td><Celda l={l} k="puesto">{l.puesto}</Celda></td>
-                <td><Celda l={l} k="departamento">{l.departamento}</Celda></td>
+                <td className="nowrap"><Celda l={l} k="puesto">{l.puesto}</Celda></td>
+                <td className="nowrap"><Celda l={l} k="departamento">{l.departamento}</Celda></td>
                 <td className="num"><Celda l={l} k="honorarios_base">{usd(l.honorarios_base)}</Celda></td>
                 <td className="num"><Celda l={l} k="bonuses">{usd(l.bonuses)}</Celda></td>
                 <td className="num"><Celda l={l} k="comision">{usd(l.comision)}</Celda></td>

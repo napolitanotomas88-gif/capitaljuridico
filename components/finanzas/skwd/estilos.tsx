@@ -187,6 +187,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .pe-segmento button + button { border-left: 1px solid var(--cj-control); }
 .fin-skwd .pe-segmento button:hover:not([aria-pressed='true']) { color: var(--text); background: rgba(29,29,27,0.04); filter: none; }
 .fin-skwd .pe-segmento button[aria-pressed='true'] { background: var(--cj-hueso); color: var(--cj-tinta); }
+.fin-skwd .pe-segmento button:focus-visible { outline-offset: -4px; } /* el contenedor recorta (overflow hidden): el foco va por dentro */
 
 /* Formulario de carga */
 .fin-skwd .pe-carga { background: var(--card); border: 1px solid var(--border); border-top: 3px solid var(--cj-laton); border-radius: var(--cj-radio-l, 14px); padding: 20px 24px 24px; box-shadow: var(--cj-sombra-1, none); }
@@ -202,6 +203,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .pe-c3 { grid-column: span 3; } .fin-skwd .pe-c4 { grid-column: span 4; } .fin-skwd .pe-c6 { grid-column: span 6; }
 .fin-skwd .pe-c8 { grid-column: span 8; } .fin-skwd .pe-c12 { grid-column: 1 / -1; }
 .fin-skwd .pe-c12 .sop-puesto { margin: 0; }
+.fin-skwd .pe-rejilla > :empty { display: none; } /* SOP sin enlaces: no deja un hueco en la rejilla */
 .fin-skwd .pe-campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .fin-skwd .pe-campo label { font-size: 13px; font-weight: 600; color: var(--text); }
 .fin-skwd .pe-campo input:not([type='checkbox']), .fin-skwd .pe-campo select { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 15px; background: var(--card); border: 1px solid var(--cj-control); border-radius: var(--cj-radio); }
@@ -265,7 +267,7 @@ export const ESTILOS_SKWD = `
 .fin-skwd .pe-desglose--fila div { flex-direction: column; justify-content: flex-start; gap: 2px; }
 .fin-skwd .pe-desglose--fila dd { text-align: left; font-family: 'Sitka Display', 'Sitka', var(--font-source-serif), Georgia, serif; font-size: 22px; }
 .fin-skwd .pe-tabla { font-size: 13.5px; }
-.fin-skwd .pe-tabla th, .fin-skwd .pe-tabla td { padding: 10px; vertical-align: middle; }
+.fin-skwd .pe-tabla th, .fin-skwd .pe-tabla td { padding: 10px 8px; vertical-align: middle; }
 .fin-skwd .pe-tabla th.num, .fin-skwd .pe-tabla td.num { text-align: right; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .fin-skwd .pe-tabla--compacta td { padding: 7px 0; }
 .fin-skwd .pe-tabla--compacta tr:last-child td { border-bottom: 0; }
@@ -292,6 +294,7 @@ export const ESTILOS_SKWD = `
   .fin-skwd .pe-segmento { flex: 1 1 100%; } .fin-skwd .pe-segmento button { flex: 1; }
   .fin-skwd .pe-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .fin-skwd .pe-kpi { padding: 12px 14px; }
+  .fin-skwd .pe-kpi:first-child:nth-last-child(odd) { grid-column: 1 / -1; } /* cantidad impar: la primera (la destacada) va entera y no queda una suelta */
   .fin-skwd .pe-kpi strong { font-size: 21px; overflow-wrap: anywhere; }
   .fin-skwd .pe-desglose--fila { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fin-skwd .pe-desglose--fila dd { font-size: 18px; }
