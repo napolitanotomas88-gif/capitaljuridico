@@ -13,6 +13,9 @@
 export const ESPACIO_MIN_MS = 5 * 60_000
 export const MAX_DIA_POR_DEFECTO = 6
 export const MAX_LINEAS_RESUMEN = 20
+/** Cómo le habla el bot a Valen (pedido de Tomás, 1/11): «Pelado». */
+export const SALUDO = 'Pelado'
+const encabezado = (tel: string | null) => `${tel ? `@${tel} ` : ''}${SALUDO}, `
 
 export const equipoEncendido = (env: NodeJS.ProcessEnv = process.env): boolean => env.ANUNCIOS_WHATSAPP_EQUIPO?.trim() === 'real'
 export const telValentino = (env: NodeJS.ProcessEnv = process.env): string | null => {
@@ -46,14 +49,14 @@ export function textoResumen(items: readonly ItemResumen[], link: string, tel: s
   const lineas = items.slice(0, MAX_LINEAS_RESUMEN).map(i => `• ${i.cliente} — ${ETIQUETA[i.tipo] ?? i.tipo}`)
   if (items.length > MAX_LINEAS_RESUMEN) lineas.push(`• … y ${items.length - MAX_LINEAS_RESUMEN} más`)
   return [
-    `${tel ? `@${tel} ` : ''}📣 *Anuncios de hoy* · ${items.length} aviso${items.length === 1 ? '' : 's'}`,
+    `${encabezado(tel)}📣 *Anuncios de hoy* · ${items.length} aviso${items.length === 1 ? '' : 's'}`,
     ...lineas,
     `El detalle de cada uno está en #📣-ads de Discord. Tablero: ${link}`,
   ].join('\n')
 }
 
 /** Un aviso suelto (p. ej. una nota del cliente): el texto de Discord pasado a WhatsApp, con la mención adelante. */
-export const textoSuelto = (textoDiscord: string, tel: string | null): string => `${tel ? `@${tel} ` : ''}${discordAWhatsapp(textoDiscord)}`
+export const textoSuelto = (textoDiscord: string, tel: string | null): string => `${encabezado(tel)}${discordAWhatsapp(textoDiscord)}`
 
 export interface DepsEquipo {
   encendido: boolean
