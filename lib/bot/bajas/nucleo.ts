@@ -205,6 +205,13 @@ export function crearNucleoBajas(d: DepsBajas) {
 
   async function aprobarAvisoFin(r: ResumenBajas, p: Pedido, x: RespuestaBaja) {
     const por = quienDe(x.autor), ahora = iso(d.ahora())
+    // Con la etapa Proyección prendida, la invitación la deja ella en 📤: un OK a un pedido viejo no la duplica
+    if (d.avisoFinPorProyeccion) {
+      if (await almacen.actualizarPedido(p.id, { estado: 'vencido', por, respuesta: `${x.veredicto === 'no' ? 'NO' : 'OK'} ${x.resto}`.trim(), error: 'reemplazado por la invitación de la llamada de proyección', resuelto: ahora }, ['abierto'])) {
+        r.registro.push(`aviso de fin de ${p.cliente}: lo reemplaza la invitación de la llamada de proyección (📤), no se manda`)
+      }
+      return
+    }
     if (x.veredicto === 'no') {
       if (await almacen.actualizarPedido(p.id, { estado: 'rechazado', por, respuesta: `NO ${x.resto}`.trim(), resuelto: ahora }, ['abierto'])) { r.rechazados++; r.registro.push(`NO al mensaje de renovación de ${p.cliente}`) }
       return
@@ -769,7 +776,18 @@ export function crearNucleoBajas(d: DepsBajas) {
     } catch (e) { r.errores.push(`vencer pedidos: ${motivoDe(e)}`) }
     let clientes: ClienteBaja[]
     try { clientes = await d.leerClientes() } catch (e) { r.errores.push(`no se pudo leer el CRM (${motivoDe(e)})`); return r }
-    if (d.avisoFinPorProyeccion) r.registro.push('aviso de fin (i01): lo hace la etapa Proyección (invitación en 📤 a −14, sin pedido de OK)')
+    if (d.avisoFinPorProyeccion) {
+      r.registro.push('aviso de fin (i01): lo hace la etapa Proyección (invitación en 📤 a −14, sin pedido de OK)')
+      // Los pedidos de OK que quedaron abiertos de antes se cierran: si no, un OK tardío duplicaría la invitación
+      try {
+        for (const p of await almacen.pedidosAbiertosAntesDe(iso(d.ahora() + 1))) {
+          if (p.tipo !== 'aviso_fin' || !enAlcance(p.idCrm)) continue
+          if (await almacen.actualizarPedido(p.id, { estado: 'vencido', error: 'reemplazado por la invitación de la llamada de proyección', resuelto: iso(d.ahora()) }, ['abierto'])) {
+            r.registro.push(`cerré el pedido de aviso de fin de ${p.cliente}: lo reemplaza la invitación de la llamada de proyección`)
+          }
+        }
+      } catch (e) { r.errores.push(`cerrar avisos de fin: ${motivoDe(e)}`) }
+    }
     else try { await avisosFin(r, clientes) } catch (e) { r.errores.push(`avisos de fin: ${motivoDe(e)}`) }
     try { await recontacto(r, clientes, !!op.forzarRecontacto) } catch (e) { r.errores.push(`recontacto: ${motivoDe(e)}`) }
     return r

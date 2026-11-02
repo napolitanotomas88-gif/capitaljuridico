@@ -186,7 +186,9 @@ describe('sin duplicar con i01 de Bajas', () => {
   })
   test('con avisoFinPorProyeccion, Bajas no abre el pedido de OK del aviso de fin', async () => {
     const src = (await import('node:fs')).readFileSync(new URL('../lib/bot/bajas/nucleo.ts', import.meta.url), 'utf8')
-    assert.match(src, /if \(d\.avisoFinPorProyeccion\) r\.registro\.push/)
+    assert.match(src, /if \(d\.avisoFinPorProyeccion\) \{/)
+    // un OK tardío a un pedido viejo no manda el aviso: lo cierra como reemplazado
+    assert.match(src, /reemplazado por la invitación de la llamada de proyección/)
     const srv = (await import('node:fs')).readFileSync(new URL('../lib/bot/bajas/servidor.ts', import.meta.url), 'utf8')
     assert.match(srv, /avisoFinPorProyeccion: !prueba && proyeccionPrendida\(env\)/)
     assert.equal(typeof BN.crearNucleoBajas, 'function')
@@ -210,5 +212,37 @@ describe('marcas (validación del POST) y vista del panel', () => {
     const a = cli(10), b = cli(-3), c = cli(6), d = cli(2)
     const items = V.itemsProyeccion([a, b, c, d], [marca(d, { resultado: 'hecha', resultadoFecha: HOY })], HOY, {})
     assert.deepEqual(items.map((i) => i.fase), ['atrasado', 'agendar', 'invitar', 'hecha'])
+  })
+})
+
+describe('revisión: Calendly hacia atrás, primera kickoff, Bajas ya resuelto y texto corto', () => {
+  test('la proyección agendada antes del día −14 cuenta; la primera kickoff (primer mes) no', () => {
+    const c = cli(5, { dia1: '2026-08-07', nombre: 'Maria Ficticia Inventada Caro', mail: '' })
+    const ev = (inicio) => [{ invitado: 'Ficticia Inventada', email: '', inicio, evento: 'KickOff' }]
+    assert.equal(R.eventoDe(c, ev('2026-10-16'), c.finPeriodo)?.inicio, '2026-10-16')          // 22 días antes del fin
+    assert.equal(R.eventoDe(c, ev('2026-08-20'), c.finPeriodo), null)                           // la del arranque
+    const nuevo = cli(10, { dia1: '2026-10-25' })
+    assert.equal(R.eventoDe(nuevo, [{ invitado: '', email: nuevo.mail, inicio: '2026-11-03', evento: 'KickOff' }], nuevo.finPeriodo), null)
+  })
+  test('aviso de fin de Bajas ya resuelto (enviado o NO): la invitación no vuelve a salir', async () => {
+    const a = cli(12)
+    const enviar = []
+    const d = {
+      hoy: HOY, dry: false, calendlyUrl: 'https://calendly.example.test/x', exclusiones: {},
+      leerClientes: async () => [a], leerMarcas: async () => [], eventosCalendly: async () => [],
+      avisosFinResueltos: async () => new Set([`${a.id}:${a.finPeriodo}`]),
+      paraEnviar: async (p) => { enviar.push(p); return { estado: 'enviado' } }, tarea: async () => ({ estado: 'enviado' }),
+      anotarAgendada: async () => {}, verificaciones: async () => ({ estado: 'enviado' }),
+    }
+    const r = await N.correrProyeccion(d)
+    assert.equal(enviar.length, 0); assert.equal(r.cortados[0].motivo, 'aviso de fin ya resuelto en Bajas')
+    const r2 = await N.correrProyeccion({ ...d, avisosFinResueltos: async () => { throw new Error('caída') } })
+    assert.equal(r2.invitar.length, 0); assert.equal(r2.errores.length, 1)
+  })
+  test('texto: «en una semana» a −14, «en estos días» si se pega desde la tarea', () => {
+    assert.match(R.textoInvitacion('Ficticia X', 'https://c.test', 14), /en una semana hacemos/)
+    const corto = R.textoInvitacion('Ficticia X', 'https://c.test', 5)
+    assert.match(corto, /en estos días hacemos/); assert.doesNotMatch(corto, /una semana/)
+    assert.doesNotMatch(corto + R.textoInvitacion('X', '', 14), /termina|se te acaba|vence/i)
   })
 })

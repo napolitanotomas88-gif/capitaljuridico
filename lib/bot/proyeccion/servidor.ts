@@ -19,6 +19,8 @@ export { proyeccionPrendida }
 
 /** Días hacia adelante que se miran en Calendly (el fin está a 14 días como mucho; la llamada, cerca). */
 export const DIAS_CALENDLY = 21
+/** Días hacia atrás: la llamada puede caer hasta 40 días antes del fin (reglas.ts) y el fin está a 14 días como mucho. */
+export const DIAS_CALENDLY_ATRAS = 30
 const TOPE_MS = 10_000
 
 export const diaAR = (ms = Date.now()) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
@@ -35,7 +37,8 @@ async function eventosDeCuenta(token: string | undefined, cuenta: 'tomi' | 'vent
   if (!token?.trim()) return []
   const me = await getJson<{ resource?: { uri?: string; current_organization?: string } }>('https://api.calendly.com/users/me', token)
   const scope = cuenta === 'ventas' ? `organization=${encodeURIComponent(me.resource?.current_organization ?? '')}` : `user=${encodeURIComponent(me.resource?.uri ?? '')}`
-  const desde = new Date(Date.now() - 2 * 86_400_000), hasta = new Date(Date.now() + DIAS_CALENDLY * 86_400_000)
+  // Hacia atrás también: la proyección a veces se hace ANTES del día −14 (el fin está a 14 días como mucho → 40 + 14)
+  const desde = new Date(Date.now() - DIAS_CALENDLY_ATRAS * 86_400_000), hasta = new Date(Date.now() + DIAS_CALENDLY * 86_400_000)
   const out: EventoCalendly[] = []
   let url: string | null = `https://api.calendly.com/scheduled_events?${scope}&status=active&sort=start_time:asc&min_start_time=${desde.toISOString()}&max_start_time=${hasta.toISOString()}&count=100`
   for (let pag = 0; url && pag < 10; pag++) {
@@ -70,6 +73,22 @@ export async function calendlyParaInvitar(env: NodeJS.ProcessEnv = process.env):
   } catch { return '' }
 }
 
+/** Los avisos de fin de Bajas (i01 con OK, cj_bajas_pedidos) ya resueltos a mano: enviados, dudosos o descartados con NO.
+ *  Claves `ID:fin`. Sin tabla, vacío. */
+async function avisosFinResueltosBajas(): Promise<Set<string>> {
+  if (!process.env.DATABASE_URL?.trim()) return new Set()
+  const { neon } = await import('@neondatabase/serverless')
+  const q = neon(process.env.DATABASE_URL.trim(), { fetchOptions: { signal: AbortSignal.timeout(6_000) } })
+  try {
+    const filas = (await q`SELECT id FROM cj_bajas_pedidos WHERE tipo = 'aviso_fin' AND estado IN ('aprobado', 'enviado', 'dudoso', 'rechazado', 'aprobado_simulado')`) as { id: string }[]
+    // id = aviso:<ID>:<fin>
+    return new Set(filas.map((f) => String(f.id).replace(/^aviso:/i, '').toUpperCase()))
+  } catch (e) {
+    if ((e as { code?: string })?.code === '42P01') return new Set()
+    throw e
+  }
+}
+
 const link = (id: string) => `/clientes?cliente=${encodeURIComponent(id)}#rc-proyeccion`
 
 export async function correrProyeccionReal(op: { dry?: boolean; env?: NodeJS.ProcessEnv } = {}): Promise<ResumenProyeccion & { apagada?: boolean }> {
@@ -83,6 +102,7 @@ export async function correrProyeccionReal(op: { dry?: boolean; env?: NodeJS.Pro
     exclusiones: { sinFin: clientesSinFin(env), prueba: clientesPrueba(env) },
     leerClientes: async () => (await import('@/lib/bot/bajas/servidor')).leerClientesReal(),
     leerMarcas: leerMarcasProyeccion,
+    avisosFinResueltos: () => avisosFinResueltosBajas(),
     eventosCalendly: () => eventosProyeccionCalendly(env),
     clienteOperativo: async (id, nombre) => (await import('@/lib/clientes/colasOperativas')).clienteOperativo(id, nombre),
     paraEnviar: async (p) => {
