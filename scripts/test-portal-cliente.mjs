@@ -226,6 +226,13 @@ describe('POST /api/clientes/portal/<ID> (atenderGuardado)', () => {
     assert.equal((await atenderGuardado(req(CLIENTE, { version: 0, datos: DATOS }), 'Z001', deps())).status, 403)
     assert.equal(llamadas.length, 0)
   })
+  test('el cliente NO puede cambiar las cuentas de Meta de su reporte (ni las suyas ni otras): 403 y nada se guarda', async () => {
+    llamadas.length = 0
+    const conCuenta = { ...DATOS, reporte: { cuentas: ['act_999999999'], valorCaso: 99999 }, progreso: { casos: 9999, meta: 10000, actualizado: '2026-11-02' } }
+    assert.equal((await atenderGuardado(req(CLIENTE, { version: 0, datos: conCuenta }), 'Z001', deps())).status, 403)
+    assert.equal((await atenderGuardado(req(CLIENTE, { version: 0, datos: conCuenta }), 'Z002', deps())).status, 403)
+    assert.equal(llamadas.length, 0)
+  })
   test('sin sesión 401; closer 403; otro origen 403', async () => {
     assert.equal((await atenderGuardado(req(null, { version: 0, datos: DATOS }), 'Z001', deps())).status, 401)
     assert.equal((await atenderGuardado(req('lu@ejemplo.test', { version: 0, datos: DATOS }), 'Z001', deps())).status, 403)
@@ -347,13 +354,13 @@ describe('secciones visibles por portal (2/11/2026)', () => {
   test('sin dato: todas visibles (los portales viejos se ven igual que antes)', () => {
     const r = validarDatosPortal({ nombre: 'X' })
     assert.equal(r.ok, true)
-    assert.deepEqual(r.datos.secciones, { objetivo: true, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true })
+    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true })
     assert.deepEqual(PORTAL_VACIO.secciones, r.datos.secciones)
   })
   test('solo false oculta; claves desconocidas no entran; formato malo se rechaza', () => {
     const r = validarDatosPortal({ secciones: { plan: false, proximos: false, proceso: false, seguimiento: false, guiones: 'no', inventada: false } })
     assert.equal(r.ok, true)
-    assert.deepEqual(r.datos.secciones, { objetivo: true, plan: false, proximos: false, proceso: false, guiones: true, seguimiento: false })
+    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: false, proximos: false, proceso: false, guiones: true, seguimiento: false })
     assert.equal(validarDatosPortal({ secciones: ['plan'] }).ok, false)
     assert.equal(validarDatosPortal({ secciones: 'plan' }).ok, false)
   })
