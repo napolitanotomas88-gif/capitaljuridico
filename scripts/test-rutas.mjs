@@ -19,7 +19,8 @@ import { ERROR_SESION_VENCIDA, LOGIN_VUELTA_AL_RESUMEN, leerJsonDeDatos } from '
 import { MATRIZ_ROLES, RUTA_SECCION, SECCIONES, ROLES, puedeVer, rutaInicial, rutaMenu } from '../lib/auth/roles.ts'
 import { destinoSinPermiso, rutaClientes } from '../lib/auth/hubClientes.ts'
 // Los roles de la lista fija de Vercel (el rol 'acceso' lleva sus secciones propias: se prueba en test-accesos.mjs)
-const ROLES_FIJOS = ROLES.filter((r) => r !== 'acceso')
+// El rol 'cliente' (portal del cliente) tampoco es de la lista fija: se prueba en test-portal-cliente.mjs
+const ROLES_FIJOS = ROLES.filter((r) => r !== 'acceso' && r !== 'cliente')
 import {
   POR_DEFECTO, REGLAS, decidir, destinoEntrar, normalizarRuta, resolverRegla, veredicto,
 } from '../lib/auth/rutas.ts'

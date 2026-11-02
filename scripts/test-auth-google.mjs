@@ -614,7 +614,7 @@ describe('login completo contra el proveedor simulado', () => {
     const cookie = valorEmitido(res, COOKIE_SESION)
     const carga = decodificar(cookie)
     assert.deepEqual(Object.keys(carga).sort(), ['e', 'exp', 'iat'])
-    assert.deepEqual(sesionDesdeCookie(cookie), { id: 'ana.socia@ejemplo.test', email: 'ana.socia@ejemplo.test', nombre: 'Ana', rol: 'socio', admin: true, secciones: SECCIONES, pestanas: [], esDePrueba: false })
+    assert.deepEqual(sesionDesdeCookie(cookie), { id: 'ana.socia@ejemplo.test', email: 'ana.socia@ejemplo.test', nombre: 'Ana', rol: 'socio', admin: true, secciones: SECCIONES, pestanas: [], esDePrueba: false, clienteId: null })
   })
 
   test('cada rol cae en su primera sección', async () => {

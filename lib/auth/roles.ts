@@ -17,7 +17,10 @@
 
 // 'acceso' = persona con secciones elegidas a mano en Configuración (su matriz base está VACÍA: sin sus secciones no ve nada).
 // 'socio' = administrador. closer, csm y setter son los roles de la lista fija AUTH_USUARIOS de Vercel.
-export const ROLES = ['socio', 'closer', 'csm', 'setter', 'acceso'] as const
+// 'cliente' (2/11/2026) = un CLIENTE con su portal (lib/auth/portal.ts): no ve ninguna sección, solo /clientes/portal/<su ID>.
+import { ID_PORTAL, rutaPortal } from './portal'
+
+export const ROLES = ['socio', 'closer', 'csm', 'setter', 'acceso', 'cliente'] as const
 export type Rol = (typeof ROLES)[number]
 
 // 'configuracion' (alta de accesos) es solo de administradores y no se puede asignar a mano.
@@ -37,6 +40,7 @@ export const MATRIZ_ROLES: Record<Rol, readonly Seccion[]> = {
   // 2/11/2026: sin WhatsApp el alta arranca en «Cargar alta»: la carga el equipo de CSM (Aylu, Gero M) además de los socios
   csm: ['clientes', 'referidos', 'altas'],
   acceso: [],
+  cliente: [],
 }
 
 export const ETIQUETA_ROL: Record<Rol, string> = {
@@ -45,6 +49,7 @@ export const ETIQUETA_ROL: Record<Rol, string> = {
   csm: 'CSM',
   setter: 'Setter',
   acceso: 'Acceso',
+  cliente: 'Cliente',
 }
 
 /** Ruta de cada sección (la usa la navegación y las redirecciones) */
@@ -75,7 +80,7 @@ export const SECCIONES_ASIGNABLES: readonly Seccion[] = SECCIONES.filter((s) => 
  * de la lista fija, las de su rol). Con `secciones` manda esa lista; sin ella, la matriz del rol. Un rol 'acceso' sin
  * `secciones` no ve nada (falla cerrado).
  */
-export type Quien = Rol | { rol: Rol; secciones?: readonly Seccion[] | null }
+export type Quien = Rol | { rol: Rol; secciones?: readonly Seccion[] | null; clienteId?: string | null }
 
 export function puedeVer(quien: Quien, seccion: Seccion): boolean {
   if (typeof quien === 'string') return MATRIZ_ROLES[quien].includes(seccion)
@@ -85,6 +90,9 @@ export function puedeVer(quien: Quien, seccion: Seccion): boolean {
 
 /** Primera sección que el rol puede ver: adonde se lo manda al entrar o si pide algo que no puede ver */
 export function rutaInicial(quien: Quien): string {
+  // El cliente (portal, 2/11/2026) no tiene secciones: su único lugar es su portal (sin ID atado, la página de acceso)
+  if (typeof quien !== 'string' && quien.rol === 'cliente') return quien.clienteId && ID_PORTAL.test(quien.clienteId) ? rutaPortal(quien.clienteId) : RUTA_SIN_SECCIONES
+  if (quien === 'cliente') return RUTA_SIN_SECCIONES
   const lista = typeof quien === 'string' ? MATRIZ_ROLES[quien] : (quien.secciones ?? MATRIZ_ROLES[quien.rol])
   // La primera que puede ver, en el orden del menú (no en el que se cargó)
   const primera = SECCIONES.find((s) => lista.includes(s))

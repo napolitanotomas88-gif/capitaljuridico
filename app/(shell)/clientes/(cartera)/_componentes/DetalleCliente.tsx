@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { idsConMailDePortal } from '@/lib/auth/portal'
+import { idsConPortal } from '@/lib/clientes/portal/base'
 import { Suspense, type CSSProperties } from 'react'
 import { puedeVer } from '@/lib/auth/roles'
 import type { Sesion } from '@/lib/auth/sesion'
@@ -73,11 +75,13 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
   const sufijo = demo ? '?demo=1' : ''
   const id = encodeURIComponent(ficha.id)
 
-  const [tandas, videos, documento] = await Promise.all([
+  const [tandas, videos, documento, conPortal] = await Promise.all([
     !ver.guiones ? null : demo ? { ok: true as const, v: tandasDemo(fila) } : baseGuiones() ? leer('tandas', () => tandasDelCliente(ficha.id)) : { ok: false as const },
     !ver.edicion ? null : demo ? { ok: true as const, v: [] as FilaTablero[] } : baseEdicion() ? leer('videos', () => listarVideos({ id_crm: ficha.id, incluirFinales: true, limite: 200 })) : { ok: false as const },
     demo ? null : (puedeHacerAcciones(quien.email) ? asegurarDocumentoCliente(ficha.id) : documentoVinculadoCliente(ficha.id)).catch(() => null),
+    demo || !ver.acciones ? new Set<string>() : idsConPortal(),
   ])
+  const tienePortal = conPortal.has(ficha.id.toUpperCase()) || (ver.acciones && idsConMailDePortal().has(ficha.id.toUpperCase()))
 
   return (
     <div className="rc-detalle">
@@ -119,6 +123,8 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
           {ver.finanzas && <Periodos f={ficha} accionHref={demo || puedeHacerAcciones(quien.email) ? `/clientes?cliente=${id}&${demo ? 'demo=1&' : ''}accion=renovacion#rc-acciones` : undefined} />}
           {ver.finanzas && <Cobros f={ficha} accionHref={demo || puedeHacerAcciones(quien.email) ? `/clientes?cliente=${id}&${demo ? 'demo=1&' : ''}accion=pago#rc-acciones` : undefined} />}
         <p><Link className="cj-enlace" href={`/clientes/${id}${sufijo}`}>Abrir la ficha completa</Link></p>
+        {/* Portal del cliente (2/11/2026): a la vista solo para los que ya tienen uno armado o su mail habilitado; el resto lo abre desde la ficha */}
+        {!demo && tienePortal && <p><Link className="cj-enlace" href={`/clientes/portal/${id}`}>Portal del cliente</Link></p>}
       </div>
 
       <div id="rc-kickoff" className="rc-bloque">

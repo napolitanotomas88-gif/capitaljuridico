@@ -6,6 +6,7 @@ import { enProduccion } from './entorno'
 import { peticionLocal } from './hostLocal'
 import { MATRIZ_ROLES, SECCIONES, esRol, type Rol, type Seccion } from './roles'
 import { buscarUsuario } from './usuarios'
+import { ID_PORTAL } from './portal'
 
 export type Sesion = {
   /** Identificador estable: el mail en minúsculas (en el usuario de prueba, "dev") */
@@ -21,6 +22,8 @@ export type Sesion = {
   pestanas: readonly string[]
   /** true = usuario de prueba de desarrollo (nunca existe en producción) */
   esDePrueba: boolean
+  /** Solo el rol 'cliente' (portal del cliente, lib/auth/portal.ts): el ID del CRM al que está atado. null para el equipo. */
+  clienteId: string | null
 }
 
 /**
@@ -33,7 +36,7 @@ export function sesionDesdeCookie(valor: string | null | undefined): Sesion | nu
   if (!datos) return null
   const usuario = buscarUsuario(datos.e)
   if (!usuario) return null
-  return { id: usuario.email, email: usuario.email, nombre: usuario.nombre, rol: usuario.rol, admin: usuario.admin, secciones: usuario.secciones, pestanas: usuario.pestanas, esDePrueba: false }
+  return { id: usuario.email, email: usuario.email, nombre: usuario.nombre, rol: usuario.rol, admin: usuario.admin, secciones: usuario.secciones, pestanas: usuario.pestanas, esDePrueba: false, clienteId: usuario.rol === 'cliente' ? usuario.clienteId ?? null : null }
 }
 
 /**
@@ -49,7 +52,10 @@ export function sesionDePrueba(headers: { get(nombre: string): string | null }):
   // CRM_DEV_ROL=acceso: secciones a mano con CRM_DEV_SECCIONES (por ejemplo "edicion" para ver lo que ve René). Sin la
   // variable, o con claves desconocidas o 'configuracion', no suma nada (falla cerrado, como un acceso vacío).
   const secciones: readonly Seccion[] = rol === 'socio' ? SECCIONES : rol === 'acceso' ? seccionesDePrueba(process.env.CRM_DEV_SECCIONES) : MATRIZ_ROLES[rol]
-  return { id: 'dev', email: 'dev@localhost', nombre: 'Usuario de prueba', rol, admin: rol === 'socio', secciones, pestanas: [], esDePrueba: true }
+  // CRM_DEV_ROL=cliente: el portal de CRM_DEV_CLIENTE (un ID válido); sin eso no tiene a dónde ir (falla cerrado)
+  const dev = String(process.env.CRM_DEV_CLIENTE ?? '').trim().toUpperCase()
+  const clienteId = rol === 'cliente' && ID_PORTAL.test(dev) ? dev : null
+  return { id: 'dev', email: 'dev@localhost', nombre: rol === 'cliente' ? 'Cliente de prueba' : 'Usuario de prueba', rol, admin: rol === 'socio', secciones, pestanas: [], esDePrueba: true, clienteId }
 }
 
 /** Secciones del usuario de prueba de tipo "acceso" (solo desarrollo): lista separada por comas, sin 'configuracion'. */
@@ -57,3 +63,10 @@ export function seccionesDePrueba(valor: string | undefined): Seccion[] {
   const pedidas = String(valor ?? '').split(',').map((x) => x.trim().toLowerCase())
   return SECCIONES.filter((s) => s !== 'configuracion' && pedidas.includes(s))
 }
+
+/**
+ * Portal del cliente (2/11/2026): ¿esta sesión es de un CLIENTE? Las barreras que solo miran "hay sesión" (obtenerSesion y
+ * sesionDePeticion) lo tratan como anónimo salvo que se pida lo contrario: así ninguna página ni API del equipo lo deja pasar
+ * por olvido. Lo dejan entrar a propósito: el marco del Despacho, el hub de Clientes, /entrar y la página del portal.
+ */
+export const esSesionCliente = (s: Pick<Sesion, 'rol'> | null | undefined): boolean => s?.rol === 'cliente'

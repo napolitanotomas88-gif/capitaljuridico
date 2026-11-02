@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { redirect } from 'next/navigation'
 import { METADATA_APP, VIEWPORT_APP } from '@/components/shell/pwa'
 import { MarcoShell } from '@/components/shell/MarcoShell'
+import { MarcoPortal } from '@/components/shell/MarcoPortal'
 import { obtenerSesion } from '@/lib/auth/sesion'
 
 // Shell del dashboard unificado Capital Jurídico: marca (fuentes + cj.css), navegación y acceso por rol.
@@ -20,7 +21,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = VIEWPORT_APP
 
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {
-  const sesion = await obtenerSesion()
+  const sesion = await obtenerSesion({ incluirCliente: true })
   if (!sesion) redirect('/entrar')
+  // Portal del cliente (2/11/2026): el cliente no ve el menú del Despacho, solo un marco con la marca y «Salir»
+  if (sesion.rol === 'cliente') return <MarcoPortal sesion={sesion}>{children}</MarcoPortal>
   return <MarcoShell sesion={sesion}>{children}</MarcoShell>
 }

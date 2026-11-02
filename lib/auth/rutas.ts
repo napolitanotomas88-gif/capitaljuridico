@@ -16,6 +16,7 @@
 import { puedeVer, rutaInicial, type Rol, type Seccion } from './roles'
 import { rutaInternaSegura } from './destino'
 import { destinoSinPermiso } from './hubClientes'
+import { esRutaDelPortal } from './portal'
 
 export type Quien =
   /** Cualquiera: login y estáticos. El proxy no mira nada de la petición. */
@@ -101,10 +102,15 @@ export const REGLAS: readonly Regla[] = [
   // Clientes es un hub de pestañas (25/10/2026, lib/auth/hubClientes.ts): cada pestaña conserva el permiso de su sección.
   // Edición y Referidos van ANTES que '/clientes/*' (gana la primera que coincide): sin esto pedirían la Cartera ('clientes').
   // Las rutas viejas (/edicion, /referidos) redirigen con 308 en next.config.ts, antes de llegar al proxy.
+  // Portal del cliente (2/11/2026, lib/auth/portal.ts): ANTES que '/clientes/*'. Para el equipo pide la Cartera ('clientes'):
+  // ve el portal de cualquier cliente y lo edita. Un CLIENTE (rol 'cliente') no pasa por esta regla: decidir() lo resuelve antes
+  // y solo le abre /clientes/portal/<su ID> exacto.
+  { patron: '/clientes/portal/*', quien: 'google', seccion: 'clientes', motivo: 'Portal del cliente (objetivo, plan por etapas, guiones aprobados y proceso). Equipo con la Cartera: ve y edita el de cualquier cliente. El cliente (mail en PORTAL_CLIENTES_JSON) solo abre /clientes/portal/<su ID>, en lectura; cualquier otra página lo devuelve a su portal.' },
   { patron: '/clientes/altas/*', quien: 'google', seccion: 'altas', motivo: '«Cargar alta» (pestaña de Clientes, 26/10/2026): el bot de altas sin WhatsApp (pegar el alta, vista previa, OK / NO, datos del closer, "Hecho a mano"). Closers y quien la tenga en Configuración; adentro, la página exige closer o aprobador (Tomás, Gero A, Aylu, Gero M por mail) y un closer ve solo sus altas.' },
   { patron: '/clientes/edicion/*', quien: 'google', seccion: 'edicion', motivo: 'Edición (pestaña de Clientes; antes /edicion): tablero de grabación y edición de videos (crudos, check de Aylu, cola de René, notas, envío al cliente, seguimiento). Socio y quien la tenga en Configuración (René, con [edicion] y sin Cartera).' },
   { patron: '/clientes/referidos/*', quien: 'google', seccion: 'referidos', motivo: 'Programa de referidos (pestaña de Clientes; antes /referidos).' },
   { patron: '/clientes/*', quien: 'google', seccion: 'clientes', motivo: 'Cartera de clientes (muestra cobros) y la ficha de cada cliente con su kickoff. Solo la sección Clientes: ninguna otra pestaña del hub la habilita.' },
+  { patron: '/api/clientes/portal/*', quien: 'google', seccion: 'clientes', motivo: 'Guardar el portal del cliente (POST /api/clientes/portal/<ID>, mismo origen, versión): sesión de Google del equipo con la Cartera. El cliente NUNCA llega (toda /api le da 403). Sin acceso por máquina.' },
   { patron: '/api/clientes/altas', quien: 'google', seccion: 'altas', motivo: 'API de «Cargar alta» (POST multipart): sesión de Google con la sección Cargar alta, mismo origen y quién puede qué en lib/bot/alta/despacho/acciones.ts (aprueban solo Tomás, Gero A, Aylu y Gero M). Sin acceso por máquina.' },
   { patron: '/api/clientes/inactivos', quien: 'google_o_maquina', seccion: 'clientes', motivo: 'Seguimiento de respuestas: sesión de Clientes para lectura/registro autorizado; cron con CRON_SECRET para alertas internas cada tres días, sin mensajes al cliente.' },
   { patron: '/api/clientes/inactivos/cron', quien: 'propio', motivo: 'Cron con Bearer CRON_SECRET: alertas internas por tres días sin respuesta. Sin sesión humana y sin mensajes al cliente.' },
@@ -176,11 +182,13 @@ export function resolverRegla(pathname: string): Resolucion {
 
 // ── Decisión ───────────────────────────────────────────────────────────────────────────────
 /** Lo que se sabe de quien pide: su sesión de Google (solo hace falta el rol) y si mandó el Bearer correcto. */
-export type Contexto = { sesion: { rol: Rol; secciones?: readonly Seccion[] | null } | null; maquina: boolean }
+export type Contexto = { sesion: { rol: Rol; secciones?: readonly Seccion[] | null; clienteId?: string | null } | null; maquina: boolean }
 export type Veredicto = 'pasar' | 'finanzas' | 'sin_sesion' | 'sin_permiso'
 
 function conSesion(regla: Pick<Regla, 'seccion'>, ctx: Contexto): Veredicto {
   if (!ctx.sesion) return 'sin_sesion'
+  // El cliente (portal) no tiene permiso para NADA por sección ni por "cualquier sesión": su portal lo abre decidir() aparte
+  if (ctx.sesion.rol === 'cliente') return 'sin_permiso'
   if (regla.seccion && !puedeVer(ctx.sesion, regla.seccion)) return 'sin_permiso'
   return 'pasar'
 }
@@ -221,11 +229,18 @@ export function destinoEntrar(pathname: string, search: string): string {
  * el encabezado Authorization, así que lo que usan los crons, los webhooks y el video queda intacto.
  */
 export function decidir(entrada: { pathname: string; search?: string; contexto: () => Contexto }): Decision {
-  const { regla, esApi } = resolverRegla(entrada.pathname)
+  const { regla, esApi, ruta, ambigua } = resolverRegla(entrada.pathname)
   if (regla.quien === 'publico' || regla.quien === 'propio') return { accion: 'pasar' }
   if (regla.quien === 'finanzas') return { accion: 'finanzas', esApi }
 
   const ctx = entrada.contexto()
+  // Portal del cliente (2/11/2026): un CLIENTE solo abre la página exacta de su portal. Otra página → a su portal; /api → 403.
+  // (Un Bearer de máquina válido sigue valiendo donde la regla lo admite: no depende de la cookie.)
+  if (ctx.sesion?.rol === 'cliente' && !(regla.quien === 'google_o_maquina' && ctx.maquina)) {
+    if (!ambigua && !esApi && esRutaDelPortal(ruta, ctx.sesion.clienteId)) return { accion: 'pasar' }
+    if (esApi) return { accion: 'json', estado: 403, error: ERROR_SIN_PERMISO }
+    return { accion: 'redirigir', destino: rutaInicial(ctx.sesion) }
+  }
   switch (veredicto(regla, ctx)) {
     case 'pasar':
       return { accion: 'pasar' }
