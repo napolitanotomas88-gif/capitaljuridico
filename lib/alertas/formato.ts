@@ -33,6 +33,8 @@ export interface PartesAlerta {
   prueba?: boolean
   /** «iba a #canal» cuando cayó al respaldo. */
   ibaA?: string | null
+  /** true si cayó al respaldo porque Discord falló (429, 5xx) y no por falta del webhook. */
+  porFalla?: boolean
 }
 
 /** El texto del mensaje (sin las opciones del envío). */
@@ -44,7 +46,7 @@ export function armarTexto(p: PartesAlerta): string {
     `**${limpia(p.titulo, 160)}${p.cliente ? ` — ${limpia(p.cliente, 80)}` : ''}**`,
   ].filter(Boolean).join(' ')
   const lineas = (p.lineas ?? []).map((l) => limpia(l, 300)).filter(Boolean).slice(0, MAX_LINEAS).map((l) => `• ${l}`)
-  const extra = [p.ibaA ? `_(iba a ${p.ibaA}: falta su webhook)_` : '', p.prueba && p.menciones ? `_(mencionaría a ${p.menciones.replace(/<@\d+>/g, 'alguien')})_` : ''].filter(Boolean)
+  const extra = [p.ibaA ? `_(iba a ${p.ibaA}: ${p.porFalla ? 'Discord falló' : 'falta su webhook'})_` : '', p.prueba && p.menciones ? `_(mencionaría a ${p.menciones.replace(/<@\d+>/g, 'alguien')})_` : ''].filter(Boolean)
   const pie = p.link ? `➡️ <${p.link}>` : ''
   const copiar = (p.copiar ?? '').replace(/```/g, "'''").trim()
   const armar = (ls: string[], c: string) => [cab, ...ls, ...(c ? ['```', c, '```'] : []), ...extra, ...(pie ? [pie] : [])].join('\n')

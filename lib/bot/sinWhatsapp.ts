@@ -22,7 +22,7 @@ const diaAR = (ms = Date.now()) => new Date(ms).toLocaleDateString('en-CA', { ti
 /** «Respondé citando: OK / NO» → «Respondelo en el Despacho con OK / NO». */
 export function sinCitar(texto: string): string {
   return texto
-    .replace(/Respond[eé] (?:de nuevo )?citando(?: (?:este mensaje|el pedido|la lista|la consulta))?(?: con)?:?\s*/gi, 'Respondelo en el Despacho: ')
+    .replace(/Respond[eé] (?:de nuevo )?citando(?: (?:este mensaje|el pedido|la lista|la consulta))?(?:,? con)?:?\s*/gi, 'Respondelo en el Despacho: ')
     .replace(/citando el pedido/gi, 'en el Despacho')
 }
 

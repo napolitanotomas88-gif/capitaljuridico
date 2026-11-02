@@ -116,7 +116,25 @@ export async function alertarCon(a: Alerta, d: DepsAlerta): Promise<ResultadoAle
     return { estado: 'enviado', mensajeId: id, sale: destino.sale }
   } catch (e) {
     const transitorio = e instanceof ErrorEnvio ? e.transitorio : true
-    const dudoso = transitorio && /no respondió|tiempo/i.test(motivoDe(e))
+    // Dudoso = Discord pudo haberlo publicado (cortó la espera de la respuesta). Un 429, un 5xx o «se acabó el tiempo» ANTES
+    // de mandar no salió seguro: es error (se puede reintentar), nunca dudoso (revisión del 2/11: un 429 quedaba «dudoso» y
+    // no se volvía a intentar nunca).
+    const dudoso = transitorio && /no respondió/i.test(motivoDe(e))
+    // Que no se pierda: un error transitorio (429, 5xx, red) de un canal sale por #🧰-sistema-bot (otro webhook, otro
+    // límite) con la línea «iba a …». Mismas menciones; el respaldo nunca reintenta a su vez.
+    const resp = !dudoso && transitorio && destino.sale !== 'sistema' ? webhookDe('sistema', d.env) : null
+    if (resp?.url && resp.url !== destino.url) {
+      try {
+        const t2 = armarTexto({
+          menciones: m.texto, emoji: a.emoji, titulo: a.titulo, cliente: a.cliente, lineas: a.lineas, copiar: a.copiar,
+          link: linkDespacho(d.base, a.link), prueba: marcada, ibaA: NOMBRE_CANAL[a.canal], porFalla: true,
+        })
+        const id = await d.enviar(resp.url, t2, marcada ? [] : m.ids, flagsDe(d.ahora(), !!a.urgente))
+        await cerrar('enviado', id, `salió por el respaldo: ${motivoDe(e)}`)
+        log.warn(`[alertas] ${a.tipo} a ${NOMBRE_CANAL[a.canal]}: salió por el respaldo (${motivoDe(e)})`)
+        return { estado: 'enviado', mensajeId: id, sale: resp.sale }
+      } catch (e2) { log.warn(`[alertas] ${a.tipo}: también falló el respaldo (${motivoDe(e2)})`) }
+    }
     await cerrar(dudoso ? 'dudoso' : 'error', null, motivoDe(e))
     log.warn(`[alertas] ${a.tipo} a ${NOMBRE_CANAL[a.canal]}: ${dudoso ? 'dudoso' : 'error'} (${motivoDe(e)})`)
     return { estado: dudoso ? 'dudoso' : 'error', motivo: motivoDe(e) }
