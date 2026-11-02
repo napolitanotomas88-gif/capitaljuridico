@@ -16,6 +16,7 @@ const A = await import('../lib/alertas/alerta.ts')
 const CORTE = await import('../lib/bot/whapi/corte.ts')
 const N = await import('../lib/notificaciones/discord/modelo.ts')
 const CANAL = await import('../lib/bot/alta/despacho/canal.ts')
+const SW = await import('../lib/bot/sinWhatsapp.ts')
 
 const wh = (n) => `https://discord.com/api/webhooks/1234567890123456${n}/abcdefghijklmnopqrstuvwxyz_${n}`
 const ID = { tomas: '100000000000000001', gero_a: '100000000000000002', gero_m: '100000000000000003', aylu: '100000000000000004', valentino: '100000000000000005' }
@@ -145,6 +146,43 @@ test('alertarCon: tope de 60 por hora y canal; el exceso avisa una sola vez en e
   for (let i = 0; i < 62; i++) await A.alertarCon({ canal: 'para_enviar', tipo: 'p', clave: `p${i}`, titulo: 'x' }, d)
   assert.equal(enviados.filter((e) => e.url === wh(5)).length, 60)
   assert.equal(enviados.filter((e) => e.url === wh(2)).length, 1)
+})
+
+const { ErrorEnvio } = await import('../lib/fathomAnuncios/discord.ts')
+
+test('alertarCon: un 429 o un 5xx no queda «dudoso»; sale por #🧰-sistema-bot con «iba a …» y las mismas menciones (revisión 2/11)', async () => {
+  const enviados = []
+  const env = { ...envIds, DISCORD_WEBHOOK_VERIFICACIONES: wh(1), DISCORD_WEBHOOK_SISTEMA: wh(2) }
+  const reg = registroMemoria()
+  const d = { ...deps(env, enviados, reg), enviar: async (url, texto, menciones) => {
+    if (url === wh(1)) throw new ErrorEnvio('Discord pidió esperar 30 s (429) y no alcanza el tiempo', [], true)
+    enviados.push({ url, texto, menciones }); return 'm1'
+  } }
+  const r = await A.alertarCon({ canal: 'verificaciones', tipo: 'alta_ok', clave: 'r429', titulo: 'Alta: hace falta un OK', cliente: 'Ana', menciones: ['aprobadores'] }, d)
+  assert.equal(r.estado, 'enviado')
+  assert.equal(enviados.length, 1)
+  assert.equal(enviados[0].url, wh(2))
+  assert.match(enviados[0].texto, /iba a ✅-verificaciones: Discord falló/)
+  assert.deepEqual(enviados[0].menciones, [ID.tomas, ID.gero_a, ID.gero_m, ID.aylu])
+  // Sin respaldo: queda «error» (reintentable), no «dudoso»
+  const reg2 = registroMemoria()
+  const d2 = { ...deps({ DISCORD_WEBHOOK_VERIFICACIONES: wh(1) }, [], reg2), enviar: async () => { throw new ErrorEnvio('Discord respondió 429 (demasiados mensajes seguidos)', [], true) } }
+  assert.equal((await A.alertarCon({ canal: 'verificaciones', tipo: 'x', clave: 'r2', titulo: 'x' }, d2)).estado, 'error')
+  assert.equal(reg2.filas.get('r2').estado, 'error')
+  // Un timeout esperando la respuesta SÍ es dudoso (pudo haber salido) y no se duplica por el respaldo
+  const otros = []
+  const d3 = { ...deps({ DISCORD_WEBHOOK_VERIFICACIONES: wh(1), DISCORD_WEBHOOK_SISTEMA: wh(2) }, otros), enviar: async (url) => { if (url === wh(1)) throw new ErrorEnvio('Discord no respondió en 10 s', [], true); otros.push(url); return 'x' } }
+  assert.equal((await A.alertarCon({ canal: 'verificaciones', tipo: 'x', clave: 'r3', titulo: 'x' }, d3)).estado, 'dudoso')
+  assert.equal(otros.length, 0)
+  // Un 400/404 (no transitorio) tampoco va al respaldo
+  const d4 = { ...deps({ DISCORD_WEBHOOK_VERIFICACIONES: wh(1), DISCORD_WEBHOOK_SISTEMA: wh(2) }, otros), enviar: async (url) => { if (url === wh(1)) throw new ErrorEnvio('Discord respondió 404', [], false); otros.push(url); return 'x' } }
+  assert.equal((await A.alertarCon({ canal: 'verificaciones', tipo: 'x', clave: 'r4', titulo: 'x' }, d4)).estado, 'error')
+  assert.equal(otros.length, 0)
+})
+
+test('sinCitar: los pedidos del alta no dicen «Respondé citando» en Discord', () => {
+  assert.equal(SW.sinCitar('Respondé citando este mensaje, con una línea por dato.'), 'Respondelo en el Despacho: una línea por dato.')
+  assert.equal(SW.sinCitar('Respondé citando este mensaje: OK para seguir'), 'Respondelo en el Despacho: OK para seguir')
 })
 
 test('corte global: sin WHATSAPP_BOT=encendido el bot no puede escribir por WhatsApp y el alta va por el Despacho', () => {

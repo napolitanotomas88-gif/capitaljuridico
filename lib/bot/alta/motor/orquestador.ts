@@ -71,7 +71,7 @@ export interface DepsOrquestador extends DepsMotorBase {
   canal?: () => CanalAlta
   /** Aviso (Discord) de un pedido que se responde en el Despacho: porque el canal es 'despacho' o porque WhatsApp no está
    *  disponible (la guardia de salud lo frenó). Uno por espera. Nunca frena al motor. */
-  avisarEspera?: (d: { alta: FilaAlta; espera: Espera; motivo: 'despacho' | 'sin_whatsapp' }) => Promise<void>
+  avisarEspera?: (d: { alta: FilaAlta; espera: Espera; motivo: 'despacho' | 'sin_whatsapp'; recordatorio?: number }) => Promise<void>
   /** Sin WhatsApp (2/11/2026): lo que el motor le decía al equipo en Verificaciones C.J. o al closer en Ventas C.J. (resumen
    *  de lo recibido, avisos, «Alta terminada») va a ✅-verificaciones de Discord. Los pedidos (esperas) van por avisarEspera.
    *  Nunca frena al motor. */
@@ -890,6 +890,14 @@ export function crearOrquestador(deps: DepsOrquestador): MotorAltasO {
         const r = await enviar(st, { proposito: `espera:${e.id}:rec${e.recordatorios + 1}`, destino: { grupo: e.grupo }, tipo: 'texto', texto: textoRecordatorio(e, nombreDe(st.alta)), citar: e.mensajes[0] ?? null, esperaId: e.id })
         const actual = st.alta.esperas.find((x) => x.id === e.id) ?? e
         await marcarEspera(st, e.id, { recordatorios: e.recordatorios + 1, ultimoRecordatorio: iso(t), mensajes: r.estado === 'enviado' && r.id ? [...actual.mensajes, r.id] : actual.mensajes })
+        // Canal Despacho (sin WhatsApp): el recordatorio no sale a ningún grupo, así que va a Discord (revisión del 2/11: antes
+        // se perdía y un pedido sin responder quedaba callado hasta vencer a los 14 días)
+        if (deps.avisarEspera && canal() === 'despacho') {
+          try {
+            await deps.avisarEspera({ alta: st.alta, espera: actual, motivo: 'despacho', recordatorio: e.recordatorios + 1 })
+            st.registro.push(`recordatorio ${e.recordatorios + 1} a Discord del pedido ${e.id}`)
+          } catch (x) { log.warn(`bot-alta: ${st.alta.id} — no salió a Discord el recordatorio del pedido ${e.id}: ${motivoDe(x)}`) }
+        }
       }
     }
     if (st.alta.estado === 'fee' && t > Date.parse(st.alta.creado) + VENCE_FEE_MS) {

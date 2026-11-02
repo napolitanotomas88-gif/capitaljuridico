@@ -365,6 +365,21 @@ describe('aviso a Discord', () => {
     await cargar(wa, SIN_DNI)
     assert.equal(wa.avisos.length, 0)
   })
+  test('canal Despacho: el pedido sin responder recuerda en Discord a las 24 y 72 h (sin WhatsApp no salía nada)', async () => {
+    const m = armar()
+    const r = await cargar(m, SIN_DNI)
+    assert.equal(m.avisos.length, 1)
+    m.reloj.t += 30 * 3600_000
+    await m.post({ accion: 'reintentar', alta_id: r.json.altaId })
+    assert.equal(m.avisos.length, 2)
+    assert.equal(m.avisos[1].recordatorio, 1); assert.equal(m.avisos[1].espera.id, m.avisos[0].espera.id)
+    await m.post({ accion: 'reintentar', alta_id: r.json.altaId })
+    assert.equal(m.avisos.length, 2, 'el mismo recordatorio no se repite')
+    m.reloj.t += 3 * 86_400_000
+    await m.post({ accion: 'reintentar', alta_id: r.json.altaId })
+    assert.equal(m.avisos.length, 3); assert.equal(m.avisos[2].recordatorio, 2)
+    assert.equal(m.whapi.enviados.length, 0, 'nada por WhatsApp')
+  })
   test('si Discord falla, el aviso se reintenta en la vuelta siguiente', async () => {
     const m = armar({ discordFalla: true })
     const r = await cargar(m, SIN_DNI)

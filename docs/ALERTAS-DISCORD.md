@@ -147,3 +147,13 @@ Otras variables:
 - Borrar las variables `WHAPI_*` y `*_WHATSAPP*` de Vercel.
 - Canal oficial de WhatsApp (proveedor `meta` / `2chat`).
 - Agrupar más de 5 alertas iguales en 10 minutos en un solo mensaje (hoy solo está el tope por hora).
+
+## Revisión del 2/11/2026 (después de la prueba punta a punta)
+
+- **429 / 5xx / red:** ya no quedan «dudosas» (no se reintentaban nunca). La alerta sale por #🧰-sistema-bot con la línea
+  «iba a #canal: Discord falló» y las mismas menciones. Solo un timeout esperando la respuesta de Discord es «dudoso»
+  (pudo haber salido) y no se duplica.
+- **Pedidos del alta sin responder:** con el canal Despacho el recordatorio no salía a ningún lado. Ahora, a las 24 h y a
+  las 72 h, sale «⏰ Recordatorio N · sigue sin responder» en ✅-verificaciones mencionando a los aprobadores (Tomás,
+  Gero A, Gero M y Aylu), con el link a la espera. Nunca al closer.
+- **«Respondé citando…»:** en los avisos del alta en Discord se cambia por «Respondelo en el Despacho».

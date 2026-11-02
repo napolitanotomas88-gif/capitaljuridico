@@ -29,6 +29,7 @@ import { closerDeFila } from '../despacho/aprobadores'
 import { whatsappBotEncendido } from '../../whapi/corte'
 import { alertar } from '@/lib/alertas'
 import { sinTelefonos } from '@/lib/alertas/formato'
+import { sinCitar } from '@/lib/bot/sinWhatsapp'
 import type { TareaManualAlta } from './contexto'
 import type { FilaAlta } from './almacen'
 import { guardiaWhapi } from '../../whapi/salud'
@@ -157,7 +158,7 @@ const nombreAlta = (a: FilaAlta) => a.validacion?.nombreConfirmado ?? a.nombreCl
 
 /** Lo que el motor le decía al equipo o al closer → ✅-verificaciones (mencionando a los aprobadores solo si pide algo). */
 export async function equipoDiscordAlta(d: { alta: FilaAlta; proposito: string; texto: string; grupo: 'ventas' | 'verificaciones' }): Promise<void> {
-  const lineas = sinTelefonos(d.texto).split('\n').map((l) => l.trim()).filter(Boolean)
+  const lineas = sinCitar(sinTelefonos(d.texto)).split('\n').map((l) => l.trim()).filter(Boolean)
   const closer = closerDeFila(d.alta)
   const terminada = /Alta de .* terminada/.test(d.texto)
   const r = await alertar({
@@ -212,10 +213,12 @@ export async function avisarEsperaDiscord(d: Parameters<NonNullable<DepsO['avisa
   const closer = closerDeFila(d.alta)
   const que = d.espera.quien === 'closer' ? `falta un dato del cliente${closer ? ` (lo cargó ${closer})` : ''}` : 'hace falta un OK'
   const link = linkEspera('', d.alta.id, d.espera.id)
+  const rec = d.recordatorio ?? 0
   const r = await alertar({
-    canal: 'verificaciones', tipo: d.espera.quien === 'closer' ? 'alta_falta_dato' : 'alta_ok', clave: `alta:${d.alta.id}:espera:${d.espera.id}`,
-    emoji: d.espera.quien === 'closer' ? '✍️' : '🟡', titulo: `Alta: ${que}`, cliente: nombreAlta(d.alta),
-    lineas: d.espera.pedido.slice(0, 6).map((x) => sinTelefonos(String(x))), link, menciones: ['aprobadores'],
+    canal: 'verificaciones', tipo: d.espera.quien === 'closer' ? 'alta_falta_dato' : 'alta_ok', clave: `alta:${d.alta.id}:espera:${d.espera.id}${rec ? `:rec${rec}` : ''}`,
+    emoji: rec ? '⏰' : d.espera.quien === 'closer' ? '✍️' : '🟡', titulo: `${rec ? `Recordatorio ${rec} · sigue sin responder — ` : ''}Alta: ${que}`, cliente: nombreAlta(d.alta),
+    // «Respondé citando…» era para WhatsApp: acá se responde en el Despacho (link)
+    lineas: d.espera.pedido.slice(0, 6).map((x) => sinCitar(sinTelefonos(String(x)))).filter((x) => x.trim()), link, menciones: ['aprobadores'],
   })
   if (r.estado === 'error' || r.estado === 'dudoso') throw new Error(r.motivo ?? 'Discord no confirmó el aviso')
 }
