@@ -953,6 +953,16 @@ test('columna B: primera cuota de un PP 3300 → DFY | PP | $3300', () => {
   assert.equal(programaPlanilla(libre).valor, 'DFY | PP | $3300')
 })
 
+test('columna B: monto antes de PIF sin otro monto después ("Pagó 2400 usd PIF") → ese monto es el plan', () => {
+  for (const linea of ['Pago 2400 usd PIF', 'Pagó 2400 USD PIF por transferencia']) {
+    const a = parsearAlta(`${linea}\nJuan Pérez`)
+    assert.equal(a.modalidad, 'PIF', linea)
+    assert.equal(a.totalUsd, 2400, linea)
+    assert.equal(a.estePagoUsd, 2400, linea)
+    assert.equal(programaPlanilla(a).valor, 'DFY | PIF | $2400', linea)
+  }
+})
+
 test('columna B: plan exacto en la lista (sin nota)', () => {
   const p = programaPlanilla({ programa: null, modalidad: 'PIF', totalUsd: 2400 })
   assert.deepEqual(p, { valor: 'DFY | PIF | $2400', enLista: true, nota: null, sugerida: null })

@@ -490,7 +490,9 @@ export function parsearAlta(mensaje: string): AltaParseada {
       // este pago (un Fee o una primera cuota), nunca el total del plan (Tomás, 2/11/2026)
       const iTipo = s.search(/\b(PIF|PP)\b/i)
       const antes = s.slice(0, iTipo), delPlan = s.slice(iTipo)
-      const pagoAntes = RE_PAGO_ANTES_DEL_PLAN.test(norm(antes)) && (RE_DICE_USD.test(antes) || /\$\s*\d/.test(antes)) && !pagoEnPesos(antes)
+      // Si después de PIF/PP no hay ningún monto ("Pagó 2400 usd PIF"), el monto de antes ES el plan (como siempre)
+      const pagoAntes = RE_PAGO_ANTES_DEL_PLAN.test(norm(antes)) && (RE_DICE_USD.test(antes) || /\$\s*\d/.test(antes)) && !pagoEnPesos(antes) &&
+        /\b(PIF|PP)\b\s*(de\s+|por\s+|total\s+)?(u\$s|usd|\$)?\s*\d/i.test(delPlan)
         ? montoSuelto(antes) : null
       const tramo = pagoAntes !== null ? delPlan : s
       leerTipoPago(r, tramo)
