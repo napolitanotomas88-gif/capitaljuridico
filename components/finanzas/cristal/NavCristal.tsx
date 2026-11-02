@@ -90,6 +90,11 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   const medidor = useRef<HTMLSpanElement>(null)
 
   useEffect(() => { onCambio({ abierta, noche }) }, [abierta, noche, onCambio])
+  // En el celular se entra siempre con el riel (el panel abierto taparía el contenido), aunque en la compu se haya dejado abierto
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => { if (window.matchMedia('(max-width: 767px)').matches) setAbierta(false) })
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
   // Correo de la sesión y conteos de las insignias (solo lectura)
   useEffect(() => {
@@ -130,7 +135,11 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
         return
       }
       if (e.key === '[' && !enCampo && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); alternar() }
-      if (e.key === 'Escape') setMenuUsuario(false)
+      if (e.key === 'Escape') {
+        setMenuUsuario(false)
+        // En el celular el panel abierto tapa el contenido: Escape lo cierra (como tocar el velo)
+        if (abierta && window.matchMedia('(max-width: 767px)').matches) alternar()
+      }
     }
     window.addEventListener('keydown', tecla)
     return () => window.removeEventListener('keydown', tecla)
@@ -201,7 +210,18 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   useEffect(() => {
     const t = setTimeout(() => moverPildora(), 260)
     return () => clearTimeout(t)
-  }, [reportes, abierta, moverPildora])
+  }, [reportes, moverPildora])
+  // Al abrir o cerrar el panel, el paso entre filas cambia (riel 46 → panel 40) con transición: la píldora acompaña cuadro a cuadro
+  useEffect(() => {
+    const inicio = performance.now()
+    let raf = 0
+    const seguir = () => {
+      moverPildora(true)
+      if (performance.now() - inicio < 420) raf = requestAnimationFrame(seguir)
+    }
+    raf = requestAnimationFrame(seguir)
+    return () => cancelAnimationFrame(raf)
+  }, [abierta, moverPildora])
   useEffect(() => {
     const r = resortes.current
     const alCambiar = () => moverPildora(true)

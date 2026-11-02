@@ -104,7 +104,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   background: linear-gradient(180deg, #e6cd9c 0%, #be8f49 55%, #8c6631 100%);
   -webkit-mask: url('/marca/logo-claro.svg') center / contain no-repeat;
   mask: url('/marca/logo-claro.svg') center / contain no-repeat;
-  opacity: 0.5;
+  opacity: 0.42;
   transition: translate 300ms var(--cr-curva), opacity 400ms ease;
 }
 .fin-cristal[data-nav='panel'] { --cr-logo-x: 110px; }
@@ -252,6 +252,9 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   -webkit-tap-highlight-color: transparent;
   transition: background-color 100ms ease;
 }
+/* En el riel el paso entre íconos es más amplio que en el panel (video: 46–50 px en el riel, 40 en el panel) */
+.fcn-item { transition: background-color 100ms ease, margin 240ms var(--cr-curva); }
+.fcn[data-abierta='false'] .fcn-item { margin: 5px 0; }
 .fcn-item:hover { background: rgba(255, 255, 255, 0.08); }
 .fcn-item[aria-current='page']:hover { background: transparent; }
 .fcn-ico {
@@ -449,7 +452,7 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 
 /* Superficies de primer nivel = paneles de cristal ahumado */
 .fin-cristal :is(.cj-bloque, .cj-dato, .cj-vacio-guiado, .cj-panel),
-.fin-cristal .fin-skwd :is(.tabla-scroll, .kpi, .dash-card, .detalle, .resumen-principal, .tarjetas > div, .er-detalle, .login-tarjeta, .impacto) {
+.fin-cristal .fin-skwd :is(.tabla-scroll, .kpi, .dash-card, .detalle, .resumen-principal, .tarjetas > div, .er-detalle, .login-tarjeta, .impacto, .form, .filtros, .alta-rapida) {
   background: var(--cr-panel);
   -webkit-backdrop-filter: var(--cr-blur); backdrop-filter: var(--cr-blur);
   border: 1px solid var(--cr-panel-borde); border-top-color: var(--cr-panel-borde-arriba);
@@ -457,9 +460,19 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms var(--cr-curva), background-color 200ms ease;
 }
 /* Anidados (una tabla dentro de un bloque): cristal sin otro desenfoque encima */
-.fin-cristal .cj-bloque :is(.cj-dato, .tabla-scroll), .fin-cristal .detalle .tabla-scroll, .fin-cristal .dash-card .tabla-scroll {
+.fin-cristal .cj-bloque :is(.cj-dato, .tabla-scroll), .fin-cristal .fin-skwd :is(.detalle, .dash-card, .er-detalle, .resumen-principal, .tarjetas > div) :is(.tabla-scroll, .form, .filtros, .alta-rapida) {
   -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
+/* Formularios y barras de filtros: paneles de cristal (en el video nada de la interfaz queda suelto sobre la foto) */
+.fin-cristal .fin-skwd .form { padding: 18px 20px 20px; border-radius: 22px; gap: 12px 16px; }
+.fin-cristal .fin-skwd .filtros { padding: 8px; border-radius: 22px; gap: 8px; }
+.fin-cristal .fin-skwd .filtros > strong, .fin-cristal .fin-skwd .filtros > .aviso { padding: 0 6px; }
+.fin-cristal .fin-skwd .filtros > strong { font: 600 10.5px/1 var(--cr-sans); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.fin-cristal .fin-skwd .alta-rapida { padding: 12px 14px; border-radius: 22px; }
+.fin-cristal .fin-skwd .filtros .check { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; white-space: nowrap; border-radius: 999px; color: var(--cr-texto-2); }
+.fin-cristal .fin-skwd .filtros .check:hover { background: rgba(255, 255, 255, 0.06); color: var(--cr-texto); }
+/* Títulos de sección sueltos sobre el fondo: sombra suave para que el logo no les quite lectura */
+.fin-cristal .fin-skwd > :is(h2, h3), .fin-cristal .fin-skwd > p { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55); }
 .fin-cristal .cj-bloque { border-radius: 24px; }
 .fin-cristal .cj-dato { border-radius: 20px; }
 .fin-cristal .fin-skwd { --sk-radio: 18px; --sk-campo: rgba(255, 255, 255, 0.08); --sk-thead: transparent; --sk-realce: rgba(255, 255, 255, 0.06); --sk-texto-3: var(--cr-texto-3);
@@ -527,14 +540,28 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 .fin-cristal .fin-skwd .form label { color: var(--cr-texto-2); font-weight: 500; }
 
 /* Botones: la acción principal en bordó (manual), con cristal; los secundarios son píldoras de cristal */
+/* Por defecto: píldora de cristal (como los ítems del panel). Bordó solo para la acción que guarda (submit). */
 .fin-cristal .fin-skwd button {
   border-radius: 999px; padding: 8px 16px; font-family: var(--cr-sans); font-weight: 600;
-  background: linear-gradient(180deg, #933041 0%, #741c29 100%); color: #fbf3ea;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 16px -8px rgba(127, 32, 44, 0.7);
-  transition: filter 120ms ease, transform 80ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05)); color: var(--cr-texto);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: filter 120ms ease, transform 80ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
-.fin-cristal .fin-skwd button:hover:not(:disabled) { filter: brightness(1.12); }
+.fin-cristal .fin-skwd button:hover:not(:disabled) { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08)); border-color: rgba(255, 255, 255, 0.3); }
+.fin-cristal .fin-skwd button[type='submit'] {
+  background: linear-gradient(180deg, #933041 0%, #741c29 100%); color: #fbf3ea;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 16px -8px rgba(127, 32, 44, 0.7);
+}
+.fin-cristal .fin-skwd button[type='submit']:hover:not(:disabled) { background: linear-gradient(180deg, #a23a4b 0%, #80222f 100%); border-color: rgba(255, 255, 255, 0.3); }
+.fin-cristal .fin-skwd button:disabled { opacity: 0.42; }
+/* En las barras de filtros, el botón desactivado es el elegido (Módulo de Correcciones, período del Tablero): cristal fuerte */
+.fin-cristal .fin-skwd .filtros button:not([type='submit']):disabled {
+  opacity: 1; color: rgba(255, 255, 255, 0.97);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.11));
+  border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
 .fin-cristal .fin-skwd :is(.subtabs button, td button, .alta-rapida button.secundario, button.quitar) {
   background: rgba(255, 255, 255, 0.07); color: var(--cr-texto-2);
   border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: none;
@@ -602,6 +629,8 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   .fcn[data-abierta='true'] .fcn-velo { display: block; position: fixed; inset: 0; z-index: -1; background: rgba(1, 12, 10, 0.45); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   .fcn-menu { left: 12px; right: 12px; bottom: 64px; }
   .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea) { font-size: 16px; }
+  .fin-cristal .fin-skwd .form { padding: 14px; }
+  .fin-cristal .fin-skwd .filtros { padding: 6px; border-radius: 18px; }
 }
 
 /* ── Accesibilidad ── */
