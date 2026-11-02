@@ -115,6 +115,7 @@ export const REGLAS: readonly Regla[] = [
   { patron: '/api/referidos/canje', quien: 'google', seccion: 'referidos', motivo: 'Simular canje de créditos (POST): sesión de Google con rol que ve Referidos. Sin acceso por máquina.' },
   // Marco global del Despacho (27/10/2026): la fuente única de notificaciones (la arma el Hub de Clientes) y la presencia.
   // Cualquiera con sesión: el filtro por mail o sección (notificaciones) y por rol (lista de conectados) va adentro de la ruta.
+  { patron: '/api/notificaciones/whatsapp', quien: 'propio', motivo: 'Salida única de WhatsApp de la bandeja (docs/NOTIF-WHATSAPP.md): POST corre el despachador y GET da el estado. Solo Bearer CRON_SECRET (nunca ?key=): 503 sin el secreto, 401 con otro. Falla cerrado. Va ANTES de /api/notificaciones/*.' },
   { patron: '/api/notificaciones/*', quien: 'google', motivo: 'Notificaciones del Despacho: GET /api/notificaciones?desde=<id> (solo las de esa persona, por mail o por sección; las lee el aviso con sonido del marco y el menú rápido del Hub) y POST /api/notificaciones/[id] para marcarla vista o hecha (mismo origen; la ruta controla que sea de esa persona). Sesión de Google de cualquier rol. Sin acceso por máquina.' },
   { patron: '/api/presencia', quien: 'google', motivo: 'Quién está conectado: POST cada 45 s con la pestaña visible (registra mail, nombre y sección) y GET con los conectados de los últimos 2 min, que ve todo el equipo (decisión de Tomás, 27/10/2026). Sin acceso por máquina.' },
 ]
