@@ -8,7 +8,7 @@ globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const R = await import('../lib/bot/guiones/revisar.ts')
 const { CATALOGO } = await import('../lib/bot/guiones/formatos.ts')
 const { ciudadDeFicha, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
-const { guionesParaChips, claveTanda } = await import('../lib/bot/guiones/envio.ts')
+const { guionesParaChips, claveTanda, sinParentesis } = await import('../lib/bot/guiones/envio.ts')
 const { esAprobador, faltanVerificar } = await import('../lib/bot/guiones/aprobadores.ts')
 
 const sec = (seccion, texto, indicacion = 'Levantá el sobre y mostralo') => ({ seccion, velocidad: seccion === 'HOOK' || seccion === 'CTA' ? 5 : 3, indicacion, texto })
@@ -159,4 +159,11 @@ test('verificación por guion: el check final se habilita solo con todos verific
   const v = { quien: 'Faus', email: 'f@x', cuando: '2026-10-27T10:00:00Z' }
   assert.deepEqual(faltanVerificar({ 1: { verificado: v }, 2: {}, 10: { verificado: null } }), [2, 10])
   assert.deepEqual(faltanVerificar({ 1: { verificado: v }, 2: { verificado: v } }), [])
+})
+
+test('chips: una indicación editada que ya trae paréntesis no queda «((…))»', () => {
+  assert.equal(sinParentesis('((Levantá el mazo.))'), 'Levantá el mazo.')
+  assert.equal(sinParentesis('(Sentate (despacio).)'), 'Sentate (despacio).')
+  assert.equal(sinParentesis('(a) y (b)'), '(a) y (b)')
+  assert.equal(sinParentesis('Sin paréntesis'), 'Sin paréntesis')
 })
