@@ -320,3 +320,25 @@ describe('modelo: validación y lo que ve el cliente (nada interno)', () => {
     for (const interno of ['DETALLE', 'clickup', 'Interno']) assert.equal(json.includes(interno), false, interno)
   })
 })
+
+describe('pestañas de los portales en el hub Clientes (2/11/2026)', () => {
+  test('el rol cliente sale del layout antes de leer portales o dibujar pestañas', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync(new URL('../app/(shell)/clientes/layout.tsx', import.meta.url), 'utf8')
+    const salidaCliente = src.indexOf("sesion.rol === 'cliente'")
+    assert.ok(salidaCliente > 0, 'falta la salida del rol cliente')
+    assert.ok(salidaCliente < src.indexOf('pestanasDePortal()'), 'los portales se leen recién después de descartar al cliente')
+    assert.ok(salidaCliente < src.indexOf('<PestanasClientes'), 'el cliente no ve pestañas')
+    // Las pestañas de portal solo para quien ve la Cartera, y sin nombres ni IDs de clientes en el código
+    assert.match(src, /puedeVer\(sesion, 'clientes'\) \? await pestanasDePortal\(\)/)
+    assert.doesNotMatch(src, /\b[A-Z]\d{3}\b/)
+  })
+  test('portalesArmados nunca lanza (sin base o con falla: ninguno)', async () => {
+    const base = await import('../lib/clientes/portal/base.ts')
+    base.usarSqlDePrueba(async () => { throw new Error('caída') })
+    assert.deepEqual(await base.portalesArmados(), [])
+    base.usarSqlDePrueba(async () => [{ id_crm: 'x1', titulo: '  Plan  ' }, { id_crm: 'Y2', titulo: null }])
+    assert.deepEqual(await base.portalesArmados(), [{ id: 'X1', titulo: 'Plan' }, { id: 'Y2', titulo: '' }])
+    base.usarSqlDePrueba(null)
+  })
+})

@@ -26,6 +26,8 @@ const P: Record<string, React.ReactNode> = {
   tarea: <><rect x="4" y="3.5" width="16" height="17" rx="2" /><path d="M8 9l1.5 1.5L12 8M8 15l1.5 1.5L12 14M14.5 9.5H17M14.5 15.5H17" /></>,
   credito: <><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z" /></>,
   sistema: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
+  // Portal del cliente (2/11/2026): la estrategia, un camino con su meta
+  estrategia: <><circle cx="6" cy="18" r="2" /><path d="M8 18h4a4 4 0 0 0 0-8H9a3 3 0 0 1 0-6h7" /><path d="M16 2v4l3-2z" /></>,
   mas: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
   salir: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
 }
