@@ -133,6 +133,12 @@ video, 12 por idea.
 - Si sobran 1 o 2 videos, forman una idea más chica, con aviso. El aviso le pide a Valen que confirme que cada idea
   junte videos del mismo concepto.
 
+## Presupuesto chico: 5 videos como máximo (2/11/2026, Tomás)
+
+Con un presupuesto de hasta USD 300 por mes, el borrador (rotación o lanzamiento) lleva 5 videos como máximo, los primeros
+por número: con más, el presupuesto se diluye (USD 10/día entre 6 videos son ~1,7 por video). Los demás quedan para la
+próxima rotación y el aviso a Valen los nombra. `recortarVideos` / `topeVideos` en `borrador.ts`.
+
 ## Notas del cliente: WhatsApp → Despacho → Valen (1/11/2026, Hub + Tomás)
 
 Lo que el cliente dice de sus anuncios en su grupo de WhatsApp queda en **Anuncios → «Notas del cliente»** (fecha, lo
