@@ -52,12 +52,22 @@ nombre del cliente) y el link a la pantalla; nunca el cuerpo del aviso ni teléf
 | `kickoff_error` | OPERACIONES | Tomás |
 | `cliente_sin_respuesta`, `beneficio_referido` | CSM | — |
 | `anuncios_dudoso` | ADS | Valen |
-| `exito_error`, `exito_dudoso`, `bajas_error`, `bajas_dudoso` | CSM | Tomás |
 
 **Excluidos (ya salen por WhatsApp desde su bot, no se duplican):** `guiones_a_revisar` y `guiones_con_notas` (grupo
-COPYWRITING), todo `altas_*` (Verificaciones C.J), `exito_abierto` y `bajas_abierto` (pedidos en Verificaciones) y lo de
+COPYWRITING), todo `altas_*` (Verificaciones C.J), `exito_abierto` y `bajas_abierto` (pedidos en Verificaciones), `exito_error`,
+`exito_dudoso`, `bajas_error` y `bajas_dudoso` (el mismo envío ya avisa «No pude / No sé si le llegó…» en Verificaciones) y lo de
 Anuncios que ya entra en el resumen del grupo ADS. Un tipo nuevo sin fila en la tabla queda **omitido** («tipo sin grupo»)
 hasta que se agregue a `mapear()` en `modelo.ts`.
+
+**Verificación antes de mandar (regla de Tomás), falla cerrado:**
+- Reconciliados (`recon:…`): se relee el estado de origen (la clave se lee desde el final porque las de Anuncios llevan «:»);
+  si la clave no se puede leer, no sale.
+- `edicion_tarjetas` / `edicion_entrega_revisar`: la tarjeta sigue en la etapa del aviso.
+- `guiones_entrega`: la tanda sigue `aprobada` con la MISMA aprobación del aviso, sin entrega anotada, sin una tanda más
+  nueva del cliente y sin videos grabados después de la aprobación.
+- `cliente_sin_respuesta`: el cliente no respondió y el equipo no volvió a escribir desde el aviso (`cj_inactivos_contactos`).
+- `beneficio_referido`: solo la bandeja (se cierra al resolverse). Cualquier otro tipo sin verificación propia no sale.
+- Si el CRM no se puede leer, la corrida se corta sin mandar ni omitir nada.
 
 Chat directo con cada persona: **no** está implementado (por seguridad del número). Todo va al grupo del área.
 

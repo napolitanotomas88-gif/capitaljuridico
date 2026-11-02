@@ -40,9 +40,24 @@ describe('modelo', () => {
     assert.equal(M.chatPrueba({ NOTIF_WHATSAPP_PRUEBA_CHAT: 'algo@g.us' }), null)
   })
   test('tipos excluidos: lo que ya sale por WhatsApp no se duplica', () => {
-    for (const tipo of ['guiones_a_revisar', 'guiones_con_notas', 'altas_esperando_humano', 'altas_revisar', 'exito_abierto', 'bajas_abierto'])
+    for (const tipo of ['guiones_a_revisar', 'guiones_con_notas', 'altas_esperando_humano', 'altas_revisar', 'exito_abierto', 'bajas_abierto', 'exito_error', 'exito_dudoso', 'bajas_error', 'bajas_dudoso'])
       assert.equal(M.mapear({ tipo, paraEmail: null, paraSeccion: null }).ok, false, tipo)
     assert.deepEqual(M.mapear({ tipo: 'algo_nuevo', paraEmail: null, paraSeccion: null }), { ok: false, motivo: 'tipo sin grupo de WhatsApp' })
+  })
+  test('clave de reconciliación: se lee desde el final (ids con «:»); lo ilegible no sale', () => {
+    assert.deepEqual(M.parsearRecon('recon:edicion:12:editado:2026-11-01T12:00:00.000Z'), { fuente: 'edicion', id: '12', estado: 'editado' })
+    assert.deepEqual(M.parsearRecon('recon:anuncios:optimizada:123:2026-11-01:dudoso:2026-11-01T12:00:00.000Z'), { fuente: 'anuncios', id: 'optimizada:123:2026-11-01', estado: 'dudoso' })
+    assert.deepEqual(M.parsearRecon('recon:guiones:5:error:actual'), { fuente: 'guiones', id: '5', estado: 'error' })
+    assert.equal(M.parsearRecon('recon:anuncios:raro'), null)
+    assert.equal(M.parsearRecon(null), null)
+  })
+  test('cliente sin respuesta: si respondió o el equipo volvió a escribir, no sale', () => {
+    const clave = 'inactivos:A1:2026-10-28T12:00:00.000Z:1'
+    assert.deepEqual(M.sinRespuestaVigente(clave, { ultimoCliente: '2026-10-20T00:00:00.000Z', ultimoEquipo: '2026-10-28T12:00:00.000Z' }), { ok: true })
+    assert.equal(M.sinRespuestaVigente(clave, { ultimoCliente: '2026-10-30T00:00:00.000Z', ultimoEquipo: '2026-10-28T12:00:00.000Z' }).motivo, 'el cliente ya respondió')
+    assert.equal(M.sinRespuestaVigente(clave, { ultimoCliente: null, ultimoEquipo: '2026-10-31T12:00:00.000Z' }).ok, false)
+    assert.equal(M.sinRespuestaVigente(clave, null).ok, false)
+    assert.equal(M.sinRespuestaVigente('otra', { ultimoCliente: null, ultimoEquipo: '2026-10-28T12:00:00.000Z' }).ok, false)
   })
   test('mapeo tipo → grupo y menciones', () => {
     const g = (tipo, paraEmail = null, paraSeccion = null) => { const m = M.mapear({ tipo, paraEmail, paraSeccion }); return m.ok ? [m.destino.grupo, m.destino.roles, m.destino.persona] : null }
@@ -53,7 +68,7 @@ describe('modelo', () => {
     assert.deepEqual(g('guiones_error', null, 'guiones'), ['COPYWRITING', ['tomas', 'faus'], null])
     assert.deepEqual(g('kickoff_error', null, 'clientes'), ['OPERACIONES', ['tomas'], null])
     assert.deepEqual(g('cliente_sin_respuesta', null, 'clientes'), ['CSM', [], null])
-    assert.deepEqual(g('bajas_dudoso', null, 'clientes'), ['CSM', ['tomas'], null])
+    assert.equal(g('bajas_dudoso', null, 'clientes'), null, 'ya avisa en Verificaciones')
     assert.deepEqual(g('anuncios_dudoso', null, 'anuncios'), ['ADS', ['valen'], null])
   })
   test('personas: por mail, por rol y de respaldo; sin teléfono va el nombre', () => {

@@ -64,6 +64,9 @@ export const TIPOS_EXCLUIDOS: ReadonlySet<string> = new Set([
   'guiones_a_revisar', 'guiones_con_notas',                  // Guiones → grupo COPYWRITING (bot de guiones)
   'altas_esperando_humano', 'altas_revisar',                 // motor de altas → Verificaciones C.J
   'exito_abierto', 'bajas_abierto',                          // pedidos de OK de Éxito y Bajas → Verificaciones C.J
+  // Revisión del PR (1/11): el error o dudoso de Éxito y Bajas sale del mismo envío al cliente que ya avisa en Verificaciones
+  // («No sé si le llegó…» / «No pude mandarle…», lib/bot/exito/nucleo.ts y lib/bot/bajas/nucleo.ts): no se duplica.
+  'exito_error', 'exito_dudoso', 'bajas_error', 'bajas_dudoso',
 ])
 /** Prefijos excluidos: todo lo de altas (Verificaciones) y lo de Anuncios que ya entra en el resumen del grupo ADS. */
 const PREFIJOS_EXCLUIDOS = ['altas_', 'alta_', 'anuncios_g', 'anuncios_resumen']
@@ -89,9 +92,27 @@ export function mapear(n: NotifParaMapa): Mapeo {
     case 'kickoff_error': return conPersona('OPERACIONES', ['tomas'])
     case 'cliente_sin_respuesta': case 'beneficio_referido': return conPersona('CSM')
     case 'anuncios_dudoso': return conPersona('ADS', ['valen'])
-    case 'exito_error': case 'exito_dudoso': case 'bajas_error': case 'bajas_dudoso': return conPersona('CSM', ['tomas'])
     default: return { ok: false, motivo: 'tipo sin grupo de WhatsApp' }
   }
+}
+
+// ── Claves de la reconciliación ────────────────────────────────────────────────────────────────────────────────────────
+/** recon:<fuente>:<id>:<estado>:<revisión>[:<hash>] (lib/notificaciones/reconciliar.ts). El id puede tener «:» (las claves de
+ *  Anuncios: «optimizada:<campaña>:<fecha>»), por eso se lee desde el final: la revisión es un ISO o «actual» y el estado va en
+ *  minúsculas. Lo que no se puede leer devuelve null y el aviso NO sale (falla cerrado). */
+export function parsearRecon(clave: string | null | undefined): { fuente: string; id: string; estado: string } | null {
+  const m = clave?.match(/^recon:([a-z]+):(.+):([a-z_]+):(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z|actual)(?::[0-9a-f]{12})?$/)
+  return m ? { fuente: m[1], id: m[2], estado: m[3] } : null
+}
+/** cliente_sin_respuesta (lib/clientes/inactivos.ts, clave inactivos:<ID>:<desde>:<ciclo>): ¿sigue real con el contacto de hoy? */
+export function sinRespuestaVigente(clave: string | null, c: { ultimoCliente: string | null; ultimoEquipo: string | null } | null): { ok: true } | { ok: false; motivo: string } {
+  const desde = clave?.match(/^inactivos:[A-Za-z]\d{1,6}:(.+):\d+$/)?.[1]
+  if (!desde || !c) return { ok: false, motivo: 'no se pudo verificar el último contacto' }
+  const equipo = Date.parse(c.ultimoEquipo ?? ''), cliente = Date.parse(c.ultimoCliente ?? '')
+  if (!Number.isFinite(equipo)) return { ok: false, motivo: 'no se pudo verificar el último contacto' }
+  if (Number.isFinite(cliente) && cliente >= equipo) return { ok: false, motivo: 'el cliente ya respondió' }
+  if (Date.parse(desde) !== equipo) return { ok: false, motivo: 'el equipo volvió a escribir: el aviso es de otra espera' }
+  return { ok: true }
 }
 
 // ── Personas (teléfonos por variable) ──────────────────────────────────────────────────────────────────────────────────

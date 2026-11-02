@@ -18,7 +18,7 @@ import { leerTarjeta } from '../../edicion/tarjetasDb'
 import { urlDespacho } from '../../edicion/avisos/entorno'
 import { reconciliarNotificaciones } from '../reconciliar'
 import { despacharNotifWhatsapp, type DepsDespacho, type FilaPendiente, type ResultadoDespacho, type Vigencia } from './despacho'
-import { ESPACIO_MIN_MS, GRUPOS_EQUIPO, chatGrupo, chatPrueba, maxPorDia, modoNotifWa, type Destino, type GrupoEquipo } from './modelo'
+import { ESPACIO_MIN_MS, GRUPOS_EQUIPO, chatGrupo, chatPrueba, maxPorDia, modoNotifWa, parsearRecon, sinRespuestaVigente, type Destino, type GrupoEquipo } from './modelo'
 
 export const RECURSO_TURNO = 'notif_wa_turno'
 type Fila = Record<string, unknown>
@@ -76,9 +76,13 @@ export function etapasVigentesEdicion(tipo: string, titulo: string): readonly st
 async function vigenciaReal(f: FilaPendiente, q: Q, archivados: () => Promise<ReadonlySet<string>>): Promise<Vigencia> {
   let idCrm = idCrmDeUrl(f.url)
   let detalle: string | null = null
-  const recon = f.clave?.match(/^recon:([a-z]+):([^:]+):([a-z_]+):/)
+  // El CRM se lee ANTES y fuera de cualquier try: si no se puede leer, tira y la corrida entera se corta sin omitir nada
+  // (antes un CRM caído se tomaba como «el cliente no figura» y el aviso se perdía para siempre).
+  const set = await archivados()
+  const recon = parsearRecon(f.clave)
+  if (f.clave?.startsWith('recon:') && !recon) return { ok: false, motivo: 'no se pudo leer la clave del aviso: no se verifica, no sale' }
   if (recon) {
-    const [, fuente, id, estado] = recon
+    const { fuente, id, estado } = recon
     const n = Number(id)
     const filas = (fuente === 'guiones' && Number.isSafeInteger(n) ? await q`SELECT estado, id_crm FROM cj_guiones WHERE id = ${n}`
       : fuente === 'kickoff' && Number.isSafeInteger(n) ? await q`SELECT estado, id_crm FROM cj_kickoffs WHERE recording_id = ${n}`
@@ -108,14 +112,30 @@ async function vigenciaReal(f: FilaPendiente, q: Q, archivados: () => Promise<Re
     if (g[0].estado !== 'aprobada') return { ok: false, motivo: `la tanda ya está «${String(g[0].estado)}»` }
     idCrm = g[0].id_crm ? String(g[0].id_crm).toUpperCase() : idCrm
     const cuando = (g[0].aprobacion as { cuando?: string } | null)?.cuando
+    // La clave es guiones-entrega:<tanda>:<aprobación>:<mail>: si la tanda se volvió a aprobar, el aviso es de otra aprobación
+    if (!cuando || !f.clave?.startsWith(`guiones-entrega:${tanda}:${cuando}:`)) return { ok: false, motivo: 'la tanda se volvió a aprobar: el aviso es viejo' }
+    if ((g[0].doc as { entrega?: unknown } | null)?.entrega) return { ok: false, motivo: 'la tanda ya se entregó' }
+    if (!idCrm) return { ok: false, motivo: 'la tanda no tiene cliente del CRM' }
+    // Una tanda más nueva del mismo cliente: esta se resolvió fuera del bot
+    const nuevas = (await q`SELECT count(*)::int AS n FROM cj_guiones WHERE upper(id_crm) = ${idCrm} AND id <> ${tanda} AND creado > ${cuando}::timestamptz`) as Fila[]
+    if (Number(nuevas[0]?.n) > 0) return { ok: false, motivo: 'el cliente ya tiene una tanda más nueva' }
     // Si el cliente ya grabó después de la aprobación, la entrega se resolvió fuera del bot
     if (idCrm && cuando) {
       const v = (await q`SELECT count(*)::int AS n FROM cj_videos WHERE upper(id_crm) = ${idCrm} AND creado > ${cuando}::timestamptz`) as Fila[]
       if (Number(v[0]?.n) > 0) return { ok: false, motivo: 'el cliente ya grabó después de la aprobación' }
     }
+  } else if (f.tipo === 'cliente_sin_respuesta') {
+    if (!idCrm) return { ok: false, motivo: 'no se pudo identificar al cliente' }
+    let c: Fila[] = []
+    try { c = (await q`SELECT ultimo_cliente, ultimo_equipo FROM cj_inactivos_contactos WHERE upper(id_crm) = ${idCrm}`) as Fila[] } catch (e) { if (!faltaTabla(e)) throw e }
+    const v = sinRespuestaVigente(f.clave, c.length ? { ultimoCliente: iso(c[0].ultimo_cliente), ultimoEquipo: iso(c[0].ultimo_equipo) } : null)
+    if (!v.ok) return v
+  } else if (f.tipo !== 'beneficio_referido') {
+    // Falla cerrado: un tipo sin forma de releer su estado no sale (beneficio_referido se cierra solo en la bandeja: hecha_en)
+    return { ok: false, motivo: 'no hay cómo verificar que la etapa siga siendo real' }
   }
   if (idCrm) {
-    try { await exigirClienteNoArchivado(idCrm, await archivados()) } catch (e) {
+    try { await exigirClienteNoArchivado(idCrm, set) } catch (e) {
       return { ok: false, motivo: e instanceof ClienteArchivadoError ? 'el cliente está archivado' : 'el cliente no figura en el CRM actual' }
     }
   }
