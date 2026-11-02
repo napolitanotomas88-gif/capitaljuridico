@@ -174,6 +174,16 @@ describe('corrida de PRUEBA: solo el cliente ficticio, en real, con el modo gene
     assert.equal(x.rastros.lista.filter((z) => z.tipo === 'discord').length, 1)
     assert.ok(x.rastros.lista.every((z) => z.etapa === 'exito' && z.idCrm === 'Z001' && (z.tipo !== 'discord' || z.destino === 'DISCORD_WEBHOOK_CLIENTES')))
   })
+  test('modo general en seco: el cron de prueba NO vence (ni toca) un pedido viejo de un cliente real', async () => {
+    const x = entorno()
+    const viejo = new Date(AHORA - 30 * DIA).toISOString()
+    await x.al.crearPedido({ id: 'p_real', clave: 'A123', cliente: 'Ana Pérez', idCrm: 'A123', general: GEN_REAL, invitacion: null, motivo: { tipo: 'mensaje', cita: 'x', grupo: 'contenido' }, modo: 'ensayo', mensajePedidoId: null, huella: 'h1', creado: viejo })
+    await x.al.crearPedido({ id: 'p_prueba', clave: 'Z001', cliente: 'Cliente Prueba', idCrm: 'Z001', general: GEN_PRUEBA, invitacion: null, motivo: { tipo: 'mensaje', cita: 'x', grupo: 'contenido' }, modo: 'real', mensajePedidoId: null, huella: 'h2', creado: viejo })
+    await S.correrDiarioReal({ ...x.op, lectores: lectores(CLIENTES) })
+    assert.equal(x.al._pedidos.find((p) => p.id === 'p_real').estado, 'abierto')
+    assert.equal(x.al._pedidos.find((p) => p.id === 'p_prueba').estado, 'vencido')
+    assert.ok(x.enviados.every((e) => e.chatId !== GEN_REAL && e.chatId !== CONT_REAL))
+  })
   test('sin BOT_CLIENTES_PRUEBA y en seco: nada (como siempre)', async () => {
     const x = entorno({ extra: { BOT_CLIENTES_PRUEBA: '' } })
     assert.equal(await S.procesarExitoReal(mensaje(CONT_PRUEBA), x.op), null)
