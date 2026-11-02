@@ -118,7 +118,12 @@ export function depsPasosServidor(base: Pick<DepsMotorBase, 'modo'>, env: NodeJS
       cuotasAnteriores: (p) => cuotasAnterioresFinanzas(p),   // pago de un cliente existente: qué cuota es (solo lectura)
       contrato: contratoReal(),
     } satisfies Partial<DepsPasos> : {}),
-    drive: (a, op) => prepararDriveCliente(a, op),   // en 'simulacion' no llama al puente
+    // en 'simulacion' no llama al puente. Una carpeta que ya estaba en Clientes (armada a mano) se completa sin esperar el OK
+    // si el registro del Despacho y el CRM dicen que es de este cliente (driveCompletoServidor.carpetaEsDelCliente, 2/11/2026)
+    drive: (a, op) => prepararDriveCliente(a, op.modo === 'real' && op.idCrm ? {
+      ...op,
+      aceptarExistente: async (c) => (await import('../driveCompletoServidor')).carpetaEsDelCliente(op.idCrm, op.nombreConfirmado ?? a.nombre, c.id),
+    } : op),
     plantillaGuionesId: plantillaGuionesDesdeEntorno,
     modeloVision: modeloComprobante(),
     equipo: equipoDesdeEntorno(env.BOT_ALTA_EQUIPO_TELEFONOS),

@@ -110,6 +110,57 @@ export function nombresDriveCliente(nombre: string | null | undefined): NombresD
   }
 }
 
+// ── Lo que ya hay adentro de la carpeta del cliente (puro) ─────────────────────────────────────────────────────────
+// Regla de Tomás (2/11/2026): «si ya tienen la carpeta creada, agregale Crudos, Editados, Marca y Guiones; si no la tienen,
+// creala». Las carpetas armadas a mano usan otros sufijos ("Guiones - Apodo Apellido", "Crudos - NA"), así que lo que ya
+// está se reconoce por el PREFIJO (los mismos patrones que el vigía en lib/bot/grabacion/drive.ts), no por el nombre exacto
+// del bot: si no, el puente (que busca por nombre exacto) crearía un "Guiones - NombreA" al lado del que ya estaba.
+export const MIME_CARPETA_DRIVE = 'application/vnd.google-apps.folder'
+export const MIME_DOC_DRIVE = 'application/vnd.google-apps.document'
+export interface HijoDrive { id: string; name: string; mimeType: string; modifiedTime?: string | null }
+/** null = la cuenta de servicio no está configurada. Puede tirar (sin permiso, red). */
+export type ListarHijosDrive = (carpetaId: string) => Promise<HijoDrive[] | null>
+export type ClaveAdentro = Exclude<ClaveDrive, 'carpeta'>
+export const CLAVES_ADENTRO: readonly ClaveAdentro[] = ['crudos', 'editados', 'marca', 'guiones', 'bienvenida']
+
+export const urlCarpetaDrive = (id: string) => `https://drive.google.com/drive/folders/${id}`
+export const urlDocDrive = (id: string) => `https://docs.google.com/document/d/${id}/edit`
+
+/** Los elementos que ya están adentro de la carpeta del cliente, reconocidos por prefijo (cualquier sufijo). */
+export function clasificarHijos(hijos: readonly HijoDrive[]): Partial<Record<ClaveAdentro, IdGuardado>> {
+  const out: Partial<Record<ClaveAdentro, IdGuardado>> = {}
+  const carpetas = hijos.filter((h) => h.mimeType === MIME_CARPETA_DRIVE && esIdDrive(h.id))
+  const docs = hijos.filter((h) => h.mimeType === MIME_DOC_DRIVE && esIdDrive(h.id)).sort((a, b) => (b.modifiedTime ?? '').localeCompare(a.modifiedTime ?? ''))
+  const dir = (re: RegExp) => carpetas.find((h) => re.test(h.name ?? ''))
+  const doc = (re: RegExp) => docs.find((h) => re.test(h.name ?? '') && !/^\s*plantilla\b/i.test(h.name ?? ''))
+  const c = dir(/crudo/i), e = dir(/editad/i), m = dir(/^\s*marca\b/i), g = doc(/gui[oó]n/i), b = doc(/^\s*bienvenida\b/i)
+  if (c) out.crudos = { id: c.id, url: urlCarpetaDrive(c.id) }
+  if (e) out.editados = { id: e.id, url: urlCarpetaDrive(e.id) }
+  if (m) out.marca = { id: m.id, url: urlCarpetaDrive(m.id) }
+  if (g) out.guiones = { id: g.id, url: urlDocDrive(g.id) }
+  if (b) out.bienvenida = { id: b.id, url: urlDocDrive(b.id) }
+  return out
+}
+
+const SCOPE_LECTURA = 'https://www.googleapis.com/auth/drive.readonly'
+/** Hijos directos de una carpeta con la cuenta de servicio (solo lectura). */
+export const listarHijosDriveReal: ListarHijosDrive = async (carpetaId) => {
+  if (!googleConfigurado()) return null
+  if (!esIdDrive(carpetaId)) throw new Error('id de carpeta inválido')
+  const out: HijoDrive[] = []
+  let token = ''
+  do {
+    const q = encodeURIComponent(`'${carpetaId}' in parents and trashed=false`)
+    const r = await googleJson<{ files?: HijoDrive[]; nextPageToken?: string }>(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=1000&fields=nextPageToken,files(id,name,mimeType,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true${token ? `&pageToken=${encodeURIComponent(token)}` : ''}`,
+      { scopes: SCOPE_LECTURA },
+    )
+    out.push(...(r.files ?? []))
+    token = r.nextPageToken ?? ''
+  } while (token)
+  return out
+}
+
 // ── El paso completo ────────────────────────────────────────────────────────────────────────────────────────────
 export type ModoDrive = 'real' | 'simulacion'
 /** creado / existia (ya estaba y se reutilizó: por el id guardado o, adentro de la carpeta del cliente, por el nombre) /
@@ -157,6 +208,8 @@ export interface DepsDrive {
   puente?: () => PuenteDriveCliente
   /** Por defecto leerCarpetaDriveReal (la cuenta de servicio). Solo se usa ante un intento dudoso. */
   leerCarpeta?: LeerCarpetaDrive
+  /** Por defecto listarHijosDriveReal: qué hay adentro de una carpeta que ya existía (para no duplicar con otro sufijo). */
+  listarHijos?: ListarHijosDrive
 }
 
 export interface OpcionesDrive {
@@ -175,6 +228,14 @@ export interface OpcionesDrive {
   intentoCarpeta?: IntentoCarpeta | null
   /** Plazo (epoch ms) para el puente real: ver OpcionesPuente.hasta en puenteDrive.ts. */
   hasta?: number
+  /** Primera corrida y la carpeta ya estaba en Clientes: si esto dice que es de ESTE cliente (registro del Despacho y CRM sin
+   *  homónimos), se sigue en esa sin esperar el OK y se completa lo que falte (2/11/2026). Sin esto, o si dice false o tira,
+   *  espera el OK en Verificaciones como antes. */
+  aceptarExistente?: (carpeta: IdGuardado) => Promise<boolean>
+  /** ID del CRM del cliente (si ya está): lo usa quien arma aceptarExistente. */
+  idCrm?: string | null
+  /** Elementos que esta corrida no crea si faltan (la revisión diaria no le arma la bienvenida a un cliente viejo). */
+  omitir?: readonly ClaveAdentro[]
   deps?: DepsDrive
 }
 
@@ -227,6 +288,8 @@ export const PENDIENTE_COPIAR = 'El Puente Drive publicado todavía no sabe copi
 export const PENDIENTE_PLANTILLA = `Falta el id de la plantilla de guiones (variable ${VARIABLE_PLANTILLA_GUIONES}: la copia "Plantilla Guiones - C.J", fuera de Clientes).`
 export const PENDIENTE_NO_ES_PLANTILLA = `El puente no copió la plantilla de guiones porque su nombre no empieza con "Plantilla" (frena copiar el doc de un cliente): revisar ${VARIABLE_PLANTILLA_GUIONES}.`
 export const MOTIVO_CARPETA_EXISTENTE = 'ya había una carpeta con ese nombre en Clientes: espera el OK en Verificaciones C.J'
+export const MOTIVO_CARPETA_REUSADA = 'ya estaba en Clientes y es de este cliente (registro del Despacho y CRM sin homónimos): se completó lo que faltaba'
+export const MOTIVO_OMITIDO = 'no se crea en esta corrida'
 export const MOTIVO_CARPETA_DE_INTENTO_DUDOSO = 'la creó el bot en un intento que no llegó a responder (lo confirma la fecha de creación en Drive)'
 const MOTIVO_ESPERA_CARPETA = 'esperando el OK por la carpeta que ya existía'
 const MOTIVO_ESPERA_NOMBRE = 'esperando que se confirme el nombre del cliente'
@@ -334,8 +397,9 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
   /** Ventanas dudosas de esta corrida (para noReintentarAntesDe). */
   const dudosos: IntentoDudoso[] = []
 
+  const omitidos = new Set<ClaveDrive>(opciones.omitir ?? [])
   const resultado = (els: Pick<ResultadoDriveCliente, ClaveDrive>): ResultadoDriveCliente => {
-    const todos = CLAVES_DRIVE.map((k) => els[k])
+    const todos = CLAVES_DRIVE.filter((k) => !(omitidos.has(k) && els[k].motivo === MOTIVO_OMITIDO)).map((k) => els[k])
     const ok = errores.length === 0 && !todos.some((x) => x.estado === 'error')
     const guardar: GuardadoDrive = { ...previo }
     for (const k of CLAVES_DRIVE) {
@@ -386,7 +450,7 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
   // Plantilla de guiones: sin id válido, los guiones quedan pendientes (no es un error del alta)
   const plantilla = opciones.plantillaGuionesId ?? null
   const motivoSinPlantilla = !plantilla ? PENDIENTE_PLANTILLA : !esIdDrive(plantilla) ? `El id de la plantilla de guiones no es un id de Drive válido (${VARIABLE_PLANTILLA_GUIONES}).` : null
-  if (motivoSinPlantilla && !previo.guiones) pendientes.push(`${nombres.guiones}: ${motivoSinPlantilla} Copiar la plantilla a mano en la carpeta.`)
+  if (motivoSinPlantilla && !previo.guiones && !omitidos.has('guiones')) pendientes.push(`${nombres.guiones}: ${motivoSinPlantilla} Copiar la plantilla a mano en la carpeta.`)
 
   /** Elemento que ya tiene id guardado en cj_altas: no se vuelve a pedir al puente. */
   const deGuardado = (nombre: string, g: IdGuardado) => elemento(nombre, 'existia', null, g)
@@ -443,6 +507,7 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
 
   // 1) Carpeta del cliente (sin ella no se puede seguir)
   let carpeta: ElementoDrive
+  let carpetaNueva = false
   if (previo.carpeta) {
     // Reintento: el id guardado manda; no se busca por nombre en Clientes (podría devolver la de un homónimo)
     carpeta = deGuardado(nombres.carpeta, previo.carpeta)
@@ -469,8 +534,15 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
       // Primera corrida y la carpeta ya estaba: puede ser de OTRO cliente. Si antes hubo un intento dudoso, puede ser la que
       // creó ese intento: solo se sigue si la fecha de creación lo confirma
       const origen = ventanas.length ? await carpetaDeIntentoDudoso(r.id, ventanas, carpetaClientesId, leerCarpeta) : null
+      let esDelCliente = false
+      if (!origen?.nuestra && opciones.aceptarExistente) {
+        try { esDelCliente = (await opciones.aceptarExistente({ id: r.id, url: r.url })) === true } catch { esDelCliente = false }
+      }
       if (origen?.nuestra) {
         carpeta = elemento(nombres.carpeta, 'creado', MOTIVO_CARPETA_DE_INTENTO_DUDOSO, r)
+      } else if (esDelCliente) {
+        carpeta = elemento(nombres.carpeta, 'existia', MOTIVO_CARPETA_REUSADA, r)
+        carpetaNueva = false
       } else {
         // No se toca nada adentro hasta el OK
         esperaOk = 'carpeta_existente'
@@ -491,9 +563,22 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
     } else {
       avisarSiDuplicado(nombres.carpeta, r, 'en Clientes')
       carpeta = desdePuente(nombres.carpeta, r)
+      carpetaNueva = !r.yaExistia
     }
   }
   const carpetaId = carpeta.id as string
+
+  // 1b) Una carpeta que ya existía (guardada, reutilizada o armada a mano): lo que ya tiene adentro se reconoce por el
+  //     prefijo y no se vuelve a crear con el sufijo del bot. Si no se puede listar, sigue como antes (busca por nombre exacto).
+  if (!carpetaNueva) {
+    try {
+      const hijos = await (opciones.deps?.listarHijos ?? listarHijosDriveReal)(carpetaId)
+      if (hijos) {
+        const ya = clasificarHijos(hijos)
+        for (const k of CLAVES_ADENTRO) if (!previo[k] && ya[k]) previo[k] = ya[k]
+      }
+    } catch { /* sin lectura: el puente busca por el nombre exacto, como siempre */ }
+  }
 
   // 2) Lo de adentro, en paralelo (nombres distintos: no se pisan). Lo que ya tiene id guardado no se pide. Un reintento
   //    que encuentra lo que creó un intento dudoso lo marca 'existia' (adentro de la carpeta del cliente no hay homónimos).
@@ -512,11 +597,13 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
     const nombre = nombres[k]
     const g = previo[k]
     if (g) return deGuardado(nombre, g)
+    if (omitidos.has(k)) return elemento(nombre, 'pendiente', MOTIVO_OMITIDO)
     llamadas.push({ accion: 'crearCarpeta', datos: { padreId: carpetaId, nombre } })
     return intentar(nombre, () => puente.crearCarpeta({ padreId: carpetaId, nombre }))
   }
   const copiarGuiones = async (): Promise<ElementoDrive> => {
     if (previo.guiones) return deGuardado(nombres.guiones, previo.guiones)
+    if (omitidos.has('guiones')) return elemento(nombres.guiones, 'pendiente', MOTIVO_OMITIDO)
     if (motivoSinPlantilla) return elemento(nombres.guiones, 'pendiente', motivoSinPlantilla)
     llamadas.push({ accion: 'copiarArchivo', datos: { archivoId: plantilla, carpetaId, nombre: nombres.guiones } })
     try {
@@ -538,6 +625,7 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
   }
   const docBienvenida = async () => {
     if (previo.bienvenida) return deGuardado(nombres.bienvenida, previo.bienvenida)
+    if (omitidos.has('bienvenida')) return elemento(nombres.bienvenida, 'pendiente', MOTIVO_OMITIDO)
     llamadas.push({ accion: 'crearDoc', datos: { carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc, estilo: ESTILO_BIENVENIDA } })
     return intentar(nombres.bienvenida, () => puente.crearDoc({ carpetaId, nombre: nombres.bienvenida, bloques: bienvenida.bloquesDoc, estilo: ESTILO_BIENVENIDA }))
   }
