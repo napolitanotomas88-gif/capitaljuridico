@@ -138,7 +138,7 @@ export default function EstadoResultados() {
   return (
     <>
       <div className="cabecera">
-        <h2>Estado de Resultados</h2>
+        {/* El título lo pone la página (SeccionTitulo de FinanzasSkwd): acá iba repetido */}
         <label className="check">Año
           <select value={anio} onChange={(e) => setAnio(Number(e.target.value))}>{anios.map((a) => <option key={a}>{a}</option>)}</select>
         </label>

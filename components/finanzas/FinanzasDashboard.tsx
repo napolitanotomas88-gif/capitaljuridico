@@ -14,7 +14,8 @@ import { EstilosSkwd } from './skwd/estilos'
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const etiquetaCorta = (mes: string) => `${MESES_CORTOS[Number(mes.slice(5, 7)) - 1]} ${mes.slice(2, 4)}`
 
-export function FinanzasDashboard() {
+/** base: /finanzas (diseño de cristal) o /finanzas/clasico (diseño anterior); solo cambia a dónde llevan las pestañas. */
+export function FinanzasDashboard({ base = '/finanzas' }: { base?: string } = {}) {
   const [mes, setMes] = useState<string | null>(null)   // null = mes en curso (lo decide el server en hora AR)
   // Respuesta del último pedido terminado (se sigue mostrando el mes anterior mientras carga el nuevo)
   const [resp, setResp] = useState<{ clave: string; datos?: FinanzasApi; error?: string } | null>(null)
@@ -54,7 +55,7 @@ export function FinanzasDashboard() {
           </div>
         } />
 
-        <NavFinanzas actual="resumen" />
+        <NavFinanzas actual="resumen" base={base} />
 
         {/* Selector de mes */}
         {d && (

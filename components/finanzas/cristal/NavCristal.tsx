@@ -1,5 +1,5 @@
 'use client'
-// Navegación de cristal de Finanzas (PRUEBA, 1/11/2026). Réplica del video de referencia que pasó Tomás («Glassy SideBar»):
+// Navegación de cristal de Finanzas (1/11/2026; diseño oficial desde el mismo día). Réplica del video de referencia que pasó Tomás («Glassy SideBar»):
 // riel de íconos ⇄ panel con la misma animación (ancho con curva de salida fuerte, etiquetas que entran escalonadas con
 // desenfoque, píldora activa «líquida» con dos resortes, lupa del riel con magnificación tipo dock, tooltip que se desliza,
 // insignias, subárbol desplegable, interruptor y usuario abajo). Colores: verde Toga / oro mate de Capital Jurídico.
@@ -11,8 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { prepararBase, supabase } from '../skwd/supabase'
 import { IconoCristal } from './iconos'
 
-import { BASE_PRUEBA } from './rutas'
-export { BASE_PRUEBA }
+import { BASE_CLASICO, BASE_FINANZAS } from './rutas'
 const COOKIE_NAV = 'fin_cristal_nav'
 // v2 (1/11): el nocturno pasó a ser el predeterminado; la cookie vieja guardaba el «claro» de antes
 const COOKIE_NOCHE = 'fin_cristal_noche_v2'
@@ -20,7 +19,7 @@ const COOKIE_NOCHE = 'fin_cristal_noche_v2'
 type Item = { id: string; etiqueta: string; href: string; insignia?: 'gris' | 'roja'; rotuloInsignia?: string }
 type Grupo = { titulo: string; items: (Item | { id: 'reportes'; etiqueta: string; hijos: (Item & { punto: string })[] })[] }
 
-const ruta = (v: string) => (v === 'resumen' ? BASE_PRUEBA : `${BASE_PRUEBA}/${v}`)
+const ruta = (v: string) => (v === 'resumen' ? BASE_FINANZAS : `${BASE_FINANZAS}/${v}`)
 
 const GRUPOS: Grupo[] = [
   {
@@ -51,8 +50,8 @@ const GRUPOS: Grupo[] = [
 const TODOS: Item[] = GRUPOS.flatMap((g) => g.items.flatMap((i) => ('hijos' in i ? i.hijos : [i])))
 
 function vistaDe(pathname: string): string {
-  if (!pathname.startsWith(BASE_PRUEBA)) return 'resumen'
-  const resto = pathname.slice(BASE_PRUEBA.length).replace(/^\//, '').split('/')[0]
+  if (!pathname.startsWith(BASE_FINANZAS)) return 'resumen'
+  const resto = pathname.slice(BASE_FINANZAS.length).replace(/^\//, '').split('/')[0]
   return resto || 'resumen'
 }
 
@@ -95,6 +94,8 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   const [tip, setTip] = useState<{ texto: string; extra?: string; y: number; x: number; visible: boolean; siempre?: boolean }>({ texto: '', y: 0, x: 0, visible: false })
   const [anchoTip, setAnchoTip] = useState(0)
   const [presionado, setPresionado] = useState<string | null>(null)
+  // Hasta confirmar el ancho real, en el celular la barra no se muestra abierta (ver cristal.css, .fcn:not([data-listo]))
+  const [listo, setListo] = useState(false)
 
   const lista = useRef<HTMLDivElement>(null)
   const pildora = useRef<HTMLSpanElement>(null)
@@ -106,7 +107,7 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   useEffect(() => { escribirCookie(COOKIE_NOCHE, nocheInicial ? '1' : '0') }, [nocheInicial])
   // En el celular se entra siempre con el riel (el panel abierto taparía el contenido), aunque en la compu se haya dejado abierto
   useEffect(() => {
-    const raf = requestAnimationFrame(() => { if (window.matchMedia('(max-width: 767px)').matches) setAbierta(false) })
+    const raf = requestAnimationFrame(() => { if (window.matchMedia('(max-width: 767px)').matches) setAbierta(false); setListo(true) })
     return () => cancelAnimationFrame(raf)
   }, [])
 
@@ -320,16 +321,16 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   }
 
   return (
-    <div className="fcn" data-abierta={abierta} onMouseLeave={() => { ocultarTip(); soltarMagnificacion() }}>
-      <nav className="fcn-panel" aria-label="Finanzas (prueba)">
+    <div className="fcn" data-abierta={abierta} data-listo={listo || undefined} onMouseLeave={() => { ocultarTip(); soltarMagnificacion() }}>
+      <nav className="fcn-panel" aria-label="Finanzas">
         {/* Encabezado: logo + nombre */}
         <div className="fcn-cab">
-          <Link href={BASE_PRUEBA} className="fcn-logo" aria-label="Capital Jurídico · Finanzas: ir al Resumen" {...propsTip('Capital Jurídico')} onMouseLeave={ocultarTip}>
+          <Link href={BASE_FINANZAS} className="fcn-logo" aria-label="Capital Jurídico · Finanzas: ir al Resumen" {...propsTip('Capital Jurídico')} onMouseLeave={ocultarTip}>
             <span className="fcn-logo__iso" aria-hidden="true" />
           </Link>
           <div className="fcn-cab__textos fcn-anima" style={{ '--i': 0 } as CSSProperties} aria-hidden={!abierta}>
             <strong>Capital Jurídico</strong>
-            <span>Finanzas · prueba</span>
+            <span>Finanzas</span>
           </div>
         </div>
 
@@ -431,7 +432,7 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
 
       {menuUsuario && (
         <div className="fcn-menu" role="menu" aria-label="Sesión">
-          <Link role="menuitem" href="/finanzas" className="fcn-menu__op"><IconoCristal nombre="volver" tam={16} /> Finanzas actual</Link>
+          <Link role="menuitem" href={actual === 'resumen' ? BASE_CLASICO : `${BASE_CLASICO}/${actual}`} className="fcn-menu__op"><IconoCristal nombre="volver" tam={16} /> Diseño clásico</Link>
           <Link role="menuitem" href="/" className="fcn-menu__op"><IconoCristal nombre="volver" tam={16} /> Volver al Despacho</Link>
           <form method="post" action="/api/finanzas/logout">
             <button role="menuitem" type="submit" className="fcn-menu__op"><IconoCristal nombre="salir" tam={16} /> Cerrar Finanzas</button>

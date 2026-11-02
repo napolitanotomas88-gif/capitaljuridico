@@ -1,4 +1,4 @@
-/* ── Finanzas · PRUEBA del diseño de cristal (1/11/2026) ──────────────────────────────────────────────────────────────
+/* ── Finanzas · diseño de cristal (1/11/2026; el oficial desde ese día, en /finanzas) ──────────────────────────────────────────────────────────────
    Réplica del video de referencia («Glassy SideBar»): cristal ahumado con desenfoque sobre una foto, píldoras de cristal,
    tooltips claros, insignias, puntos de color, chips de atajo e interruptor. Tomás: «no es una sidebar, es todo el diseño
    en sí» → el mismo material se aplica a TODA la interfaz de Finanzas (tarjetas, tablas, formularios, botones, chips).
@@ -730,6 +730,40 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   .fin-cristal .fin-resumen :is(.cj-dato__contexto, .cj-dato__pie) { grid-area: bajo; margin: 0; min-height: 0; }
 }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   NEGRITA EN LO DESTACADO (1/11, Tomás: «lo que se destaca ponelo en negrita»). Cifras principales en 700; las etiquetas
+   que las acompañan en peso normal (400–500) para que el contraste lo haga el peso y no solo el tamaño. Igual en todas las
+   pantallas: tarjetas, totales de paneles, cifra de cada fila de los desgloses, totales de tablas, mes elegido y «= USD».
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Montos principales de las tarjetas (Resumen, Tablero, Pagos del equipo, Gastos personales) */
+.fin-cristal :is(.cj-dato__valor, .fin-skwd .kpi strong, .fin-skwd .pe-kpi strong, .fin-skwd .pe-total__valor, .fin-skwd .tarjetas strong, .fin-skwd .resumen-principal strong) { font-weight: 700; }
+/* …y sus etiquetas, en peso normal */
+.fin-cristal .cj-dato__etiqueta, .fin-cristal .fin-resumen .cj-dato__etiqueta { font-weight: 500; }
+.fin-cristal .fin-skwd :is(.kpi > span, .pe-kpi .cj-etiqueta, .pe-total .cj-etiqueta, .tarjetas span, .resumen-principal span) { font-weight: 500; }
+.fin-cristal .fin-resumen :is(.cj-dato__contexto, .cj-dato__pie) { font-weight: 400; }
+/* Totales de los paneles («Total: US$ …», «Cash del mes: US$ …», «A pagar») */
+.fin-cristal .cj-bloque__titulos b, .fin-cristal .cj-bloque__cab .font-black { font-weight: 700; }
+.fin-cristal .cj-bloque__titulos .cj-texto-2 { font-weight: 400; }
+/* Cifra de cada fila de los desgloses (barras del Resumen, Monotributo, Por tipo de gasto, Por departamento, Desglose) */
+.fin-cristal .cj-bloque .tabular-nums.font-semibold, .fin-cristal .cj-bloque b.tabular-nums { font-weight: 700; }
+.fin-cristal .fin-skwd .resumenes td:last-child, .fin-cristal .fin-skwd .pe-tabla--compacta td.num { font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+.fin-cristal .fin-skwd .resumenes td:first-child, .fin-cristal .fin-skwd .pe-tabla--compacta td:first-child { font-weight: 400; }
+.fin-cristal .fin-skwd .pe-desglose dd { font-weight: 700; }
+.fin-cristal .fin-skwd .pe-desglose dt { font-weight: 400; }
+/* Totales de tablas */
+.fin-cristal .fin-skwd :is(.fila-total td, .er-total, .er-fuerte td), .fin-cristal .fin-tabla tfoot td { font-weight: 700; }
+/* Mes elegido (chips del Resumen) y período elegido del Tablero: negrita; el resto, normal */
+.fin-cristal .cj-chip { font-weight: 500; }
+.fin-cristal .cj-chip[aria-pressed='true'] { font-weight: 700; }
+.fin-cristal .fin-skwd .filtros button:not([type='submit']):disabled, .fin-cristal .fin-skwd .subtabs button:disabled { font-weight: 700; }
+/* «= USD» del reparto de «Pagado por» */
+.fin-cristal .fin-skwd .pe-reparto__usd { font-weight: 700; }
+/* Pagos del equipo: la pestaña elegida («Líneas» / «Cierre de mes») quedaba casi invisible: cristal fuerte y texto marfil */
+.fin-cristal .pe .pe-segmento button:is([aria-pressed='true'], [aria-selected='true']) {
+  color: rgba(255, 255, 255, 0.97); font-weight: 700;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.21), rgba(255, 255, 255, 0.11)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 /* ── Entrada de los paneles y transición entre vistas (template.tsx los vuelve a montar) ── */
 /* Relleno «backwards» (no «both»): si el filtro quedara puesto al terminar (blur(0)), el contenedor pasa a ser «raíz de
    fondo» y los paneles de adentro dejan de esmerilar el logo (pasaba en Pagos del equipo y en otras vistas .fin-skwd) */
@@ -748,6 +782,8 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
 /* ── Celular: riel a 8 px del borde; el panel abierto va encima del contenido con un velo ── */
 @media (max-width: 767px) {
   .fcn, .fcn[data-abierta='true'] { left: 8px; top: 8px; bottom: 8px; }
+  /* Al cargar, hasta que NavCristal confirma el ancho, la barra no se ve abierta (antes se veía abierta un instante) */
+  .fcn[data-abierta='true']:not([data-listo]) { visibility: hidden; }
   .fin-cristal__contenido, .fin-cristal[data-nav='panel'] .fin-cristal__contenido { padding-left: calc(8px + 60px + 2px); }
   .fin-cristal[data-nav='panel'] { --cr-logo-x: 0px; }
   .fin-cristal .fin-pagina { padding-left: 8px; padding-right: 12px; }
@@ -756,6 +792,10 @@ html:has(.fin-cristal), body:has(.fin-cristal) { background: #03221c; }
   .fin-cristal :is(.fin-skwd input, .fin-skwd select, .fin-skwd textarea) { font-size: 16px; }
   .fin-cristal .fin-skwd .form { padding: 14px; }
   .fin-cristal .fin-skwd .filtros { padding: 6px; border-radius: 18px; }
+  /* Casillas largas de las barras (Estado de resultados: «Saldo inicial del Beneficio acumulado») bajan de línea en vez de
+     estirar la página a lo ancho */
+  .fin-cristal .fin-skwd .filtros .check { white-space: normal; flex-wrap: wrap; max-width: 100%; padding-top: 6px; padding-bottom: 6px; }
+  .fin-cristal .fin-skwd .filtros .check input:not([type='checkbox']):not([type='radio']) { min-width: 0; max-width: 100%; }
 }
 
 /* ── Accesibilidad ── */

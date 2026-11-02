@@ -99,7 +99,9 @@ function TarjetaGrafico({ titulo, subtitulo, children, filas, columnas }) {
   )
 }
 
-export default function Dashboard() {
+// cristal: con el diseño de cristal las barras «principal» se pintan marfil (cristal.css); en el clásico, verde oscuro.
+// Solo cambia el texto que explica el color.
+export default function Dashboard({ cristal = false }) {
   const hoy = hoyLocal()
   const P = useMemo(() => presets(hoy), [hoy])
   const [desde, setDesde] = useState(P['Mes anterior'][0])
@@ -133,7 +135,6 @@ export default function Dashboard() {
   const k = d?.kpis
   return (
     <>
-      <h2>Dashboard</h2>
       {error && <p className="error">Error: {error}</p>}
 
       <div className="filtros">
@@ -156,7 +157,7 @@ export default function Dashboard() {
           </div>
 
           <div className="dash-grid">
-            <TarjetaGrafico titulo={`Cash collected por mes ${d.anio}`} subtitulo="los meses del rango en azul fuerte"
+            <TarjetaGrafico titulo={`Cash collected por mes ${d.anio}`} subtitulo={`los meses del rango en ${cristal ? 'marfil' : 'verde oscuro'}`}
               columnas={['Mes', 'Cash', 'Pagos']} filas={d.porMes.map((m) => [m.nombre, fmt(m.usd), m.n])}>
               <GraficoBarras datos={d.porMes.map((m) => ({ nombre: m.nombre, usd: m.usd, n: m.n, etiqueta: `${m.nombre} ${d.anio}`, enRango: m.enRango }))} titulo={`Cash por mes ${d.anio}`} colorDe={(x) => (x.enRango ? COLOR.principal : COLOR.suave)} />
             </TarjetaGrafico>

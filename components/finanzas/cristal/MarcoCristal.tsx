@@ -1,9 +1,9 @@
 'use client'
-// Marco de la PRUEBA de Finanzas con el diseño de cristal (1/11/2026, pedido de Tomás: «copiá todo el diseño literalmente…
+// Marco de Finanzas con el diseño de cristal (1/11/2026, el diseño oficial desde ese día; pedido de Tomás: «copiá todo el diseño literalmente…
 // con los colores más apagados de Capital Jurídico, ese verde oscuro… junto con el logo de fondo»; «no es una sidebar, es
 // todo el diseño en sí»). Fondo: el logo de Capital Jurídico grande sobre verde Toga con textura (hace de la foto del living
 // del video); encima, la navegación de cristal (NavCristal) y las pantallas de siempre reestilizadas como paneles de cristal
-// (cristal.css, todo bajo .fin-cristal). Solo presentación: las pantallas y su lógica son las mismas de /finanzas.
+// (cristal.css, todo bajo .fin-cristal). Solo presentación: las pantallas y su lógica son las mismas del diseño clásico (/finanzas/clasico).
 import { useCallback, useState } from 'react'
 import { NavCristal } from './NavCristal'
 import './cristal.css'

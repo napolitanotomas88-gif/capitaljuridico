@@ -6,18 +6,19 @@ import { COOKIE_FINANZAS, tokenValido } from '@/lib/finanzasAuth'
 import { adminEnPagina } from '@/lib/auth/llaveAdminPagina'
 import { FinanzasSkwd } from '@/components/finanzas/skwd/FinanzasSkwd'
 import { esVistaSkwd } from '@/components/finanzas/skwd/vistas'
+import { BASE_CLASICO } from '@/components/finanzas/cristal/rutas'
 
 export const dynamic = 'force-dynamic'
-export const metadata: Metadata = { title: 'Finanzas', robots: { index: false, follow: false } }
+export const metadata: Metadata = { title: 'Finanzas · diseño clásico', robots: { index: false, follow: false } }
 
-// Pantallas de Finanzas SKWD (1/11/2026). Mismo acceso que /finanzas: protegida por proxy.ts y verificada acá otra vez.
-export default async function FinanzasVistaPage({ params }: { params: Promise<{ vista: string }> }) {
+// Pantallas de Finanzas SKWD con el diseño anterior (hasta el 1/11/2026). Mismos componentes y mismos datos que /finanzas/<vista>.
+export default async function FinanzasClasicoVistaPage({ params }: { params: Promise<{ vista: string }> }) {
   const { vista } = await params
   if (!esVistaSkwd(vista)) notFound()
   if (!tokenValido((await cookies()).get(COOKIE_FINANZAS)?.value) && !(await adminEnPagina())) redirect('/finanzas/login')
   return (
     <Suspense>
-      <FinanzasSkwd vista={vista} />
+      <FinanzasSkwd vista={vista} base={BASE_CLASICO} />
     </Suspense>
   )
 }

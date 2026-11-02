@@ -95,7 +95,6 @@ export default function GastosPersonales() {
 
   return (
     <>
-      <h2>Gastos Personales</h2>
       <nav className="subtabs">
         <button type="button" onClick={() => setVista('resumen')} disabled={vista === 'resumen'}>Resumen y balance</button>
         <button type="button" onClick={() => setVista('movimientos')} disabled={vista === 'movimientos'}>Movimientos ({gastos.length})</button>
@@ -122,7 +121,7 @@ export default function GastosPersonales() {
           </form>
           {aviso && <div className="aviso-box">⚠ {aviso} Si lo guardás así quedará <strong>"A revisar"</strong> y fuera del balance.</div>}
 
-          <h3>Gastos personales ({gastos.length}) — Total registrado: {fmt(total)}</h3>
+          <h3>Gastos personales ({gastos.length}) — Total registrado: <strong>{fmt(total)}</strong></h3>
           <div className="tabla-scroll">
             <table>
               <thead><tr><th>Fecha</th><th>Ejecutado por</th><th>Tipo</th><th>Gasto de</th><th>Monto</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
