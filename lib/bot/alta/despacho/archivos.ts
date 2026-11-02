@@ -69,8 +69,10 @@ export function archivosNeon(env: NodeJS.ProcessEnv = process.env): AlmacenArchi
   }
 }
 
-/** El ClienteWhapi del motor, con los comprobantes del Despacho y sin citas a mensajes del Despacho. */
-export function clienteConArchivosDespacho(interno: ClienteWhapi, archivos: () => AlmacenArchivos): ClienteWhapi {
+/** El ClienteWhapi del motor, con los comprobantes del Despacho y sin citas a mensajes del Despacho.
+ *  `modoMotor` (BOT_ALTA_MODO) decide si se leen: con el WhatsApp del bot cortado (2/11/2026) el cliente de adentro es uno
+ *  sin red que dice 'seco' aunque el alta corra en real, y eso no puede frenar los comprobantes que se subieron al Despacho. */
+export function clienteConArchivosDespacho(interno: ClienteWhapi, archivos: () => AlmacenArchivos, modoMotor?: 'seco' | 'ensayo' | 'real'): ClienteWhapi {
   const sinCitaDespacho = (c: string | null | undefined) => (c && c.startsWith(PREFIJO_ID) ? null : c ?? null)
   return {
     ...interno,
@@ -80,7 +82,7 @@ export function clienteConArchivosDespacho(interno: ClienteWhapi, archivos: () =
     async descargarMedio(m: RefMedio, op?: { maxBytes?: number; hasta?: number }): Promise<MedioDescargado> {
       if (!esIdArchivoDespacho(m?.id)) return interno.descargarMedio(m, op)
       // Mismo criterio que la compuerta: en seco no se lee nada (tampoco lo propio)
-      if (interno.modo === 'seco') throw new ErrorWhapi('bloqueado', 'Despacho: en modo seco no se lee el comprobante', null, false)
+      if ((modoMotor ?? interno.modo) === 'seco') throw new ErrorWhapi('bloqueado', 'Despacho: en modo seco no se lee el comprobante', null, false)
       let a: MedioDescargado | null
       try { a = await archivos().leer(m.id) } catch (e) { throw new ErrorWhapi('pasajero', `Despacho: no se pudo leer el comprobante (${String((e as Error)?.message ?? e).slice(0, 80)})`, null, false) }
       if (!a) throw new ErrorWhapi('no_encontrado', 'Despacho: el comprobante ya no está guardado', 404, false)

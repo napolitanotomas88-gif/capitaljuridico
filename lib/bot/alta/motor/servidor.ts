@@ -183,7 +183,7 @@ export function depsServidor(base: DepsMotorBase, op: OpcionesServidor = {}): De
   return {
     ...base,
     // Altas desde el Despacho (26/10/2026): los comprobantes subidos ahí se leen de cj_altas_archivos, no de Whapi
-    whapi: clienteConArchivosDespacho(base.whapi, () => archivosNeon(env)),
+    whapi: clienteConArchivosDespacho(base.whapi, () => archivosNeon(env), base.modo),
     canal: () => canalDelEntorno(env),
     avisarEspera: (d) => avisarEsperaDiscord(d),
     equipoDiscord: equipoDiscordAlta,
