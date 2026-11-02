@@ -168,6 +168,34 @@ test('regresiones de la revisión: tanda a revisar sigue en Guiones; éxito o re
   assert.equal(hito(H.hitosDelCliente(ev({ tanda: { creado: '2026-10-05', estado: 'aprobada', aprobada: '2026-10-06', enviada: null } })), 'revision').hecho, false)
 })
 
+test('hitos con respaldo: ClickUp y la renovación completan el registro sin mover la etapa (2/11)', () => {
+  // Cliente viejo: solo ClickUp en verde. Se ve todo hecho hasta la campaña, sin fecha, y la etapa no sale de ahí
+  const cu = H.hitosDelCliente(ev({ clickupEstado: 'verde' }))
+  for (const k of ['kickoff', 'guiones', 'revision', 'grabacion', 'edicion']) assert.equal(hito(cu, k).hecho, true, k)
+  assert.equal(hito(cu, 'lanzamiento').fuente, 'clickup'); assert.equal(hito(cu, 'lanzamiento').fecha, null)
+  assert.ok(cu.filter(h => h.clave !== 'alta').every(h => !h.hecho || h.respaldo), 'todo lo deducido es respaldo')
+  assert.equal(H.etapaPorHitos(cu), null, 'ClickUp no mueve la etapa desde el registro')
+  assert.equal(H.textoFechaHito(hito(cu, 'kickoff')), 'Hecho, sin fecha')
+  // Con edición real en Drive y ClickUp en verde: la etapa sigue saliendo de Drive (por lanzar), el lanzamiento es respaldo
+  const mix = H.hitosDelCliente(ev({ drive: { guion: null, guionCreado: null, crudos: null, editados: '2026-07-10' }, clickupEstado: 'verde' }))
+  assert.equal(H.etapaPorHitos(mix).etapa, 'por_lanzar'); assert.equal(hito(mix, 'lanzamiento').respaldo, true)
+  // Renovó y nada más: el primer período llegó a lanzar
+  const r1 = H.hitosDelCliente(ev({ renovo: 'R1' }))
+  assert.equal(hito(r1, 'lanzamiento').hecho, true); assert.equal(hito(r1, 'kickoff').hecho, true); assert.equal(H.etapaPorHitos(r1), null)
+  // Pausa en ClickUp no dice nada
+  assert.equal(hito(H.hitosDelCliente(ev({ clickupEstado: 'pausa' })), 'kickoff').hecho, false)
+})
+
+test('hitos: la revisión se deduce si ya grabó, y una fecha posterior a lo que siguió queda sin fecha', () => {
+  const hs = H.hitosDelCliente(ev({ drive: { guion: '2026-10-29', guionCreado: '2026-06-01', crudos: null, editados: '2026-07-10' } }))
+  assert.equal(hito(hs, 'revision').hecho, true); assert.equal(hito(hs, 'revision').fuente, 'inferido')
+  assert.equal(hito(hs, 'guiones').hecho, true); assert.equal(hito(hs, 'guiones').fecha, null, 'el Doc editado el 29/10 no es la primera vez')
+  assert.equal(hito(hs, 'edicion').fecha, '2026-07-10')
+  // Lo anotado a mano conserva su fecha aunque sea posterior
+  const man = H.hitosDelCliente(ev({ drive: { guion: null, guionCreado: null, crudos: null, editados: '2026-07-10' }, manuales: [{ hito: 'guiones', fecha: '2026-08-01', nota: '', quien: 'Tomás', cuando: '' }] }))
+  assert.equal(hito(man, 'guiones').fecha, '2026-08-01')
+})
+
 test('pedido de hito: una fecha que no existe es 400 (no llega a la base)', async () => {
   const { leerPedidoHito } = await import('../lib/clientes/hitosRegistro.ts')
   assert.equal(typeof leerPedidoHito({ hito: 'kickoff', fecha: '2026-02-31' }, HOY), 'string')
