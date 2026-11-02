@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/bot/guiones/recordatorio",
+      "schedule": "0 12 * * 1-5"
+    },
+    {
       "path": "/api/clientes/sincronizar",
       "schedule": "0 14 * * *"
     },
