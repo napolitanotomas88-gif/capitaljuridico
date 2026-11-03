@@ -13,16 +13,16 @@ import { exigirClienteNoArchivado } from '@/lib/clientes/archivados'
 
 // POST /api/guiones/<id> — lo que se toca en /guiones/<id> (etapa Guiones, docs/BOT-GUIONES-CJ.md):
 //   { accion: 'editar', tanda, numero, secciones: [{seccion, indicacion, texto}], previo }
-//   { accion: 'verificar', tanda, numero, previo, si }    → «✓ Verificado» de un guion (si: false lo saca). Tomi o Faus (27/10)
-//   { accion: 'aprobar', tanda, previo }                 → el check final de UNA persona (Tomi o Faus), solo con todos los guiones
+//   { accion: 'verificar', tanda, numero, previo, si }    → «✓ Verificado» de un guion (si: false lo saca). Faus (Tomás conserva el permiso)
+//   { accion: 'aprobar', tanda, previo }                 → Faus revisa y da el check final (UNA persona), solo con todos los guiones
 //                                                           verificados; resuelve el Doc automáticamente y avisa a Aylu/Gero.
 //   { accion: 'reenviar', tanda }                       → reintenta la publicación del Doc y su aviso interno
 //   { accion: 'reanudar', tanda }                        → retoma una tanda en error o colgada (con el motor local, la toma la Mac)
 //   { accion: 'armar_api', tanda }                       → respaldo: la arma el Despacho con la API (si la Mac no la tomó)
 //   { accion: 'nota', tanda, texto, guion? }             → la respuesta del cliente cargada a mano (la de WhatsApp entra sola):
 //                                                           el bot corrige solo y la tanda vuelve a revisión
-// Regla "/api/guiones/*" de lib/auth/rutas.ts (sección Guiones). Aprobar: los mails de KICKOFF_REVISOR_TOMI o
-// GUIONES_REVISOR_FAUS. El trabajo largo (Doc, WhatsApp, corrección) corre en after() o en /api/bot/guiones.
+// Regla "/api/guiones/*" de lib/auth/rutas.ts (sección Guiones). Aprobar: GUIONES_REVISOR_FAUS (Faus da el check
+// final; KICKOFF_REVISOR_TOMI conserva el permiso técnico). El trabajo largo (Doc, WhatsApp, corrección) corre en after() o en /api/bot/guiones.
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
@@ -89,7 +89,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       case 'reanudar':
         return r(200, { ok: true, mensaje: await reanudar(fila.id, depsReales()) })
       case 'armar_api': {
-        // Respaldo: si la Mac no la tomó, Tomi o Faus la arman con la API (cuesta ~USD 2 con la caché)
+        // Respaldo: si la Mac no la tomó, Faus (o quien tenga el permiso) la arma con la API (cuesta ~USD 2 con la caché)
         if (!esAprobador(sesion.email)) return r(403, { ok: false, mensaje: 'Solo Tomi o Faus.' })
         return r(200, { ok: true, mensaje: await reanudar(fila.id, depsReales('api')) })
       }

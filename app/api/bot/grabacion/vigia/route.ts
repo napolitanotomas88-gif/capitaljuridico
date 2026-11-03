@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   // Sin WhatsApp (2/11/2026): la bandeja central sale por Discord y se recuerdan los mensajes «para enviar» sin marcar
   after(() => despacharNotifDiscordReal().then(() => undefined).catch(e => { console.error('notif-discord: falla inesperada —', motivo(e)) }))
   after(() => recordarParaEnviar().then(() => undefined).catch(e => { console.error('para-enviar: falla inesperada —', motivo(e)) }))
-  // Guiones para revisar (3/11/2026): aviso que haya faltado + recordatorios de 24 h (Faus y Gero M) y 48 h (+ Tomás), de 9 a 20 h
+  // Guiones para revisar (3/11/2026): aviso que haya faltado + recordatorios de 24 h (Faus y Gero M) y 48 h (escala a Gero M), de 9 a 20 h
   after(() => recordarGuionesARevisar().then(() => undefined).catch(e => { console.error('guiones-revision: falla inesperada —', motivo(e)) }))
   // Guiones aprobados sin su «para enviar» en 📤 (3/11/2026, «SÍ O SÍ»): la red que lo crea si el check final no lo dejó
   after(() => crearParaEnviarFaltantesReal().then(r => { if (r.faltantes.length || r.errores.length) console.log(`guiones-para-enviar: ${r.faltantes.map(f => `${f.id_crm} tanda ${f.tanda} (${f.estado})`).join(' · ') || '0'}${r.errores.length ? ` | errores ${r.errores.join(' · ')}` : ''}`) }).catch(e => { console.error('guiones-para-enviar: falla inesperada —', motivo(e)) }))
