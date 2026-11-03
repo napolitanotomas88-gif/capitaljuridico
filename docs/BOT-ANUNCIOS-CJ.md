@@ -133,6 +133,13 @@ video, 12 por idea.
 - Si sobran 1 o 2 videos, forman una idea más chica, con aviso. El aviso le pide a Valen que confirme que cada idea
   junte videos del mismo concepto.
 
+## Variaciones de texto fieles al original (3/11/2026, Tomás)
+
+2 textos principales (uno amplio, uno directo) + 2 titulares. Son variaciones: no se cambia la estructura de siempre y
+se usan las mismas palabras y formato del original (los guiones). Nada de palabras raras o que no tengan que ver. El
+prompt (`copys.ts`) lo pide y `ganchoFiel` descarta un directo cuyo gancho no comparte palabras con ningún HOOK
+(en ese caso va el copy del ganador, con aviso).
+
 ## Presupuesto chico: 5 videos como máximo (2/11/2026, Tomás)
 
 Con un presupuesto de hasta USD 300 por mes, el borrador (rotación o lanzamiento) lleva 5 videos como máximo, los primeros

@@ -46,6 +46,10 @@ describe('copys: qué guion es de qué video', () => {
     assert.equal(C.copyValido('Una sola línea sin flecha'), null)
     assert.equal(C.copyValido('Gancho sin flecha\nProblema largo que no sirve para nada en este caso concreto de prueba.\nEnviame un mensaje 💬 y te ayudo.'), null)
   })
+  test('variación fiel: el gancho del directo usa palabras del HOOK del guion', () => {
+    assert.equal(C.ganchoFiel('¿Te despidieron y no te pagaron todo? ⬇️\nx', ['¿Te despidieron sin pagarte la indemnización?']), true)
+    assert.equal(C.ganchoFiel('¿Tu jefe te trata mal en la oficina? ⬇️\nx', ['¿Te despidieron sin pagarte la indemnización?']), false)
+  })
   test('3:2:2: textos válidos (amplio + directo, 2 títulos distintos)', () => {
     assert.deepEqual(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), { textos: [AMPLIO, COPY], titulos: ['Escribime hoy', 'Vemos tu caso'] })
     assert.equal(C.textosValidos({ amplio: COPY, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)   // el amplio no puede ser el directo
