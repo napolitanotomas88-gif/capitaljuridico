@@ -7,7 +7,7 @@ export const maxDuration = 300
 export const runtime = 'nodejs'
 
 // Revisión diaria «Drive completo» (docs/BOT-ALTA-CJ.md): todo cliente activo tiene su carpeta «<Nombre> - C.J» con Crudos,
-// Editados, Marca y Guiones (y la bienvenida, si es reciente). Regla 'propio' en lib/auth/rutas.ts: SOLO
+// Editados, Marca y Guiones (y la bienvenida, si es reciente), solo con Día 1 desde BOT_DRIVE_COMPLETO_DESDE (2026-10-20). Regla 'propio' en lib/auth/rutas.ts: SOLO
 // `Authorization: Bearer <CRON_SECRET>` (nunca ?key=). Sin CRON_SECRET → 503; con otro → 401.
 //   · GET (cron diario de vercel.json, "30 12 * * *" = 9:30 de Argentina): corre en el modo de BOT_DRIVE_COMPLETO_MODO
 //     (ensayo por defecto: no escribe ni avisa; real; apagado).

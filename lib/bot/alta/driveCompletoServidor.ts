@@ -11,7 +11,7 @@ import {
   CARPETA_CLIENTES_DRIVE, MIME_CARPETA_DRIVE, listarHijosDriveReal, plantillaGuionesDesdeEntorno, prepararDriveCliente,
 } from './driveCliente'
 import { esIdDrive } from './puenteDrive'
-import { correrDriveCompleto, esPrueba, type ClienteActivo, type DepsDriveCompleto, type EntradaPlan, type OpcionesCorrida, type ResultadoCorrida, type VinculoCarpeta } from './driveCompleto'
+import { correrDriveCompleto, desdeDriveCompleto, esPrueba, type ClienteActivo, type DepsDriveCompleto, type EntradaPlan, type OpcionesCorrida, type ResultadoCorrida, type VinculoCarpeta } from './driveCompleto'
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
 const VINCULOS_QUE_PROCESAN = ['alta', 'aylu', 'tomas', 'bot']
@@ -78,7 +78,7 @@ async function leerEntradaReal(): Promise<EntradaPlan & { carpetaClientesId: str
   const clientes: ClienteActivo[] = conId
     .filter((c) => c.estado.toUpperCase() === 'ACTIVO' && !archivados.has(c.id.toUpperCase()) && !esPrueba(c.nombre) && !c.esNoCliente && c.linea === 'agencia')
     .map((c) => ({ id: c.id.toUpperCase(), nombre: c.nombre.trim(), dia1: c.dia1 ?? null, correo: c.mail || null }))
-  return { clientes, todosCrm: conId.map((c) => ({ id: c.id.toUpperCase(), nombre: c.nombre })), carpetas, vinculos, altasEnCurso: enCurso, hoy: hoyArgentina(), carpetaClientesId: raiz }
+  return { clientes, todosCrm: conId.map((c) => ({ id: c.id.toUpperCase(), nombre: c.nombre })), carpetas, vinculos, altasEnCurso: enCurso, hoy: hoyArgentina(), desde: desdeDriveCompleto(), carpetaClientesId: raiz }
 }
 
 export function depsDriveCompletoReales(hasta: number): DepsDriveCompleto {
