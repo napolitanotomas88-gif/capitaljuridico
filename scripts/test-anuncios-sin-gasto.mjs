@@ -28,3 +28,9 @@ test('pausaDeFila: la última acción manda; un reanudar corta la pausa', () => 
   assert.equal(P.pausaDeFila({ tipo: 'reanudar', datos: {}, creada: '2026-11-03T10:00:00Z' }), null)
   assert.equal(P.pausaDeFila({ tipo: 'pausa', datos: {}, creada: new Date('2026-11-02T10:00:00Z') }).desde, '2026-11-02')
 })
+
+test('pausado con deuda, motivo sin referencias internas y arranque de hoy', () => {
+  const t = S.causaSinGasto(fila({ pausado: true, pago: { errorPago: true, sinMedioPago: false, texto: 'error de pago', periodoGracia: false } }), { desde: '2026-11-01', hasta: null, vuelta: null, motivo: 'Pausa pedida por Tomás en sombra (ac_mvth6gs6 x)' }).texto
+  assert.equal(t, 'Pausado · sin fecha de vuelta · Pausa pedida por Tomás · deuda en Meta')
+  assert.equal(S.causaSinGasto(fila({ gasto: { hoy: 1.15 } }), null).texto, 'Empezó a gastar hoy')
+})
