@@ -410,8 +410,9 @@ export function TableroAnuncios() {
 
 /** Por qué no gasta / hasta cuándo está pausado (lib/anuncios/sinGasto.ts), debajo del nombre. */
 function LineaSinGasto({ f }: { f: FilaAnuncio }) {
-  if (!f.sinGasto) return null
-  const color = f.sinGasto.tipo === 'pausa' ? 'var(--laton)' : f.sinGasto.tipo === 'pago' || f.sinGasto.tipo === 'sin_medio_pago' ? 'var(--borgona)' : 'var(--humo)'
+  // Solo en el grupo «Sin gasto» y en los pausados: en los errores, la fila ya dice el problema
+  if (!f.sinGasto || (f.semaforo !== 'sin_gasto' && !f.pausado)) return null
+  const color = f.sinGasto.tipo === 'pausa' ? 'var(--laton)' : 'var(--hueso)'
   return <div style={{ fontSize: 12.5, lineHeight: 1.35, color, marginTop: 1 }} title="Por qué no gasta">{f.sinGasto.texto}</div>
 }
 
