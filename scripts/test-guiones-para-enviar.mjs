@@ -9,7 +9,7 @@ const R = await import('../lib/bot/guiones/avisoRevision.ts')
 
 const AP = '2026-11-02T22:05:07.977Z'
 const fila = (o = {}) => ({
-  id: 6, recording_id: 1, tanda: 1, id_crm: 'A165', cliente: 'Martina Fernández', estado: 'aprobada', notas: [], guiones: { 1: {}, 2: {} },
+  id: 6, recording_id: 1, tanda: 1, id_crm: 'A165', cliente: 'Cliente Prueba', estado: 'aprobada', notas: [], guiones: { 1: {}, 2: {} },
   aprobacion: { quien: 'Faus', email: 'f@x.test', cuando: AP }, doc: { id: 'd1', url: 'https://docs.google.com/document/d/d1/edit', tanda: 1, publicada: AP },
   actualizado: AP, ...o,
 })

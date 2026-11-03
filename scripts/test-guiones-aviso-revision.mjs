@@ -9,11 +9,11 @@ const hace = h => new Date(AHORA.getTime() - h * 3_600_000).toISOString()
 const fila = (id, extra = {}) => ({ id, tanda: 1, id_crm: `A${id}`, cliente: `Cliente ${id}`, estado: 'a_revisar', actualizado: hace(1), guiones: { 1: {}, 2: {}, 3: {} }, ...extra })
 
 test('aviso: menciona a Faus, Tomi y Gero M, con cliente, tanda y link', () => {
-  const a = R.alertaRevision(fila(7, { cliente: 'Nancy Baez', id_crm: 'A169' }), 'revisar')
+  const a = R.alertaRevision(fila(7, { cliente: 'Cliente Prueba', id_crm: 'A169' }), 'revisar')
   assert.equal(a.canal, 'guiones')
   assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m', 'tomas'])
   assert.match(a.titulo, /tanda 1/)
-  assert.equal(a.cliente, 'Nancy Baez')
+  assert.equal(a.cliente, 'Cliente Prueba')
   assert.equal(a.link, '/guiones/A169')
   assert.equal(a.clave, `guiones:7:revisar:${hace(1)}`)
   const c = R.alertaRevision(fila(7), 'corregida')

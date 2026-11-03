@@ -1,6 +1,6 @@
 // ── Guiones para revisar: aviso + recordatorios en ✍️-guiones (Tomás, 3/11/2026). Puro, sin red ──────────────────────────
 // Pedido: «enviá siempre que estén para revisar la notificación al grupo de guiones; agregá a Gero M para que esté atento
-// por si Faus se tarda mucho». Caso real: la tanda 1 de Nancy Baez quedó «a_revisar» desde el 31/10 sin que nadie se
+// por si Faus se tarda mucho». Caso real: una tanda quedó «a_revisar» desde el 31/10 sin que nadie se
 // enterara (el aviso salió por WhatsApp, que ya no existe).
 //   · Toda tanda que pasa a «a_revisar» (nueva, corregida con las notas del cliente, rearmada con la API, retomada…) avisa
 //     en ✍️-guiones mencionando a Faus, Tomi y Gero M, con cliente, tanda y link /guiones/<ID>.
