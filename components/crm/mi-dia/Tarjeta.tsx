@@ -208,6 +208,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             // El área táctil llega a 44 px sin cambiar el alto de la línea.
             <Link
               href={hrefFicha(identidad)}
+              prefetch={false}
               onClick={(e) => clickAbrePanel(e, onAbrirFicha && (() => onAbrirFicha(identidad)))}
               className="-my-[11px] inline-block py-[11px] hover:text-dorado-oscuro hover:underline"
             >

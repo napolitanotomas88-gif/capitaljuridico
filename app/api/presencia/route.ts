@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 // Quién está conectado (lib/presencia/registro.ts). Regla en lib/auth/rutas.ts: sesión de Google de cualquier rol.
 //   · POST { ruta }: la pestaña avisa que sigue abierta (components/shell/Latido.tsx). Mismo origen, cuerpo chico. El
 //     usuario de prueba de desarrollo no se registra.
+//     Responde también los conectados (mismo dato que el GET), que Latido reparte con el evento 'cj:conectados'.
 //   · GET: los conectados de los últimos 2 minutos. Los ve todo el equipo (decisión de Tomás, 27/10/2026: «TODOS»).
 const SIN_CACHE = { 'Cache-Control': 'no-store' }
 const json = (cuerpo: unknown, status = 200) => NextResponse.json(cuerpo, { status, headers: SIN_CACHE })
@@ -28,7 +29,9 @@ export async function POST(req: Request) {
   }
   try {
     await latido({ email: sesion.email, nombre: sesion.nombre, ruta: String(ruta ?? '/') })
-    return json({ ok: true })
+    // La lista va en la misma respuesta (3/11/2026): así el marcador «Conectados» no hace un GET aparte cada 45 s (CPU de Vercel)
+    const lista = await conectados().catch(() => null)
+    return json(lista ? { ok: true, conectados: lista } : { ok: true })
   } catch (e) {
     console.error('presencia: no se pudo registrar el latido —', (e as Error)?.message?.slice(0, 120))
     return json({ ok: false }, 503)

@@ -47,6 +47,8 @@ export const ETIQUETA_GRUPO: Record<Grupo, string> = {
  * `/lead/<hoja>/<fila>`: la ficha con URL propia (celular, abrir en otra pestaña, compartir, links
  * del admin). La página la decodifica con `decodificarParam` (src/lib/entrada.ts).
  */
+// Los <Link> a la ficha van con prefetch={false} (3/11/2026): cada tarjeta de Mi Día la precargaba en cada refresco y era la
+// ruta que más CPU activa gastaba en Vercel (~33.000 precargas por semana). Abrirla sigue igual: el clic abre el panel.
 export const hrefFicha = (lead: { hoja: string; numeroFila: number }) => `/ventas/lead/${encodeURIComponent(lead.hoja)}/${lead.numeroFila}`;
 
 /**

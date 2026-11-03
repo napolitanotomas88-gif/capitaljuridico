@@ -256,6 +256,7 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
                       {e.fichaVigente ? (
                         <Link
                           href={hrefFicha({ hoja: e.hoja, numeroFila: e.fila })}
+                          prefetch={false}
                           className="-my-3 inline-block py-3 font-semibold text-dorado-oscuro underline underline-offset-2"
                         >
                           {e.lead || `${e.hoja} fila ${e.fila}`}
