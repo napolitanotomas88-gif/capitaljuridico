@@ -10,6 +10,10 @@
 //     APIError 400, definitivo.
 //   · Huella: el mismo pedido (mismo cuerpo) reusa el que está en curso o ya resuelto (24 h). Así un módulo que corta antes
 //     (dirección: 8 s; comprobante: 45 s) y reintenta más tarde se encuentra la respuesta, en vez de volver a empezar.
+//   · Vigía de la cola (3/11/2026: la Mac quedó viva sin leer la cola y una kickoff se quedó sin tiempo): cuando el
+//     Despacho deja un pedido, mientras espera y al rendirse, mira si hay pedidos que la Mac no tomó en más de 5 minutos;
+//     si los hay, avisa en #🧰-sistema-bot (alertar, canal 'sistema'; una vez cada 30 min por la clave). Lo hace el
+//     Despacho y no la Mac porque, si la Mac está caída, ella no puede avisar.
 //   · Lo que no se traslada: thinking, betas y fallbacks del servidor (Claude Code decide). El esfuerzo y el modelo, sí.
 // Solo de servidor (pg).
 import { createHash, randomUUID } from 'node:crypto'
@@ -58,7 +62,12 @@ export interface MensajeMac {
   usage: { input_tokens: number; output_tokens: number }
 }
 
+/** Lo que manda el vigía (alertar de lib/alertas en el servidor; uno falso en los tests). */
+export type AvisoCola = (a: { canal: 'sistema'; tipo: string; clave: string; titulo: string; lineas: string[]; emoji?: string; urgente?: boolean }) => Promise<unknown>
+
 export interface OpcionesPuente {
+  /** Quien avisa a Discord de la cola trabada (por defecto, alertar de lib/alertas). */
+  avisar?: AvisoCola
   base?: BasePuente
   origen?: string
   /** Tope por defecto (el módulo puede pedir otro con `timeout` en el cliente o en la llamada). */
@@ -73,6 +82,41 @@ type OpLlamada = { timeout?: number; signal?: AbortSignal } | undefined
 const esfuerzoDe = (c: Cuerpo): string | null => {
   const e = (c.output_config as { effort?: unknown } | undefined)?.effort
   return typeof e === 'string' ? e : null
+}
+
+export const COLA_TRABADA_MIN = 5
+const VIGIA_CADA_MS = 60_000
+const AVISO_CADA_MS = 30 * 60_000
+let ultimaVigia = 0
+
+/** ¿Hay pedidos que la Mac no tomó en más de 5 minutos (pendientes, o que vencieron sin que nadie los tomara)? Si los hay,
+ *  avisa a #🧰-sistema-bot. Nunca tira ni demora más que una consulta; como mucho una vez por minuto por instancia. */
+export async function vigilarCola(base: BasePuente, op: { avisar?: AvisoCola; ahora?: () => number; forzar?: boolean } = {}): Promise<boolean> {
+  const ahora = (op.ahora ?? Date.now)()
+  if (!op.forzar && ahora - ultimaVigia < VIGIA_CADA_MS) return false
+  ultimaVigia = ahora
+  try {
+    const { rows } = await base.query(
+      `SELECT count(*)::int AS n, min(creado) AS desde, string_agg(DISTINCT origen, ', ') AS origenes FROM cj_ia_pedidos
+       WHERE tomado IS NULL AND estado IN ('pendiente','vencido') AND creado < now() - interval '${COLA_TRABADA_MIN} minutes' AND creado > now() - interval '2 hours'`,
+    )
+    const f = rows[0]
+    const n = Number(f?.n ?? 0)
+    if (!n) return false
+    const desde = f?.desde ? new Date(String(f.desde)) : null
+    const min = desde ? Math.round((ahora - desde.getTime()) / 60_000) : null
+    const avisar = op.avisar ?? (async (a) => (await import('@/lib/alertas')).alertar(a))
+    await avisar({
+      canal: 'sistema', tipo: 'ia_mac_cola', clave: `ia-mac-cola:${Math.floor(ahora / AVISO_CADA_MS)}`, emoji: '🧰', urgente: true,
+      titulo: 'La Mac no está tomando los pedidos de Claude',
+      lineas: [
+        `${n} ${n === 1 ? 'pedido esperó' : 'pedidos esperaron'} más de ${COLA_TRABADA_MIN} min sin que la Mac los tomara${min ? ` (el más viejo, hace ${min} min)` : ''}.`,
+        `Módulos: ${String(f?.origenes ?? 'sin dato')}.`,
+        'Revisar que la Mac esté prendida y con internet; el servicio se relanza con `launchctl kickstart -k gui/$(id -u)/com.skyward.ia-mac` (log en ~/Library/Logs/ia-mac/ia-mac.log).',
+      ],
+    })
+    return true
+  } catch { return false }
 }
 
 /** Deja el pedido y espera la respuesta de la Mac. */
@@ -104,10 +148,12 @@ export async function pedirALaMac(cuerpo: Cuerpo, op: OpcionesPuente & { topeMs?
     )
   }
   const fin = ahora() + tope
+  const vigia = (forzar = false) => vigilarCola(base, { avisar: op.avisar, ahora, forzar })
+  await vigia()
   try {
     for (let primera = true; ahora() < fin; primera = false) {
       if (op.signal?.aborted) throw new Anthropic.APIUserAbortError()
-      if (!primera) await esperar(CADA_MS)
+      if (!primera) { await esperar(CADA_MS); await vigia() }
       const { rows } = await base.query(`SELECT estado, respuesta, error FROM cj_ia_pedidos WHERE id = $1`, [id])
       const f = rows[0]
       if (!f) throw new Anthropic.APIConnectionError({ message: 'Puente a la Mac: el pedido desapareció' })
@@ -131,6 +177,7 @@ export async function pedirALaMac(cuerpo: Cuerpo, op: OpcionesPuente & { topeMs?
     // Lo que nadie tomó y ya venció se cancela (así la Mac no lo corre de balde); lo que la Mac ya está corriendo sigue y
     // queda para el reintento (huella). Los viejos se borran: llevan los archivos en base64
     await base.query(`UPDATE cj_ia_pedidos SET estado = 'vencido' WHERE id = $1 AND estado = 'pendiente' AND vence <= now()`, [id]).catch(() => {})
+    await vigia(true)
     await base.query(`DELETE FROM cj_ia_pedidos WHERE creado < now() - interval '${LIMPIAR_DESPUES_H} hours'`).catch(() => {})
   }
 }

@@ -116,3 +116,28 @@ describe('pedidoCli', () => {
     assert.match(p.usuario, /<turno rol="assistant">\nb\n<\/turno>/); assert.deepEqual(p.herramientas, []); assert.equal(p.schema, null)
   })
 })
+
+describe('vigía de la cola', () => {
+  const baseCon = (fila) => ({ consultas: [], async query(sql) { this.consultas.push(sql); return { rows: /count\(\*\)/.test(sql) ? [fila] : [] } } })
+  test('pedidos sin tomar hace más de 5 min: avisa a #🧰-sistema-bot, con clave por media hora', async () => {
+    const avisos = []
+    const ahora = Date.parse('2026-11-03T12:50:00Z')
+    const b = baseCon({ n: 2, desde: '2026-11-03T12:43:57Z', origenes: 'fathom-anuncios, kickoff' })
+    assert.equal(await P.vigilarCola(b, { avisar: async (a) => avisos.push(a), ahora: () => ahora, forzar: true }), true)
+    assert.equal(avisos.length, 1)
+    assert.equal(avisos[0].canal, 'sistema'); assert.equal(avisos[0].tipo, 'ia_mac_cola')
+    assert.equal(avisos[0].clave, `ia-mac-cola:${Math.floor(ahora / 1_800_000)}`)
+    assert.match(avisos[0].lineas[0], /2 pedidos esperaron más de 5 min.*hace 6 min/)
+    assert.match(b.consultas[0], /tomado IS NULL AND estado IN \('pendiente','vencido'\) AND creado < now\(\) - interval '5 minutes'/)
+  })
+  test('cola al día: no avisa; sin forzar, una vez por minuto; si la base falla, no tira', async () => {
+    const avisos = []
+    const avisar = async (a) => avisos.push(a)
+    assert.equal(await P.vigilarCola(baseCon({ n: 0 }), { avisar, forzar: true }), false)
+    const b = baseCon({ n: 1, desde: null, origenes: 'kickoff' })
+    await P.vigilarCola(b, { avisar, ahora: () => Date.now() + 1e9 })
+    await P.vigilarCola(b, { avisar, ahora: () => Date.now() + 1e9 + 30_000 })
+    assert.equal(b.consultas.length, 1); assert.equal(avisos.length, 1)
+    assert.equal(await P.vigilarCola({ query: async () => { throw new Error('ENOTFOUND') } }, { avisar, forzar: true }), false)
+  })
+})
