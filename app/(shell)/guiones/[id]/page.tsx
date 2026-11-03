@@ -15,7 +15,7 @@ import './guiones.css'
 
 // Tanda de guiones de un cliente (/guiones/<id>) (etapa Guiones del bot Capital Jurídico, docs/BOT-GUIONES-CJ.md). La arma el bot apenas
 // el kickoff tiene sus ideas (27/10: sin esperar la aprobación) y la guarda en Neon (cj_guiones); el aviso al equipo linkea acá.
-// Tomi o Faus verifican guion por guion (editan texto e indicaciones; editar saca el «✓ Verificado»), y UNO de los dos da el
+// Faus verifica guion por guion (Tomás conserva el permiso, no se le pide) (editan texto e indicaciones; editar saca el «✓ Verificado»), y UNO de los dos da el
 // check final con todos verificados (el bot la escribe en el Doc del cliente y avisa al grupo Contenido)
 // y cargan o revisan las notas del cliente, que el bot aplica (vuelve a revisión). Permiso: la sección Guiones (Faus la ve sin ver la ficha del cliente, que muestra cobros).
 

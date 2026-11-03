@@ -8,17 +8,20 @@ const AHORA = new Date('2026-11-03T18:00:00Z')
 const hace = h => new Date(AHORA.getTime() - h * 3_600_000).toISOString()
 const fila = (id, extra = {}) => ({ id, tanda: 1, id_crm: `A${id}`, cliente: `Cliente ${id}`, estado: 'a_revisar', actualizado: hace(1), guiones: { 1: {}, 2: {}, 3: {} }, ...extra })
 
-test('aviso: menciona a Faus, Tomi y Gero M, con cliente, tanda y link', () => {
+test('aviso: menciona a Faus y Gero M (nunca a Tomás), con cliente, tanda y link', () => {
   const a = R.alertaRevision(fila(7, { cliente: 'Cliente Prueba', id_crm: 'A169' }), 'revisar')
   assert.equal(a.canal, 'guiones')
-  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m', 'tomas'])
+  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
+  assert.match(a.lineas.join(' '), /Faus: .*check final/)
+  assert.doesNotMatch(a.lineas.join(' '), /Tomi|Tomás/)
   assert.match(a.titulo, /tanda 1/)
   assert.equal(a.cliente, 'Cliente Prueba')
   assert.equal(a.link, '/guiones/A169')
   assert.equal(a.clave, `guiones:7:revisar:${hace(1)}`)
   const c = R.alertaRevision(fila(7), 'corregida')
   assert.equal(c.tipo, 'guiones_correcciones')
-  assert.deepEqual([...c.menciones].sort(), ['faus', 'gero_m', 'tomas'])
+  assert.deepEqual([...c.menciones].sort(), ['faus', 'gero_m'])
+  assert.equal(c.emoji, '🔁')
 })
 
 test('etapa: nada antes de 24 h, rec24 entre 24 y 48, rec48 desde 48 (sin repetir la de 24)', () => {
@@ -30,14 +33,16 @@ test('etapa: nada antes de 24 h, rec24 entre 24 y 48, rec48 desde 48 (sin repeti
   assert.equal(R.etapaQueToca('cualquiera', AHORA), null)
 })
 
-test('recordatorios: 24 h → Faus y Gero M; 48 h → también Tomás; clave por ronda y etapa', () => {
+test('recordatorios: 24 h → Faus y Gero M; 48 h → escala a Gero M sin Tomás; clave por ronda y etapa', () => {
   const r = { tanda_id: 7, desde: hace(30) }
   const a = R.alertaRecordatorio(fila(7), r, 'rec24', AHORA)
   assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
   assert.match(a.lineas[0], /Faus, ¿la podés revisar\? Gero M, atento/)
   assert.equal(a.clave, `guiones_revision:7:${hace(30)}:rec24`)
   const b = R.alertaRecordatorio(fila(7), { tanda_id: 7, desde: hace(50) }, 'rec48', AHORA)
-  assert.deepEqual([...b.menciones].sort(), ['faus', 'gero_m', 'tomas'])
+  assert.deepEqual([...b.menciones].sort(), ['faus', 'gero_m'])
+  assert.match(b.lineas[0], /^Faus lleva 50 h sin revisar la tanda 1 de Cliente 7; Gero M, ¿lo destrabás\?$/)
+  assert.doesNotMatch(b.lineas.join(' '), /Tomi|Tomás/)
   assert.notEqual(a.clave, b.clave)
 })
 
@@ -51,7 +56,8 @@ test('horario: de 9 a 20 h de Argentina', () => {
 test('barrido: un solo mensaje con todas las tandas, links y menciones', () => {
   const a = R.alertaBarrido([{ fila: fila(4), desde: hace(100) }, { fila: fila(7), desde: hace(70) }], 'https://x.test/', '2026-11-03')
   assert.equal(a.clave, 'guiones_revision_barrido:2026-11-03')
-  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m', 'tomas'])
+  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
+  assert.doesNotMatch(a.lineas.join(' '), /Tomi|Tomás/)
   assert.match(a.lineas[0], /Cliente 4 \(A4\) · tanda 1 · desde el .* → <https:\/\/x\.test\/guiones\/A4>/)
   assert.match(a.titulo, /^2 tandas/)
 })

@@ -64,7 +64,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           ? r(200, { ok: true, mensaje: 'Guardado.' }) : r(409, { ok: false, mensaje: 'Alguien lo cambió mientras tanto o la tanda ya no se puede editar: recargá.' })
       }
       case 'verificar': {
-        if (!esAprobador(sesion.email)) return r(403, { ok: false, mensaje: 'Los guiones los verifican Tomi o Faus.' })
+        if (!esAprobador(sesion.email)) return r(403, { ok: false, mensaje: 'Los guiones los verifica Faus (revisor de guiones).' })
         const n = Number(b.numero)
         if (!fila.guiones[String(n)]) return r(400, { ok: false, mensaje: 'Guion inválido.' })
         const si = b.si !== false
@@ -73,7 +73,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           : r(409, { ok: false, mensaje: 'Alguien lo cambió mientras tanto o la tanda ya no está para revisar: recargá.' })
       }
       case 'aprobar': {
-        if (!esAprobador(sesion.email)) return r(403, { ok: false, mensaje: 'Los guiones los aprueban Tomi o Faus.' })
+        if (!esAprobador(sesion.email)) return r(403, { ok: false, mensaje: 'El check final de los guiones lo da Faus.' })
         const faltan = faltanVerificar(fila.guiones)
         if (faltan.length) return r(409, { ok: false, mensaje: `Falta verificar ${faltan.length === 1 ? 'el guion' : 'los guiones'} ${faltan.join(', ')}.` })
         if (!(await reg.aprobarTanda(fila.id, { quien, email: sesion.email }, previo))) return r(409, { ok: false, mensaje: 'La tanda cambió, falta verificar algún guion o ya estaba aprobada: recargá.' })

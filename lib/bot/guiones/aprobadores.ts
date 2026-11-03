@@ -1,4 +1,5 @@
-// ── Quién aprueba una tanda de guiones (verificación humana, d02): Tomi o Faus ──────────────────
+// ── Quién aprueba una tanda de guiones (verificación humana, d02): Faus da el check final ──────────────────
+// Tomás (3/11/2026): no se le pide ni se lo menciona, pero su cuenta conserva el permiso técnico de aprobar.
 // Por mail de la sesión de Google: KICKOFF_REVISOR_TOMI (el mismo de las ideas del kickoff) y GUIONES_REVISOR_FAUS. Puro.
 const mails = (v?: string) => (v ?? '').split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean)
 
