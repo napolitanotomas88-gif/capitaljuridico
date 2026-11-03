@@ -9,7 +9,11 @@
 //   · Armado: lanzamiento.ts (la ficha de kickoff: cuenta, zona, presupuesto). TODO EN PAUSA (crearEnPausa lo verifica
 //     pieza por pieza). Nada se prende: Valen lo revisa y lo prende cuando confirma.
 //   · Sin duplicar: una vez por cliente por juego de videos (clave docads:… en cj_anuncios_avisos) y nunca si la cuenta ya
-//     tiene una campaña creada en los últimos DIAS_CAMPANA_RECIENTE días.
+//     tiene una campaña activa o creada en los últimos DIAS_CAMPANA_RECIENTE días.
+//   · SOLO LO NUEVO (3/11, línea de base, docAdsBase.ts): lo que ya estaba en el Doc el día de la línea de base no se
+//     procesa nunca (son clientes ya lanzados que quedaron en el Doc). Arma un cliente nuevo con LISTO, o uno que pasó a
+//     LISTO; a un cliente que ya tiene campaña (corriendo, o activa/creada en los últimos 120 días) un video nuevo NO le
+//     arma campaña: solo le avisa a Valen «N videos nuevos para sumar/rotar». Lo armado o avisado queda «procesado».
 //   · Lo que falta para armar (sin ficha, sin cuenta, sin acceso del token, borrador apagado) sale UNA vez en el aviso,
 //     con su propia clave: cuando se resuelve, arma en la corrida siguiente.
 // Los estados distintos de LISTO no arman nada: se muestran tal cual en el tablero y en el resultado.
@@ -20,8 +24,10 @@ import type { Borrador, GrupoBorrador } from './borrador'
 import { grupoConCopy, sinExtension } from './borrador'
 import { armaDesdeDoc, claveDoc, estadoPorCliente, gruposDesdeDoc, parsearDocAds, textoEstadoDoc, type EstadoDoc } from './docAds'
 import { lineasFicha, type Subida } from './videos'
+import { filasLineaBase, filasProcesadas, lineaBaseDe, novedad, type FilaBase, type LineaBase, type Novedad } from './docAdsBase'
+import type { BloqueDoc } from './docAds'
 
-export const DIAS_CAMPANA_RECIENTE = 45
+export const DIAS_CAMPANA_RECIENTE = 120
 export const MAX_ARMADOS_POR_CORRIDA = 3
 
 /** publico: false = la cuenta de servicio lo lee pero Meta no lo puede bajar (no está «con cualquiera que tenga el enlace»). */
@@ -44,7 +50,12 @@ export interface DepsDocAds {
   gruposExtra(s: Subida): Promise<GrupoBorrador[]>
   /** La variación amplia y los 2 títulos desde los copys del Doc (copys.ts). null = no se pudo. */
   variacion(copys: string[]): Promise<{ textos: string[]; titulos: string[] } | null>
-  campanas(cuenta: string): Promise<{ nombre: string; creada: string }[]>
+  /** Las campañas de la cuenta (sin las borradas ni archivadas). activa = effective_status ACTIVE. */
+  campanas(cuenta: string): Promise<{ nombre: string; creada: string; activa?: boolean }[]>
+  /** La línea de base del Doc (docAdsBaseNeon.ts). null = todavía no se creó. */
+  lineaBase(): Promise<LineaBase | null>
+  crearLineaBase(filas: FilaBase[]): Promise<void>
+  marcarProcesado(filas: FilaBase[]): Promise<void>
   permitido(cuenta: string): boolean
   armar(s: Subida, pl: PorLanzar, grupos: GrupoBorrador[], op: { seco: boolean; deadline: number }): Promise<{ borrador: Borrador; pedidos: PedidoSeco[] | null }>
   reclamar(clave: string, d: { tipo: string; cuenta: string; campana_id: string; cliente: string; texto_cliente: null }): Promise<boolean>
@@ -59,15 +70,24 @@ export interface DepsDocAds {
 
 export type AccionDoc = 'armado' | 'seco' | 'plan' | 'ya_salio' | 'ya_tiene_campana' | 'falta_ficha' | 'falta_cuenta' | 'sin_acceso' | 'borrador_apagado'
   | 'sin_videos_legibles' | 'sin_copy' | 'error' | 'solo_estado' | 'sin_tiempo'
+  | 'historico'        // ya estaba en el Doc (línea de base) o ya se procesó: no se hace nada
+  | 'videos_nuevos'    // ya tiene campaña: solo se avisa a Valen que hay videos nuevos para sumar/rotar
 export interface ResultadoClienteDoc {
   cliente: string; idCrm: string | null; doc: string; listo: boolean; accion: AccionDoc; detalle: string | null
+  /** Qué tiene de nuevo respecto de la línea de base (null = histórico). */
+  nuevo?: Novedad['motivo']
+  conCampana?: boolean
   videos: { numero: number | null; drive: string; nombre: string; legible: boolean; copy: boolean; origen: 'doc' | 'editados' }[]
   noLegibles: string[]
   texto: string | null
   seco?: ResumenSeco
   enviado?: boolean
 }
-export interface ResultadoDoc { leido: boolean; bloques: number; clientes: ResultadoClienteDoc[]; errores: string[] }
+export interface ResultadoDoc {
+  leido: boolean; bloques: number; clientes: ResultadoClienteDoc[]; errores: string[]
+  /** ok = había línea de base · creada = esta corrida la creó (no procesó nada) · sin = no hay y no se creó (vista previa) */
+  lineaBase?: 'ok' | 'creada' | 'sin'
+}
 
 const motivo = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').replace(/\s+/g, ' ').slice(0, 220)
 const ddmm = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
@@ -134,8 +154,18 @@ export function textoDoc(x: {
   return lineas.join('\n').slice(0, 1900)
 }
 
-/** Los clientes por lanzar con su estado en el Doc (el bloque más nuevo que se les cruza). Puro. */
-export function estadosPorLanzar(t: Pick<Tablero, 'filas' | 'porLanzar' | 'porLanzarEsperando'>, texto: string): { porLanzar: { pl: PorLanzar; e: EstadoDoc }[]; bloques: number } {
+/** El aviso de #📣-ads para un cliente que YA tiene campaña y sumó videos al Doc (≤ 1900). Puro. */
+export function textoVideosNuevos(x: { cliente: string; idCrm: string | null; titulo: string; videos: { numero: number; drive: string }[]; valentino: string | null; donde: string }): string {
+  const lineas = [
+    `${x.valentino ? `<@${x.valentino}> ` : ''}🗂️ **Videos nuevos en el Doc de ADS** · ${escaparDiscord(x.cliente)}${x.idCrm ? ` (${x.idCrm})` : ''} · «${escaparDiscord(x.titulo)}» · hay ${plural(x.videos.length, 'video nuevo', 'videos nuevos')} para sumar/rotar en su campaña`,
+    `🎬 ${x.videos.map(v => `[Video ${v.numero}](<${linkDrive(v.drive)}>)`).join(' · ')}`,
+    `No armé campaña nueva: ${escaparDiscord(x.donde)}. Nada se activa en Meta: queda todo en pausa hasta que Valen confirme.`,
+  ]
+  return lineas.join('\n').slice(0, 1900)
+}
+
+/** Los clientes con su estado en el Doc (el bloque más nuevo que se les cruza): por lanzar y con campaña corriendo. Puro. */
+export function estadosPorLanzar(t: Pick<Tablero, 'filas' | 'porLanzar' | 'porLanzarEsperando'>, texto: string): { porLanzar: { pl: PorLanzar; e: EstadoDoc }[]; conCampana: { fila: FilaAnuncio; e: EstadoDoc }[]; bloques: number; todos: BloqueDoc[] } {
   const bloques = parsearDocAds(texto)
   const pls = [...t.porLanzar, ...(t.porLanzarEsperando ?? [])]
   const todos: { cliente: string; pl: PorLanzar | null; fila: FilaAnuncio | null }[] = [
@@ -143,24 +173,82 @@ export function estadosPorLanzar(t: Pick<Tablero, 'filas' | 'porLanzar' | 'porLa
     ...pls.map(pl => ({ cliente: pl.cliente, pl, fila: null })),
   ]
   const m = estadoPorCliente(bloques, todos)
-  const out: { pl: PorLanzar; e: EstadoDoc }[] = []
-  for (const [x, e] of m) if (x.pl) out.push({ pl: x.pl, e })
-  return { porLanzar: out, bloques: bloques.length }
+  const out: { pl: PorLanzar; e: EstadoDoc }[] = [], conCampana: { fila: FilaAnuncio; e: EstadoDoc }[] = []
+  for (const [x, e] of m) {
+    if (x.pl) out.push({ pl: x.pl, e })
+    else if (x.fila && !conCampana.some(c => c.fila.idCrm && c.fila.idCrm === x.fila!.idCrm)) conCampana.push({ fila: x.fila, e })
+  }
+  return { porLanzar: out, conCampana, bloques: bloques.length, todos: bloques }
+}
+
+/** ¿La cuenta tiene una campaña activa o creada en los últimos DIAS_CAMPANA_RECIENTE días? Puro. */
+export function campanasRecientes(cs: readonly { nombre: string; creada: string; activa?: boolean }[], ahora: number): { nombre: string; creada: string; activa?: boolean }[] {
+  const desde = ahora - DIAS_CAMPANA_RECIENTE * 86_400_000
+  return cs.filter(c => c.activa || Date.parse(c.creada) >= desde)
 }
 
 export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'porLanzarEsperando'>, deps: DepsDocAds, op: { dry?: boolean; seco?: boolean; solo?: string | null; deadline?: number } = {}): Promise<ResultadoDoc> {
   const errores: string[] = [], clientes: ResultadoClienteDoc[] = []
   let texto: string
   try { texto = await deps.leerDoc() } catch (e) { return { leido: false, bloques: 0, clientes, errores: [`Doc de ADS: ${motivo(e)}`] } }
-  const { porLanzar, bloques } = estadosPorLanzar(t, texto)
+  const { porLanzar, conCampana, bloques, todos } = estadosPorLanzar(t, texto)
+  // La línea de base: sin ella no se procesa NADA (la primera corrida real la crea con el Doc de ese momento)
+  let base: LineaBase | null, creada = false
+  try { base = await deps.lineaBase() } catch (e) { return { leido: true, bloques, clientes, errores: [`línea de base del Doc: ${motivo(e)} · no proceso nada por las dudas`] } }
+  if (!base) {
+    if (op.dry || op.seco) return { leido: true, bloques, clientes, errores: ['todavía no hay línea de base del Doc: no proceso nada (la crea la primera corrida real)'], lineaBase: 'sin' }
+    const filas = filasLineaBase(todos)
+    try { await deps.crearLineaBase(filas) } catch (e) { return { leido: true, bloques, clientes, errores: [`crear la línea de base: ${motivo(e)}`], lineaBase: 'sin' } }
+    base = lineaBaseDe(filas)   // recién creada: todo es histórico (sigue para que g01 sepa a quién cubre el Doc)
+    creada = true
+  }
   const solo = op.solo?.trim().toUpperCase() || null
+  const elegido = (idCrm: string | null | undefined, cliente: string) => !solo || (idCrm ?? '').toUpperCase() === solo || cliente.toUpperCase().includes(solo)
+  const marcar = async (b: BloqueDoc, vs: { drive: string | null; numero: number }[]) => {
+    try { await deps.marcarProcesado(filasProcesadas(b, vs)) } catch (err) { errores.push(`marcar procesado «${b.nombre}»: ${motivo(err)}`) }
+  }
+  // Videos nuevos de un cliente que ya tiene campaña: solo el aviso a Valen (una vez por juego de videos)
+  const avisarNuevos = async (r: ResultadoClienteDoc, x: { cliente: string; idCrm: string | null; e: EstadoDoc; vs: { numero: number; drive: string }[]; donde: string; cuenta: string }) => {
+    r.accion = 'videos_nuevos'; r.conCampana = true
+    r.detalle = `ya tiene campaña (${x.donde}): ${plural(x.vs.length, 'video nuevo', 'videos nuevos')} para sumar/rotar, no armo campaña nueva`
+    r.texto = textoVideosNuevos({ cliente: x.cliente, idCrm: x.idCrm, titulo: x.e.titulo, videos: x.vs, valentino: deps.valentino, donde: x.donde })
+    if (op.dry || op.seco) return
+    const clave = claveDoc({ idCrm: x.idCrm, cliente: x.cliente }, x.vs.map(v => v.drive)).replace(/^docads:/, 'docads-nuevos:')
+    try {
+      if (!await deps.reclamar(clave, { tipo: 'docads', cuenta: x.cuenta, campana_id: 'doc-nuevos', cliente: x.cliente, texto_cliente: null })) { await marcar(x.e.bloque, x.vs); return }
+    } catch (err) { errores.push(`reclamar ${clave}: ${motivo(err)}`); return }
+    try {
+      const id = await deps.enviar(r.texto, op.deadline)
+      r.enviado = true
+      await deps.marcarEnviado(clave, id).catch(err => errores.push(`anotar ${clave}: ${motivo(err)}`))
+      await marcar(x.e.bloque, x.vs)
+    } catch (err) {
+      errores.push(`discord (${x.cliente}): ${motivo(err)}`)
+      await deps.soltar(clave).catch(() => {})
+    }
+  }
+  // Los que ya tienen campaña corriendo (fila en el tablero): un video nuevo LISTO solo se avisa
+  for (const { fila, e } of conCampana) {
+    const cliente = fila.clienteCRM ?? fila.cliente
+    if (!elegido(fila.idCrm, cliente)) continue
+    const nov = novedad(e.bloque, base)
+    if (nov.historico || !e.listo || e.fuerza !== 'firme') continue
+    const vs = nov.videosNuevos.filter((v): v is typeof v & { drive: string } => !!v.drive).map(v => ({ numero: v.numero, drive: v.drive }))
+    if (!vs.length) continue
+    const r: ResultadoClienteDoc = { cliente, idCrm: fila.idCrm ?? null, doc: textoEstadoDoc(e), listo: e.listo, accion: 'videos_nuevos', detalle: null, videos: [], noLegibles: [], texto: null, nuevo: nov.motivo, conCampana: true }
+    clientes.push(r)
+    await avisarNuevos(r, { cliente, idCrm: fila.idCrm ?? null, e, vs, donde: 'tiene campaña corriendo', cuenta: fila.id })
+  }
   let armados = 0
   for (const { pl, e } of porLanzar) {
-    if (solo && (pl.idCrm ?? '').toUpperCase() !== solo && !pl.cliente.toUpperCase().includes(solo)) continue
-    const base: ResultadoClienteDoc = { cliente: pl.cliente, idCrm: pl.idCrm ?? null, doc: textoEstadoDoc(e), listo: e.listo, accion: 'solo_estado', detalle: null, videos: [], noLegibles: [], texto: null }
-    if (!armaDesdeDoc(e)) { clientes.push({ ...base, detalle: e.listo ? (e.fuerza === 'debil' ? 'el nombre del Doc comparte una sola palabra con el CRM: no armo' : 'sin videos con link') : 'no está LISTO en el Doc' }); continue }
-    // Los videos del Doc (con link), en su orden, y si se pueden leer
-    const delDoc = [...e.bloque.videos].filter(v => v.drive).sort((a, b) => a.numero - b.numero)
+    if (!elegido(pl.idCrm, pl.cliente)) continue
+    const nov = novedad(e.bloque, base)
+    const base0: ResultadoClienteDoc = { cliente: pl.cliente, idCrm: pl.idCrm ?? null, doc: textoEstadoDoc(e), listo: e.listo, accion: 'solo_estado', detalle: null, videos: [], noLegibles: [], texto: null, nuevo: nov.motivo }
+    if (nov.historico) { clientes.push({ ...base0, accion: 'historico', detalle: 'ya estaba en el Doc (línea de base) o ya se procesó: no hago nada' }); continue }
+    const nuevosConLink = nov.videosNuevos.filter(v => v.drive)
+    if (!armaDesdeDoc(e) || !nuevosConLink.length) { clientes.push({ ...base0, detalle: e.listo ? (e.fuerza === 'debil' ? 'el nombre del Doc comparte una sola palabra con el CRM: no armo' : 'sin videos nuevos con link') : 'no está LISTO en el Doc' }); continue }
+    // Los videos NUEVOS del Doc (con link), en su orden, y si se pueden leer
+    const delDoc = [...nuevosConLink].sort((a, b) => a.numero - b.numero)
     const videos: ResultadoClienteDoc['videos'] = [], md5s = new Set<string>(), noLegibles: string[] = []
     const copys = new Map<string, string>()
     for (const v of delDoc) {
@@ -175,11 +263,13 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
         if (v.copy.trim()) copys.set(v.drive!, v.copy)
       }
     }
-    // Los de «Editados - X» que no están en el Doc (mismo md5 = mismo archivo copiado)
+    // Los de «Editados - X» que no están en el Doc (mismo md5 = mismo archivo copiado): solo para un lanzamiento nuevo
     let extras: { id: string; nombre: string; md5: string | null; guionesDoc: string | null }[] = []
-    try { extras = (await deps.editados(pl)).filter(x => !x.md5 || !md5s.has(x.md5)).filter(x => !videos.some(v => v.drive === x.id)) } catch (err) { errores.push(`Editados de «${pl.cliente}»: ${motivo(err)}`) }
+    if (nov.bloqueNuevo) {
+      try { extras = (await deps.editados(pl)).filter(x => !x.md5 || !md5s.has(x.md5)).filter(x => !videos.some(v => v.drive === x.id)) } catch (err) { errores.push(`Editados de «${pl.cliente}»: ${motivo(err)}`) }
+    }
     for (const x of extras) videos.push({ numero: null, drive: x.id, nombre: x.nombre, legible: true, copy: false, origen: 'editados' })
-    const r: ResultadoClienteDoc = { ...base, videos, noLegibles }
+    const r: ResultadoClienteDoc = { ...base0, videos, noLegibles }
     clientes.push(r)
     const docVideos = videos.filter(v => v.origen === 'doc')
     if (!docVideos.length) { r.accion = 'sin_videos_legibles'; r.detalle = `no puedo leer ningún video del Doc (${noLegibles.join(', ')})`; continue }
@@ -187,12 +277,15 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
     const clave = claveDoc({ idCrm: pl.idCrm ?? k?.idCrm ?? null, cliente: pl.cliente }, videos.map(v => v.drive))
     const falta = !k ? 'sin ficha de kickoff (no tengo cuenta, zona ni presupuesto)' : !k.cuenta ? 'la ficha no tiene la cuenta de Meta' : pl.acceso === 'no' ? 'el token no ve su cuenta de Meta' : null
     const accionFalta: AccionDoc | null = !k ? 'falta_ficha' : !k.cuenta ? 'falta_cuenta' : pl.acceso === 'no' ? 'sin_acceso' : null
-    // ¿Ya tiene una campaña creada hace poco? (puede ser el borrador de una corrida anterior o una que armó Valen)
+    // ¿Ya tiene campaña (activa o creada en los últimos 120 días)? Entonces no se arma otra: solo el aviso de videos nuevos
     if (k?.cuenta && !accionFalta) {
       try {
-        const desde = deps.ahora() - DIAS_CAMPANA_RECIENTE * 86_400_000
-        const recientes = (await deps.campanas(k.cuenta.id)).filter(c => Date.parse(c.creada) >= desde)
-        if (recientes.length) { r.accion = 'ya_tiene_campana'; r.detalle = `la cuenta ya tiene ${recientes.map(c => `«${c.nombre}» (${ddmm(c.creada)})`).join(', ')}: no armo otra`; continue }
+        const recientes = campanasRecientes(await deps.campanas(k.cuenta.id), deps.ahora())
+        if (recientes.length) {
+          const donde = `la cuenta ya tiene ${recientes.slice(0, 3).map(c => `«${c.nombre}» (${c.activa ? 'activa' : ddmm(c.creada)})`).join(', ')}`
+          await avisarNuevos(r, { cliente: pl.cliente, idCrm: pl.idCrm ?? null, e, vs: docVideos.map(v => ({ numero: v.numero ?? 0, drive: v.drive })), donde, cuenta: k.cuenta.id })
+          continue
+        }
       } catch (err) { r.accion = 'error'; r.detalle = `no pude ver las campañas de la cuenta (${motivo(err)}): no armo por las dudas`; continue }
     }
     // Los grupos: los del Doc (copy propio de cada video) + los de Editados que tengan copy del guion
@@ -227,7 +320,7 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
     // Sin duplicar: se reclama ANTES de crear nada (en seco no se reclama)
     if (!op.seco) {
       try {
-        if (!await deps.reclamar(clave, { tipo: 'docads', cuenta: k!.cuenta!.id, campana_id: 'doc', cliente: pl.cliente, texto_cliente: null })) { r.accion = 'ya_salio'; r.detalle = 'este juego de videos ya se armó o se avisó'; continue }
+        if (!await deps.reclamar(clave, { tipo: 'docads', cuenta: k!.cuenta!.id, campana_id: 'doc', cliente: pl.cliente, texto_cliente: null })) { r.accion = 'ya_salio'; r.detalle = 'este juego de videos ya se armó o se avisó'; await marcar(e.bloque, delDoc); continue }
       } catch (err) { errores.push(`reclamar ${clave}: ${motivo(err)}`); r.accion = 'error'; r.detalle = motivo(err); continue }
     }
     // La variación amplia y los 2 títulos desde los copys del Doc (si falla, va solo el copy del Doc)
@@ -253,6 +346,8 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
     }
     r.accion = error ? 'error' : 'armado'; r.detalle = error
     r.texto = conTexto({ borrador, error })
+    // Armado (o reclamado y fallido): el juego de videos queda procesado; el reclamo ya impide repetirlo
+    await marcar(e.bloque, delDoc)
     try {
       const id = await deps.enviar(r.texto, op.deadline)
       r.enviado = true
@@ -263,7 +358,7 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
       await deps.marcarDudoso(clave).catch(() => {})
     }
   }
-  return { leido: true, bloques, clientes, errores }
+  return { leido: true, bloques, clientes, errores, lineaBase: creada ? 'creada' : 'ok' }
 }
 
 async function mandar(deps: DepsDocAds, clave: string, pl: PorLanzar, r: ResultadoClienteDoc, errores: string[], deadline?: number): Promise<void> {
@@ -280,7 +375,7 @@ async function mandar(deps: DepsDocAds, clave: string, pl: PorLanzar, r: Resulta
   }
 }
 
-/** Los clientes por lanzar que el Doc cubre (LISTO firme): g01 no les arma otro lanzamiento desde «Editados». */
+/** Los clientes por lanzar que el Doc cubre (LISTO, también los históricos de la línea de base): g01 no les arma otro lanzamiento desde «Editados». */
 export function cubiertosPorDoc(r: ResultadoDoc | null | undefined): Set<string> {
   return new Set((r?.clientes ?? []).filter(c => c.listo && c.accion !== 'solo_estado' && c.accion !== 'sin_videos_legibles').map(c => c.cliente))
 }

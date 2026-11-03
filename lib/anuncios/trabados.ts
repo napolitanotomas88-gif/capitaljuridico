@@ -9,11 +9,16 @@
 //     resuelve mientras graban, no el día que llegan los editados.
 //   · clientesTrabados: los de «Por lanzar» con la kickoff (o, sin ficha, el Día 1 del CRM) de hace más de DIAS_TRABADO días,
 //     sin los sin fecha de fin (BOT_CLIENTES_SIN_FIN). Pausados, finalizados y los que ya gastan no están en «Por lanzar».
+//     Desde el 3/11 (pedido de Tomás: «la mayoría ya están lanzados»): tampoco los que tienen su bloque del Doc de ADS en la
+//     línea de base (histórico, docAdsBase.ts) ni, en el servidor, los que tienen campaña en su cuenta de Meta en los
+//     últimos 120 días (activa o pausada); y «sin ficha» solo si es de los últimos DIAS_SIN_FICHA días.
 //   · textoTrabados: UN mensaje para #📣-ads con los nuevos (una vez por cliente por etapa: la clave la reclama el servidor)
 //     y una línea con los que siguen igual.
 export const DIAS_TRABADO = 7
 /** Sin kickoff registrada y con el alta de hace más que esto: van todos juntos en una línea (no uno por uno). */
 export const DIAS_VIEJO = 45
+/** «Sin ficha de kickoff» solo se avisa si la kickoff (o el alta, sin ficha) es de los últimos DIAS_SIN_FICHA días (3/11). */
+export const DIAS_SIN_FICHA = 30
 
 export type EtapaTraba = 'kickoff' | 'guiones' | 'grabacion' | 'edicion' | 'cuenta' | 'armado'
 export const NOMBRE_ETAPA_TRABA: Record<EtapaTraba, string> = {
@@ -39,7 +44,7 @@ export interface EntradaTraba {
   crudos: number | null
   editados: number | null
   /** Su bloque más nuevo en el Doc de ADS (docAds.ts): LISTO (con cruce firme) y cuántos videos con link, o la nota. */
-  doc?: { listo: boolean; videos: number; texto: string } | null
+  doc?: { listo: boolean; videos: number; texto: string; historico?: boolean } | null
 }
 export interface Diagnostico { etapa: EtapaTraba; motivo: string; responsable: string; ademas: string[] }
 
@@ -64,7 +69,7 @@ export function diagnosticar(e: EntradaTraba): Diagnostico {
     ademas: [...(cuenta && etapa !== 'cuenta' ? [`${cuenta} (${RESPONSABLE.cuenta})`] : []), ...(notaDoc ? [notaDoc] : [])],
   })
   // LISTO en el Doc de ADS (3/11): los videos están (aunque sea en el Drive de René), falta la cuenta o armar
-  if (e.doc?.listo && e.doc.videos > 0) {
+  if (e.doc?.listo && !e.doc.historico && e.doc.videos > 0) {
     const vids = `${plural(e.doc.videos, 'video LISTO', 'videos LISTOS')} en el Doc de ADS`
     if (cuenta) return con('cuenta', `${cuenta} (${vids})`)
     if (!e.kickoff && e.sinFicha) return con('kickoff', `sin ficha de kickoff (${vids})`)
@@ -115,7 +120,9 @@ export function clientesTrabados(xs: (EntradaTraba & { dia1?: string | null })[]
     if (!desde) continue
     const dias = diasEntre(desde, op.hoy)
     if (dias <= tope) continue
+    if (x.doc?.historico) continue   // su bloque del Doc es de la línea de base: ya lanzado
     const d = diagnosticar(x)
+    if (d.etapa === 'kickoff' && dias > DIAS_SIN_FICHA) continue
     out.push({ ...d, cliente: x.cliente, idCrm: x.idCrm, desde, por: k ? 'kickoff' : 'dia1', dias, clave: `trabado:${claveCliente(x)}:${d.etapa}` })
   }
   return out.sort((a, b) => b.dias - a.dias || a.cliente.localeCompare(b.cliente, 'es'))

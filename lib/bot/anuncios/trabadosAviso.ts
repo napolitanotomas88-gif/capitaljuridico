@@ -14,6 +14,8 @@ export interface DepsTrabados {
   tandas(): Promise<Map<string, TandaTraba> | null>
   entrada(p: Tablero['porLanzar'][number], tandas: Map<string, TandaTraba> | null): EntradaTraba
   sinFin(): string[]
+  /** ¿Tiene campaña en su cuenta de Meta en los últimos 120 días (activa o pausada)? null = no se sabe (no frena el aviso). */
+  conCampana(p: Tablero['porLanzar'][number]): Promise<boolean | null>
   reclamar(clave: string, d: { tipo: string; cuenta: string; campana_id: string; cliente: string; texto_cliente: null }): Promise<boolean>
   marcarEnviado(clave: string, id: string): Promise<void>
   soltar(clave: string): Promise<void>
@@ -44,7 +46,16 @@ export async function avisarTrabados(t: Pick<Tablero, 'porLanzar' | 'porLanzarEs
     const e = deps.entrada(p, tandas)
     return { ...e, dia1: e.idCrm ? dia1.get(e.idCrm.toUpperCase()) ?? null : null }
   })
-  const trabados = clientesTrabados(entradas, { hoy: deps.hoy(), sinFin: deps.sinFin() })
+  const candidatos = clientesTrabados(entradas, { hoy: deps.hoy(), sinFin: deps.sinFin() })
+  // Los que tienen campaña en su cuenta (ya lanzados, aunque no gasten hoy): fuera
+  const porCliente = new Map([...t.porLanzar, ...(t.porLanzarEsperando ?? [])].map(p => [p.cliente, p]))
+  const trabados: ClienteTrabado[] = []
+  for (const x of candidatos) {
+    const p = porCliente.get(x.cliente)
+    let con: boolean | null = null
+    if (p) { try { con = await deps.conCampana(p) } catch (e) { errores.push(`campañas de «${x.cliente}»: ${motivo(e)}`) } }
+    if (con !== true) trabados.push(x)
+  }
   if (op.dry) return { trabados: trabados.map(resumir), nuevos: trabados.map(x => x.cliente), texto: textoTrabados(trabados, [], mencionesPara(trabados, deps.menciones)), enviado: false, errores }
   const nuevos: ClienteTrabado[] = [], siguen: ClienteTrabado[] = []
   for (const x of trabados) {
@@ -86,6 +97,10 @@ export async function depsTrabadosReales(): Promise<DepsTrabados> {
     tandas: tandasPorCliente,
     entrada: entradaTraba,
     sinFin: () => clientesSinFin(),
+    conCampana: async p => {
+      const { tieneCampanaReciente } = await import('./docAdsServidor')
+      return tieneCampanaReciente(p)
+    },
     reclamar: reg.reclamarAviso,
     marcarEnviado: reg.marcarAvisoEnviado,
     soltar: reg.soltarAviso,

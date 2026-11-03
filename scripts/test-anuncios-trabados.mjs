@@ -45,7 +45,7 @@ describe('clientesTrabados y el texto', () => {
   const xs = [
     e({ cliente: 'Uno Uno', idCrm: 'Z001' }),
     e({ cliente: 'Dos Dos', idCrm: 'Z002', kickoff: { fechaIso: '2026-11-01T12:00:00Z', cuenta: true } }),   // hace 2 días
-    e({ cliente: 'Tres Tres', idCrm: 'Z003', kickoff: null, sinFicha: true, dia1: '2026-02-01' }),
+    e({ cliente: 'Tres Tres', idCrm: 'Z003', kickoff: null, sinFicha: false, dia1: '2026-02-01' }),   // la base no se leyó: no se sabe de la ficha
     e({ cliente: 'Sin Fin', idCrm: 'Z004' }),
   ]
   const ts = T.clientesTrabados(xs, { hoy: '2026-11-03', sinFin: ['Z004'] })
@@ -60,6 +60,29 @@ describe('clientesTrabados y el texto', () => {
     assert.ok(!txt.includes('**Tres Tres**'))
     assert.match(txt, /\*\*Uno Uno\*\*/)
     assert.equal(T.textoTrabados([], ts), '')
+  })
+  test('sin ficha solo si es de los últimos 30 días; histórico del Doc nunca', () => {
+    const ys = [
+      e({ cliente: 'Vieja Sin Ficha', idCrm: 'Z010', kickoff: null, sinFicha: true, dia1: '2026-09-01' }),
+      e({ cliente: 'Nueva Sin Ficha', idCrm: 'Z011', kickoff: null, sinFicha: true, dia1: '2026-10-20' }),
+      e({ cliente: 'Historica Doc', idCrm: 'Z012', doc: { listo: true, videos: 3, texto: 'LISTO · 3 videos', historico: true } }),
+    ]
+    assert.deepEqual(T.clientesTrabados(ys, { hoy: '2026-11-03' }).map(t => t.cliente), ['Nueva Sin Ficha'])
+  })
+  test('avisarTrabados: no avisa por los que tienen campaña en su cuenta (120 días)', async () => {
+    const A = await import('../lib/bot/anuncios/trabadosAviso.ts')
+    const p = (cliente, idCrm) => ({ cliente, idCrm, kickoff: { fechaIso: '2026-10-10T18:00:00Z', cuenta: { id: 'act_' + idCrm } }, sinFicha: false, acceso: 'si', cuentas: [], editados: { cantidad: 0, crudos: 0 } })
+    const enviados = []
+    const deps = {
+      hoy: () => '2026-11-03', dia1: async () => new Map(), tandas: async () => null,
+      entrada: x => e({ cliente: x.cliente, idCrm: x.idCrm, tanda: null }), sinFin: () => [],
+      conCampana: async x => x.idCrm === 'Z021',
+      reclamar: async () => true, marcarEnviado: async () => {}, soltar: async () => {},
+      enviar: async t => { enviados.push(t); return 'm' }, menciones: { valen: '1', tomas: null, faus: null, rene: null, gero_m: null },
+    }
+    const r = await A.avisarTrabados({ porLanzar: [p('Con Campana', 'Z021'), p('Sin Campana', 'Z022')], porLanzarEsperando: [] }, deps)
+    assert.deepEqual(r.trabados.map(t => t.cliente), ['Sin Campana'])
+    assert.ok(!enviados.join('').includes('Con Campana'))
   })
   test('partirMensaje: corta entre renglones sin perder ninguno', () => {
     const txt = Array.from({ length: 60 }, (_, i) => `renglón ${i} ${'x'.repeat(60)}`).join('\n')
@@ -131,5 +154,20 @@ describe('kickoffs perdidas', () => {
     assert.equal(enviados.length, 1)
     assert.deepEqual(b.reintentadas, [1])
     assert.equal(new Set(reintentos).size, reintentos.length)
+  })
+  test('con campaña ya lanzada: ni reintento ni aviso; clienteDelTitulo', async () => {
+    const reintentos = [], enviados = []
+    const deps = {
+      quienes: () => ['tomas'], listar: async () => [r(1, 'Lanzado Uno y Tomas Napolitano', 60), r(2, 'Nuevo Dos y Tomas Napolitano', 60)],
+      estados: async () => new Map(), reclamar: async () => true, marcarEnviado: async () => {}, soltar: async () => {},
+      reintentar: async id => { reintentos.push(id) }, enviar: async t => { enviados.push(t); return 'm' }, menciones: [], ahora: () => AHORA,
+      conCampana: async p => p.titulo.startsWith('Lanzado'),
+    }
+    const x = await K.vigilarKickoffs(deps)
+    assert.deepEqual(x.conCampana, [1])
+    assert.deepEqual(reintentos, [2])
+    assert.ok(!enviados.join('').includes('Lanzado'))
+    assert.equal(K.clienteDelTitulo('Juana Pérez y Tomas Napolitano'), 'Juana Pérez')
+    assert.equal(K.clienteDelTitulo('Kickoff - Juana Pérez'), 'Juana Pérez')
   })
 })

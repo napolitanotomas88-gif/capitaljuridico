@@ -11,9 +11,12 @@
 //     grabación (kickoff-reintento:<id>), con &sin_guiones=1: una kickoff vieja ya suele tener guiones hechos a mano, así
 //     que el reintento NO arranca la tanda (si le faltan: POST /api/bot/guiones {recording_id}). Si no era una kickoff, el
 //     bot la marca no_kickoff y no vuelve a salir.
+// Desde el 3/11 (pedido de Tomás): solo kickoffs de los últimos DIAS_MIRAR (30) días y que NO tengan campaña ya lanzada (el
+// cliente del título gasta en el tablero o tiene campaña en su cuenta en los últimos 120 días): esas ni se reintentan ni se avisan.
 // KICKOFF_PERDIDAS=0 lo apaga. Con dry no reclama, no avisa ni reintenta. Nunca tira.
 import type { ReunionListada } from './fathomApi'
 import type { Quien } from './grabadores'
+import type { Tablero } from '@/lib/anuncios/tablero'
 
 export const HORAS_PERDIDA = 48
 export const DIAS_MIRAR = 30
@@ -50,6 +53,14 @@ export function kickoffsPerdidas(rs: readonly Listada[], estados: ReadonlyMap<nu
   return out.sort((a, b) => b.horas - a.horas)
 }
 
+/** El cliente del título de Fathom: «Juana Pérez y Tomas Napolitano» → «Juana Pérez». Puro. */
+export function clienteDelTitulo(titulo: string): string | null {
+  const t = titulo.replace(/\b(kick\s*-?off|reuni[oó]n|onboarding)\b/gi, ' ').replace(/^[\s\-–|:]+/, '').trim()
+  const m = t.match(/^(.+?)\s+y\s+/i)
+  const n = (m ? m[1] : t).trim()
+  return n.length >= 3 ? n : null
+}
+
 const ddmm = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' }) : '¿?')
 const esc = (s: string) => s.replace(/([*_~`|>\\])/g, '\\$1')
 const NOMBRE: Record<string, string> = { tomas: 'Tomás', gero_m: 'Gero M' }
@@ -76,11 +87,13 @@ export interface DepsPerdidas {
   marcarEnviado(clave: string, id: string): Promise<void>
   soltar(clave: string): Promise<void>
   reintentar(id: number, quien: Quien): Promise<void>
+  /** ¿El cliente de esta reunión ya tiene campaña lanzada? null = no se sabe (no se cruzó con nadie). */
+  conCampana?(p: Perdida): Promise<boolean | null>
   enviar(texto: string, menciones: string[]): Promise<string>
   menciones: string[]
   ahora(): number
 }
-export interface ResultadoPerdidas { perdidas: { recording_id: number; titulo: string; quien: string; creada: string | null; estado: string | null }[]; nuevas: number[]; reintentadas: number[]; texto: string; enviado: boolean; errores: string[] }
+export interface ResultadoPerdidas { conCampana?: number[]; perdidas: { recording_id: number; titulo: string; quien: string; creada: string | null; estado: string | null }[]; nuevas: number[]; reintentadas: number[]; texto: string; enviado: boolean; errores: string[] }
 
 const motivo = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').replace(/\s+/g, ' ').slice(0, 200)
 
@@ -93,9 +106,16 @@ export async function vigilarKickoffs(deps: DepsPerdidas, op: { dry?: boolean } 
   }
   let estados: Map<number, string>
   try { estados = await deps.estados([...new Set(todas.map(r => r.recording_id))]) } catch (e) { return { perdidas: [], nuevas: [], reintentadas: [], texto: '', enviado: false, errores: [...errores, `base: ${motivo(e)}`] } }
-  const perdidas = kickoffsPerdidas(todas, estados, deps.ahora())
+  const candidatas = kickoffsPerdidas(todas, estados, deps.ahora())
+  // Las de clientes con campaña ya lanzada: fuera (ni reintento ni aviso)
+  const perdidas: Perdida[] = [], conCampana: number[] = []
+  for (const p of candidatas) {
+    let con: boolean | null = null
+    if (deps.conCampana) { try { con = await deps.conCampana(p) } catch (e) { errores.push(`campañas de «${p.titulo}»: ${motivo(e)}`) } }
+    if (con === true) conCampana.push(p.recording_id); else perdidas.push(p)
+  }
   const resumen = perdidas.map(p => ({ recording_id: p.recording_id, titulo: p.titulo, quien: p.quien, creada: p.creada, estado: p.estado }))
-  if (op.dry) return { perdidas: resumen, nuevas: perdidas.map(p => p.recording_id), reintentadas: [], texto: textoPerdidas(perdidas, new Set(), deps.menciones), enviado: false, errores }
+  if (op.dry) return { conCampana, perdidas: resumen, nuevas: perdidas.map(p => p.recording_id), reintentadas: [], texto: textoPerdidas(perdidas, new Set(), deps.menciones), enviado: false, errores }
   // Reintento: una vez por grabación, como mucho MAX_REINTENTOS por corrida
   const reintentadas = new Set<number>()
   for (const p of perdidas) {
@@ -113,20 +133,20 @@ export async function vigilarKickoffs(deps: DepsPerdidas, op: { dry?: boolean } 
     catch (e) { errores.push(`reclamar ${p.recording_id}: ${motivo(e)}`) }
   }
   const texto = textoPerdidas(nuevas, reintentadas, deps.menciones)
-  if (!texto) return { perdidas: resumen, nuevas: [], reintentadas: [...reintentadas], texto: '', enviado: false, errores }
+  if (!texto) return { conCampana, perdidas: resumen, nuevas: [], reintentadas: [...reintentadas], texto: '', enviado: false, errores }
   try {
     const id = await deps.enviar(texto, deps.menciones)
     for (const p of nuevas) await deps.marcarEnviado(`kickoff-perdida:${p.recording_id}`, id).catch(() => {})
-    return { perdidas: resumen, nuevas: nuevas.map(p => p.recording_id), reintentadas: [...reintentadas], texto, enviado: true, errores }
+    return { conCampana, perdidas: resumen, nuevas: nuevas.map(p => p.recording_id), reintentadas: [...reintentadas], texto, enviado: true, errores }
   } catch (e) {
     errores.push(`discord: ${motivo(e)}`)
     for (const p of nuevas) await deps.soltar(`kickoff-perdida:${p.recording_id}`).catch(() => {})
-    return { perdidas: resumen, nuevas: nuevas.map(p => p.recording_id), reintentadas: [...reintentadas], texto, enviado: false, errores }
+    return { conCampana, perdidas: resumen, nuevas: nuevas.map(p => p.recording_id), reintentadas: [...reintentadas], texto, enviado: false, errores }
   }
 }
 
 /** Las dependencias reales. Solo servidor. */
-export async function depsPerdidasReales(): Promise<DepsPerdidas> {
+export async function depsPerdidasReales(tablero?: Pick<Tablero, 'filas' | 'porLanzar' | 'porLanzarEsperando'>): Promise<DepsPerdidas> {
   const [{ listarReuniones, claveApi }, { QUIENES }, reg, avisos, entorno, { enviarDiscord }] = await Promise.all([
     import('./fathomApi'), import('./grabadores'), import('./registro'), import('@/lib/bot/anuncios/registro'), import('./entorno'), import('@/lib/fathomAnuncios/discord'),
   ])
@@ -158,13 +178,23 @@ export async function depsPerdidasReales(): Promise<DepsPerdidas> {
     },
     menciones: [mk.tomi, mk.gero_m].filter((x): x is string => !!x),
     ahora: () => Date.now(),
+    conCampana: tablero ? async p => {
+      const { cruzarNombreDoc } = await import('@/lib/bot/anuncios/docAds')
+      const { tieneCampanaReciente } = await import('@/lib/bot/anuncios/docAdsServidor')
+      const nombre = clienteDelTitulo(p.titulo)
+      if (!nombre) return null
+      const xs = [...tablero.filas.map(f => ({ cliente: f.clienteCRM ?? f.cliente, pl: null })), ...[...tablero.porLanzar, ...(tablero.porLanzarEsperando ?? [])].map(pl => ({ cliente: pl.cliente, pl }))]
+      const c = cruzarNombreDoc(nombre, xs)
+      if (!c || c.fuerza !== 'firme') return null
+      return c.x.pl ? tieneCampanaReciente(c.x.pl) : true   // con fila en el tablero = gasta
+    } : undefined,
   }
 }
 
 export const perdidasEncendido = (): boolean => process.env.KICKOFF_PERDIDAS?.trim() !== '0'
 
 /** Lo que llama la alerta de las 9:05. Nunca tira. */
-export async function correrKickoffsPerdidas(op: { dry?: boolean } = {}): Promise<ResultadoPerdidas | { apagado: true }> {
+export async function correrKickoffsPerdidas(op: { dry?: boolean; tablero?: Pick<Tablero, 'filas' | 'porLanzar' | 'porLanzarEsperando'> } = {}): Promise<ResultadoPerdidas | { apagado: true }> {
   if (!perdidasEncendido()) return { apagado: true }
-  try { return await vigilarKickoffs(await depsPerdidasReales(), op) } catch (e) { return { perdidas: [], nuevas: [], reintentadas: [], texto: '', enviado: false, errores: [motivo(e)] } }
+  try { return await vigilarKickoffs(await depsPerdidasReales(op.tablero), op) } catch (e) { return { perdidas: [], nuevas: [], reintentadas: [], texto: '', enviado: false, errores: [motivo(e)] } }
 }
