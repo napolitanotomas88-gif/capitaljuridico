@@ -46,6 +46,11 @@ Devolvés:
   cuenta el problema como una historia breve (3 a 5 párrafos cortos, uno por línea) y cierra con la misma llamada
   "Enviame un mensaje 💬 …". Entre 450 y 900 caracteres. Que no repita el gancho del directo.
 · "titulo1" y "titulo2": dos títulos distintos de hasta 40 caracteres, invitando a escribir (ej.: "Escribime y vemos tu caso").
+REGLAS DE VARIACIÓN (Tomás, 3/11): son variaciones, no textos nuevos.
+· No cambies la estructura de siempre (la de arriba) ni el orden de las ideas.
+· Usá las MISMAS palabras y frases de los guiones: el gancho del directo sale literal (o casi) de un HOOK; el problema, con las palabras del PROBLEMA.
+· Nada de palabras raras, rebuscadas o que no estén en los guiones o no tengan que ver con el caso (ni sinónimos "de marketing").
+· Lo que cambia entre el amplio y el directo es el largo y el arranque, no el vocabulario.
 Reglas para todo: voseo rioplatense, primera persona del abogado ("te ayudo"), sin promesas de resultado, sin precios, sin hashtags, sin mencionar el video.
 Ejemplo de directo:
 ¿Te despidieron y no sabés si te pagan todo? ⬇️
@@ -74,12 +79,22 @@ export function textosValidos(x: unknown): { textos: string[]; titulos: string[]
   return { textos: [amplio, directo], titulos }
 }
 
+const palabras = (t: string) => new Set(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-zñ]+/).filter(w => w.length >= 5 && !COMUNES.has(w)))
+const COMUNES = new Set(['sobre', 'tenes', 'podes', 'sabes', 'estas', 'tiene', 'cuando', 'porque', 'mensaje', 'enviame', 'ayudo'])
+/** ¿El gancho del directo sale de un HOOK? Al menos una palabra de 5+ letras con contenido en común con alguno (variación, no texto nuevo). */
+export function ganchoFiel(directo: string, hooks: readonly string[]): boolean {
+  const g = palabras(directo.split('\n')[0] ?? '')
+  return hooks.some(h => [...palabras(h)].some(w => g.has(w)))
+}
+
 export async function escribirTextos(gs: GuionDoc[], topeMs = TOPE_COPY_MS): Promise<{ textos: string[]; titulos: string[] } | null> {
   const r = await llamarClaude({
     que: 'los textos del anuncio', sistema: SISTEMA, schema: SCHEMA, esfuerzo: 'low', topeMs, maxTokens: 3_000,
     usuario: gs.map((g, i) => `<guion n="${i + 1}">\nHOOK: ${g.secciones.hook}\nPROBLEMA: ${g.secciones.problema}\nSOLUCIÓN: ${g.secciones.solucion}\nCTA: ${g.secciones.cta}\n</guion>`).join('\n'),
   })
-  return textosValidos(r.json)
+  const t = textosValidos(r.json)
+  const hooks = gs.map(g => g.secciones.hook).filter(Boolean)
+  return t && (!hooks.length || ganchoFiel(t.textos[1], hooks)) ? t : null
 }
 
 export interface DepsCopys { exportarTexto(docId: string): Promise<string>; escribir(gs: GuionDoc[]): Promise<{ textos: string[]; titulos: string[] } | null> }
