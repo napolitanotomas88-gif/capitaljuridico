@@ -128,7 +128,9 @@ describe('vigía de la cola', () => {
     assert.equal(avisos[0].canal, 'sistema'); assert.equal(avisos[0].tipo, 'ia_mac_cola')
     assert.equal(avisos[0].clave, `ia-mac-cola:${Math.floor(ahora / 1_800_000)}`)
     assert.match(avisos[0].lineas[0], /2 pedidos esperaron más de 5 min.*hace 6 min/)
-    assert.match(b.consultas[0], /tomado IS NULL AND estado IN \('pendiente','vencido'\) AND creado < now\(\) - interval '5 minutes'/)
+    assert.match(b.consultas[0], /tomado IS NULL AND creado < now\(\) - interval '5 minutes'/)
+    assert.match(b.consultas[0], /estado = 'vencido' AND vence > now\(\) - interval '10 minutes'/)
+    assert.match(b.consultas[0], /NOT EXISTS \(SELECT 1 FROM cj_ia_pedidos t WHERE t\.tomado > now\(\) - interval '5 minutes'\)/)
   })
   test('cola al día: no avisa; sin forzar, una vez por minuto; si la base falla, no tira', async () => {
     const avisos = []

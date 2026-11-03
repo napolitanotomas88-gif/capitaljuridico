@@ -89,7 +89,8 @@ const VIGIA_CADA_MS = 60_000
 const AVISO_CADA_MS = 30 * 60_000
 let ultimaVigia = 0
 
-/** ¿Hay pedidos que la Mac no tomó en más de 5 minutos (pendientes, o que vencieron sin que nadie los tomara)? Si los hay,
+/** ¿Hay pedidos que la Mac no tomó en más de 5 minutos (pendientes, o que vencieron hace poco sin que nadie los tomara) y
+ *  la Mac no tomó nada en esos 5 minutos? Los vencidos viejos no cuentan: si no, tras un corte ya resuelto seguiría avisando. Si los hay,
  *  avisa a #🧰-sistema-bot. Nunca tira ni demora más que una consulta; como mucho una vez por minuto por instancia. */
 export async function vigilarCola(base: BasePuente, op: { avisar?: AvisoCola; ahora?: () => number; forzar?: boolean } = {}): Promise<boolean> {
   const ahora = (op.ahora ?? Date.now)()
@@ -98,7 +99,9 @@ export async function vigilarCola(base: BasePuente, op: { avisar?: AvisoCola; ah
   try {
     const { rows } = await base.query(
       `SELECT count(*)::int AS n, min(creado) AS desde, string_agg(DISTINCT origen, ', ') AS origenes FROM cj_ia_pedidos
-       WHERE tomado IS NULL AND estado IN ('pendiente','vencido') AND creado < now() - interval '${COLA_TRABADA_MIN} minutes' AND creado > now() - interval '2 hours'`,
+       WHERE tomado IS NULL AND creado < now() - interval '${COLA_TRABADA_MIN} minutes' AND creado > now() - interval '2 hours'
+         AND (estado = 'pendiente' OR (estado = 'vencido' AND vence > now() - interval '10 minutes'))
+         AND NOT EXISTS (SELECT 1 FROM cj_ia_pedidos t WHERE t.tomado > now() - interval '${COLA_TRABADA_MIN} minutes')`,
     )
     const f = rows[0]
     const n = Number(f?.n ?? 0)
