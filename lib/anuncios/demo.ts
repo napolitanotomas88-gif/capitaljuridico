@@ -18,6 +18,7 @@ const PATRONES: Patron[] = [
   { cliente: 'Estudio Ejemplo Cuatro (ejemplo)', gasto: 22, cpl: 2.8, error: true },
   { cliente: 'Estudio Ejemplo Cinco (ejemplo)', gasto: 15, cpl: 4.5, frenada: 4 },
   { cliente: 'Clienta Ejemplo Seis (ejemplo)', gasto: 20, cpl: 1.9, nueva: true },
+  { cliente: 'Estudio Ejemplo Siete (ejemplo)', gasto: 12, cpl: 3, frenada: 9, pausado: true },
 ]
 
 function diasDe(p: Patron, hoy: string): DiaInsight[] {
@@ -49,7 +50,7 @@ export function tableroDemo(hoy: string): Tablero {
       presupuesto: { mensualUSD: 600 + i * 50, objetivoDiarioUSD: 20, realDiarioUSD: p.gasto, gastadoMesUSD: p.gasto * 24, proyeccionUSD: p.gasto * 31, ajusteDiarioUSD: null, fuente: 'ejemplo', estado: 'en_rango' },
       id, idNum: id.replace('act_', ''), cliente: p.cliente, clienteCRM: p.cliente, idCrm: null, cuenta: cuenta.nombre, negocio: null, moneda: 'USD',
       links: { ads: '#', portfolio: null }, extra: false, pausado: !!p.pausado,
-      sinGasto: causaSinGasto({ ...a, pausado: !!p.pausado }, p.pausado ? { desde: hoy, hasta: null, vuelta: null, motivo: 'Ejemplo' } : null),
+      sinGasto: causaSinGasto({ ...a, pausado: !!p.pausado }, p.pausado ? { desde: hoy, hasta: `${hoy.slice(0, 8)}28`, vuelta: null, motivo: 'Vacaciones del estudio (ejemplo)' } : null),
       guiones: { estado: i % 3 === 0 ? 'pendiente' : 'grabado', detalle: 'Ejemplo', alias: [] },
       sinDatosCuenta: false,
       estadoSemanal: { semaforo: a.semaforo, motivos: a.motivos, frase: a.frase, prioridad: a.prioridad, nivel: a.cpl.nivel },
