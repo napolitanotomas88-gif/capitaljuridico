@@ -72,8 +72,9 @@ export function pausaVigente(acciones: readonly Accion[], hoy: Ymd = hoyArgentin
     if (a.estado === 'anulada' || a.estado === 'error') continue
     if (a.tipo === 'reanudar') return null
     if (a.tipo === 'pausa') {
-      const desde = (a.datos as { desde?: Ymd }).desde ?? a.creada.slice(0, 10)
-      return { desde, dias: Math.max(0, diasEntre(desde, hoy)), accionId: a.id, modo: a.modo }
+      const d = a.datos as { desde?: Ymd; hasta?: Ymd; vuelta?: string }
+      const desde = d.desde ?? a.creada.slice(0, 10)
+      return { desde, dias: Math.max(0, diasEntre(desde, hoy)), accionId: a.id, modo: a.modo, hasta: d.hasta ?? null, vuelta: d.vuelta ?? null }
     }
   }
   return null

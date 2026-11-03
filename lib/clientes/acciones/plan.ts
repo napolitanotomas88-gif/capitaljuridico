@@ -78,14 +78,25 @@ function planEstado(c: Cliente, nuevo: 'PAUSADO' | 'ACTIVO', nota: string, resum
 
 /** Pausar: solo un cliente ACTIVO y sin otra pausa abierta en el Despacho. */
 export function planPausa(c: Cliente, b: CuerpoPausa, hoy: Ymd, abierta: PausaVigente | null): PlanAccion | string {
+  if (b.ajuste) {
+    // Cliente ya pausado (en el Despacho o en el CRM): solo se carga hasta cuándo, sin tocar el inicio de la pausa
+    if (!abierta && c.estado !== 'PAUSADO') return 'Solo se carga la fecha de vuelta de un cliente pausado.'
+    const vuelta = limpiar(b.vuelta)
+    if (!b.hasta && !vuelta) return 'Indicá la fecha de vuelta o cuándo vuelve.'
+    const desde = abierta?.desde ?? b.desde ?? hoy
+    if (b.hasta !== undefined && (!esYmdValido(b.hasta) || b.hasta <= desde)) return 'La fecha de vuelta tiene que ser una fecha real, posterior al inicio de la pausa.'
+    return planEstado(c, 'PAUSADO', `[${ddmm(hoy)}] Vuelta de la pausa: ${b.hasta ? ddmm(b.hasta) : vuelta} (Despacho)`, `Fecha de vuelta: ${b.hasta ?? vuelta}`)
+  }
   if (abierta) return `Ya está pausado desde ${abierta.desde}.`
   if (c.estado !== 'ACTIVO') return `Solo se pausa un cliente ACTIVO (está ${c.estado || 'sin estado'}).`
   const desde = b.desde ?? hoy
   if (!esYmdValido(desde)) return 'La fecha "desde" tiene que ser una fecha real (AAAA-MM-DD).'
   if (desde > hoy) return 'La pausa no puede empezar en el futuro.'
   if (diasEntre(desde, hoy) > 60) return 'La pausa no puede empezar hace más de 60 días.'
-  const motivo = limpiar(b.motivo)
-  return planEstado(c, 'PAUSADO', `[${ddmm(hoy)}] Pausado desde ${ddmm(desde)}${motivo ? ` — ${motivo}` : ''} (Despacho)`, `Pausar desde ${desde}`)
+  if (b.hasta !== undefined && (!esYmdValido(b.hasta) || b.hasta <= desde)) return 'La fecha de vuelta tiene que ser una fecha real, posterior al inicio de la pausa.'
+  const motivo = limpiar(b.motivo), vuelta = limpiar(b.vuelta)
+  const hasta = b.hasta ? ` hasta ${ddmm(b.hasta)}` : vuelta ? ` (vuelve ${vuelta})` : ''
+  return planEstado(c, 'PAUSADO', `[${ddmm(hoy)}] Pausado desde ${ddmm(desde)}${hasta}${motivo ? ` — ${motivo}` : ''} (Despacho)`, `Pausar desde ${desde}${b.hasta ? ` hasta ${b.hasta}` : ''}`)
 }
 
 /** Reanudar: cierra la pausa abierta y suma como extensión los días que estuvo pausado. */

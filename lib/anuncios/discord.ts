@@ -89,6 +89,9 @@ export function reporteSemanal(t: Tablero, ahora: Date = new Date(), mes: Recuen
 
   const pagos = t.filas.filter(f => f.pago.errorPago || (f.pago.sinMedioPago && f.corriendo.frenadaHace == null))
   partes.push(...secciones(`**ERRORES DE PAGO (${pagos.length})**`, pagos.map(lineaPago)))
+  // Sin gasto: hasta cuándo está pausado o la causa en Meta (sinGasto.ts). Los errores de pago ya salen arriba
+  const sinGasto = t.filas.filter(f => f.sinGasto && f.sinGasto.tipo !== 'pago' && (f.semaforo === 'sin_gasto' || f.pausado))
+  partes.push(...secciones(`**SIN GASTO (${sinGasto.length})**`, sinGasto.map(f => `• ${nombre(f)} — ${f.sinGasto!.texto}`)))
 
   const saldo = t.filas.filter(f => f.motivos.some(m => m.tipo === 'saldo' || m.tipo === 'saldo_bajo'))
   partes.push(...secciones(`**SALDOS POR AGOTARSE (${saldo.length})**`, saldo.map(f => `• ${nombre(f)} — ${f.motivos.find(m => m.tipo === 'saldo' || m.tipo === 'saldo_bajo')!.texto}`)))

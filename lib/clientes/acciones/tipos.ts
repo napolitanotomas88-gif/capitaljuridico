@@ -32,8 +32,9 @@ export interface RespuestaCampos { ok: boolean; modo: ModoAcciones; campos: Camp
 // ── Cuerpos del POST /api/clientes/<id>/acciones (siempre con `tipo`) ──
 /** Sumar servicio: 1 mes, 2 semanas o personalizado (hasta una fecha o una cantidad de días). Fila de precio 0 en Renovaciones. */
 export interface CuerpoServicio { tipo: 'servicio'; duracion: '1m' | '2s' | 'personalizado'; hasta?: Ymd; dias?: number; motivo?: string }
-/** Pausar: Estado → PAUSADO desde esa fecha (hoy por defecto). El servicio no corre mientras dura. */
-export interface CuerpoPausa { tipo: 'pausa'; desde?: Ymd; motivo?: string }
+/** Pausar: Estado → PAUSADO desde esa fecha (hoy por defecto). El servicio no corre mientras dura. `hasta` = fecha de vuelta
+ *  prevista y `vuelta` = condición si no hay fecha («cuando agende la proyección»): no reanudan solos, se muestran en Anuncios. */
+export interface CuerpoPausa { tipo: 'pausa'; desde?: Ymd; hasta?: Ymd; vuelta?: string; motivo?: string; ajuste?: boolean }   // ajuste: cliente ya pausado, solo carga la vuelta
 /** Reanudar: Estado → ACTIVO y se suma como extensión el tiempo pausado ("+N días — compensa pausa"). */
 export interface CuerpoReanudar { tipo: 'reanudar'; fecha?: Ymd; desdePausa?: Ymd; motivo?: string }
 /** Editar datos de la fila del cliente. Solo campos que cambian; `valor` siempre texto ('' = vaciar). Hasta 20 por vez. */
@@ -89,7 +90,7 @@ export type RenovacionReferidosPublica = Omit<RenovacionReferidos, 'usdPendiente
 export interface RespuestaAccion { ok: boolean; accion?: Accion; plan?: CambioPlan[]; mensaje?: string; codigo?: string; pago?: { programa: string; fuente: string; setter: string; tipoVenta: string; tipoPago: string }; beneficioAplicado?: true; renovacionReferidos?: RenovacionReferidos }
 
 /** Pausa vigente según lo registrado en el Despacho (en sombra el CRM puede seguir diciendo ACTIVO). */
-export interface PausaVigente { desde: Ymd; dias: number; accionId: string; modo: ModoAcciones }
+export interface PausaVigente { desde: Ymd; dias: number; accionId: string; modo: ModoAcciones; hasta?: Ymd | null; vuelta?: string | null }
 
 /** Respuesta de GET /acciones: historial de la tarjeta, de la más nueva a la más vieja. */
 export interface RespuestaHistorial { ok: boolean; modo: ModoAcciones; acciones: Accion[]; pausa: PausaVigente | null; archivado?: boolean; mensaje?: string }

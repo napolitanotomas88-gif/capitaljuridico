@@ -20,6 +20,8 @@ import { dolarHoy, monedasPorUSD, type DolarHoy } from './dolar'
 import { clasificarRama, crearCruceRamas, leerTareasClickUp, NOMBRE_RAMA, umbralDe, type Rama } from './ramas'
 import { leerPresupuestosPrivados } from '../configPrivada'
 import { evaluarPresupuesto, type Presupuesto } from './presupuestos'
+import { causaSinGasto, type CausaSinGasto } from './sinGasto'
+import { pausasVigentes } from './pausas'
 import { leerOptimizaciones, etapaOptimizacion, fechaUltimaRevision, requiereRevision } from './optimizaciones'
 import { saludTokens, type EstadoToken } from './token'
 import { avisoLecturaFichas, crearLecturaConPausa, ESPERA_KICKOFFS_MS, leerFichasKickoff, PAUSA_KICKOFFS_MS, QUE_KICKOFFS } from './kickoffs'
@@ -36,6 +38,8 @@ export interface FilaAnuncio extends Analisis {
   idNum: string
   cliente: string
   clienteCRM: string | null
+  idCrm: string | null           // id del CRM (A001…), si el cliente cruzó
+  sinGasto: CausaSinGasto | null // por qué no gasta / hasta cuándo está pausado (sinGasto.ts); null si gasta
   cuenta: string
   negocio: { id: string; nombre: string } | null
   moneda: string
@@ -246,6 +250,8 @@ export async function obtenerTablero(): Promise<Tablero> {
       id, idNum,
       cliente: res.cliente?.nombre || res.nombreColC || nombre,
       clienteCRM: res.cliente?.nombre ?? (res.nombreColC || null),
+      idCrm: res.cliente?.id || null,
+      sinGasto: null,
       cuenta: nombre,
       negocio,
       moneda,
@@ -276,6 +282,9 @@ export async function obtenerTablero(): Promise<Tablero> {
       previo: { semaforo: ayer.semaforo, rendimiento: ayer.motivos.filter(x => x.color === 'rojo' && MOTIVOS_RENDIMIENTO.includes(x.tipo)).map(x => x.tipo), aGrabar: !!ayer.aGrabar },
     })
   }
+  // Por qué no gasta cada uno (o hasta cuándo está pausado): una consulta a Neon con los que hacen falta
+  const pausas = await pausasVigentes(filas.filter(f => f.idCrm && (f.pausado || f.semaforo === 'sin_gasto')).map(f => f.idCrm!))
+  for (const f of filas) f.sinGasto = causaSinGasto(f, f.idCrm ? pausas.get(f.idCrm.toUpperCase()) ?? null : null)
   filas.sort((x, y) => y.prioridad - x.prioridad || y.gasto.d7 - x.gasto.d7 || x.cliente.localeCompare(y.cliente))
 
   // ── Por lanzar: clientes ACTIVO del CRM sin fila. Se cruzan con las cuentas de Meta visibles (¿hay acceso?), con su ficha
