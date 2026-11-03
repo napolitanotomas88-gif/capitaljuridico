@@ -51,7 +51,7 @@ const git = (...a) => execFileSync('git', ['-C', RAIZ, ...a], { encoding: 'utf8'
 if (process.env.IA_MAC_ACTUALIZAR === '1' && !UNA) {
   try {
     if (!git('status', '--porcelain', '--untracked-files=no')) {
-      git('fetch', '--quiet', 'origin')
+      git('fetch', '--quiet', '--prune', 'origin')
       let adelante = false
       try { git('merge-base', '--is-ancestor', 'HEAD', 'origin/main') } catch { adelante = true }
       if (!adelante || !git('branch', '-r', '--contains', 'HEAD')) git('checkout', '--quiet', '--detach', 'origin/main')
