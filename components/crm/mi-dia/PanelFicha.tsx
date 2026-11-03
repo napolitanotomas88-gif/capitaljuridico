@@ -116,6 +116,7 @@ export function PanelFicha({ lead, version, escrituras, modalAbierto, onCerrar }
           </h2>
           <Link
             href={hrefFicha(lead)}
+            prefetch={false}
             className="-mb-2 inline-flex min-h-11 items-center text-sm font-semibold text-dorado underline underline-offset-2"
           >
             Abrir en página

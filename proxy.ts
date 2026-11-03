@@ -56,13 +56,14 @@ export async function proxy(req: NextRequest) {
   }
 }
 
-// Corre en todo menos en: archivos compilados y favicon, el video de /v/ y lo que usan los crons y los webhooks
+// Corre en todo menos en: archivos compilados y favicon, los archivos públicos sueltos (manifiesto, /marca, /pwa, /bot: 3/11/2026,
+// cada pasada por el proxy gasta CPU activa de Vercel y estos los pide el navegador sin cookie igual), el video de /v/ y lo que usan los crons y los webhooks
 // (los de vercel.json, el EOD de Make, los webhooks de Calendly, de Fathom, de Whapi y de AssemblyAI, el motor del bot de altas y el vigía de Edición que dispara el Puente Drive). Las exclusiones son exactas: "api/analista" solo deja
 // afuera /api/analista (con o sin barra final), no /api/analista-algo ni /api/analista/otra-cosa, y el video es un
 // archivo suelto de /v/ sin "%" (un "..%2F" disfrazado sí pasa por el proxy). Si agregás una ruta de automatización,
 // sumala acá Y en lib/auth/rutas.ts: scripts/test-rutas.mjs avisa si una de las dos listas queda desfasada.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico$|v/[^/%]+$|api/(?:analista|resumen-diario|recordatorio-formularios|reporte-enrutamiento|agenda-slots|finanzas-cierre|reporte-anuncios|alerta-anuncios|reporte-eod|calendly-webhook|fathom-anuncios|fathom-anuncios/reintentar|bot/kickoff|bot/kickoff/mapa|bot/guiones|bot/guiones/respuesta|bot/guiones/recordatorio|bot/whapi|bot/alta/motor|bot/exito|bot/bajas|bot/drive-completo|bot/proyeccion|bot/grabacion/vigia|bot/grabacion/transcripcion|bot/grabacion/diario|clientes/sincronizar|clientes/inactivos/cron|notificaciones/whatsapp|trazabilidad/botonera|trazabilidad/procesar|trazabilidad/semanal|trazabilidad/manychat)/?$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|marca/[^/%]+$|pwa/[^/%]+$|bot/[^/%]+$|v/[^/%]+$|api/(?:analista|resumen-diario|recordatorio-formularios|reporte-enrutamiento|agenda-slots|finanzas-cierre|reporte-anuncios|alerta-anuncios|reporte-eod|calendly-webhook|fathom-anuncios|fathom-anuncios/reintentar|bot/kickoff|bot/kickoff/mapa|bot/guiones|bot/guiones/respuesta|bot/guiones/recordatorio|bot/whapi|bot/alta/motor|bot/exito|bot/bajas|bot/drive-completo|bot/proyeccion|bot/grabacion/vigia|bot/grabacion/transcripcion|bot/grabacion/diario|clientes/sincronizar|clientes/inactivos/cron|notificaciones/whatsapp|trazabilidad/botonera|trazabilidad/procesar|trazabilidad/semanal|trazabilidad/manychat)/?$).*)',
   ],
 }

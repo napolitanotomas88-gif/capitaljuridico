@@ -68,6 +68,7 @@ export function CallsDeHoy({ calls, ahora, onAbrirFicha }: Props) {
               <li key={c.clave} className="shrink-0" data-proxima={c.proxima || undefined}>
                 <Link
                   href={hrefFicha(identidad)}
+                  prefetch={false}
                   onClick={(e) => clickAbrePanel(e, () => onAbrirFicha(identidad))}
                   className={`relative tabular flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm ${
                     c.proxima

@@ -717,7 +717,7 @@ describe('matcher de proxy.ts', () => {
   test('el matcher es el esperado (si se toca, este test obliga a revisar la tabla)', () => {
     assert.equal(config.matcher.length, 1)
     const m = config.matcher[0]
-    assert.ok(m.startsWith('/((?!_next/static|_next/image|favicon\\.ico$|v/[^/%]+$|api/(?:'), m)
+    assert.ok(m.startsWith('/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|marca/[^/%]+$|pwa/[^/%]+$|bot/[^/%]+$|v/[^/%]+$|api/(?:'), m)
     assert.ok(m.endsWith(')/?$).*)'), m)
     assert.ok(!m.includes('finanzas|') && !m.includes('|raw'), 'las rutas protegidas no se excluyen')
     assert.deepEqual([...m.matchAll(/(?:\||\()clientes([^|)]*)/g)].map(x => x[1]), ['/sincronizar', '/inactivos/cron'], 'sólo las dos rutas exactas autenticadas por CRON_SECRET salen del proxy')
@@ -729,7 +729,7 @@ describe('matcher de proxy.ts', () => {
       const base = r.patron.endsWith('/*') ? r.patron.slice(0, -2) : r.patron
       for (const p of [base, `${base}/x`, `${base}/`, `${base}/x/y.js`]) sondas.add(p)
     }
-    for (const p of ['/api/analista-x', '/api/analistax', '/api/analista.json', '/api/analista/x', '/v/x/y.mp4', '/v/..%2Fapi%2Fraw', '/vx/a', '/_next', '/_nextx/a', '/favicon.ico.bak', '/favicon.icox', '/api', '/api/']) sondas.add(p)
+    for (const p of ['/api/analista-x', '/api/analistax', '/api/analista.json', '/api/analista/x', '/v/x/y.mp4', '/v/..%2Fapi%2Fraw', '/vx/a', '/_next', '/_nextx/a', '/favicon.ico.bak', '/favicon.icox', '/marca/x/y.svg', '/marca/..%2Fapi%2Fraw', '/pwa/x/y', '/bot/x/y.jpg', '/manifest.webmanifestx', '/marcax/a', '/botx/a', '/api', '/api/']) sondas.add(p)
     let afuera = 0, protegidasConProxy = 0
     for (const p of sondas) {
       const q = resolverRegla(p).regla.quien
