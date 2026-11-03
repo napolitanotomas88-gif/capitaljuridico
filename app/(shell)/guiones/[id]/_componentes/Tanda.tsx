@@ -6,7 +6,7 @@ import { Boton } from '@/components/ui'
 import type { SeccionGuion } from '@/lib/bot/guiones/tipos'
 
 // Una tanda de guiones en la pantalla del Despacho: cada guion con sus 4 secciones (indicación y texto editables mientras
-// está para revisar) y su «✓ Verificado», el check final de UNA persona, Tomi o Faus, que se habilita con todos verificados
+// está para revisar) y su «✓ Verificado», el check final de UNA persona (Faus; Tomás conserva el permiso pero no se le pide), que se habilita con todos verificados
 // (pedido de Tomás del 27/10; aprobar: la primera vez pide el Doc «Guiones - …» del cliente), retomar si se
 // frenó o quedó colgada, y lo que respondió el cliente (llega solo por WhatsApp o se pega a mano): el bot corrige solo y la
 // tanda vuelve a revisión para el check (pedido de Tomás del 25/10). Todo por POST /api/guiones/<id>; el servidor decide
@@ -88,7 +88,7 @@ export function Tanda({ idCliente, t, aprobador, soloLectura = false }: { idClie
             <p className="gu-meta">El documento se conecta automáticamente. Después del check, Aylu o Gero reciben el link para entregarlo al cliente.</p>
             {faltan.length > 0 && <p className="gu-meta">Falta verificar {faltan.length === 1 ? 'el guion' : 'los guiones'} {faltan.join(', ')}.</p>}
             <Boton disabled={ocupado || faltan.length > 0} onClick={() => hacer({ accion: 'aprobar' })}>✓ Check final: aprobar y preparar entrega</Boton>
-          </>) : <p className="gu-meta">Cada guion lo verifican Tomi o Faus, y uno de los dos da el check final.</p>}
+          </>) : <p className="gu-meta">Faus verifica cada guion y da el check final.</p>}
         </div>
       )}
       {!soloLectura && t.estado === 'aprobada' && aprobador && (

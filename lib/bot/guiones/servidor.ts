@@ -5,8 +5,8 @@
 //     trabajo corre en after(), en otra invocación con sus propios 300 s). Mismo patrón que dispararMapaReal del kickoff.
 //   · avisar (pedido de Tomás del 25/10): al grupo de guiones del equipo en WhatsApp (WHAPI_GRUPO_COPYWRITING, Whapi) con el
 //     link a /guiones/<id>: «lista para revisar» o «el cliente pidió cambios y ya están aplicados». Es un grupo INTERNO (no un
-//     cliente). Sin el grupo o sin WHAPI_TOKEN, va a Discord (DISCORD_WEBHOOK_GUIONES o #📝-kickoff) mencionando a Tomi y Faus.
-//     Desde el 3/11/2026 (Tomás): menciona a Faus, Tomi y Gero M, guarda la ronda de revisión y el vigía recuerda a las 24/48 h
+//     cliente). Sin el grupo o sin WHAPI_TOKEN, va a Discord (DISCORD_WEBHOOK_GUIONES o #📝-kickoff) mencionando a Faus y Gero M.
+//     Desde el 3/11/2026 (Tomás): menciona a Faus (revisa y da el check final) y Gero M (atento), nunca a Tomás; guarda la ronda de revisión y el vigía recuerda a las 24/48 h
 //     (avisoRevision.ts).
 // Solo servidor.
 import { idDiscord } from '@/lib/fathomAnuncios/discord'
@@ -79,11 +79,11 @@ export function textoAviso(fila: FilaTanda, tipo: TipoAviso, base: string = urlD
   const link = fila.id_crm ? `${base}/guiones/${encodeURIComponent(fila.id_crm)}` : ''
   const cliente = fila.cliente ?? 'cliente sin nombre'
   return tipo === 'revisar'
-    ? `✍️ Guiones listos para revisar: ${cliente} · ${n} guiones (tanda ${fila.tanda}). Faus, Tomi: revisalos y aprobalos acá${link ? `: ${link}` : ' (falta el ID del CRM)'}. Gero M: atento`
-    : `🔁 ${cliente} pidió cambios en sus guiones y el bot ya los aplicó. Faus, Tomi: revisalos y aprobalos acá${link ? `: ${link}` : ''}. Gero M: atento`
+    ? `✍️ Guiones listos para revisar: ${cliente} · ${n} guiones (tanda ${fila.tanda}). Faus: revisalos y da el check final acá${link ? `: ${link}` : ' (falta el ID del CRM)'}. Gero M: atento`
+    : `🔁 ${cliente} pidió cambios en sus guiones y el bot ya los aplicó. Faus: revisalos y da el check final acá${link ? `: ${link}` : ''}. Gero M: atento`
 }
 
-/** El aviso al equipo de una tanda que pasó a «a_revisar»: campanita del Hub + ✍️-guiones (Faus, Tomi y Gero M) y la ronda
+/** El aviso al equipo de una tanda que pasó a «a_revisar»: campanita del Hub + ✍️-guiones (Faus y Gero M) y la ronda
  *  de revisión (desde cuándo, para los recordatorios de 24/48 h del vigía). Lo usan TODOS los caminos que ponen a_revisar. */
 export async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<string | null> {
   await exigirClienteNoArchivado(fila.id_crm, await leerArchivados({ forzar: true }))
@@ -106,7 +106,7 @@ export async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<st
   return r.estado === 'enviado' ? `dc:${r.mensajeId ?? ''}` : null
 }
 
-/** Recordatorios de tandas sin revisar (24 h: Faus y Gero M; 48 h: + Tomás) y avisos que faltaron. Lo corre el vigía (cada
+/** Recordatorios de tandas sin revisar (24 h: Faus y Gero M; 48 h: escala a Gero M) y avisos que faltaron. Lo corre el vigía (cada
  *  15 min) y el cron diario. Nunca tira. */
 export async function recordarGuionesARevisar(op: { dry?: boolean } = {}) {
   if (!reg.baseConfigurada()) return null
@@ -124,7 +124,7 @@ export async function recordarGuionesARevisar(op: { dry?: boolean } = {}) {
   }
 }
 
-/** Barrido (3/11/2026): UN mensaje en ✍️-guiones con todas las tandas que hoy esperan revisión (Faus, Tomi y Gero M) y la
+/** Barrido (3/11/2026): UN mensaje en ✍️-guiones con todas las tandas que hoy esperan revisión (Faus y Gero M) y la
  *  ronda de cada una (estado «barrido», desde ahora: los recordatorios de 24/48 h cuentan desde este aviso). */
 export async function barridoGuionesARevisar(op: { dry?: boolean } = {}) {
   const filas = await reg.tandasARevisar()

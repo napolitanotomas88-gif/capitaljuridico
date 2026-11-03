@@ -29,12 +29,18 @@ test('pendientes: no avisa si sigue editando (menos de 2 h), sin ediciones o fue
   assert.equal(pendientesSinVerificar([fila({ 1: { editado: { quien: 'Faus', cuando: hace(5) } } }, 'aprobada')], AHORA).length, 0)
 })
 
-test('alerta: menciona a quien editó, una por tanda y día', () => {
+test('alerta: menciona a quien editó (lo de Tomás va a Faus), una por tanda y día', () => {
   const [p] = pendientesSinVerificar([fila({ 2: { editado: { quien: 'Faus', cuando: hace(5) } }, 4: { editado: { quien: 'Tomás', cuando: hace(3) } } })], AHORA)
   const a = alertaSinVerificar(p, '2026-11-03')
   assert.equal(a.canal, 'guiones')
   assert.equal(a.clave, 'guiones_sin_verificar:9:2026-11-03')
-  assert.deepEqual([...a.menciones].sort(), ['faus', 'tomas'])
+  assert.deepEqual([...a.menciones].sort(), ['faus'])
+  const [solo] = pendientesSinVerificar([fila({ 1: { editado: { quien: 'Tomi', cuando: hace(5) } } })], AHORA)
+  assert.deepEqual([...alertaSinVerificar(solo, '2026-11-03').menciones], ['faus'])
+  const [otro] = pendientesSinVerificar([fila({ 1: { editado: { quien: 'Aylu', cuando: hace(5) } } })], AHORA)
+  assert.deepEqual([...alertaSinVerificar(otro, '2026-11-03').menciones].sort(), ['faus', 'gero_m'])
+  const nt = notificacionesSinVerificar(solo, '2026-11-03', { GUIONES_REVISOR_FAUS: 'faus@ejemplo.test', KICKOFF_REVISOR_TOMI: 'tomi@ejemplo.test' })
+  assert.deepEqual(nt.map(n => n.paraEmail), ['faus@ejemplo.test'])
   assert.match(a.lineas.join(' '), /los guiones 2 y 4/)
   assert.equal(a.link, '/guiones/CUENTA_QA')
 })

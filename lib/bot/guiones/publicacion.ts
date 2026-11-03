@@ -54,7 +54,7 @@ export function alertaFallaPublicacion(t: TandaFallida, motivo: string, dudoso: 
       `Motivo: ${motivo}`,
       dudoso ? 'Puede haberse escrito a medias: revisá el Doc antes de reintentar (no duplicar la tanda).' : 'No se le mandó nada al cliente.',
       'El «para enviar» igual quedó en 📤 con la advertencia: no se manda hasta que el Doc esté bien (al reintentar se actualiza solo).',
-      'Reintentar: botón «Revisar publicación y aviso» en la tanda (lo tocan Tomi o Faus).',
+      'Reintentar: botón «Revisar publicación y aviso» en la tanda (lo toca Faus).',
     ],
     link: id ? `/guiones/${encodeURIComponent(id)}` : '/guiones', menciones: ['gero_m', 'aylu'],
   }

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 // Respuesta del cliente a sus guiones (d03): el webhook de Whapi (sesión CONSULTOR) reenvía acá los mensajes de los grupos
 // «Contenido - <cliente>» con Bearer CRON_SECRET: { grupo: "…@g.us", texto, mensaje_id?, autor?, citado?, fecha? }. Si en ese
 // grupo se avisó una tanda, el texto queda como nota (origen whatsapp) y, si la tanda estaba enviada o para revisar, el bot
-// la corrige solo (paso «notas» de /api/bot/guiones) y avisa al equipo para el check de Tomi o Faus (pedido del 25/10).
+// la corrige solo (paso «notas» de /api/bot/guiones) y avisa al equipo para el check final de Faus (pedido del 25/10).
 // Si la tanda no tiene ese grupo guardado (el aviso lo mandó una persona porque el WhatsApp del bot está apagado), se busca
 // por el nombre del grupo («Contenido - <cliente>», GET /groups/{id} de Whapi) la última tanda de ese cliente.
 // Sin tanda → 200 con ignorado. Los mensajes del bot o del equipo los filtra quien llama. Falla cerrado.

@@ -8,7 +8,7 @@
 //   · reclamar(): para retomar, atómico: desde «error» o desde un estado de trabajo SIN movimiento hace más de VENCIDO_S.
 //   · anotarWhatsApp: «enviada» solo si seguía «aprobada»; reservarWhatsApp: un solo envío por aprobación.
 // Estados: pendiente (la arma la Mac de Tomás con su plan Max, trabajador local) → mercado → plan → escribiendo → a_revisar → aprobada → enviada. Con la respuesta del cliente: con_notas →
-// corrigiendo (el bot corrige solo) → a_revisar (Tomi o Faus aprueban de nuevo) → aprobada → enviada. O error.
+// corrigiendo (el bot corrige solo) → a_revisar (Faus revisa y da el check final de nuevo) → aprobada → enviada. O error.
 // Misma base que el kickoff (DATABASE_URL). La tabla la crean las escrituras la primera vez; las lecturas no crean nada.
 // Cada consulta con tope de TOPE_CONSULTA_MS: sin conexión, 5xx o timeout → ErrorTransitorio. Solo servidor.
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
@@ -201,7 +201,7 @@ export async function verificarGuion(id: number, numero: number, v: { quien: str
     WHERE id = ${id} AND guiones ? ${String(numero)} AND estado = 'a_revisar' AND date_trunc('milliseconds', actualizado) = ${previo}::timestamptz RETURNING id`).length > 0)
 }
 
-/** El check final: UNA persona (Tomi o Faus) y solo con TODOS los guiones verificados (la base lo vuelve a exigir). */
+/** El check final: UNA persona (Faus; Tomás conserva el permiso técnico) y solo con TODOS los guiones verificados (la base lo vuelve a exigir). */
 export async function aprobarTanda(id: number, aprobacion: { quien: string; email: string }, previo: string): Promise<boolean> {
   if (!previoValido(previo)) return false
   return correr('aprobar tanda', async q => (await q`UPDATE cj_guiones SET estado = 'aprobada', aprobacion = ${JSON.stringify({ ...aprobacion, cuando: new Date().toISOString() })}::jsonb, actualizado = now()
@@ -240,7 +240,7 @@ export async function agregarNota(id: number, nota: Pick<NotaCliente, 'texto' | 
 }
 
 /** Corrección automática con las notas: guarda los guiones corregidos (SOLO esos pierden el «✓ Verificado»), marca las notas
- *  aplicadas (y a qué guiones) y vuelve a revisión (verificar los corregidos y un check final de Tomi o Faus). Se borran aprobación y WhatsApp de la vuelta anterior; el Doc se reusa. */
+ *  aplicadas (y a qué guiones) y vuelve a revisión (verificar los corregidos y el check final de Faus). Se borran aprobación y WhatsApp de la vuelta anterior; el Doc se reusa. */
 export async function aplicarCorrecciones(id: number, guiones: Record<string, Guion>, notas: { id: string; guiones: number[] }[], uso: Uso): Promise<boolean> {
   return correr('aplicar correcciones', async q => {
     const f = (await q`SELECT guiones FROM cj_guiones WHERE id = ${id} AND estado = 'corrigiendo'`)[0] as Record<string, unknown> | undefined

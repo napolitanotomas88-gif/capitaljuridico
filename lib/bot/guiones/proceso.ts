@@ -10,7 +10,7 @@
 //                dispara «corregir n». Al quedar listo, si es el último, cierra.
 //   corregir n → corrige con los hallazgos guardados y, si es el último, cierra.
 //   notas      → la respuesta del cliente: el bot decide a qué guiones va cada nota, los corrige en paralelo y la tanda vuelve
-//                a revisión (pedido de Tomás del 25/10: corrige solo el bot y después da el check Faus o Tomi).
+//                a revisión (pedido de Tomás del 25/10: corrige solo el bot y después da el check final Faus).
 // Cerrar = la tanda pasa a a_revisar una sola vez (con condición) y sale el aviso al equipo (grupo de guiones de WhatsApp).
 // Si algo falla, la tanda queda en «error» con el motivo; reanudar() la retoma desde lo que falta (también una colgada).
 import type { ExtraccionKickoff, IdeaGuion } from '../kickoff/tipos'

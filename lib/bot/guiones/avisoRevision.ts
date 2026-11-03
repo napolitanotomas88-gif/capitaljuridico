@@ -3,10 +3,12 @@
 // por si Faus se tarda mucho». Caso real: una tanda quedó «a_revisar» desde el 31/10 sin que nadie se
 // enterara (el aviso salió por WhatsApp, que ya no existe).
 //   · Toda tanda que pasa a «a_revisar» (nueva, corregida con las notas del cliente, rearmada con la API, retomada…) avisa
-//     en ✍️-guiones mencionando a Faus, Tomi y Gero M, con cliente, tanda y link /guiones/<ID>.
+//     en ✍️-guiones mencionando a Faus (revisa y da el check final) y Gero M (atento), con cliente, tanda y link /guiones/<ID>.
+//     Tomás (3/11/2026): «yo no le tengo que dar check final de nada, Faus es el que da el check final» → Tomás no se
+//     menciona en ningún aviso de revisión (sigue pudiendo aprobar desde la pantalla si quiere).
 //   · Cada vuelta en «a_revisar» es una RONDA (tabla cj_guiones_revision: desde cuándo, qué aviso salió). El vigía (cada 15
-//     min) y el cron diario corren correrRecordatoriosRevision: a las 24 h menciona a Faus y Gero M; a las 48 h también a
-//     Tomás. Solo de 9 a 20 h (Argentina). Cada recordatorio tiene su clave en cj_alertas_discord: nunca sale dos veces.
+//     min) y el cron diario corren correrRecordatoriosRevision: a las 24 h menciona a Faus y Gero M; a las 48 h escala a
+//     Gero M con un texto más firme («¿lo destrabás?»). Solo de 9 a 20 h (Argentina). Cada recordatorio tiene su clave en cj_alertas_discord: nunca sale dos veces.
 //     Cortan solos cuando la tanda sale de «a_revisar» (la ronda se borra).
 //   · Si una tanda está en «a_revisar» sin ronda (el aviso no salió, un camino viejo), el vigía manda el aviso inicial.
 import type { Alerta } from '@/lib/alertas/alerta'
@@ -16,9 +18,9 @@ import type { FilaTanda } from './registro'
 export type TipoRevision = 'revisar' | 'corregida'
 export type EtapaRecordatorio = 'rec24' | 'rec48'
 
-/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa), Tomi (aprueba) y Gero M (atento). */
-export const MENCIONES_REVISION: readonly Mencion[] = ['faus', 'tomas', 'gero_m']
-export const MENCIONES_REC: Record<EtapaRecordatorio, readonly Mencion[]> = { rec24: ['faus', 'gero_m'], rec48: ['faus', 'gero_m', 'tomas'] }
+/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa y da el check final) y Gero M (atento por si Faus tarda). */
+export const MENCIONES_REVISION: readonly Mencion[] = ['faus', 'gero_m']
+export const MENCIONES_REC: Record<EtapaRecordatorio, readonly Mencion[]> = { rec24: ['faus', 'gero_m'], rec48: ['gero_m', 'faus'] }
 export const HORAS_REC: Record<EtapaRecordatorio, number> = { rec24: 24, rec48: 48 }
 export const HORA_DESDE = 9
 export const HORA_HASTA = 20
@@ -50,7 +52,7 @@ export function alertaRevision(fila: FilaTanda, tipo: TipoRevision, clave: strin
     emoji: tipo === 'revisar' ? '✍️' : '🔁',
     titulo: tipo === 'revisar' ? `Guiones listos para revisar (${n}, tanda ${fila.tanda})` : `El cliente pidió cambios y el bot ya los aplicó (tanda ${fila.tanda})`,
     cliente: nombreDe(fila),
-    lineas: ['Faus: revisalos y verificá cada uno. Tomi: check final.', 'Gero M: atento por si se demora.'],
+    lineas: ['Faus: revisalos, verificá cada uno y da el check final.', 'Gero M: atento por si se demora.'],
     link: linkDe(fila), menciones: MENCIONES_REVISION,
   }
 }
@@ -67,7 +69,7 @@ export function etapaQueToca(desde: string, ahora: Date): EtapaRecordatorio | nu
 
 export const claveRecordatorio = (r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio) => `guiones_revision:${r.tanda_id}:${new Date(r.desde).toISOString()}:${etapa}`
 
-/** El recordatorio de 24 h (Faus y Gero M) o de 48 h (más Tomás). */
+/** El recordatorio de 24 h (Faus y Gero M) o de 48 h (escala a Gero M: «¿lo destrabás?»). */
 export function alertaRecordatorio(fila: FilaTanda, r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio, ahora: Date): Alerta {
   const h = horasDesde(r.desde, ahora)
   return {
@@ -75,7 +77,7 @@ export function alertaRecordatorio(fila: FilaTanda, r: Pick<Ronda, 'tanda_id' | 
     emoji: etapa === 'rec48' ? '🚩' : '⏰',
     titulo: `Guiones sin revisar hace ${h} h (tanda ${fila.tanda})`, cliente: nombreDe(fila),
     lineas: etapa === 'rec48'
-      ? ['Faus, ¿la podés revisar? Gero M, atento.', 'Tomás: ya pasaron 48 h y sigue sin revisar.']
+      ? [`Faus lleva ${h} h sin revisar la tanda ${fila.tanda} de ${nombreDe(fila)}; Gero M, ¿lo destrabás?`]
       : ['Faus, ¿la podés revisar? Gero M, atento.'],
     link: linkDe(fila), menciones: MENCIONES_REC[etapa],
   }
@@ -97,7 +99,7 @@ export function alertaBarrido(items: { fila: FilaTanda; desde: string }[], base:
     lineas: [
       ...items.slice(0, items.length > 5 ? 4 : 5).map(({ fila, desde }) => `${nombreDe(fila)} (${fila.id_crm ?? 's/ID'}) · tanda ${fila.tanda} · desde el ${fechaAR(desde)} → <${b}${linkDe(fila)}>`),
       ...(items.length > 5 ? [`y ${items.length - 4} más en <${b}/guiones>`] : []),
-      'Faus: revisalas y verificalas. Tomi: check final. Gero M: atento.',
+      'Faus: revisalas, verificalas y da el check final. Gero M: atento.',
     ],
     menciones: MENCIONES_REVISION,
   }

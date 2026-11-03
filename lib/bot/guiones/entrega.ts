@@ -24,7 +24,8 @@ export async function notificarEntrega(fila: FilaTanda): Promise<void> {
 }
 export async function notificarRevision(fila: FilaTanda, corregida: boolean): Promise<void> {
   if (!fila.id_crm) return
-  const destinatarios = [...new Set([process.env.KICKOFF_REVISOR_TOMI, process.env.GUIONES_REVISOR_FAUS].flatMap(mails))]
+  // Campanita de «para revisar»: Faus (revisa y da el check final) y Gero M (atento). Tomás no (3/11/2026).
+  const destinatarios = [...new Set([process.env.GUIONES_REVISOR_FAUS, process.env.KICKOFF_REVISOR_GERO_M].flatMap(mails))]
   const base: NuevaNotificacion = {
     tipo: 'guiones_a_revisar', titulo: `${corregida ? 'Guiones corregidos' : 'Guiones listos para revisar'} · ${fila.cliente ?? fila.id_crm}`,
     cuerpo: `${Object.keys(fila.guiones).length} guiones; verificá cada uno y da el check final.`,

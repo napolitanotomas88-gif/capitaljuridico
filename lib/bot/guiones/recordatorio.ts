@@ -14,7 +14,7 @@ export interface Pendiente { fila: FilaTanda; numeros: number[]; editores: strin
 const mails = (v?: string) => (v ?? '').split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(x => x.includes('@'))
 const normal = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
 
-/** El rol de Discord de quien editó (lo que guarda la pantalla: el nombre de la sesión). null si no es Tomi ni Faus. */
+/** El rol de quien editó (lo que guarda la pantalla: el nombre de la sesión). null si no es Tomi ni Faus. */
 export function rolDeEditor(quien: string): Rol | null {
   const n = normal(quien)
   return n.startsWith('faus') ? 'faus' : n.startsWith('tomas') || n.startsWith('tomi') ? 'tomas' : null
@@ -41,30 +41,31 @@ const lista = (ns: number[]) => ns.length === 1 ? `el guion ${ns[0]}` : `los gui
 /** La alerta de Discord (canal guiones) de una tanda, una por día. Puro. */
 export function alertaSinVerificar(p: Pendiente, dia: string): Alerta {
   const id = p.fila.id_crm!
-  const roles = [...new Set(p.editores.map(rolDeEditor).filter((r): r is Rol => !!r))]
+  // Tomás (3/11/2026): no se lo menciona en la revisión de guiones; lo que él deja editado sin verificar lo cierra Faus.
+  const roles = [...new Set(p.editores.map((e): Rol | null => { const r = rolDeEditor(e); return r === 'tomas' ? 'faus' : r }).filter((r): r is Rol => !!r))]
   return {
     canal: 'guiones', tipo: 'guiones_sin_verificar', clave: `guiones_sin_verificar:${p.fila.id}:${dia}`,
     idCrm: id, cliente: p.fila.cliente?.trim() || id, emoji: '⏰',
     titulo: 'Guiones editados sin verificar: la tanda no se publica',
     lineas: [
-      `Editaste ${lista(p.numeros)} y quedó sin «✓ Verificado».`,
+      `Hay cambios en ${lista(p.numeros)} sin «✓ Verificado».`,
       'Guardar solo no publica: tildá «✓ Verificado» en cada guion y después dá el check final para que se cargue en el Doc.',
     ],
-    link: `/guiones/${encodeURIComponent(id)}`, menciones: roles.length ? roles : ['aprobadores'],
+    link: `/guiones/${encodeURIComponent(id)}`, menciones: roles.length ? roles : ['faus', 'gero_m'],
   }
 }
 
-/** La campanita del Despacho para quien editó (Tomi o Faus por su mail; si no, la sección guiones). Puro. */
+/** La campanita del Despacho: a Faus por su mail (también cuando editó Tomás); si no, la sección guiones. Puro. */
 export function notificacionesSinVerificar(p: Pendiente, dia: string, env: Record<string, string | undefined> = process.env): NuevaNotificacion[] {
   const id = p.fila.id_crm!
   const base: NuevaNotificacion = {
     tipo: 'guiones_sin_verificar', titulo: `Guiones sin verificar · ${p.fila.cliente ?? id}`,
-    cuerpo: `Editaste ${lista(p.numeros)}: tildá «✓ Verificado» en cada uno y dá el check final. Guardar solo no publica.`,
+    cuerpo: `Hay cambios en ${lista(p.numeros)}: tildá «✓ Verificado» en cada uno y dá el check final. Guardar solo no publica.`,
     url: `/guiones/${encodeURIComponent(id)}`, origen: 'bot-guiones', urgente: true,
   }
   const emails = [...new Set(p.editores.flatMap(e => {
     const r = rolDeEditor(e)
-    return r === 'faus' ? mails(env.GUIONES_REVISOR_FAUS) : r === 'tomas' ? mails(env.KICKOFF_REVISOR_TOMI) : []
+    return r === 'faus' || r === 'tomas' ? mails(env.GUIONES_REVISOR_FAUS) : []
   }))]
   return emails.length
     ? emails.map(email => ({ ...base, paraEmail: email, clave: `guiones-sin-verificar:${p.fila.id}:${dia}:${email}` }))

@@ -15,7 +15,7 @@ export default async function EntregasPage({ searchParams }: { searchParams: Pro
   const filas = (await pendientesEntrega()).filter(f => !cliente || f.id_crm?.toUpperCase() === cliente)
   return <div className="cj-pila">
     <SeccionTitulo etiqueta="Clientes" titulo="Guiones para entregar" />
-    <p>Estos guiones ya tienen el check final de Tomi o Faus y están cargados en su documento. Aylu o Gero comparten el link con el cliente y confirman la entrega acá.</p>
+    <p>Estos guiones ya tienen el check final de Faus y están cargados en su documento. Aylu o Gero comparten el link con el cliente y confirman la entrega acá.</p>
     {!filas.length && <Vacio frase="No hay guiones pendientes de entrega." />}
     {filas.map(f => <section key={f.id} className="cj-panel" aria-label={`Entrega de ${f.cliente ?? f.id_crm}`}>
       <h2>{f.cliente ?? f.id_crm} · Tanda {f.doc?.tanda ?? f.tanda}</h2>
