@@ -246,3 +246,127 @@ describe('revisión: Calendly hacia atrás, primera kickoff, Bajas ya resuelto y
     assert.doesNotMatch(corto + R.textoInvitacion('X', '', 14), /termina|se te acaba|vence/i)
   })
 })
+
+describe('bandeja del Despacho (notificaciones de la campanita)', async () => {
+  const B = await import('../lib/bot/proyeccion/bandeja.ts')
+  const Mo = await import('../lib/notificaciones/modelo.ts')
+  const DEST = [{ email: 'tomi@ejemplo.test', nombre: 'Tomás' }, { email: 'aylu@ejemplo.test', nombre: 'Aylu' }, { email: 'gerom@ejemplo.test', nombre: 'Gero M' }]
+  // Una bandeja falsa con la misma regla de la base: clave única, ON CONFLICT DO NOTHING
+  const bandejaFalsa = () => {
+    const filas = []
+    return {
+      filas,
+      b: {
+        destinos: DEST,
+        crear: async (n) => { if (filas.some((f) => f.clave === n.clave)) return null; filas.push({ ...n, id: filas.length + 1, hecha: false }); return filas.length },
+        abiertas: async () => filas.filter((f) => !f.hecha).map((f) => ({ id: f.id, clave: f.clave })),
+        cerrar: async (ids) => { let k = 0; for (const f of filas) if (ids.includes(f.id) && !f.hecha) { f.hecha = true; k++ } return k },
+      },
+    }
+  }
+  const deps = (clientes, bandeja, extra = {}) => ({
+    hoy: HOY, dry: false, calendlyUrl: 'https://calendly.example/tomi', exclusiones: {},
+    leerClientes: async () => clientes, leerMarcas: async () => [], eventosCalendly: async () => [],
+    paraEnviar: async () => ({ estado: 'manual_pendiente' }), tarea: async () => ({ estado: 'enviado' }),
+    anotarAgendada: async () => {}, verificaciones: async () => ({ estado: 'enviado' }), bandeja, ...extra,
+  })
+
+  test('destinatarios: Tomás, Aylu y Gero M por mail, sin repetir; sin variables → sección Clientes', () => {
+    const d = B.destinatariosBandeja({ EDICION_REVISOR_TOMAS: 'Tomi@Ejemplo.test', KICKOFF_REVISOR_TOMI: 'tomi@ejemplo.test, otro@ejemplo.test', EDICION_REVISOR_AYLU: 'aylu@ejemplo.test', KICKOFF_REVISOR_GERO_M: 'mal mail' })
+    assert.deepEqual(d.map((x) => x.email), ['tomi@ejemplo.test', 'otro@ejemplo.test', 'aylu@ejemplo.test'])
+    const c = cli(7)
+    const sin = B.avisosBandeja({ paso: 'agendar', cliente: c, fin: c.finPeriodo, dias: 7, avisado: false, clave: R.claveProyeccion(c.id, c.finPeriodo, 'agendar') }, [])
+    assert.equal(sin.length, 1); assert.equal(sin[0].paraSeccion, 'clientes'); assert.equal(sin[0].paraEmail, null)
+  })
+  test('títulos del pedido: −14 invitar, −7 agendar, −5/−3 sigue sin agendar; link interno a la tarjeta; válidas para el registro', () => {
+    const c = cli(14)
+    const a = (paso, dias) => ({ paso, cliente: c, fin: c.finPeriodo, dias, avisado: false, clave: R.claveProyeccion(c.id, c.finPeriodo, paso) })
+    assert.equal(B.tituloBandeja(a('invitar', 14)), `Invitar a ${c.nombre} a la llamada de proyección (le quedan 14 días)`)
+    assert.equal(B.tituloBandeja(a('agendar', 7)), `Agendar la llamada de proyección con ${c.nombre} (le quedan 7 días)`)
+    assert.match(B.tituloBandeja(a('rec5', 5)), /^Sigue sin agendar la llamada de proyección con .* \(le quedan 5 días\)$/)
+    const avisos = B.avisosBandeja(a('rec3', 3), DEST)
+    assert.equal(avisos.length, 3); assert.ok(avisos.every((x) => x.urgente))
+    assert.equal(new Set(avisos.map((x) => x.clave)).size, 3)
+    for (const n of avisos) {
+      const v = Mo.limpiarNueva(n)
+      assert.notEqual(typeof v, 'string'); assert.equal(v.url, `/clientes?cliente=${c.id}#rc-proyeccion`)
+      assert.doesNotMatch(n.clave, /@/)   // el mail no queda en la clave
+      assert.equal(B.baseDeClave(n.clave), `proyeccion:${c.id}:${c.finPeriodo}:rec3`)
+    }
+    assert.ok(!B.avisosBandeja(a('agendar', 7), DEST)[0].urgente)
+  })
+  test('la corrida crea una por persona y la segunda corrida no duplica', async () => {
+    const a = cli(14), b = cli(7)
+    const { filas, b: bandeja } = bandejaFalsa()
+    const r = await N.correrProyeccion(deps([a, b], bandeja))
+    assert.equal(filas.length, 6); assert.equal(r.bandeja.length, 2); assert.equal(r.bandeja[0].estado, 'creada (3)')
+    assert.deepEqual(r.bandeja[0].para, ['Tomás', 'Aylu', 'Gero M'])
+    const r2 = await N.correrProyeccion(deps([a, b], bandeja))
+    assert.equal(filas.length, 6); assert.ok(r2.bandeja.every((x) => x.estado === 'ya estaba')); assert.equal(r2.bandejaResueltas, 0)
+  })
+  test('si Discord falla, la notificación igual queda', async () => {
+    const a = cli(7)
+    const { filas, b: bandeja } = bandejaFalsa()
+    const r = await N.correrProyeccion(deps([a], bandeja, { tarea: async () => { throw new Error('Discord caído') } }))
+    assert.equal(filas.length, 3); assert.equal(r.errores.length, 1)
+  })
+  test('en seco: dice cuáles crearía, sin escribir', async () => {
+    const a = cli(7)
+    const { filas, b: bandeja } = bandejaFalsa()
+    const r = await N.correrProyeccion(deps([a], bandeja, { dry: true }))
+    assert.equal(filas.length, 0); assert.equal(r.bandeja[0].estado, 'crearía (si no estaba)')
+    assert.match(r.bandeja[0].titulo, /^Agendar la llamada de proyección/)
+  })
+  test('se resuelven solas: paso nuevo reemplaza al anterior; agendada / avisado / pausado las cierran; vencido sin agendar queda', async () => {
+    const c = cli(8)
+    const { filas, b: bandeja } = bandejaFalsa()
+    await N.correrProyeccion(deps([c], bandeja))                                   // −8: invitar
+    assert.ok(filas.every((f) => B.baseDeClave(f.clave).endsWith(':invitar')))
+    // al día siguiente queda en −7
+    await N.correrProyeccion({ ...deps([c], bandeja), hoy: sumar(HOY, 1) })
+    assert.equal(filas.filter((f) => !f.hecha).length, 3)
+    assert.ok(filas.filter((f) => !f.hecha).every((f) => B.baseDeClave(f.clave).endsWith(':agendar')))
+    // Agendada (marca): no hay acción hoy → se cierran
+    const r = await N.correrProyeccion({ ...deps([c], bandeja, { leerMarcas: async () => [marca(c, { agendada: sumar(HOY, 4), agendadaFuente: 'manual' })] }), hoy: sumar(HOY, 1) })
+    assert.equal(r.bandejaResueltas, 3); assert.equal(filas.filter((f) => !f.hecha).length, 0)
+    // Fin vencido sin agendar: la última queda abierta (el panel lo muestra atrasado)
+    const v = cli(3)
+    const x = bandejaFalsa()
+    await N.correrProyeccion(deps([v], x.b))
+    await N.correrProyeccion({ ...deps([v], x.b), hoy: sumar(HOY, 5) })
+    assert.equal(x.filas.filter((f) => !f.hecha).length, 3)
+    // Pausado: sale de la regla → se cierran
+    await N.correrProyeccion({ ...deps([{ ...v, estado: 'PAUSADO' }], x.b), hoy: sumar(HOY, 5) })
+    assert.equal(x.filas.filter((f) => !f.hecha).length, 0)
+  })
+  test('archivado: no crea y cierra las que tenía', async () => {
+    const a = cli(7)
+    const { filas, b: bandeja } = bandejaFalsa()
+    await N.correrProyeccion(deps([a], bandeja))
+    const r = await N.correrProyeccion(deps([a], bandeja, { clienteOperativo: async () => false }))
+    assert.equal(filas.length, 3); assert.equal(r.bandejaResueltas, 3)
+  })
+  test('error al consultar si está archivado: no la cierra', async () => {
+    const a = cli(7)
+    const { filas, b: bandeja } = bandejaFalsa()
+    await N.correrProyeccion(deps([a], bandeja))
+    await N.correrProyeccion(deps([a], bandeja, { clienteOperativo: async () => { throw new Error('CRM') } }))
+    assert.equal(filas.filter((f) => !f.hecha).length, 3)
+  })
+  test('cierre por marca: avisado → solo invitar; agendada / hecha → todas; quitar o «no se dio» → nada', () => {
+    assert.equal(B.patronCierre('a12', { campo: 'avisado', fecha: '2026-11-02' }), 'proyeccion:A12:%:invitar:bandeja:%')
+    assert.equal(B.patronCierre('A12', { campo: 'agendada', fecha: '2026-11-05' }), 'proyeccion:A12:%')
+    assert.equal(B.patronCierre('A12', { campo: 'resultado', fecha: '2026-11-05', resultado: 'hecha' }), 'proyeccion:A12:%')
+    assert.equal(B.patronCierre('A12', { campo: 'resultado', fecha: '2026-11-05', resultado: 'no_se_dio' }), null)
+    assert.equal(B.patronCierre('A12', { campo: 'agendada', fecha: null }), null)
+    assert.equal(B.patronCierre('A1%', { campo: 'agendada', fecha: '2026-11-05' }), null)
+    assert.equal(B.patronCierreAccion('A12', 'link_enviado'), 'proyeccion:A12:%:invitar:bandeja:%')
+    assert.equal(B.patronCierreAccion('A12', 'agendada'), 'proyeccion:A12:%')
+    // El patrón (LIKE) abarca las claves que crea la bandeja
+    const like = (p, s) => new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*')}$`).test(s)
+    const k = B.claveBandeja(R.claveProyeccion('A12', '2026-11-16', 'invitar'), 'tomi@ejemplo.test')
+    assert.ok(like('proyeccion:A12:%:invitar:bandeja:%', k)); assert.ok(like('proyeccion:A12:%', k))
+    assert.ok(!like('proyeccion:A12:%:invitar:bandeja:%', B.claveBandeja(R.claveProyeccion('A12', '2026-11-16', 'agendar'), 'x@y.test')))
+    assert.ok(!like('proyeccion:A12:%', B.claveBandeja(R.claveProyeccion('A123', '2026-11-16', 'agendar'), 'x@y.test')))
+  })
+})

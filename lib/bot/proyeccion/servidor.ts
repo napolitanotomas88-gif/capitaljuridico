@@ -14,6 +14,7 @@ import { clientesSinFin } from '@/lib/clientes/sinFin'
 import { correrProyeccion, type ResumenProyeccion } from './nucleo'
 import { guardarMarcaProyeccion, leerMarcasProyeccion } from './marcas'
 import { esEventoProyeccion, proyeccionPrendida, type EventoCalendly } from './reglas'
+import { destinatariosBandeja, linkProyeccion, ORIGEN_BANDEJA } from './bandeja'
 
 export { proyeccionPrendida }
 
@@ -89,12 +90,12 @@ async function avisosFinResueltosBajas(): Promise<Set<string>> {
   }
 }
 
-const link = (id: string) => `/clientes?cliente=${encodeURIComponent(id)}#rc-proyeccion`
+const link = linkProyeccion
 
 export async function correrProyeccionReal(op: { dry?: boolean; env?: NodeJS.ProcessEnv } = {}): Promise<ResumenProyeccion & { apagada?: boolean }> {
   const env = op.env ?? process.env
   const dry = !!op.dry
-  if (!proyeccionPrendida(env)) return { dry, hoy: diaAR(), invitar: [], agendar: [], agendadas: [], cortados: [], errores: [], apagada: true }
+  if (!proyeccionPrendida(env)) return { dry, hoy: diaAR(), invitar: [], agendar: [], agendadas: [], cortados: [], bandeja: [], bandejaResueltas: 0, errores: [], apagada: true }
   return correrProyeccion({
     hoy: diaAR(),
     dry,
@@ -119,6 +120,12 @@ export async function correrProyeccionReal(op: { dry?: boolean; env?: NodeJS.Pro
       })
       if (r.estado === 'error') throw new Error(r.motivo ?? 'Discord no respondió')
       return { estado: r.estado }
+    },
+    bandeja: {
+      destinos: destinatariosBandeja(env),
+      crear: async (n) => (await import('@/lib/notificaciones/registro')).crearNotificacion(n),
+      abiertas: async () => (await import('@/lib/notificaciones/registro')).notificacionesAbiertasDeOrigen(ORIGEN_BANDEJA),
+      cerrar: async (ids) => (await import('@/lib/notificaciones/registro')).cerrarNotificacionesIds(ORIGEN_BANDEJA, ids, 'Sistema (estado actualizado)'),
     },
     anotarAgendada: (p) => guardarMarcaProyeccion(p.idCrm, { fin: p.fin, campo: 'agendada', fecha: p.fecha, resultado: null }, 'Calendly', 'calendly'),
     verificaciones: async (p) => {
