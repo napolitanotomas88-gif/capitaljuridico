@@ -116,7 +116,7 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
       const w = deps.whatsapp ? await deps.whatsapp(publicada).catch((e): { estado: string; motivo?: string } => ({ estado: 'error', motivo: String((e as Error)?.message ?? e) })) : null
       if (w?.estado === 'enviado') console.log(`Guiones: publicación ${id}, link enviado al grupo Contenido del cliente (d02)`)
       else {
-        if (w && w.estado !== 'apagado' && w.estado !== 'manual') console.warn(`Guiones: publicación ${id}, el link no salió por WhatsApp (${w.estado}: ${(w.motivo ?? '').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)}); queda para Aylu/Gero`)
+        if (w && w.estado !== 'apagado' && w.estado !== 'manual' && w.estado !== 'ya_estaba') console.warn(`Guiones: publicación ${id}, el link no salió por WhatsApp (${w.estado}: ${(w.motivo ?? '').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)}); queda para Aylu/Gero`)
         await deps.notificar(publicada)
       }
     }

@@ -14,12 +14,13 @@ const fila = (o = {}) => ({
   actualizado: AP, ...o,
 })
 function deps(previos = []) {
-  const log = { creados: [], actualizados: [], alertas: [] }
+  const log = { creados: [], actualizados: [], alertas: [], descartados: [] }
   return { log, d: {
     existentes: async () => previos,
     crear: async m => { log.creados.push(m); return { estado: 'manual_pendiente', id: 99 } },
     actualizar: async (id, texto, datos) => { log.actualizados.push({ id, texto, datos }); return true },
     alertar: async a => { log.alertas.push(a) },
+    descartar: async (id, motivo) => { log.descartados.push([id, motivo]) },
   } }
 }
 
@@ -57,13 +58,21 @@ test('d02: con la carga en el Doc fallida o dudosa sale IGUAL, con la advertenci
   assert.match(y.log.creados[0].avisos[0], /Falló la carga en el Doc/)
 })
 
-test('d02: sin duplicar — con uno pendiente de la tanda no crea otro; la misma aprobación ya hecha tampoco', async () => {
-  const x = deps([{ id: 5, clave: 'd02:6:otra', estado: 'para_enviar', datos: { tanda: 6 } }])
+test('d02: sin duplicar — con el de ESTA aprobación pendiente no crea otro; la misma aprobación ya hecha tampoco', async () => {
+  const x = deps([{ id: 5, clave: `d02:6:${AP}`, estado: 'para_enviar', datos: { tanda: 6 } }])
   assert.equal((await W.guionesParaEnviar(fila(), new Date(), null, x.d)).estado, 'ya_estaba')
-  assert.equal(x.log.creados.length + x.log.actualizados.length + x.log.alertas.length, 0)
+  assert.equal(x.log.creados.length + x.log.actualizados.length + x.log.alertas.length + x.log.descartados.length, 0)
   const y = deps([{ id: 5, clave: `d02:6:${AP}`, estado: 'enviado', datos: { tanda: 6 } }])
   assert.equal((await W.guionesParaEnviar(fila(), new Date(), null, y.d)).estado, 'ya_estaba')
   assert.equal(y.log.creados.length, 0)
+})
+
+test('d02: pendiente de una aprobación ANTERIOR (nunca marcado «Enviado») → se descarta y sale el nuevo', async () => {
+  const x = deps([{ id: 5, clave: 'd02:6:2026-10-30T10:00:00.000Z', estado: 'para_enviar', datos: { tanda: 6 } }])
+  assert.equal((await W.guionesParaEnviar(fila(), new Date(), null, x.d)).estado, 'manual')
+  assert.deepEqual(x.log.descartados.map(d => d[0]), [5])
+  assert.equal(x.log.creados.length, 1)
+  assert.equal(x.log.creados[0].clave, `6:${AP}`)
 })
 
 test('d02: corrección / 2.ª ronda (otra aprobación, la anterior ya enviada) → mensaje nuevo', async () => {
@@ -131,12 +140,13 @@ test('red/barrido: crea solo los que faltan (sin pendiente ni la misma aprobaci�
     crear: async (f, p) => { creados.push([f.id_crm, p?.motivo ?? null]); return { estado: 'manual' } },
   }
   const r = await F.crearParaEnviarFaltantes(deps, { desde: '2026-10-24T03:00:00.000Z', ahora: new Date('2026-11-03T15:00:00Z') })
-  assert.deepEqual(creados, [['A162', null], ['A200', 'puente caído']])
-  assert.deepEqual(r.faltantes.map(f => f.id_crm), ['A162', 'A200'])
+  // A179 tiene pendiente uno de OTRA aprobación: también se crea (guionesParaEnviar descarta el viejo)
+  assert.deepEqual(creados, [['A162', null], ['A179', null], ['A200', 'puente caído']])
+  assert.deepEqual(r.faltantes.map(f => f.id_crm), ['A162', 'A179', 'A200'])
   // en seco: lista sin crear
   creados.length = 0
   const s = await F.crearParaEnviarFaltantes(deps, { desde: '2026-10-24T03:00:00.000Z', ahora: new Date('2026-11-03T15:00:00Z'), dry: true })
-  assert.equal(creados.length, 0); assert.equal(s.faltantes.length, 2)
+  assert.equal(creados.length, 0); assert.equal(s.faltantes.length, 3)
 })
 test('red: por defecto mira los últimos 10 días y deja 20 min a la publicación en curso', async () => {
   let rango

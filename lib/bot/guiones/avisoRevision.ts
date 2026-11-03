@@ -24,6 +24,8 @@ export const HORA_DESDE = 9
 export const HORA_HASTA = 20
 /** Estados del aviso inicial que NO se reintentan (salió o pudo haber salido). */
 const AVISO_OK = new Set(['enviado', 'ya_estaba', 'dudoso', 'whatsapp', 'barrido'])
+/** Una ronda reservada por el vigía («enviando», sin clave) que no se completó se reintenta pasado este margen. */
+export const REINTENTO_RESERVA_MS = 10 * 60_000
 
 /** Desde cuándo está para revisar, según el aviso anotado: el id de Discord (snowflake) trae la fecha; si no, `actualizado`. */
 export function desdeAviso(fila: Pick<FilaTanda, 'aviso_discord' | 'actualizado'>): string {
@@ -130,6 +132,16 @@ export async function correrRecordatoriosRevision(deps: DepsRecordatorios, op: {
         out.avisos.push(`${fila.id_crm}: aviso inicial`)
         if (op.dry) continue
         if (!(await deps.reservar({ tanda_id: fila.id, desde: ahora.toISOString(), tipo: 'revisar', clave: null, estado: 'enviando' }))) continue
+        await deps.avisar(fila, 'revisar')
+        continue
+      }
+      if (r.estado === 'enviando' && !r.clave) {
+        // Reservada por un vigía cuyo aviso tiró antes de quedar anotado (p. ej. no se pudo leer la lista de archivados): sin
+        // esto la tanda quedaba sin aviso hasta el recordatorio de 24 h. Se reintenta pasados 10 min (la clave del aviso no
+        // cambia mientras siga en a_revisar: alertar no lo duplica).
+        if (ahora.getTime() - Date.parse(r.desde) < REINTENTO_RESERVA_MS) continue
+        out.avisos.push(`${fila.id_crm}: reintento del aviso inicial`)
+        if (op.dry) continue
         await deps.avisar(fila, 'revisar')
         continue
       }
