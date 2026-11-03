@@ -2,6 +2,7 @@
 // La lectura del Doc está en docAdsLeer.ts (ANUNCIOS_DOC_ADS_ID; ANUNCIOS_DOC_ADS=0 apaga la corrida). Solo servidor.
 import type { PorLanzar, Tablero } from '@/lib/anuncios/tablero'
 import { googleJson } from '@/lib/auth/googleRest'
+import { conCache } from '@/lib/anuncios/cache'
 import { clienteOperativo } from '@/lib/clientes/colasOperativas'
 import { lectorReal } from '@/lib/bot/grabacion/drive'
 import type { ZonaFicha } from '@/lib/bot/kickoff/tipos'
@@ -15,9 +16,10 @@ import { mencionesKickoff } from '@/lib/bot/kickoff/entorno'
 import { marcarAvisoDudoso, marcarAvisoEnviado, reclamarAviso, soltarAviso } from './registro'
 import { depsSeguimiento } from './servidor'
 import { guionDesdeCopy } from './docAds'
-import { lanzarDesdeDoc, type DepsDocAds, type PedidoSeco, type ResultadoDoc } from './docAdsLanzar'
+import { campanasRecientes, lanzarDesdeDoc, type DepsDocAds, type PedidoSeco, type ResultadoDoc } from './docAdsLanzar'
 import type { GuionDoc } from '@/lib/edicion/tipos'
 import { docAdsEncendido, leerDocAds } from './docAdsLeer'
+import { guardarLineaBase, leerLineaBase, marcarHuellas } from './docAdsBaseNeon'
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
 const API = 'https://www.googleapis.com/drive/v3'
@@ -106,6 +108,35 @@ export function graphSeco(real: Graph): { graph: Graph; pedidos: PedidoSeco[] } 
   }
 }
 
+/** Las campañas de una cuenta de Meta (sin borradas ni archivadas), con si están activas. */
+export async function campanasCuenta(cuenta: string): Promise<{ nombre: string; creada: string; activa: boolean }[]> {
+  const token = process.env.META_ANUNCIOS_TOKEN?.trim() || ''
+  if (!token) throw new Error('falta META_ANUNCIOS_TOKEN')
+  const r = await crearGraph(token).get(`${cuenta}/campaigns`, { fields: 'name,created_time,effective_status', limit: '50' })
+  return ((r.data ?? []) as { name?: string; created_time?: string; effective_status?: string }[])
+    .filter(c => c.effective_status !== 'DELETED' && c.effective_status !== 'ARCHIVED')
+    .map(c => ({ nombre: c.name ?? '', creada: c.created_time ?? '', activa: c.effective_status === 'ACTIVE' }))
+}
+
+/**
+ * ¿El cliente tiene campaña en su cuenta de Meta en los últimos 120 días (activa o creada en ese plazo)? Mira la cuenta de su
+ * ficha y las que el tablero le asoció por nombre o a mano (no las de «apellido»: muy débil). null = sin cuenta o Meta no
+ * respondió (no se sabe). Con caché de 30 min por cuenta.
+ */
+export async function tieneCampanaReciente(p: Pick<PorLanzar, 'kickoff' | 'cuentas'>): Promise<boolean | null> {
+  const ids = [...new Set([p.kickoff?.cuenta?.id, ...(p.cuentas ?? []).filter(c => c.por !== 'apellido').map(c => c.id)].filter((x): x is string => !!x))]
+  if (!ids.length) return null
+  let sabido = false
+  for (const id of ids.slice(0, 3)) {
+    try {
+      const cs = (await conCache(`campanas-cuenta-v1-${id}`, 1800, () => campanasCuenta(id))).data
+      sabido = true
+      if (campanasRecientes(cs, Date.now()).length) return true
+    } catch { /* no se sabe de esta cuenta */ }
+  }
+  return sabido ? false : null
+}
+
 export function depsDocAdsReales(t: Pick<Tablero, 'filas'>): DepsDocAds {
   const s = depsSeguimiento()
   const token = process.env.META_ANUNCIOS_TOKEN?.trim() || ''
@@ -117,13 +148,10 @@ export function depsDocAdsReales(t: Pick<Tablero, 'filas'>): DepsDocAds {
     editados,
     gruposExtra: async sub => (await gruposConTextos(sub, sub.guionesDoc ?? null, copys)).grupos,
     variacion: async cs => escribirTextos(cs.map((c, i) => ({ ...guionDesdeCopy(c, i + 1), estado_doc: 'ok', titulo: '', frases: [], huella: '' }) as unknown as GuionDoc)),
-    campanas: async cuenta => {
-      if (!token) throw new Error('falta META_ANUNCIOS_TOKEN')
-      const r = await crearGraph(token).get(`${cuenta}/campaigns`, { fields: 'name,created_time,effective_status', limit: '50' })
-      return ((r.data ?? []) as { name?: string; created_time?: string; effective_status?: string }[])
-        .filter(c => c.effective_status !== 'DELETED' && c.effective_status !== 'ARCHIVED')
-        .map(c => ({ nombre: c.name ?? '', creada: c.created_time ?? '' }))
-    },
+    campanas: campanasCuenta,
+    lineaBase: leerLineaBase,
+    crearLineaBase: guardarLineaBase,
+    marcarProcesado: marcarHuellas,
     permitido: c => !!token && borradorPermitido(c),
     armar: async (sub, pl, grupos, op) => {
       if (!token) throw new Error('falta META_ANUNCIOS_TOKEN')

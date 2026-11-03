@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     const videos = (dry: boolean, cubiertos?: ReadonlySet<string>) => correrVideos(tablero, { dry, deadline, cubiertos })
     if (url.searchParams.has('preview')) {
       const doc = await correrDocAds(tablero, { dry: true, deadline })
-      return NextResponse.json({ preview: partes.length ? partes.join('\n\n') : '(nada urgente: hoy no se mandaría ninguna alerta)', seMandaria: partes.length > 0, resumen: tablero.resumen, seguimiento: await seguimiento(true), docAds: doc, videos: await videos(true, 'clientes' in doc ? cubiertosPorDoc(doc) : undefined), trabados: await correrTrabados(tablero, { dry: true }), cuentasTempranas: await barrerCuentasTempranas(tablero, { dry: true }), kickoffsPerdidas: await correrKickoffsPerdidas({ dry: true }) })
+      return NextResponse.json({ preview: partes.length ? partes.join('\n\n') : '(nada urgente: hoy no se mandaría ninguna alerta)', seMandaria: partes.length > 0, resumen: tablero.resumen, seguimiento: await seguimiento(true), docAds: doc, videos: await videos(true, 'clientes' in doc ? cubiertosPorDoc(doc) : undefined), trabados: await correrTrabados(tablero, { dry: true }), cuentasTempranas: await barrerCuentasTempranas(tablero, { dry: true }), kickoffsPerdidas: await correrKickoffsPerdidas({ dry: true, tablero }) })
     }
     let alerta: Record<string, unknown>
     let status = 200
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
     const vid = await videos(false, 'clientes' in doc ? cubiertosPorDoc(doc) : undefined)
     const trabados = await correrTrabados(tablero)
     const cuentasTempranas = await barrerCuentasTempranas(tablero)
-    const kickoffsPerdidas = await correrKickoffsPerdidas()
+    const kickoffsPerdidas = await correrKickoffsPerdidas({ tablero })
     return NextResponse.json({ ...alerta, seguimiento: seg, docAds: doc, videos: vid, trabados, cuentasTempranas, kickoffsPerdidas, whatsappEquipo: await resumenEquipoWhatsapp(seg, vid) }, { status })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

@@ -15,6 +15,9 @@
 // propio bloque, cada uno con la etapa donde está trabado y quién lo destraba (lib/anuncios/trabados.ts).
 // También desde el 3/11: el estado de cada uno en el Doc «Organización de ADS - Orgánico» (LISTO · N videos, o la nota tal
 // cual) y el botón «Leer el Doc de ADS ahora» (/api/anuncios/doc-ads: arma en pausa a los LISTOS y avisa a Valen).
+// Y desde el 3/11 a la noche (línea de base, lib/bot/anuncios/docAdsBase.ts): «Por lanzar» muestra solo lo NUEVO. Los
+// clientes cuyo bloque del Doc ya estaba el día de la línea de base (ya lanzados que quedaron en el Doc) se esconden; el
+// filtro «Ver también lo histórico del Doc» los muestra, marcados como históricos.
 import { useState, type ReactNode } from 'react'
 import { EMOJI_ETAPA, NOMBRE_ETAPA_TRABA } from '@/lib/anuncios/trabados'
 import type { PorLanzar } from '@/lib/anuncios/tablero'
@@ -40,15 +43,17 @@ function Editados({ p }: { p: PorLanzar }) {
 function DocAds({ p }: { p: PorLanzar }) {
   const d = p.docAds
   if (!d) return null
-  return <span style={{ fontSize: 13, color: d.listo && d.firme ? 'var(--azul)' : 'var(--laton)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}»`}>🗂️ Doc de ADS: {d.texto}</span>
+  if (d.historico) return <span style={{ fontSize: 13, color: 'var(--humo)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}». Ya estaba en el Doc el día de la línea de base: el bot no hace nada con este bloque.`}>🗂️ Doc de ADS (histórico): {d.texto}</span>
+  return <span style={{ fontSize: 13, color: d.listo && d.firme ? 'var(--azul)' : 'var(--laton)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}»`}>🗂️ Doc de ADS{d.nuevos ? ` (nuevo · ${d.nuevos} ${d.nuevos === 1 ? 'video nuevo' : 'videos nuevos'})` : ''}: {d.texto}</span>
 }
 
 const ACCION_DOC: Record<string, string> = {
   armado: 'armado en pausa', seco: 'prueba en seco', plan: 'para armar', ya_salio: 'ya armado o avisado', ya_tiene_campana: 'ya tiene campaña',
   falta_ficha: 'falta la ficha', falta_cuenta: 'falta la cuenta', sin_acceso: 'sin acceso del token', borrador_apagado: 'armado automático apagado',
   sin_videos_legibles: 'no puedo leer los videos', sin_copy: 'sin copy', error: 'error', solo_estado: 'no está LISTO', sin_tiempo: 'sigue en la próxima corrida',
+  videos_nuevos: 'videos nuevos para sumar/rotar (avisado a Valen)', historico: 'histórico del Doc (no se toca)',
 }
-type RespDoc = { leido?: boolean; apagado?: boolean; clientes?: { cliente: string; accion: string; detalle: string | null; doc: string; enviado?: boolean }[]; errores?: string[]; error?: string }
+type RespDoc = { leido?: boolean; apagado?: boolean; lineaBase?: string; clientes?: { cliente: string; accion: string; detalle: string | null; doc: string; enviado?: boolean }[]; errores?: string[]; error?: string }
 
 // El botón para el equipo: la misma corrida de las 9:05 (arma en pausa los LISTOS, avisa a Valen). Nada se prende en Meta.
 function BotonDocAds() {
@@ -62,7 +67,7 @@ function BotonDocAds() {
     } catch (e) { setR({ error: (e as Error).message }) }
     setEstado('quieto')
   }
-  const listos = (r?.clientes ?? []).filter(c => c.accion !== 'solo_estado')
+  const listos = (r?.clientes ?? []).filter(c => c.accion !== 'solo_estado' && c.accion !== 'historico')
   return <div className="mt-3">
     <button type="button" className="enlace" onClick={leer} disabled={estado === 'leyendo'} style={{ fontSize: 13 }}>
       {estado === 'leyendo' ? 'Leyendo el Doc de ADS… (puede tardar un par de minutos si arma campañas)' : '🗂️ Leer el Doc de ADS ahora'}
@@ -70,7 +75,8 @@ function BotonDocAds() {
     {r && <div className="mt-2" style={{ fontSize: 12, color: 'var(--humo)' }}>
       {r.error ? <span style={{ color: 'var(--laton)' }}>No se pudo: {r.error}</span>
         : r.apagado ? <span style={{ color: 'var(--laton)' }}>La lectura del Doc está apagada (ANUNCIOS_DOC_ADS=0).</span>
-          : !listos.length ? <span>Leído: ningún cliente por lanzar está LISTO en el Doc.</span>
+          : r.lineaBase === 'creada' ? <span>Leído: se guardó la línea de base del Doc (todo lo que hay hoy queda como histórico). Desde ahora, solo lo nuevo.</span>
+          : !listos.length ? <span>Leído: nada nuevo en el Doc (lo que ya estaba no se toca).</span>
             : <ul>{listos.map(c => <li key={c.cliente}>{c.cliente}: {ACCION_DOC[c.accion] ?? c.accion}{c.detalle ? ` · ${c.detalle}` : ''}{c.enviado ? ' · avisado en #📣-ads' : ''}</li>)}</ul>}
       {!!r.errores?.length && <div style={{ color: 'var(--laton)' }}>{r.errores.join(' · ')}</div>}
     </div>}
@@ -230,8 +236,13 @@ const GRUPOS_FICHA: { grupo: GrupoPorLanzar; titulo: string; azul?: boolean }[] 
   { grupo: 'ya_gasta', titulo: 'Con ficha de kickoff, ya gastan en el tablero con otro nombre' },
 ]
 
-export function PanelPorLanzar({ items, avisos = [], sinEditados = [], esperando = [] }: { items: PorLanzar[]; avisos?: string[]; sinEditados?: string[]; esperando?: PorLanzar[] }) {
-  if (!items.length && !avisos.length && !sinEditados.length && !esperando.length) return null
+export function PanelPorLanzar({ items: todosItems, avisos = [], sinEditados = [], esperando: todosEsperando = [] }: { items: PorLanzar[]; avisos?: string[]; sinEditados?: string[]; esperando?: PorLanzar[] }) {
+  // Solo lo nuevo: los de bloque histórico en el Doc (ya lanzados) se esconden, salvo con el filtro
+  const [verHistorico, setVerHistorico] = useState(false)
+  const historicos = [...todosItems, ...todosEsperando].filter(p => p.docAds?.historico).length
+  const items = verHistorico ? todosItems : todosItems.filter(p => !p.docAds?.historico)
+  const esperando = verHistorico ? todosEsperando : todosEsperando.filter(p => !p.docAds?.historico)
+  if (!todosItems.length && !avisos.length && !sinEditados.length && !todosEsperando.length) return null
   const conFicha = items.filter((p): p is ConFicha => !!p.kickoff)
   const resto = items.filter(p => !p.kickoff)
   const sin = resto.filter(p => p.acceso === 'no'), con = resto.filter(p => p.acceso === 'si')
@@ -255,6 +266,10 @@ export function PanelPorLanzar({ items, avisos = [], sinEditados = [], esperando
       {' '}«Doc de ADS» = su estado en «Organización de ADS - Orgánico»: los LISTOS los arma el bot en pausa a las 9:05 y avisa a Valen.
     </p>
     <BotonDocAds />
+    {historicos > 0 && <label className="mt-2 flex items-center gap-2" style={{ fontSize: 13, color: 'var(--humo)', cursor: 'pointer' }}>
+      <input type="checkbox" checked={verHistorico} onChange={e => setVerHistorico(e.target.checked)} />
+      Ver también lo histórico del Doc ({historicos} {historicos === 1 ? 'cliente' : 'clientes'} que ya estaban en el Doc el día de la línea de base: el bot no los toca)
+    </label>}
     {GRUPOS_FICHA.map(({ grupo, titulo, azul }) => {
       const xs = conFicha.filter(p => p.grupo === grupo)
       return xs.length > 0 && <section key={grupo} aria-label={titulo} className="mt-6">

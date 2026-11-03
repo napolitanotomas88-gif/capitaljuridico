@@ -6,6 +6,8 @@ globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const D = await import('../lib/bot/anuncios/docAds.ts')
 const L = await import('../lib/bot/anuncios/docAdsLanzar.ts')
 const B = await import('../lib/bot/anuncios/borrador.ts')
+const LB = await import('../lib/bot/anuncios/docAdsBase.ts')
+const VACIA = () => LB.lineaBaseDe([{ huella: 'b:otro', tipo: 'bloque', bloque: 'otro', listo: false, estado: 'base' }])
 
 const ID = n => `1AbCdEfGhIjKlMnOpQrStUvWx${n}`
 const COPY = n => `¿Te chocaron y no sabés qué reclamar ${n}? ⬇️\nLa aseguradora puede ofrecerte poco y perder lo que te corresponde.\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de aceptar.`
@@ -93,7 +95,7 @@ const ficha = (o = {}) => ({ idCrm: 'Z001', fechaIso: '2026-10-10T18:00:00Z', cu
   presupuesto: { texto: 'USD 300 por mes', aConfirmar: false }, lanzamiento: { fecha: null, texto: '' }, whatsapp: null, frenos: [], ojos: [], link: null, fathom: null, ...o })
 const pl = (o = {}) => ({ cliente: 'Juana Perez', idCrm: 'Z001', acceso: 'si', cuentas: [], kickoff: ficha(), sinFicha: false, editados: { cantidad: 1, url: 'https://drive.google.com/drive/folders/CARPETA0001', ultimo: null, carpeta: 'Juana Perez' }, ...o })
 function deps(o = {}) {
-  const log = { reclamos: [], enviados: [], armados: [] }
+  const log = { reclamos: [], enviados: [], armados: [], procesadas: [], creada: null }
   const reclamadas = new Set(o.yaReclamadas ?? [])
   return { log, d: {
     leerDoc: async () => DOC,
@@ -102,6 +104,9 @@ function deps(o = {}) {
     gruposExtra: async s => s.videos.map(v => ({ videos: [{ nombre: v.nombre, drive: v.id }], textos: [], titulos: [], guiones: [] })),
     variacion: async cs => ({ textos: ['amplio'], titulos: ['T1', 'T2'] }),
     campanas: async () => o.campanas ?? [],
+    lineaBase: async () => ('base' in o ? o.base : VACIA()),
+    crearLineaBase: async f => { log.creada = f },
+    marcarProcesado: async f => { log.procesadas.push(...f) },
     permitido: () => o.permitido ?? true,
     armar: async (s, p, grupos, op) => { log.armados.push({ s, grupos, op }); return { borrador: { campana: 'C', campanaId: '1', nueva: true, conjuntos: [{ id: '2', nombre: 'S', anuncios: ['3', '4'] }], diarioLocal: 1, diarioUSD: 10, link: 'https://x', faltan: [], conjuntoId: '2', conjunto: 'S', anuncios: ['3', '4'] }, pedidos: op.seco ? [] : null } },
     reclamar: async clave => { log.reclamos.push(clave); if (reclamadas.has(clave)) return false; reclamadas.add(clave); return true },
@@ -134,11 +139,13 @@ describe('lanzarDesdeDoc', () => {
     assert.equal(r2.clientes[0].accion, 'ya_salio')
     assert.equal(log.armados.length, 1)
   })
-  test('si la cuenta ya tiene una campaña reciente, no arma', async () => {
+  test('si la cuenta ya tiene una campaña reciente, no arma: solo avisa los videos nuevos (una vez)', async () => {
     const { d, log } = deps({ campanas: [{ nombre: 'Accidentes | DM-WPP', creada: '2026-11-01T10:00:00Z' }] })
     const r = await L.lanzarDesdeDoc(tab(), d)
-    assert.equal(r.clientes[0].accion, 'ya_tiene_campana')
-    assert.equal(log.armados.length + log.enviados.length, 0)
+    assert.equal(r.clientes[0].accion, 'videos_nuevos')
+    assert.equal(log.armados.length, 0)
+    await L.lanzarDesdeDoc(tab(), d)
+    assert.equal(log.enviados.length, 1)
   })
   test('sin cuenta en la ficha: avisa UNA vez (menciona a Tomás) y no arma', async () => {
     const { d, log } = deps()
@@ -185,6 +192,69 @@ describe('lanzarDesdeDoc', () => {
     assert.match(marta.doc, /Hacer la campaña/)
     assert.equal(log.armados.length, 1)
     assert.deepEqual([...L.cubiertosPorDoc(r)], ['Juana Perez'])
+  })
+  test('sin línea de base: la crea (todo histórico) y no arma ni avisa nada', async () => {
+    const { d, log } = deps({ base: null })
+    const r = await L.lanzarDesdeDoc(tab(), d)
+    assert.equal(r.lineaBase, 'creada')
+    assert.ok(log.creada.length > 0 && log.creada.every(f => f.estado === 'base'))
+    assert.equal(r.clientes[0].accion, 'historico')
+    assert.equal(log.armados.length + log.enviados.length + log.reclamos.length, 0)
+    assert.deepEqual([...L.cubiertosPorDoc(r)], ['Juana Perez'])   // g01 tampoco le arma desde Editados
+  })
+  test('sin línea de base en seco/vista previa: no crea nada ni procesa', async () => {
+    const { d, log } = deps({ base: null })
+    const r = await L.lanzarDesdeDoc(tab(), d, { seco: true })
+    assert.equal(r.lineaBase, 'sin')
+    assert.equal(log.creada, null)
+    assert.equal(log.armados.length, 0)
+  })
+  test('con la línea de base del Doc de hoy: lo que ya estaba es histórico, nada se arma', async () => {
+    const { d, log } = deps({ base: LB.lineaBaseDe(LB.filasLineaBase(D.parsearDocAds(DOC))) })
+    const t = { filas: [], porLanzar: [pl(), pl({ cliente: 'Pedro Ruiz', idCrm: 'Z003' })], porLanzarEsperando: [] }
+    const r = await L.lanzarDesdeDoc(t, d, { seco: true })
+    assert.deepEqual(r.clientes.map(c => c.accion), ['historico', 'historico'])
+    assert.equal(log.armados.length, 0)
+  })
+  test('pendiente (excepción explícita): se arma aunque estuviera en la línea de base, y queda procesado', async () => {
+    const filas = LB.filasLineaBase(D.parsearDocAds(DOC), b => b.nombre === 'Juana Perezz')
+    const { d, log } = deps({ base: LB.lineaBaseDe(filas) })
+    const r = await L.lanzarDesdeDoc(tab(), d)
+    assert.equal(r.clientes[0].accion, 'armado')
+    assert.equal(r.clientes[0].nuevo, 'pendiente')
+    assert.ok(log.procesadas.some(f => f.huella === `v:${ID(1)}` && f.estado === 'procesado'))
+    const base2 = LB.lineaBaseDe([...filas.filter(f => !log.procesadas.some(p => p.huella === f.huella)), ...log.procesadas])
+    assert.ok(LB.novedad(D.parsearDocAds(DOC)[0], base2).historico)
+  })
+  test('un bloque viejo renombrado (mismos videos) sigue siendo histórico', () => {
+    const base = LB.lineaBaseDe(LB.filasLineaBase(D.parsearDocAds(DOC)))
+    const ren = D.parsearDocAds(DOC.replace('Juana Perezz - LISTO', 'Juana Pérez Gómez - LISTO'))[0]
+    assert.ok(LB.novedad(ren, base).historico)
+  })
+  test('un bloque que pasa a LISTO cuenta como nuevo', () => {
+    const viejo = DOC.replace('Juana Perezz - LISTO', 'Juana Perezz - Revisión').replace(/\nJuana Perezz - LISTO[\s\S]*$/, '')
+    const base = LB.lineaBaseDe(LB.filasLineaBase(D.parsearDocAds(viejo)))
+    const n = LB.novedad(D.parsearDocAds(DOC)[0], base)
+    assert.deepEqual([n.bloqueNuevo, n.motivo, n.videosNuevos.length], [true, 'paso_a_listo', 2])
+  })
+  test('un video nuevo de un cliente con campaña corriendo: solo aviso a Valen, sin armar', async () => {
+    const viejo = DOC.replace(/video 2:https:\/\/drive\.google\.com\/file\/d\/[^\n]+\n[^\n]+\n[^\n]+\n[^\n]+\n/, '')
+    const base = LB.lineaBaseDe(LB.filasLineaBase(D.parsearDocAds(viejo)))
+    const { d, log } = deps({ base })
+    const fila = { cliente: 'Juana Perez', clienteCRM: 'Juana Perez', idCrm: 'Z001', id: 'act_1' }
+    const r = await L.lanzarDesdeDoc({ filas: [fila], porLanzar: [], porLanzarEsperando: [] }, d)
+    assert.equal(r.clientes[0].accion, 'videos_nuevos')
+    assert.equal(log.armados.length, 0)
+    assert.equal(log.enviados.length, 1)
+    assert.match(log.enviados[0], /<@111>.*Videos nuevos en el Doc de ADS.*1 video nuevo para sumar\/rotar/)
+    assert.ok(log.procesadas.some(f => f.huella === `v:${ID(2)}`))
+  })
+  test('por lanzar con una campaña pausada de hace 100 días (≤ 120): no arma, avisa videos nuevos', async () => {
+    const { d, log } = deps({ campanas: [{ nombre: 'Vieja', creada: '2026-07-26T10:00:00Z', activa: false }] })
+    const r = await L.lanzarDesdeDoc(tab(), d)
+    assert.equal(r.clientes[0].accion, 'videos_nuevos')
+    assert.equal(log.armados.length, 0)
+    assert.equal(log.enviados.length, 1)
   })
   test('resumirSeco lee los POST anotados', () => {
     const pedidos = [

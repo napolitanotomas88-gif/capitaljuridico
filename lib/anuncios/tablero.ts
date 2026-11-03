@@ -31,6 +31,8 @@ import { tandasPorCliente } from './tandas'
 import { diagnosticar, type Diagnostico, type EntradaTraba, type TandaTraba } from './trabados'
 import { leerDocAdsCache } from '@/lib/bot/anuncios/docAdsLeer'
 import { estadoPorCliente, parsearDocAds, textoEstadoDoc } from '@/lib/bot/anuncios/docAds'
+import { lineaBaseDe, novedad } from '@/lib/bot/anuncios/docAdsBase'
+import { leerFilasBase } from '@/lib/bot/anuncios/docAdsBaseNeon'
 import { avisosFichasSueltas, cruzarKickoffs, cuentasDelCliente, opcionesCruceTablero, tokensNombre, type ConKickoff, type CuentaPorLanzar } from './porLanzar'
 
 export const DIAS_LANZAMIENTO = 10
@@ -62,7 +64,13 @@ export interface FilaAnuncio extends Analisis {
   usdPor: number | null          // unidades de su moneda por 1 USD (USD = 1 · ARS = dólar MEP venta · otras = cotización del día)
 }
 
-export interface DocAdsPorLanzar { titulo: string; texto: string; listo: boolean; firme: boolean; videos: number }
+export interface DocAdsPorLanzar {
+  titulo: string; texto: string; listo: boolean; firme: boolean; videos: number
+  /** Su bloque ya estaba en el Doc el día de la línea de base (o ya se procesó): el bot no hace nada con él (docAdsBase.ts) */
+  historico?: boolean
+  /** Lo nuevo respecto de la línea de base: cuántos videos nuevos con link */
+  nuevos?: number
+}
 
 export interface PorLanzar extends ConKickoff {
   cliente: string                // nombre en el CRM
@@ -120,7 +128,7 @@ export function entradaTraba(p: Pick<PorLanzar, 'cliente' | 'idCrm' | 'kickoff' 
     tanda: tandas ? (id ? tandas.get(id) : undefined) : null,
     crudos: p.editados ? p.editados.crudos ?? null : null,
     editados: p.editados ? p.editados.cantidad : null,
-    doc: p.docAds ? { listo: p.docAds.listo && p.docAds.firme, videos: p.docAds.videos, texto: p.docAds.texto } : null,
+    doc: p.docAds ? { listo: p.docAds.listo && p.docAds.firme, videos: p.docAds.videos, texto: p.docAds.texto, historico: !!p.docAds.historico } : null,
   }
 }
 
@@ -134,6 +142,7 @@ export async function obtenerTablero(): Promise<Tablero> {
   const kickoffsP = seguro(leerKickoffs())
   const tandasP = tandasPorCliente()   // la última tanda de guiones de cada cliente (Neon): para la etapa de los por lanzar
   const docP = leerDocAdsCache()        // el Doc de ADS (caché 5 min): qué clientes están LISTOS para lanzar (docAds.ts)
+  const baseP = conCache('doc-ads-base-v1', 300, leerFilasBase).then(x => x.data).catch(() => null)   // la línea de base del Doc (lo histórico)
   const driveP = carpetasDrive(45_000)   // corre en paralelo con Meta, que tarda más · «Por lanzar» solo con videos editados (editadosPorLanzar.ts)
   const [sheetsR, descR, tokenR, dolarR, fxR, clickupR, optR] = await Promise.all([
     seguro(conCache('sheets', REFRESCO.sheetsSeg, async () => {
@@ -355,7 +364,14 @@ export async function obtenerTablero(): Promise<Tablero> {
   const textoDoc = await docP
   if (textoDoc) {
     const xs = [...filas.map(f => ({ cliente: f.clienteCRM ?? f.cliente, p: null as PorLanzar | null })), ...[...porLanzar, ...esperando].map(p => ({ cliente: p.cliente, p }))]
-    for (const [x, e] of estadoPorCliente(parsearDocAds(textoDoc), xs)) if (x.p) x.p.docAds = { titulo: e.titulo, texto: textoEstadoDoc(e), listo: e.listo, firme: e.fuerza === 'firme', videos: e.videos }
+    const filasBase = await baseP
+    const base = filasBase?.length ? lineaBaseDe(filasBase) : null
+    for (const [x, e] of estadoPorCliente(parsearDocAds(textoDoc), xs)) {
+      if (!x.p) continue
+      // Sin línea de base (o sin poder leerla) todo cuenta como histórico: el bot no procesa nada sin ella
+      const nov = base ? novedad(e.bloque, base) : null
+      x.p.docAds = { titulo: e.titulo, texto: textoEstadoDoc(e), listo: e.listo, firme: e.fuerza === 'firme', videos: e.videos, historico: nov ? nov.historico : true, nuevos: nov ? nov.videosNuevos.filter(v => v.drive).length : 0 }
+    }
   }
   for (const p of [...porLanzar, ...esperando]) p.traba = diagnosticar(entradaTraba(p, tandas))
 
