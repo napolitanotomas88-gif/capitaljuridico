@@ -264,3 +264,22 @@ test('sin nada que hacer: no manda resumen', async () => {
   assert.equal(r.resumen.nada, 1)
   assert.deepEqual(hecho.avisos, [])
 })
+
+test('con Doc de guiones registrado fuera de su carpeta: no le copia otro', async () => {
+  const hijos = { [id(5)]: [{ id: id(51), name: 'Crudos - VP', mimeType: MIME_CARPETA_DRIVE }, { id: id(52), name: 'Editados - VP', mimeType: MIME_CARPETA_DRIVE }, { id: id(53), name: 'Marca - VP', mimeType: MIME_CARPETA_DRIVE }] }
+  const { deps, hecho } = depsJuguete({ clientes: [cli('A5', 'Vera Paz', '2026-09-01')], todosCrm: [{ id: 'A5', nombre: 'Vera Paz' }], carpetas: [carp(5, 'Vera Paz - C.J')], vinculos: [], hoy: HOY },
+    hijos, { vigia: [id(5), id(51), id(52), id(53)], listos: ['A5'] })
+  const r = await correrDriveCompleto(deps, { modo: 'real' })
+  assert.equal(r.resumen.nada, 1)
+  assert.equal(hecho.preparar.length, 0)
+})
+
+test('avisos: los ya avisados no tapan el tope de los que siguen', async () => {
+  const clientes = Array.from({ length: 12 }, (_, i) => cli(`A${i + 60}`, `Persona${'q'.repeat(i + 1)} Sincarpeta${'z'.repeat(i + 1)}`, '2026-01-01'))
+  const { deps, hecho } = depsJuguete({ clientes, todosCrm: clientes, carpetas: [], vinculos: [], hoy: HOY }, {})
+  await correrDriveCompleto(deps, { modo: 'real' })
+  const primera = hecho.avisos.filter((a) => a.canal === 'operaciones').length
+  assert.equal(primera, 8)
+  await correrDriveCompleto(deps, { modo: 'real' })
+  assert.equal(new Set(hecho.avisos.filter((a) => a.canal === 'operaciones').map((a) => a.clave)).size, 12)
+})
