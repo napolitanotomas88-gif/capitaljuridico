@@ -7,6 +7,7 @@ import { baseAccionesConfigurada, listarAcciones, modoAcciones, pausaVigente } f
 import { camposDe } from '@/lib/clientes/acciones/campos';
 import { nombresCsmVigentes } from '@/lib/clientes/acciones/csm';
 import { ejecutarAccion, leerCuerpoAccion, accionesParaPersona } from '@/lib/clientes/acciones/servidor';
+import { cerrarPorMarca, patronCierreAccion } from '@/lib/bot/proyeccion/bandeja';
 import type { RespuestaCampos, RespuestaHistorial } from '@/lib/clientes/acciones/tipos';
 import { leerClienteFresco, metadatosPago } from '@/lib/clientes/acciones/escritor';
 import { puedeVer } from '@/lib/auth/roles';
@@ -127,6 +128,9 @@ export async function POST(req: Request, ctx: {
         return respuesta({ ok: false, mensaje: 'Ese cliente no está en el CRM de Agencia.' }, 404);
     try {
         const r = await ejecutarAccion(cliente, cuerpo, sesion.nombre || 'Equipo', puedeVer(sesion, 'finanzas'));
+        // «Llamada de proyección» aplicada: resuelve sola las notificaciones de la bandeja (link enviado / agendada / hecha)
+        if (cuerpo.tipo === 'proyeccion' && r.cuerpo.ok && r.cuerpo.accion?.estado === 'aplicada')
+            await cerrarPorMarca(patronCierreAccion(cliente.id, cuerpo.estado), sesion.nombre || 'Equipo');
         return respuesta(r.cuerpo, r.status);
     }
     catch (e) {

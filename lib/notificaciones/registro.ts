@@ -138,3 +138,33 @@ export async function clavesNotificadas(claves: readonly string[]): Promise<Set<
     return new Set(filas.map(f => f.clave))
   } catch (e) { if (faltaTabla(e)) return new Set(); throw e }
 }
+
+/** Las abiertas de un origen (id y clave), para que el bot que las creó decida cuáles ya no corresponden. */
+export async function notificacionesAbiertasDeOrigen(origen: string): Promise<{ id: number; clave: string }[]> {
+  if (!baseNotificacionesConfigurada() || !origen) return []
+  try {
+    const filas = await sql(TOPE_LECTURA_MS)`SELECT id, clave FROM cj_notificaciones WHERE origen = ${origen} AND hecha_en IS NULL AND clave IS NOT NULL LIMIT 500` as { id: unknown; clave: string }[]
+    return filas.map(f => ({ id: Number(f.id), clave: String(f.clave) }))
+  } catch (e) { if (faltaTabla(e)) return []; throw e }
+}
+
+/** Resuelve notificaciones de un origen por id (las que su bot ya no considera pendientes). Devuelve cuántas cerró. */
+export async function cerrarNotificacionesIds(origen: string, ids: readonly number[], por: string): Promise<number> {
+  const xs = ids.filter(i => Number.isSafeInteger(i) && i > 0)
+  if (!baseNotificacionesConfigurada() || !origen || !xs.length) return 0
+  try {
+    const r = await sql(TOPE_ESCRITURA_MS)`UPDATE cj_notificaciones SET hecha_en = now(), hecha_por = ${por.slice(0, 60)}
+      WHERE origen = ${origen} AND hecha_en IS NULL AND id = ANY(${xs}::bigint[]) RETURNING id` as unknown[]
+    return r.length
+  } catch (e) { if (faltaTabla(e)) return 0; throw e }
+}
+
+/** Resuelve las abiertas de un origen cuya clave cumple el patrón LIKE (por ejemplo 'proyeccion:A123:%'). */
+export async function cerrarNotificacionesPorPatron(origen: string, patron: string, por: string): Promise<number> {
+  if (!baseNotificacionesConfigurada() || !origen || !patron) return 0
+  try {
+    const r = await sql(TOPE_ESCRITURA_MS)`UPDATE cj_notificaciones SET hecha_en = now(), hecha_por = ${por.slice(0, 60)}
+      WHERE origen = ${origen} AND hecha_en IS NULL AND clave LIKE ${patron} RETURNING id` as unknown[]
+    return r.length
+  } catch (e) { if (faltaTabla(e)) return 0; throw e }
+}

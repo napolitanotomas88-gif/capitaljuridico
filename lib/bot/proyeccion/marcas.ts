@@ -9,6 +9,7 @@
 // avisado, agendada, hecha. Sin mails: quien marcó se guarda con su nombre corto.
 import { neon } from '@neondatabase/serverless'
 import type { FuenteAgenda, MarcaProyeccion, Resultado } from './reglas'
+import { cerrarPorMarca, patronCierre } from './bandeja'
 
 const ID_CRM = /^[A-Za-z]\d{1,6}$/
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
@@ -123,6 +124,8 @@ export async function guardarMarcaProyeccion(idCrm: string, p: PedidoMarca, quie
   if (p.campo === 'avisado') await q`UPDATE cj_proyeccion SET avisado = ${p.fecha}, quien = ${nombre}, cuando = now() WHERE id_crm = ${id} AND fin = ${p.fin}`
   else if (p.campo === 'agendada') await q`UPDATE cj_proyeccion SET agendada = ${p.fecha}, agendada_fuente = ${p.fecha ? fuente : null}, quien = ${nombre}, cuando = now() WHERE id_crm = ${id} AND fin = ${p.fin}`
   else await q`UPDATE cj_proyeccion SET resultado = ${p.fecha ? p.resultado : null}, resultado_fecha = ${p.fecha}, quien = ${nombre}, cuando = now() WHERE id_crm = ${id} AND fin = ${p.fin}`
+  // La bandeja del Despacho: «Avisado» resuelve la de invitar; «Agendada» o «Hecha», todas las del cliente
+  await cerrarPorMarca(patronCierre(id, p), nombre || 'Equipo')
 }
 
 /** «Enviado» de la invitación en 📤: avisado = hoy, si todavía no estaba. Nunca pisa una fecha anotada. */
@@ -132,5 +135,6 @@ export async function marcarAvisadoSiFalta(idCrm: string, fin: string, hoy: stri
   await crearTabla(q)
   const r = await q`INSERT INTO cj_proyeccion (id_crm, fin, avisado, quien) VALUES (${idCrm.toUpperCase()}, ${fin}, ${hoy}, ${quien.slice(0, 60)})
     ON CONFLICT (id_crm, fin) DO UPDATE SET avisado = EXCLUDED.avisado, quien = EXCLUDED.quien, cuando = now() WHERE cj_proyeccion.avisado IS NULL RETURNING id_crm`
+  await cerrarPorMarca(patronCierre(idCrm, { campo: 'avisado', fecha: hoy }), quien || 'Equipo')
   return r.length > 0
 }
