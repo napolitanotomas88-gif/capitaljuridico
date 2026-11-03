@@ -61,24 +61,35 @@ describe('clientesTrabados y el texto', () => {
     assert.match(txt, /\*\*Uno Uno\*\*/)
     assert.equal(T.textoTrabados([], ts), '')
   })
+  test('partirMensaje: corta entre renglones sin perder ninguno', () => {
+    const txt = Array.from({ length: 60 }, (_, i) => `renglón ${i} ${'x'.repeat(60)}`).join('\n')
+    const ps = T.partirMensaje(txt, 1900)
+    assert.ok(ps.length > 1 && ps.every(p => p.length <= 1900))
+    assert.equal(ps.join('\n'), txt)
+  })
 })
 
 describe('cuenta temprana', () => {
   const cuentas = [
-    { id: 'act_1', nombre: 'Estudio Jurídico Perezz y Asociados', negocio: null, paginas: [], asignada: null },
-    { id: 'act_2', nombre: 'Otra Cuenta', negocio: null, paginas: ['Perez Abogados'], asignada: 'Otro Cliente' },
+    { id: 'act_1', nombre: 'Estudio Jurídico Zubirri y Asociados', negocio: null, paginas: [], asignada: null },
+    { id: 'act_2', nombre: 'Otra Cuenta', negocio: null, paginas: ['Zubiri Abogados'], asignada: 'Otro Cliente' },
     { id: 'act_3', nombre: 'Juana', negocio: null, paginas: [], asignada: null },
     { id: 'act_4', nombre: 'Luis Gomez', negocio: null, paginas: [], asignada: null },
   ]
   test('el apellido (con una letra de tolerancia) en el nombre de la cuenta; las asignadas a otro no cuentan', () => {
-    const ps = C.puntuarCuentas({ nombre: 'Juana Perez' }, cuentas)
+    const ps = C.puntuarCuentas({ nombre: 'Juana Zubiri' }, cuentas)
     assert.equal(ps[0].id, 'act_1')
     assert.ok(!ps.some(p => p.id === 'act_2'))
     assert.equal(C.candidataClara(ps).id, 'act_1')
   })
   test('por la página que promociona', () => {
-    const ps = C.puntuarCuentas({ nombre: 'Juana Perez' }, [{ id: 'act_9', nombre: 'Cuenta 9', negocio: null, paginas: ['Perez & Asoc.'], asignada: null }])
-    assert.deepEqual(ps[0].por, ['apellido «perez» en la página'])
+    const ps = C.puntuarCuentas({ nombre: 'Juana Zubiri' }, [{ id: 'act_9', nombre: 'Cuenta 9', negocio: null, paginas: ['Zubiri & Asoc.'], asignada: null }])
+    assert.deepEqual(ps[0].por, ['apellido «zubiri» en la página'])
+  })
+  test('un apellido muy común solo no alcanza para una candidata clara', () => {
+    const ps = C.puntuarCuentas({ nombre: 'Ana Barros Lopez' }, [{ id: 'act_8', nombre: 'Estudio Lopez Otro', negocio: null, paginas: [], asignada: null }])
+    assert.equal(ps[0].puntos, 1)
+    assert.equal(C.candidataClara(ps), null)
   })
   test('un segundo nombre común no es apellido; dos candidatas iguales no son clara', () => {
     assert.ok(!C.puntuarCuentas({ nombre: 'Jorge Luis Sosa' }, cuentas).some(p => p.id === 'act_4' && p.puntos >= 2))
@@ -86,7 +97,7 @@ describe('cuenta temprana', () => {
     assert.equal(C.candidataClara(dos), null)
   })
   test('el aviso propone la clara con cómo cargarla y menciona a Valen y Tomás', () => {
-    const txt = C.textoCuentaTemprana({ cliente: 'Juana Perez', idCrm: 'Z001', recordingId: 5, problema: 'sin_cuenta', cuenta: null, candidatas: C.puntuarCuentas({ nombre: 'Juana Perez' }, cuentas), menciones: ['1', '2'], ficha: null })
+    const txt = C.textoCuentaTemprana({ cliente: 'Juana Zubiri', idCrm: 'Z001', recordingId: 5, problema: 'sin_cuenta', cuenta: null, candidatas: C.puntuarCuentas({ nombre: 'Juana Zubiri' }, cuentas), menciones: ['1', '2'], ficha: null })
     assert.match(txt, /^<@1> <@2> ⚠️ \*\*Sin cuenta de Meta\*\*/)
     assert.match(txt, /Propuesta:.*act_1.*recording_id=5&cuenta=act_1/)
     const acc = C.textoCuentaTemprana({ cliente: 'X', idCrm: null, recordingId: 5, problema: 'sin_acceso', cuenta: 'act_7', candidatas: [], menciones: [], ficha: null })
