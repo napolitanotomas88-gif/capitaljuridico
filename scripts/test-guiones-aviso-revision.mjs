@@ -115,3 +115,13 @@ test('vuelta en seco: no manda ni limpia nada', async () => {
   assert.equal(x.log.alertas.length + x.log.avisos.length + x.log.reservas.length, 0)
   assert.equal(x.log.limpiar, null)
 })
+
+test('vuelta: ronda reservada por el vigía que quedó «enviando» sin clave → se reintenta el aviso pasados 10 min', async () => {
+  const x = deps([fila(6), fila(7)], [
+    { tanda_id: 6, desde: hace(1), tipo: 'revisar', clave: null, estado: 'enviando' },
+    { tanda_id: 7, desde: new Date(AHORA.getTime() - 2 * 60_000).toISOString(), tipo: 'revisar', clave: null, estado: 'enviando' },
+  ])
+  await R.correrRecordatoriosRevision(x.d, { ahora: AHORA })
+  assert.deepEqual(x.log.avisos, [[6, 'revisar']])
+  assert.equal(x.log.alertas.length, 0)
+})

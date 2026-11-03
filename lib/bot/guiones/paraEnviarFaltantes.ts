@@ -31,7 +31,8 @@ export async function crearParaEnviarFaltantes(deps: DepsFaltantes, op: { desde?
   for (const f of filas) {
     try {
       const previos = await deps.existentes(f.id)
-      if (previos.some(m => m.estado === 'para_enviar' || m.clave === `d02:${claveD02(f)}`)) continue
+      // Solo cuenta el d02 de ESTA aprobación: uno pendiente de una vuelta anterior lo reemplaza guionesParaEnviar
+      if (previos.some(m => m.clave === `d02:${claveD02(f)}`)) continue
       const problema = problemaDelDoc(f)
       const x: Faltante = { id: f.id, id_crm: f.id_crm, cliente: f.cliente, tanda: f.doc?.tanda ?? f.tanda, aprobada: f.aprobacion!.cuando, problema: problema?.motivo ?? null }
       if (!op.dry) x.estado = (await deps.crear(f, problema)).estado

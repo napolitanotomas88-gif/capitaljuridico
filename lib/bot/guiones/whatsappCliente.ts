@@ -12,7 +12,7 @@ import { guardiaWhapi } from '../whapi/salud'
 import { textoGuionesParaGrabar } from './envio'
 import { fechaParaCliente, fechaSugeridaE01 } from '@/lib/edicion/textos'
 import { linkParaEnviar, paraEnviar } from '../canal/salidaCliente'
-import { actualizarPendiente, d02DeTanda, type MensajeGuardado } from '../canal/registro'
+import { actualizarPendiente, d02DeTanda, resolverMensaje, type MensajeGuardado } from '../canal/registro'
 import { alertar, type Alerta } from '@/lib/alertas'
 import { responsablesDe } from '@/lib/alertas/personas'
 
@@ -83,9 +83,14 @@ export interface DepsD02 {
   existentes(tandaId: number): Promise<Pick<MensajeGuardado, 'id' | 'clave' | 'estado' | 'datos'>[]>
   crear: typeof paraEnviar
   actualizar(id: number, texto: string, datos: Record<string, unknown>): Promise<boolean>
+  /** Cierra como «descartado» un pendiente que quedó viejo (otra aprobación). */
+  descartar(id: number, motivo: string): Promise<unknown>
   alertar(a: Alerta): Promise<unknown>
 }
-const depsD02: DepsD02 = { existentes: d02DeTanda, crear: paraEnviar, actualizar: actualizarPendiente, alertar: (a) => alertar(a) }
+const depsD02: DepsD02 = {
+  existentes: d02DeTanda, crear: paraEnviar, actualizar: actualizarPendiente, alertar: (a) => alertar(a),
+  descartar: (id, motivo) => resolverMensaje(id, 'descartado', 'bot (aprobación nueva)', motivo),
+}
 
 /** d02 sin WhatsApp (2/11/2026): el link de la tanda aprobada queda «para enviar» (Aylu o Gero M lo pegan en el grupo
  *  Contenido y marcan «Enviado»). Devuelve 'manual' (no 'enviado'): el aviso de entrega de la campanita sale igual.
@@ -96,7 +101,8 @@ const depsD02: DepsD02 = { existentes: d02DeTanda, crear: paraEnviar, actualizar
  *    · aunque la carga en el Doc falle o quede dudosa (`problema`): sale igual, con la advertencia en el aviso de 📤;
  *    · una corrección / 2.ª ronda es otra aprobación → otro mensaje (clave por aprobación);
  *    · no depende del grupo del cliente;
- *    · sin duplicar: si la tanda ya tiene un d02 pendiente, no se crea otro. Si ese pendiente había salido con el Doc en duda
+ *    · sin duplicar: si ESTA aprobación ya tiene su d02 pendiente, no se crea otro (uno pendiente de una aprobación anterior
+ *      se descarta y se crea el nuevo). Si ese pendiente había salido con el Doc en duda
  *      y ahora quedó bien, se actualiza su texto y se avisa en 📤 que ya se puede mandar. */
 export async function guionesParaEnviar(fila: FilaTanda, ahora: Date = new Date(), problema: ProblemaDoc | null = null, deps: DepsD02 = depsD02): Promise<ResultadoD02 | { estado: 'manual' | 'ya_estaba'; motivo?: string }> {
   if (!fila.aprobacion?.cuando) return { estado: 'fuera', motivo: 'la tanda no tiene check final' }
@@ -105,7 +111,12 @@ export async function guionesParaEnviar(fila: FilaTanda, ahora: Date = new Date(
   const texto = textoD02Unificado(fila, ahora)
   const datos = { tanda: fila.id, tandaDoc: fila.doc?.tanda ?? null, grabacion: true, ...(problema ? { docPendiente: true } : {}) }
   const previos = await deps.existentes(fila.id).catch(e => { console.error('Guiones: no se pudo leer el d02 previo de la tanda', fila.id, (e as Error)?.name ?? 'error'); return [] })
-  const pendiente = previos.find(m => m.estado === 'para_enviar')
+  // Un pendiente de OTRA aprobación (la vuelta anterior nunca se marcó «Enviado» y el cliente ya pidió cambios): queda
+  // reemplazado por el de esta aprobación, si no los cambios nunca llegan a 📤
+  for (const viejo of previos.filter(m => m.estado === 'para_enviar' && m.clave !== `d02:${clave}`)) {
+    await deps.descartar(viejo.id, 'reemplazado por el «para enviar» de una aprobación nueva').catch(e => console.error('Guiones: no se pudo descartar el d02 viejo', viejo.id, (e as Error)?.name ?? 'error'))
+  }
+  const pendiente = previos.find(m => m.estado === 'para_enviar' && m.clave === `d02:${clave}`)
   if (pendiente) {
     if (!problema && pendiente.datos?.docPendiente === true && (await deps.actualizar(pendiente.id, texto, datos))) {
       await deps.alertar({
