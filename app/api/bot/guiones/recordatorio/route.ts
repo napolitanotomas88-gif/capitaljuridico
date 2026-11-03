@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   const dry = new URL(req.url).searchParams.get('dry') === '1'
   try {
     const r = await correrRecordatorio({ leer: tandasARevisar, alertar, notificar: crearNotificacion }, { dry })
-    if (!r.dry) console.log(`guiones-recordatorio: ${r.pendientes.length} tandas · ${r.resultados?.join(' · ') || 'nada'}`)
+    if (!r.dry) console.log(`guiones-recordatorio: ${r.pendientes.length} sin verificar, ${r.revisiones?.length ?? 0} a medias · ${r.resultados?.join(' · ') || 'nada'}`)
     // Además, las tandas sin revisar (aviso que faltó + 24/48 h). También lo corre el vigía cada 15 min.
     const revision = await recordarGuionesARevisar({ dry })
     return json({ ok: true, ...r, revision })

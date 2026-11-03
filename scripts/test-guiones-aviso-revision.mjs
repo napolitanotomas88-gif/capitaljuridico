@@ -131,3 +131,11 @@ test('vuelta: ronda reservada por el vigía que quedó «enviando» sin clave �
   assert.deepEqual(x.log.avisos, [[6, 'revisar']])
   assert.equal(x.log.alertas.length, 0)
 })
+
+test('recordatorio: dice cómo va la verificación (faltan X o falta el check final)', () => {
+  const v = { quien: 'Faus', email: 'x@y.z', cuando: hace(30) }
+  const r = { tanda_id: 7, desde: hace(25) }
+  assert.equal(R.alertaRecordatorio(fila(7), r, 'rec24', AHORA).lineas[1], 'Ninguno verificado todavía.')
+  assert.equal(R.alertaRecordatorio(fila(7, { guiones: { 1: { verificado: v }, 2: { verificado: v }, 3: {} } }), r, 'rec24', AHORA).lineas[1], 'Van 2 de 3 verificados: falta el 3 y después el check final.')
+  assert.equal(R.alertaRecordatorio(fila(7, { guiones: { 1: { verificado: v }, 2: { verificado: v }, 3: { verificado: v } } }), r, 'rec48', AHORA).lineas[1], 'Los 3 verificados: falta el check final.')
+})
