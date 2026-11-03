@@ -51,7 +51,7 @@ Tests: `scripts/test-alertas-discord.mjs`.
 | `DISCORD_WEBHOOK_VERIFICACIONES` | ✅-verificaciones | Esperas del alta (OK y datos que faltan, también lo que antes iba al closer en Ventas C.J.), alta recibida, avisos, «Alta completa», pedidos de Éxito y Bajas |
 | `DISCORD_WEBHOOK_FINANZAS` | 💰-finanzas | «Alta / Fee / Pago cargado en Finanzas» |
 | `DISCORD_WEBHOOK_KICKOFF` | 📝-kickoff | Sin cambios (c01–c06) |
-| `DISCORD_WEBHOOK_GUIONES` | ✍️-guiones | d01/d02 para revisar, correcciones aplicadas, `guiones_error` |
+| `DISCORD_WEBHOOK_GUIONES` | ✍️-guiones | d01/d02 para revisar (Faus, Tomi y Gero M), correcciones aplicadas, recordatorios de revisión (24 h: Faus y Gero M; 48 h: + Tomás), `guiones_error` |
 | `DISCORD_WEBHOOK_EDICION` | ✂️-edicion | Sin cambios (f01–f03, resumen de la daily con e01 días 2, 4 y 9) |
 | `DISCORD_WEBHOOK_ANUNCIOS` (alias `DISCORD_WEBHOOK_KICKOFF_ADS`) | 📣-ads | g01–g07 (el texto para el cliente va en el aviso), notas cargadas a mano, `anuncios_dudoso` |
 | `DISCORD_WEBHOOK_CLIENTES` | 🤝-exito-y-bajas | h02 (testimonio recibido), i05, `cliente_sin_respuesta`, `beneficio_referido` |
@@ -84,8 +84,9 @@ Otras variables:
 | Pieza | Cómo queda |
 |---|---|
 | b07 bienvenida | Al hacer a mano la comunidad, sale en 📤 con el link del video (Aylu) |
-| d02 guiones + día 0 de grabación | Al publicar la tanda, sale en 📤 UN solo mensaje: link del Doc y pedido de grabar con la fecha sugerida (Aylu y Gero M). También se cierra con «Confirmar entrega» en `/clientes/entregas` (Aylu y Gero M) |
+| d02 guiones + día 0 de grabación | Al publicar la tanda, sale en 📤 UN solo mensaje: link del Doc y pedido de grabar con la fecha sugerida (Aylu y Gero M). También se cierra con «Confirmar entrega» en `/clientes/entregas` (Aylu y Gero M). SIEMPRE tras el check final (3/11/2026): aunque la carga en el Doc falle o quede dudosa (sale con la advertencia y la alerta en 🧰; al quedar bien, el mismo mensaje se actualiza y avisa ✅), en correcciones y sin grupo; nunca dos pendientes por tanda. Red en el vigía: aprobadas de los últimos 10 días sin su «para enviar» lo crean (`lib/bot/guiones/paraEnviarFaltantes.ts`) |
 | e01 recordatorios (y el día 0 solo si no hubo mensaje de guiones: chips cambiados a mano o regrabación) | En cada vuelta del diario o del vigía, de 9 a 20 h los días hábiles (Gero M) |
+| Guiones para revisar (3/11/2026) | Toda tanda que pasa a «a_revisar» avisa en ✍️-guiones (Faus, Tomi y Gero M). Ronda en `cj_guiones_revision`; el vigía (cada 15 min) y el cron diario mandan el aviso que haya faltado y, de 9 a 20 h, el recordatorio de 24 h (Faus y Gero M) y el de 48 h (+ Tomás), una sola vez cada uno. Cortan cuando la tanda sale de revisión (`lib/bot/guiones/avisoRevision.ts`) |
 | f04 videos listos | Al pasar a «revisión», el lote del cliente (Aylu) |
 | g04–g06 | El texto ya va en el aviso de 📣-ads para Valentino, que entra a /anuncios con su clave. No se registra en 📤 |
 | h01, h02, h03 | Al aprobar en `/clientes/aprobaciones`, o al cargar el testimonio (Gero M) |

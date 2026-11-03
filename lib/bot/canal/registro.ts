@@ -104,3 +104,18 @@ export async function tomarParaRecordar(horas: number, n: number): Promise<Mensa
     RETURNING *`) as Fila[]
   return r.map(aMensaje)
 }
+
+/** Los d02 (link de los guiones) de una tanda de cj_guiones, en cualquier estado (3/11/2026: para no duplicar el «para enviar»). */
+export async function d02DeTanda(tandaId: number): Promise<MensajeGuardado[]> {
+  if (!url()) return []
+  await asegurarTablaCanal()
+  return ((await q()`SELECT * FROM cj_canal_mensajes WHERE pieza = 'd02' AND (datos->>'tanda') = ${String(tandaId)} ORDER BY creado DESC LIMIT 20`) as Fila[]).map(aMensaje)
+}
+
+/** Reemplaza texto y datos de un mensaje que sigue «para enviar» (el d02 que salió con el Doc en duda y ya quedó bien). */
+export async function actualizarPendiente(id: number, texto: string, datos: Record<string, unknown>): Promise<boolean> {
+  if (!url()) return false
+  await asegurarTablaCanal()
+  return (await q()`UPDATE cj_canal_mensajes SET texto = ${texto.slice(0, 6000)}, datos = ${JSON.stringify(datos)}::jsonb, actualizado = now()
+    WHERE id = ${id} AND estado = 'para_enviar' RETURNING id`).length > 0
+}

@@ -321,3 +321,17 @@ export async function anotarVinculoInicial(id: number, doc: { id: string; url: s
   return correr('vincular doc inicial', async q => (await q`UPDATE cj_guiones SET doc = ${JSON.stringify(doc)}::jsonb, actualizado = now()
     WHERE id = ${id} AND doc->>'id' IS NULL AND doc->'publicacion' IS NULL AND estado <> ALL(${['aprobada', 'enviada']}) RETURNING id`).length === 1)
 }
+
+/** Tandas «aprobada» (check final dado, sin entregar) con la aprobación entre `desde` y `hasta` (ISO), sin archivados.
+ *  Para el «para enviar» que tiene que salir SÍ O SÍ (paraEnviarFaltantes.ts, 3/11/2026). */
+export async function tandasAprobadasEntre(desde: string, hasta: string): Promise<FilaTanda[]> {
+  const archivados = await leerArchivados()
+  const filas = await correr('tandas aprobadas', async q => {
+    try {
+      return (await q`SELECT * FROM cj_guiones WHERE estado = 'aprobada' AND aprobacion->>'cuando' IS NOT NULL
+        AND (aprobacion->>'cuando')::timestamptz >= ${desde}::timestamptz AND (aprobacion->>'cuando')::timestamptz <= ${hasta}::timestamptz
+        ORDER BY (aprobacion->>'cuando')::timestamptz ASC LIMIT 100`).map(x => aFila(x as Record<string, unknown>))
+    } catch (e) { if (sinTabla(e)) return []; throw e }
+  })
+  return excluirArchivados(filas.filter(f => !!f.id_crm), archivados, f => f.id_crm)
+}

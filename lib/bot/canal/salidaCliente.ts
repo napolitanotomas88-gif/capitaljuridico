@@ -28,7 +28,7 @@ export async function paraEnviar(m: MensajeCliente): Promise<ResultadoSalidaClie
   await alertar({
     canal: 'para_enviar', tipo: `para_enviar_${m.pieza}`, clave: `para_enviar:${clave}`, idCrm: m.idCrm,
     emoji: '📤', titulo: `${NOMBRE_PIEZA[m.pieza]} para el grupo ${GRUPO_PIEZA[m.pieza]}`, cliente: m.cliente,
-    lineas: [...(m.adjuntos ?? []).slice(0, 3).map((a) => `Adjuntá: ${a}`), 'Pegalo en el grupo del cliente y marcá «Enviado» en el Despacho.'],
+    lineas: [...(m.avisos ?? []).slice(0, 2), ...(m.adjuntos ?? []).slice(0, 3).map((a) => `Adjuntá: ${a}`), 'Pegalo en el grupo del cliente y marcá «Enviado» en el Despacho.'],
     copiar: m.texto, link: linkParaEnviar(id), menciones: responsablesDe(m.pieza),
   })
   return { estado: 'manual_pendiente', id }

@@ -107,6 +107,13 @@ test('el último guion listo cierra la tanda una sola vez y avisa al equipo', as
   assert.deepEqual(x.avisos, [[id, 'revisar']])
   assert.equal(await x.deps.registro.guardarGuion(id, 2, { guion: guion(2), estado: 'listo' }), null, 'no pisa una tanda ya cerrada')
 })
+test('con notas pero sin nada para aplicar: vuelve a revisión Y avisa (3/11: toda tanda que pasa a a_revisar avisa)', async () => {
+  const x = falso(); const { id } = await iniciar(1, x.deps)
+  const f = x.filas.get(id); f.estado = 'con_notas'; f.mercado = 'm'; f.plan = [{ numero: 1 }]; f.guiones = { 1: { guion: guion(1), estado: 'listo' } }; f.notas = [{ id: 'n1', texto: 'ok', aplicada: '2026-11-01' }]
+  assert.match(await correrPaso('notas', { id }, 0, x.deps), /no hay notas/)
+  assert.equal(f.estado, 'a_revisar')
+  assert.deepEqual(x.avisos, [[id, 'revisar']])
+})
 test('un error tardío no pisa una tanda ya para revisar', async () => {
   const x = falso(); const { id } = await iniciar(1, x.deps)
   x.filas.get(id).estado = 'a_revisar'

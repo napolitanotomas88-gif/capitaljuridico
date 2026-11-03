@@ -23,6 +23,8 @@ export interface MensajeCliente {
   abrir?: string | null
   /** Links que acompañan (video de bienvenida, Drive…): se muestran aparte. */
   adjuntos?: string[]
+  /** Advertencias para el equipo (no van en el texto del cliente): p. ej. «la carga en el Doc falló, revisalo antes». */
+  avisos?: string[]
   /** Lo que necesita el gancho de «Enviado» (ids internos; nunca teléfonos). */
   datos?: Record<string, unknown>
 }

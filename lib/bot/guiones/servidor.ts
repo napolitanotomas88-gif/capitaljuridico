@@ -6,6 +6,8 @@
 //   · avisar (pedido de Tomás del 25/10): al grupo de guiones del equipo en WhatsApp (WHAPI_GRUPO_COPYWRITING, Whapi) con el
 //     link a /guiones/<id>: «lista para revisar» o «el cliente pidió cambios y ya están aplicados». Es un grupo INTERNO (no un
 //     cliente). Sin el grupo o sin WHAPI_TOKEN, va a Discord (DISCORD_WEBHOOK_GUIONES o #📝-kickoff) mencionando a Tomi y Faus.
+//     Desde el 3/11/2026 (Tomás): menciona a Faus, Tomi y Gero M, guarda la ronda de revisión y el vigía recuerda a las 24/48 h
+//     (avisoRevision.ts).
 // Solo servidor.
 import { idDiscord } from '@/lib/fathomAnuncios/discord'
 import { ID_TOMAS } from '@/lib/fathomAnuncios/procesar'
@@ -23,6 +25,8 @@ import { tokenWhapi } from '../whapi/config'
 import type { FilaTanda } from './registro'
 import { notificarRevision } from './entrega'
 import { exigirClienteNoArchivado, leerArchivados } from '@/lib/clientes/archivados'
+import { alertaBarrido, alertaRevision, claveAviso, correrRecordatoriosRevision, desdeAviso } from './avisoRevision'
+import { guardarRonda, leerRondas, limpiarRondas, marcarRonda, reservarRonda } from './rondas'
 
 const TOPE_DISPARO_MS = 25_000
 export const webhookGuiones = (): string => process.env.DISCORD_WEBHOOK_GUIONES?.trim() || webhookKickoff()
@@ -75,31 +79,62 @@ export function textoAviso(fila: FilaTanda, tipo: TipoAviso, base: string = urlD
   const link = fila.id_crm ? `${base}/guiones/${encodeURIComponent(fila.id_crm)}` : ''
   const cliente = fila.cliente ?? 'cliente sin nombre'
   return tipo === 'revisar'
-    ? `✍️ Guiones listos para revisar: ${cliente} · ${n} guiones (tanda ${fila.tanda}). Tomi o Faus: revisalos y aprobalos acá${link ? `: ${link}` : ' (falta el ID del CRM)'}`
-    : `🔁 ${cliente} pidió cambios en sus guiones y el bot ya los aplicó. Tomi o Faus: revisalos y aprobalos acá${link ? `: ${link}` : ''}`
+    ? `✍️ Guiones listos para revisar: ${cliente} · ${n} guiones (tanda ${fila.tanda}). Faus, Tomi: revisalos y aprobalos acá${link ? `: ${link}` : ' (falta el ID del CRM)'}. Gero M: atento`
+    : `🔁 ${cliente} pidió cambios en sus guiones y el bot ya los aplicó. Faus, Tomi: revisalos y aprobalos acá${link ? `: ${link}` : ''}. Gero M: atento`
 }
 
-async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<string | null> {
+/** El aviso al equipo de una tanda que pasó a «a_revisar»: campanita del Hub + ✍️-guiones (Faus, Tomi y Gero M) y la ronda
+ *  de revisión (desde cuándo, para los recordatorios de 24/48 h del vigía). Lo usan TODOS los caminos que ponen a_revisar. */
+export async function avisarEquipo(fila: FilaTanda, tipo: TipoAviso): Promise<string | null> {
   await exigirClienteNoArchivado(fila.id_crm, await leerArchivados({ forzar: true }))
   await notificarRevision(fila, tipo !== 'revisar').catch(e => console.error('Guiones: aviso del Hub pendiente —', (e as Error)?.name ?? 'error'))
+  const clave = claveAviso(fila, tipo)
+  const ronda = (estado: string) => guardarRonda({ tanda_id: fila.id, tipo, clave, estado }).catch(e => console.error('Guiones: no se guardó la ronda de revisión —', (e as Error)?.name ?? 'error'))
   const grupo = grupoGuionesEquipo(), token = tokenWhapi()
   // Sin WhatsApp (2/11/2026, WHATSAPP_BOT distinto de «encendido»): el aviso va solo a ✍️-guiones de Discord
   if (grupo && token && whatsappBotEncendido()) {
     try {
       const env = await crearClienteWhapi({ token }).enviarTexto({ chatId: grupo, texto: textoAviso(fila, tipo) })
+      await ronda('whatsapp')
       return `wa:${env.id ?? 'sin-id'}`
     } catch (e) {
       console.error('Guiones: el aviso por WhatsApp no salió, va a Discord:', (e as Error).message?.slice(0, 160))
     }
   }
-  const n = Object.keys(fila.guiones).length
-  const r = await alertar({
-    canal: 'guiones', tipo: tipo === 'revisar' ? 'guiones_revisar' : 'guiones_correcciones', clave: `guiones:${fila.id}:${tipo}:${fila.actualizado}`, idCrm: fila.id_crm,
-    emoji: tipo === 'revisar' ? '✍️' : '🔁', titulo: tipo === 'revisar' ? `Guiones listos para revisar (${n}, tanda ${fila.tanda})` : 'El cliente pidió cambios y el bot ya los aplicó',
-    cliente: fila.cliente ?? 'cliente sin nombre', lineas: ['Tomi o Faus: revisalos y dales el check final.'],
-    link: fila.id_crm ? `/guiones/${encodeURIComponent(fila.id_crm)}` : '/guiones', menciones: ['tomas', 'faus'],
-  })
+  const r = await alertar(alertaRevision(fila, tipo, clave))
+  await ronda(r.estado)
   return r.estado === 'enviado' ? `dc:${r.mensajeId ?? ''}` : null
+}
+
+/** Recordatorios de tandas sin revisar (24 h: Faus y Gero M; 48 h: + Tomás) y avisos que faltaron. Lo corre el vigía (cada
+ *  15 min) y el cron diario. Nunca tira. */
+export async function recordarGuionesARevisar(op: { dry?: boolean } = {}) {
+  if (!reg.baseConfigurada()) return null
+  try {
+    const r = await correrRecordatoriosRevision({
+      leer: reg.tandasARevisar, rondas: leerRondas, reservar: reservarRonda, marcar: marcarRonda, limpiar: limpiarRondas,
+      avisar: async (fila, tipo) => { const m = await avisarEquipo(fila, tipo); if (m) await reg.anotarAviso(fila.id, m).catch(() => {}); return m },
+      alertar,
+    }, op)
+    if (r.avisos.length || r.recordatorios.length || r.errores.length) console.log(`guiones-revision: avisos ${r.avisos.join(' · ') || '0'} | recordatorios ${r.recordatorios.join(' · ') || '0'}${r.errores.length ? ` | errores ${r.errores.join(' · ')}` : ''}`)
+    return r
+  } catch (e) {
+    console.error('guiones-revision: falla —', String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 160))
+    return null
+  }
+}
+
+/** Barrido (3/11/2026): UN mensaje en ✍️-guiones con todas las tandas que hoy esperan revisión (Faus, Tomi y Gero M) y la
+ *  ronda de cada una (estado «barrido», desde ahora: los recordatorios de 24/48 h cuentan desde este aviso). */
+export async function barridoGuionesARevisar(op: { dry?: boolean } = {}) {
+  const filas = await reg.tandasARevisar()
+  const items = filas.map(fila => ({ fila, desde: desdeAviso(fila) })).sort((a, b) => a.desde.localeCompare(b.desde))
+  const lista = items.map(({ fila, desde }) => ({ id: fila.id, id_crm: fila.id_crm, cliente: fila.cliente, tanda: fila.tanda, desde }))
+  if (op.dry || !items.length) return { lista, alerta: null }
+  const ahora = new Date().toISOString()
+  const alerta = await alertar(alertaBarrido(items, urlDespacho(), ahora.slice(0, 10)))
+  for (const { fila } of items) await reservarRonda({ tanda_id: fila.id, desde: ahora, tipo: 'revisar', clave: null, estado: 'barrido' }).catch(e => console.error('Guiones: ronda del barrido —', (e as Error)?.name ?? 'error'))
+  return { lista, alerta: alerta.estado }
 }
 
 export const motorGuiones = (): 'local' | 'api' => (process.env.GUIONES_MOTOR?.trim() === 'api' ? 'api' : 'local')

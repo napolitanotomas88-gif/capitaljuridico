@@ -4,6 +4,7 @@ import { baseConfigurada, tandasARevisar } from '@/lib/bot/guiones/registro'
 import { correrRecordatorio } from '@/lib/bot/guiones/recordatorio'
 import { alertar } from '@/lib/alertas'
 import { crearNotificacion } from '@/lib/notificaciones/registro'
+import { recordarGuionesARevisar } from '@/lib/bot/guiones/servidor'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -21,7 +22,9 @@ export async function GET(req: Request) {
   try {
     const r = await correrRecordatorio({ leer: tandasARevisar, alertar, notificar: crearNotificacion }, { dry })
     if (!r.dry) console.log(`guiones-recordatorio: ${r.pendientes.length} tandas · ${r.resultados?.join(' · ') || 'nada'}`)
-    return json({ ok: true, ...r })
+    // Además, las tandas sin revisar (aviso que faltó + 24/48 h). También lo corre el vigía cada 15 min.
+    const revision = await recordarGuionesARevisar({ dry })
+    return json({ ok: true, ...r, revision })
   } catch (e) {
     const m = ((e as Error)?.message ?? String(e)).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 200)
     console.error('guiones-recordatorio: falla —', m)
