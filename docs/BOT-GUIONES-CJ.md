@@ -155,3 +155,11 @@ Pedido de RESPONSABLE_HUB: dos tandas quedaron trabadas porque se corrigieron y 
 el check final (guardar no publica). Cron `/api/bot/guiones/recordatorio` (días hábiles, 9:00 AR): por cada tanda en a_revisar con
 guiones editados hace más de 2 h y sin verificar, menciona a quien editó en el canal de guiones (⏰) y le deja la campanita. Una vez
 por tanda y día. A mano: GET con Bearer CRON_SECRET; `?dry=1` lista qué avisaría. Pruebas: `scripts/test-guiones-recordatorio.mjs`.
+
+**Revisión a medias (3/11/2026, pedido por CONSULTOR).** El mismo cron avisa también las tandas en a_revisar que tienen la revisión
+empezada (algún «✓ Verificado») y sin terminar, sin ediciones sueltas y sin movimiento hace más de 2 h: «Faltan X por verificar
+(los guiones …) y después el check final» o «Falta el check final». Menciona a Faus y Gero M (nunca a RESPONSABLE_HUB: el check
+final lo da Faus) y le deja la campanita a Faus (`GUIONES_REVISOR_FAUS`). Clave `guiones_revision_pendiente:<tanda>:<día>`. Las
+tandas que nadie empezó a revisar las siguen cubriendo los recordatorios de 24/48 h (`avisoRevision.ts`), que ahora suman un
+renglón con cómo va la verificación (`estadoVerificacion`): «Van 5 de 6 verificados: falta el 3…», «Los 6 verificados: falta el
+check final» o «Ninguno verificado todavía».

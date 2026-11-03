@@ -1,7 +1,7 @@
 // node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-guiones-recordatorio.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-const { pendientesSinVerificar, alertaSinVerificar, notificacionesSinVerificar, rolDeEditor, correrRecordatorio } = await import('../lib/bot/guiones/recordatorio.ts')
+const { pendientesSinVerificar, alertaSinVerificar, notificacionesSinVerificar, rolDeEditor, correrRecordatorio, revisionesPendientes, alertaRevision, notificacionesRevision } = await import('../lib/bot/guiones/recordatorio.ts')
 
 const AHORA = new Date('2026-11-03T12:00:00Z')
 const hace = h => new Date(AHORA.getTime() - h * 3_600_000).toISOString()
@@ -61,4 +61,44 @@ test('correr: dry no avisa; real avisa una vez por tanda', async () => {
   const r = await correrRecordatorio(deps, { ahora: AHORA })
   assert.equal(alertas.length, 1); assert.ok(notis.length >= 1)
   assert.equal(r.dia, '2026-11-03')
+})
+
+const vv = h => ({ quien: 'Faus', email: 'x@y.z', cuando: hace(h) })
+
+test('revisión a medias: 6/6 verificados sin check final → «falta el check final» a Faus y Gero M', () => {
+  const g = Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, { verificado: vv(5) }]))
+  const [r] = revisionesPendientes([fila(g)], AHORA)
+  assert.deepEqual(r.faltan, []); assert.equal(r.total, 6)
+  const a = alertaRevision(r, '2026-11-03')
+  assert.equal(a.clave, 'guiones_revision_pendiente:9:2026-11-03')
+  assert.deepEqual([...a.menciones], ['faus', 'gero_m'])
+  assert.match(a.lineas.join(' '), /Falta el check final: van 6 de 6/)
+  assert.doesNotMatch(a.lineas.join(' '), /Tomi|Tomás/)
+  const ns = notificacionesRevision(r, '2026-11-03', { GUIONES_REVISOR_FAUS: 'faus@ejemplo.test', KICKOFF_REVISOR_TOMI: 'tomi@ejemplo.test' })
+  assert.deepEqual(ns.map(n => n.paraEmail), ['faus@ejemplo.test'])
+})
+
+test('revisión a medias: 5/6 → «falta 1 por verificar»; no se pisa con lo editado sin verificar ni avisa lo intacto o reciente', () => {
+  const g = Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, n === 3 ? {} : { verificado: vv(5) }]))
+  const [r] = revisionesPendientes([fila(g)], AHORA)
+  assert.deepEqual(r.faltan, [3])
+  assert.match(alertaRevision(r, '2026-11-03').lineas[0], /^Falta 1 por verificar \(el guion 3\) y después el check final: van 5 de 6/)
+  // editado sin verificar: lo cubre pendientesSinVerificar
+  assert.equal(revisionesPendientes([fila({ ...g, 3: { editado: { quien: 'Faus', cuando: hace(5) } } })], AHORA).length, 0)
+  // nadie empezó: no es «a medias»
+  assert.equal(revisionesPendientes([fila({ 1: {}, 2: {} })], AHORA).length, 0)
+  // la última verificación es de hace menos de 2 h: sigue revisando
+  assert.equal(revisionesPendientes([fila({ ...g, 6: { verificado: vv(1) } })], AHORA).length, 0)
+  assert.equal(revisionesPendientes([fila(g, 'aprobada')], AHORA).length, 0)
+})
+
+test('correr: avisa también la revisión a medias', async () => {
+  const alertas = []
+  const g = Object.fromEntries([1, 2].map(n => [n, { verificado: vv(5) }]))
+  const deps = { leer: async () => [fila(g)], alertar: async a => { alertas.push(a); return { estado: 'enviado' } }, notificar: async () => {} }
+  const d = await correrRecordatorio(deps, { ahora: AHORA, dry: true })
+  assert.deepEqual(d.revisiones, [{ id: 9, idCrm: 'CUENTA_QA', faltan: [], total: 2 }]); assert.equal(alertas.length, 0)
+  const r = await correrRecordatorio(deps, { ahora: AHORA })
+  assert.equal(alertas.length, 1); assert.equal(alertas[0].tipo, 'guiones_revision_pendiente')
+  assert.match(r.resultados[0], /check final/)
 })

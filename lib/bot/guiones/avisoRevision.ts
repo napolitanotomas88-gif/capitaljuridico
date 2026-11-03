@@ -69,6 +69,17 @@ export function etapaQueToca(desde: string, ahora: Date): EtapaRecordatorio | nu
 
 export const claveRecordatorio = (r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio) => `guiones_revision:${r.tanda_id}:${new Date(r.desde).toISOString()}:${etapa}`
 
+/** Cómo va la verificación de la tanda, para los recordatorios (CONSULTOR, 3/11/2026): «Van 5 de 6 verificados: falta el 3»,
+ *  «Los 6 verificados: falta el check final» o «Ninguno verificado todavía». Puro. */
+export function estadoVerificacion(fila: Pick<FilaTanda, 'guiones'>): string {
+  const gs = Object.entries(fila.guiones), total = gs.length
+  const faltan = gs.filter(([, g]) => !(g.verificado && typeof g.verificado === 'object')).map(([n]) => Number(n)).sort((a, b) => a - b)
+  if (!faltan.length) return `Los ${total} verificados: falta el check final.`
+  if (faltan.length === total) return 'Ninguno verificado todavía.'
+  const cuales = faltan.length === 1 ? `el ${faltan[0]}` : `${faltan.slice(0, -1).join(', ')} y ${faltan[faltan.length - 1]}`
+  return `Van ${total - faltan.length} de ${total} verificados: ${faltan.length === 1 ? 'falta' : 'faltan'} ${cuales} y después el check final.`
+}
+
 /** El recordatorio de 24 h (Faus y Gero M) o de 48 h (escala a Gero M: «¿lo destrabás?»). */
 export function alertaRecordatorio(fila: FilaTanda, r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio, ahora: Date): Alerta {
   const h = horasDesde(r.desde, ahora)
@@ -77,8 +88,8 @@ export function alertaRecordatorio(fila: FilaTanda, r: Pick<Ronda, 'tanda_id' | 
     emoji: etapa === 'rec48' ? '🚩' : '⏰',
     titulo: `Guiones sin revisar hace ${h} h (tanda ${fila.tanda})`, cliente: nombreDe(fila),
     lineas: etapa === 'rec48'
-      ? [`Faus lleva ${h} h sin revisar la tanda ${fila.tanda} de ${nombreDe(fila)}; Gero M, ¿lo destrabás?`]
-      : ['Faus, ¿la podés revisar? Gero M, atento.'],
+      ? [`Faus lleva ${h} h sin revisar la tanda ${fila.tanda} de ${nombreDe(fila)}; Gero M, ¿lo destrabás?`, estadoVerificacion(fila)]
+      : ['Faus, ¿la podés revisar? Gero M, atento.', estadoVerificacion(fila)],
     link: linkDe(fila), menciones: MENCIONES_REC[etapa],
   }
 }
