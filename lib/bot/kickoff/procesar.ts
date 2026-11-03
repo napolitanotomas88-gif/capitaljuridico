@@ -711,6 +711,8 @@ export interface TareasTrasWebhook {
   ads: DepsAvisoAds | null
   /** Hasta cuándo puede ir el barrido (t0 + FIN_INVOCACION_MS, con margen). */
   deadline: number
+  /** Chequeo temprano de la cuenta de Meta apenas la ficha queda lista (cuentaTempranaServidor.ts, 3/11). */
+  cuentaTemprana?: (id: number) => Promise<unknown>
 }
 
 /**
@@ -724,6 +726,7 @@ export async function trasWebhook(id: number, firmo: string, t: TareasTrasWebhoo
     const mapa = r.mapa && r.mapa.plan !== 'nada' ? ` · mapa: ${r.mapa.estado ?? r.mapa.plan}` : ''
     const ads = r.ads ? ` · aviso a Valentino: ${r.ads.estado}` : ''
     console.log(`bot-kickoff: grabación ${id} [${firmo}] → ${r.estado}${r.duplicada_de ? ` de ${r.duplicada_de}` : ''}${r.motivo ? ` (${r.motivo})` : ''}${mapa}${ads}`)
+    if (r.estado === 'lista' && t.cuentaTemprana) await t.cuentaTemprana(id).catch(e => console.error('bot-kickoff: chequeo temprano de la cuenta —', motivoDe(e)))
   } catch (e) {
     console.error(`bot-kickoff: grabación ${id} [${firmo}] — falla inesperada:`, motivoDe(e))
   }

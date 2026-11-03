@@ -125,7 +125,13 @@ export function recortarVideos<V extends { nombre: string }>(videos: readonly V[
 export const TAMANO_322 = 3
 export const cantidadAnuncios = (videos: number) => Math.max(1, Math.ceil(videos / TAMANO_322))
 /** Una idea a cargar: sus videos de Drive (hasta 3, un anuncio cada uno) y, si se pudieron escribir desde los guiones, los 2 textos y los 2 títulos (copys.ts). */
-export interface GrupoBorrador { videos: { nombre: string; drive: string }[]; textos: string[]; titulos: string[]; guiones: string[] }
+export interface GrupoBorrador {
+  videos: { nombre: string; drive: string }[]; textos: string[]; titulos: string[]; guiones: string[]
+  /** El copy propio de cada video (id de Drive → texto), del Doc de ADS (docAds.ts, 3/11): va de texto principal de SU anuncio. */
+  copyPorVideo?: Record<string, string>
+}
+/** ¿El grupo tiene copy para cada anuncio? (textos del guion, o el copy del Doc para todos sus videos) */
+export const grupoConCopy = (g: GrupoBorrador): boolean => g.textos.length > 0 || (g.videos.length > 0 && g.videos.every(v => !!g.copyPorVideo?.[v.drive]))
 
 const ddmm = (ms: number) => new Date(ms).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
 const ddmmaa = (ms: number) => new Date(ms).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: '2-digit' })
@@ -160,10 +166,10 @@ export async function crearEnPausa(cuenta: string, x: {
   }
   const faltan: string[] = []
   // 1) Videos (Meta los baja de Drive: la carpeta «Clientes» está compartida por enlace)
-  const vids: { nombre: string; id: string; grupo: number }[] = []
+  const vids: { nombre: string; id: string; grupo: number; drive: string }[] = []
   for (const [i, gr] of x.grupos.entries()) for (const v of gr.videos) {
     const r = await g.post(`${cuenta}/advideos`, { name: sinExtension(v.nombre), file_url: `https://drive.usercontent.google.com/download?id=${v.drive}&export=download&confirm=t` })
-    vids.push({ nombre: sinExtension(v.nombre), id: String(r.id), grupo: i })
+    vids.push({ nombre: sinExtension(v.nombre), id: String(r.id), grupo: i, drive: v.drive })
   }
   for (const v of vids) {
     for (;;) {
@@ -210,12 +216,15 @@ export async function crearEnPausa(cuenta: string, x: {
         n++
         const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
         const uri = ((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri
-        const vd: Json = { ...x.anuncio.video_data, video_id: v.id, image_url: uri, ...(directo ? { message: directo } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
+        // Con el Doc de ADS (3/11), el copy de ESTE video es el texto principal (texto 1); la variación amplia, el 2
+        const principal = gr.copyPorVideo?.[v.drive] ?? directo
+        const vd: Json = { ...x.anuncio.video_data, video_id: v.id, image_url: uri, ...(principal ? { message: principal } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
         delete vd.image_hash
         delete vd.link_description   // 3:2:2: sin descripciones
-        const textos = gr.textos.length ? [directo, ...gr.textos.filter(z => z !== directo)] : []
+        const resto = gr.copyPorVideo?.[v.drive] ? gr.textos : gr.textos.filter(z => z !== directo)
+        const textos = principal ? [principal, ...resto.filter(z => z !== principal)].slice(0, 2) : []
         const variantes = textos.length > 1 || gr.titulos.length > 1
-        const nombreAd = directo ? `${nombreAnuncio(directo, n)} · V${numeroOVideo(v.nombre)}` : v.nombre
+        const nombreAd = principal ? `${nombreAnuncio(principal, n)} · V${numeroOVideo(v.nombre)}` : v.nombre
         const cr = await g.post(`${cuenta}/adcreatives`, {
           name: `${v.nombre} · Tanda ${x.tanda ?? '?'}`,
           object_story_spec: { page_id: x.anuncio.page_id, ...(x.anuncio.instagram_user_id ? { instagram_user_id: x.anuncio.instagram_user_id } : {}), video_data: vd },
@@ -237,7 +246,7 @@ export async function crearEnPausa(cuenta: string, x: {
   await verificarEnPausa(deps.graph, [...(nueva ? [{ id: campana.id, tipo: 'campaña' as const }] : []),
     ...conjuntos.flatMap(c => [{ id: c.id, tipo: 'conjunto' as const }, ...c.anuncios.map(id => ({ id, tipo: 'anuncio' as const }))])])
   const nAd = (i: number) => `idea ${i + 1}`
-  const sinTextos = x.grupos.map((gr, i) => (gr.textos.length ? null : nAd(i))).filter(Boolean)
+  const sinTextos = x.grupos.map((gr, i) => (grupoConCopy(gr) ? null : nAd(i))).filter(Boolean)
   if (sinTextos.length) faltan.push(`${sinTextos.length === x.grupos.length ? 'el copy' : `el copy del ${sinTextos.join(', ')}`} es el del anuncio ganador: escribí los 2 textos y los 2 títulos`)
   const cortos = x.grupos.map((gr, i) => (gr.videos.length < TAMANO_322 ? `la ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
   if (cortos.length) faltan.push(`3:2:2 pide 3 videos por idea y ${cortos.join(', ')}: sumale de la próxima tanda o dejalo así`)

@@ -11,6 +11,8 @@ import { avisoAdsEncendido, idValentino, varCanalAds, webhookKickoffAds } from '
 import { MIN_BYTES_SECRETO, estadoGrabadores, quienDe, secretosWebhook, variablesIgnoradas, verificarFirmaVarios, type Quien } from '@/lib/bot/kickoff/grabadores'
 import { ErrorFathomApi, estadoHttpDe, traerReunion } from '@/lib/bot/kickoff/fathomApi'
 import { PLAZO_BAJAS_MS, procesarLlamadaBajasReal } from '@/lib/bot/bajas/servidor'
+import { depsRechequeoReales, rechequearCuenta } from '@/lib/bot/kickoff/rechequeo'
+import { chequearCuentaFicha } from '@/lib/bot/kickoff/cuentaTempranaServidor'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -109,6 +111,7 @@ async function webhookFathom(req: Request): Promise<NextResponse> {
     purgar: () => purgarPayloadsViejos(),
     ads: depsAvisoAdsReales(),
     deadline: t0 + FIN_INVOCACION_MS - 2_000,
+    cuentaTemprana: id => chequearCuentaFicha(id),
   }))
   // Etapa Bajas (lib/bot/bajas/*, docs/BOT-BAJAS-CJ.md): la MISMA grabación, sin otro webhook, en su PROPIO after() y con su
   // PROPIO tope (t0 + 275 s, antes de los ~280 s del kickoff). Lo que no es de renovación (una kickoff, una reunión interna)
@@ -164,6 +167,14 @@ async function manual(req: Request): Promise<NextResponse> {
       dry, deps: depsAvisoAdsReales(), leer: leerKickoff, config: configAvisoAds(), deadline: t0 + FIN_INVOCACION_MS - 2_000,
     })
     return json({ recording_id: id, aviso_ads: r }, r.estado === 'error' ? 502 : 200)
+  }
+  // Solo volver a chequear la cuenta de Meta de una ficha lista (rechequeo.ts): 1 = las de «Cuentas Meta»; act_… = esa
+  const cuenta = u.searchParams.get('cuenta')
+  if (cuenta !== null) {
+    if (id === null) return json({ error: 'cuenta va con recording_id: ?recording_id=123&cuenta=1' }, 400)
+    if (!baseConfigurada()) return json({ error: 'falta DATABASE_URL' }, 503)
+    const r = await rechequearCuenta(id, await depsRechequeoReales(), { cuenta: cuenta === '1' ? null : cuenta, dry })
+    return json(r, r.estado === 'error' ? 502 : r.estado === 'no_existe' ? 404 : r.estado === 'no_es_kickoff' ? 409 : 200)
   }
   let payload: unknown
   let origen: Origen
@@ -234,8 +245,14 @@ async function manual(req: Request): Promise<NextResponse> {
   }
   // El plazo y el tope duro de las dependencias cuentan desde que entró el pedido (incluyen lo que tardaron la base y
   // Fathom, hasta 50 s), no desde que arranca el proceso: si no, el aviso de error podía quedar después de los 300 s
-  const r = await procesarKickoff(payload, depsReales(t0), { dry, forzar, deadline: t0 + PLAZO_MS, grabador })
+  // &sin_guiones=1 (el reintento de una kickoff perdida, kickoffPerdida.ts): la ficha sin arrancar la tanda de guiones
+  const deps = depsReales(t0)
+  if (u.searchParams.get('sin_guiones') === '1') deps.dispararGuiones = undefined
+  const r = await procesarKickoff(payload, deps, { dry, forzar, deadline: t0 + PLAZO_MS, grabador })
   if (r.estado === 'invalida') return json({ error: r.motivo, origen }, 400)
+  // La ficha quedó lista (reproceso o reintento de una kickoff perdida): el chequeo temprano de su cuenta de Meta
+  // (no en los reintentos automáticos: esos clientes los barre la corrida de las 9:05 si siguen por lanzar)
+  if (r.estado === 'lista' && !dry && u.searchParams.get('sin_guiones') !== '1' && typeof r.recording_id === 'number') await chequearCuentaFicha(r.recording_id).catch(() => null)
   return json({ ...r, origen, ...(fathom ? { fathom } : {}) }, r.estado === 'error' ? 500 : 200)
 }
 

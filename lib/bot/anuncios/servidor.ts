@@ -100,7 +100,7 @@ export function depsVideos(t?: Pick<Tablero, 'filas'>): DepsVideos {
 }
 
 /** Lo que llama la ruta de la alerta diaria, después del seguimiento. Nunca tira. */
-export async function correrVideos(t: Tablero, op: { dry?: boolean; deadline?: number } = {}): Promise<ResultadoVideos | { apagado: true }> {
+export async function correrVideos(t: Tablero, op: { dry?: boolean; deadline?: number; cubiertos?: ReadonlySet<string> } = {}): Promise<ResultadoVideos | { apagado: true }> {
   if (!videosEncendido()) return { apagado: true }
   try {
     return await avisarVideosNuevos(t, depsVideos(t), op)

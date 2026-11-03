@@ -242,13 +242,13 @@ export interface DepsVideos {
   valentino: string | null
   ahora(): number
 }
-export interface AvisoVideos { clave: string; cliente: string; texto: string; estado: 'enviado' | 'ya_salio' | 'dudoso' | 'rechazado' | 'error' | 'dry' | 'sin_tiempo'; motivo?: string }
+export interface AvisoVideos { clave: string; cliente: string; texto: string; estado: 'enviado' | 'ya_salio' | 'dudoso' | 'rechazado' | 'error' | 'dry' | 'sin_tiempo' | 'doc'; motivo?: string }
 export interface ResultadoVideos { carpetas: number; avisos: AvisoVideos[]; errores: string[] }
 
 const motivo = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').replace(/\s+/g, ' ').slice(0, 200)
 const RESERVA_MS = 8_000
 
-export async function avisarVideosNuevos(t: Pick<Tablero, 'filas' | 'porLanzar'>, deps: DepsVideos, op: { dry?: boolean; deadline?: number; desde?: string } = {}): Promise<ResultadoVideos> {
+export async function avisarVideosNuevos(t: Pick<Tablero, 'filas' | 'porLanzar'>, deps: DepsVideos, op: { dry?: boolean; deadline?: number; desde?: string; cubiertos?: ReadonlySet<string> } = {}): Promise<ResultadoVideos> {
   const errores: string[] = [], avisos: AvisoVideos[] = []
   let clientes: EditadosCliente[]
   try { clientes = await deps.editados(op.desde ?? desdeVideos()) } catch (e) { return { carpetas: 0, avisos, errores: [`drive: ${motivo(e)}`] } }
@@ -260,6 +260,8 @@ export async function avisarVideosNuevos(t: Pick<Tablero, 'filas' | 'porLanzar'>
     // Corriendo y por lanzar juntos: «Lucas Tapia» (por lanzar) no se tiene que cruzar con «Lucas Quiroga» (corriendo)
     const c = cruzarCliente(s.carpetaCliente, [...t.filas.map(f => ({ cliente: f.cliente, fila: f, pl: null })), ...t.porLanzar.map(p => ({ cliente: p.cliente, fila: null, pl: p }))])
     const fila = c?.fila ?? null, pl = c?.pl ?? null
+    // El Doc de ADS ya lanza a este cliente (LISTO, docAdsLanzar.ts, 3/11): sus editados se suman ahí, no sale otro aviso
+    if (!fila && pl && op.cubiertos?.has(pl.cliente)) { avisos.push({ clave: s.clave, cliente: pl.cliente, texto: '', estado: 'doc', motivo: 'lo lanza el Doc de ADS' }); continue }
     // Presupuesto chico (≤ USD 300/mes): 5 videos como máximo; los demás quedan para la próxima rotación
     const mensual = fila ? fila.presupuesto.mensualUSD : pl?.kickoff ? mensualDeFicha(pl.kickoff.presupuesto.texto) : null
     const { usar, fuera } = recortarVideos(s.videos, mensual)
