@@ -12,7 +12,8 @@
 //     que el reintento NO arranca la tanda (si le faltan: POST /api/bot/guiones {recording_id}). Si no era una kickoff, el
 //     bot la marca no_kickoff y no vuelve a salir.
 // Desde el 3/11 (pedido de Tomás): solo kickoffs de los últimos DIAS_MIRAR (30) días y que NO tengan campaña ya lanzada (el
-// cliente del título gasta en el tablero o tiene campaña en su cuenta en los últimos 120 días): esas ni se reintentan ni se avisan.
+// cliente del título gasta en el tablero, su bloque del Doc de ADS es histórico o tiene campaña en su cuenta en los últimos 120
+// días): esas ni se reintentan ni se avisan.
 // KICKOFF_PERDIDAS=0 lo apaga. Con dry no reclama, no avisa ni reintenta. Nunca tira.
 import type { ReunionListada } from './fathomApi'
 import type { Quien } from './grabadores'
@@ -186,7 +187,9 @@ export async function depsPerdidasReales(tablero?: Pick<Tablero, 'filas' | 'porL
       const xs = [...tablero.filas.map(f => ({ cliente: f.clienteCRM ?? f.cliente, pl: null })), ...[...tablero.porLanzar, ...(tablero.porLanzarEsperando ?? [])].map(pl => ({ cliente: pl.cliente, pl }))]
       const c = cruzarNombreDoc(nombre, xs)
       if (!c || c.fuerza !== 'firme') return null
-      return c.x.pl ? tieneCampanaReciente(c.x.pl) : true   // con fila en el tablero = gasta
+      if (!c.x.pl) return true                     // con fila en el tablero = gasta
+      if (c.x.pl.docAds?.historico) return true    // su bloque del Doc de ADS es de la línea de base: ya lanzado
+      return tieneCampanaReciente(c.x.pl)
     } : undefined,
   }
 }
