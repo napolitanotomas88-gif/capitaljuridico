@@ -2,6 +2,7 @@
 // Seis cuentas ficticias "(ejemplo)" con días de gasto y mensajes inventados, analizadas con las MISMAS reglas que el tablero
 // real (analizarCuenta), para revisar el diseño sin Meta, ClickUp ni la planilla. No se usa en producción: la pantalla
 // (components/anuncios/TableroAnuncios.tsx) solo lo pide con ?demo=1 y fuera de producción.
+import { causaSinGasto } from './sinGasto'
 import { analizarCuenta } from './reglas'
 import type { CuentaMeta, DiaInsight } from './meta'
 import type { FilaAnuncio, Tablero } from './tablero'   // solo tipos: tablero.ts es del servidor y este archivo va al navegador
@@ -46,8 +47,9 @@ export function tableroDemo(hoy: string): Tablero {
     const fila: FilaAnuncio = {
       ...a,
       presupuesto: { mensualUSD: 600 + i * 50, objetivoDiarioUSD: 20, realDiarioUSD: p.gasto, gastadoMesUSD: p.gasto * 24, proyeccionUSD: p.gasto * 31, ajusteDiarioUSD: null, fuente: 'ejemplo', estado: 'en_rango' },
-      id, idNum: id.replace('act_', ''), cliente: p.cliente, clienteCRM: p.cliente, cuenta: cuenta.nombre, negocio: null, moneda: 'USD',
+      id, idNum: id.replace('act_', ''), cliente: p.cliente, clienteCRM: p.cliente, idCrm: null, cuenta: cuenta.nombre, negocio: null, moneda: 'USD',
       links: { ads: '#', portfolio: null }, extra: false, pausado: !!p.pausado,
+      sinGasto: causaSinGasto({ ...a, pausado: !!p.pausado }, p.pausado ? { desde: hoy, hasta: null, vuelta: null, motivo: 'Ejemplo' } : null),
       guiones: { estado: i % 3 === 0 ? 'pendiente' : 'grabado', detalle: 'Ejemplo', alias: [] },
       sinDatosCuenta: false,
       estadoSemanal: { semaforo: a.semaforo, motivos: a.motivos, frase: a.frase, prioridad: a.prioridad, nivel: a.cpl.nivel },

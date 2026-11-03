@@ -41,6 +41,17 @@ describe('pausa y reanudar', () => {
     assert.equal(typeof planPausa(cliente(), { tipo: 'pausa', desde: '2026-10-28' }, hoy, null), 'string')
     assert.equal(typeof planPausa(cliente(), { tipo: 'pausa' }, hoy, { desde: '2026-10-01', dias: 26, accionId: 'x', modo: 'sombra' }), 'string')
   })
+  test('pausa con fecha de vuelta o condición; ajuste de la vuelta en un cliente ya pausado', () => {
+    const abierta = { desde: '2026-10-20', dias: 7, accionId: 'x', modo: 'real' }
+    assert.match(planPausa(cliente(), { tipo: 'pausa', hasta: '2026-11-15' }, hoy, null).resumen, /hasta 2026-11-15/)
+    assert.equal(typeof planPausa(cliente(), { tipo: 'pausa', desde: '2026-10-25', hasta: '2026-10-24' }, hoy, null), 'string')
+    assert.match(planPausa(cliente(), { tipo: 'pausa', vuelta: 'cuando agende la proyección' }, hoy, null).nota, /vuelve cuando agende la proyección/)
+    const aj = planPausa(cliente({ estado: 'PAUSADO' }), { tipo: 'pausa', ajuste: true, hasta: '2026-11-30' }, hoy, abierta)
+    assert.equal(aj.estadoNuevo, 'PAUSADO'); assert.match(aj.nota, /Vuelta de la pausa: 30\/11/)
+    assert.equal(typeof planPausa(cliente(), { tipo: 'pausa', ajuste: true, hasta: '2026-11-30' }, hoy, null), 'string')   // no está pausado
+    assert.equal(typeof planPausa(cliente({ estado: 'PAUSADO' }), { tipo: 'pausa', ajuste: true }, hoy, abierta), 'string')   // sin vuelta
+    assert.equal(typeof planPausa(cliente({ estado: 'PAUSADO' }), { tipo: 'pausa', ajuste: true, hasta: '2026-10-19' }, hoy, abierta), 'string')   // antes del inicio
+  })
   test('reanudar suma los días pausados como extensión', () => {
     const p = planReanudar(cliente(), { tipo: 'reanudar' }, hoy, { desde: '2026-10-07', dias: 20, accionId: 'x', modo: 'sombra' }, 'ac_r')
     assert.equal(p.estadoNuevo, 'ACTIVO')

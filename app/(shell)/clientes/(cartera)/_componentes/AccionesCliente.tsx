@@ -7,12 +7,12 @@ import { EditarDatos } from './EditarDatos'
 import { SeguimientoRespuesta } from './SeguimientoRespuesta'
 import type { Accion, CambioPlan, ModoAcciones, RespuestaAccion, RespuestaHistorial } from '@/lib/clientes/acciones/tipos'
 
-type TipoForma = 'servicio' | 'pausa' | 'reanudar' | 'pago' | 'renovacion' | 'proyeccion' | 'archivar' | 'restaurar'
-type Forma = { tipo: TipoForma; duracion: string; hasta: string; dias: string; fecha: string; desde: string; motivo: string; usd: string; ars: string; concepto: string; cuenta: string; programa: string; fuente: string; setter: string; tipoVenta: string; nombre: string; confirmado: boolean; meses: string; precio: string; estadoProyeccion: string }
-const TIPOS: TipoForma[] = ['servicio', 'pausa', 'reanudar', 'pago', 'renovacion', 'proyeccion', 'archivar', 'restaurar']
-const TITULOS: Record<TipoForma, string> = { servicio: 'Sumar servicio', pausa: 'Pausar servicio', reanudar: 'Reanudar servicio', pago: 'Agregar pago', renovacion: 'Registrar renovación', proyeccion: 'Llamada de proyección', archivar: 'Archivar cliente', restaurar: 'Restaurar cliente' }
+type TipoForma = 'servicio' | 'pausa' | 'vuelta' | 'reanudar' | 'pago' | 'renovacion' | 'proyeccion' | 'archivar' | 'restaurar'
+type Forma = { tipo: TipoForma; duracion: string; hasta: string; dias: string; fecha: string; desde: string; motivo: string; usd: string; ars: string; concepto: string; cuenta: string; programa: string; fuente: string; setter: string; tipoVenta: string; nombre: string; confirmado: boolean; meses: string; precio: string; estadoProyeccion: string; vuelta: string }
+const TIPOS: TipoForma[] = ['servicio', 'pausa', 'vuelta', 'reanudar', 'pago', 'renovacion', 'proyeccion', 'archivar', 'restaurar']
+const TITULOS: Record<TipoForma, string> = { servicio: 'Sumar servicio', pausa: 'Pausar servicio', vuelta: 'Fecha de vuelta', reanudar: 'Reanudar servicio', pago: 'Agregar pago', renovacion: 'Registrar renovación', proyeccion: 'Llamada de proyección', archivar: 'Archivar cliente', restaurar: 'Restaurar cliente' }
 const MODOS: Record<ModoAcciones, string> = { sombra: 'Simulación: los cambios todavía no se aplican', prueba: 'Prueba controlada: sólo cliente de prueba', real: 'Cambios sincronizados con el CRM' }
-const nuevaForma = (tipo: TipoForma, hoy: string): Forma => ({ tipo, duracion: '1m', hasta: '', dias: '', fecha: hoy, desde: '', motivo: '', usd: '', ars: '', concepto: '', cuenta: '', programa: '', fuente: '', setter: '', tipoVenta: '', nombre: '', confirmado: false, meses: '4', precio: '', estadoProyeccion: 'agendada' })
+const nuevaForma = (tipo: TipoForma, hoy: string): Forma => ({ tipo, duracion: '1m', hasta: '', dias: '', fecha: hoy, desde: '', motivo: '', usd: '', ars: '', concepto: '', cuenta: '', programa: '', fuente: '', setter: '', tipoVenta: '', nombre: '', confirmado: false, meses: '4', precio: '', estadoProyeccion: 'agendada', vuelta: '' })
 const tipoInicial = (x: string | undefined, finanzas: boolean) => TIPOS.includes(x as TipoForma) && (finanzas || !['pago', 'renovacion'].includes(x!)) ? x as TipoForma : null
 const dia = (s: string) => s.split('-').reverse().join('/')
 const numero = (s: string) => Number(s.replace(',', '.'))
@@ -38,7 +38,8 @@ function cuerpoDe(f: Forma, nombre: string): Record<string, unknown> | string {
     const dias = numero(f.dias)
     return Number.isInteger(dias) && dias >= 1 && dias <= 365 ? { tipo: f.tipo, duracion: f.duracion, dias, motivo } : 'Indicá una fecha o entre 1 y 365 días.'
   }
-  if (f.tipo === 'pausa') return { tipo: f.tipo, desde: f.fecha, motivo }
+  if (f.tipo === 'vuelta') return f.hasta || f.vuelta.trim() ? { tipo: 'pausa', ajuste: true, desde: f.desde || undefined, hasta: f.hasta || undefined, vuelta: f.hasta ? undefined : f.vuelta.trim() || undefined, motivo } : 'Indicá la fecha de vuelta o cuándo vuelve.'
+  if (f.tipo === 'pausa') return { tipo: f.tipo, desde: f.fecha, hasta: f.hasta || undefined, vuelta: f.hasta ? undefined : f.vuelta.trim() || undefined, motivo }
   if (f.tipo === 'reanudar') return { tipo: f.tipo, fecha: f.fecha, desdePausa: f.desde || undefined, motivo }
   if (f.tipo === 'pago') {
     if (!Number.isFinite(numero(f.usd)) || numero(f.usd) <= 0) return 'El monto en USD tiene que ser mayor que cero.'
@@ -98,7 +99,7 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
   }, [base, demo, forma?.tipo, puedeEditar])
   const abrir = (tipo: TipoForma) => {
     if (intentoPendiente || datosPendientes || enVuelo.current) return
-    clave.current = null; cuerpoConfirmado.current = null; setForma(nuevaForma(tipo, hoy)); setRevisando(false); setPlanPrevio([]); setRenovacionPrevia(null); setMensaje(null)
+    clave.current = null; cuerpoConfirmado.current = null; setForma(tipo === 'vuelta' ? { ...nuevaForma(tipo, hoy), desde: hist?.pausa?.desde ?? '', hasta: hist?.pausa?.hasta ?? '', vuelta: hist?.pausa?.vuelta ?? '' } : nuevaForma(tipo, hoy)); setRevisando(false); setPlanPrevio([]); setRenovacionPrevia(null); setMensaje(null)
   }
   const revisar = async () => {
     if (!forma || enVuelo.current) return
@@ -171,10 +172,10 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
     {hist && <p className={`ac-modo ac-modo--${hist.modo}`}>{MODOS[hist.modo]}</p>}
     {errorHist && <p role="alert" className="ac-mensaje ac-mensaje--error">{errorHist}</p>}
     {archivado && <p role="status" className="ac-pausa">Cliente archivado: fuera de la cartera activa. Podés restaurarlo.</p>}
-    {pausa && <p className="ac-pausa" role="status">Pausado desde el {dia(pausa.desde)} ({pausa.dias} días)</p>}
+    {pausa && <p className="ac-pausa" role="status">Pausado desde el {dia(pausa.desde)} ({pausa.dias} días){pausa.hasta ? ` · vuelve el ${dia(pausa.hasta)}` : pausa.vuelta ? ` · vuelve ${pausa.vuelta}` : ' · sin fecha de vuelta'}</p>}
     {!puedeEditar ? <p className="cj-texto-2">Los cambios los hacen Tomás, Gero A, Gero M y Aylu.</p> : <>
       <div className="ac-botones" role="group" aria-label="Acciones sobre el cliente">
-        {(archivado ? ['restaurar'] : ['servicio', pausado ? 'reanudar' : 'pausa', ...(puedeFinanzas ? ['pago', 'renovacion'] : []), 'proyeccion', 'archivar']).map(t => <button type="button" className="ac-boton" key={t} onClick={() => abrir(t as TipoForma)} disabled={enviando || intentoPendiente || datosPendientes}>{TITULOS[t as TipoForma]}</button>)}
+        {(archivado ? ['restaurar'] : ['servicio', ...(pausado ? ['reanudar', 'vuelta'] : ['pausa']), ...(puedeFinanzas ? ['pago', 'renovacion'] : []), 'proyeccion', 'archivar']).map(t => <button type="button" className="ac-boton" key={t} onClick={() => abrir(t as TipoForma)} disabled={enviando || intentoPendiente || datosPendientes}>{TITULOS[t as TipoForma]}</button>)}
       </div>
       {!archivado && !forma && !intentoPendiente && <EditarDatos idCrm={idCrm} demo={demo} alGuardar={() => void cargar()} alPendiente={setDatosPendientes} />}
       {forma && <form className="ac-forma" onSubmit={e => { e.preventDefault(); if (revisando) void confirmar(); else void revisar() }}>
@@ -182,6 +183,8 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
         <fieldset className="ac-campos" disabled={revisando || enviando}>
           {forma.tipo === 'servicio' && <>{opcion('duracion', 'Duración', ['1m', '2s', 'personalizado'])}{forma.duracion === 'personalizado' && <>{campo('hasta', 'Hasta el', 'date')}{campo('dias', 'O cantidad de días', 'number')}</>}</>}
           {['pausa', 'reanudar', 'pago', 'renovacion', 'proyeccion'].includes(forma.tipo) && campo('fecha', forma.tipo === 'renovacion' ? 'Inicio de la renovación' : 'Fecha', 'date', true)}
+          {(forma.tipo === 'pausa' || forma.tipo === 'vuelta') && campo('hasta', `Pausado hasta (fecha de vuelta${forma.tipo === 'pausa' ? ', opcional' : ''})`, 'date')}
+          {(forma.tipo === 'pausa' || forma.tipo === 'vuelta') && !forma.hasta && campo('vuelta', 'Si no hay fecha: vuelve cuando… (opcional)')}
           {forma.tipo === 'reanudar' && !pausa && campo('desde', 'Pausado desde (si se cargó fuera del Despacho)', 'date', true)}
           {forma.tipo === 'pago' && <>{campo('usd', 'Monto en USD', 'number', true)}{campo('ars', 'Monto en ARS (si corresponde)', 'number')}{opcion('concepto', 'Concepto', ['', 'Fee', '1ra Cuota', '2da Cuota', '3ra Cuota', '4ta Cuota', 'PIF', 'Renovación'])}{opcion('cuenta', 'Cuenta que recibió', ['', 'Tomi', 'Gero', 'Empresa'])}{opcion('tipoVenta', 'Tipo de venta', ['', ...(opcionesPago.tiposVenta ?? ['Front-end', 'Back-end'])])}{opcionesPago.programas?.length ? opcion('programa', 'Programa', ['', ...opcionesPago.programas]) : campo('programa', 'Programa')}{opcionesPago.fuentes?.length ? opcion('fuente', 'Fuente', ['', ...opcionesPago.fuentes]) : campo('fuente', 'Fuente')}{opcionesPago.setters?.length ? opcion('setter', 'Setter (si corresponde)', ['', ...opcionesPago.setters]) : campo('setter', 'Setter (si corresponde)')}</>}
           {forma.tipo === 'renovacion' && <>{campo('meses', 'Meses contratados (sin incluir créditos)', 'number', true)}{campo('precio', 'Precio contratado en USD', 'number', true)}<p className="cj-texto-2">Los meses liberados y vigentes por referidos se suman automáticamente al confirmar. Revisá el detalle antes de guardar. El cobro se carga aparte, con Agregar pago; los créditos en USD se canjean manualmente.</p></>}
@@ -189,7 +192,7 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
           {campo('motivo', forma.tipo === 'archivar' ? 'Motivo del archivo' : 'Motivo / nota (opcional)', 'text', forma.tipo === 'archivar')}
           {forma.tipo === 'archivar' && <><p>Se quitará de la cartera activa y de los seguimientos. Se conserva el historial para restaurarlo.</p>{campo('nombre', `Escribí el nombre exacto: ${nombre}`, 'text', true)}<label><input type="checkbox" checked={forma.confirmado} onChange={e => cambiar('confirmado', e.target.checked)} required /> Confirmo que quiero archivar a este cliente.</label></>}
         </fieldset>
-        {revisando && <div className="ac-revisar" role="status"><strong>Revisá antes de confirmar:</strong><ul className="ac-plan">{Object.entries(cuerpoDe(forma, nombre)).filter(([k, v]) => k !== 'tipo' && v !== undefined && v !== '').map(([k, v]) => <li key={k}>{({ duracion: 'Duración', hasta: 'Hasta', dias: 'Días', fecha: 'Fecha', desde: 'Desde', desdePausa: 'Inicio de pausa', usd: 'USD', ars: 'ARS', concepto: 'Concepto', cuenta: 'Cuenta', tipoVenta: 'Tipo de venta', programa: 'Programa', fuente: 'Fuente', setter: 'Setter', inicio: 'Inicio', meses: 'Meses', precio: 'Precio USD', estado: 'Estado', confirmacion: 'Cliente', confirmado: 'Confirmado', motivo: 'Nota' } as Record<string, string>)[k] ?? k}: {typeof v === 'boolean' ? 'Sí' : String(v)}</li>)}</ul>{!!planPrevio.length && <ul className="ac-plan">{planPrevio.map((p, i) => <li key={i}>{p.hoja} · {p.celda}: {p.antes || '—'} → {p.despues || '—'}</li>)}</ul>}<p>{hist?.modo === 'sombra' ? 'Es una simulación.' : `Se guardará para ${nombre} y se actualizará el Despacho.`}</p></div>}
+        {revisando && <div className="ac-revisar" role="status"><strong>Revisá antes de confirmar:</strong><ul className="ac-plan">{Object.entries(cuerpoDe(forma, nombre)).filter(([k, v]) => k !== 'tipo' && v !== undefined && v !== '').map(([k, v]) => <li key={k}>{({ duracion: 'Duración', hasta: 'Hasta', dias: 'Días', fecha: 'Fecha', desde: 'Desde', desdePausa: 'Inicio de pausa', vuelta: 'Vuelve', usd: 'USD', ars: 'ARS', concepto: 'Concepto', cuenta: 'Cuenta', tipoVenta: 'Tipo de venta', programa: 'Programa', fuente: 'Fuente', setter: 'Setter', inicio: 'Inicio', meses: 'Meses', precio: 'Precio USD', estado: 'Estado', confirmacion: 'Cliente', confirmado: 'Confirmado', motivo: 'Nota' } as Record<string, string>)[k] ?? k}: {typeof v === 'boolean' ? 'Sí' : String(v)}</li>)}</ul>{!!planPrevio.length && <ul className="ac-plan">{planPrevio.map((p, i) => <li key={i}>{p.hoja} · {p.celda}: {p.antes || '—'} → {p.despues || '—'}</li>)}</ul>}<p>{hist?.modo === 'sombra' ? 'Es una simulación.' : `Se guardará para ${nombre} y se actualizará el Despacho.`}</p></div>}
         {revisando && forma.tipo === 'renovacion' && renovacionPrevia && <ResumenRenovacion r={renovacionPrevia} />}
         {intentoPendiente && <p className="cj-texto-2" role="status">Estamos comprobando este intento. Conservá los datos y reintentá para confirmar el resultado sin duplicarlo.</p>}
         <div className="ac-fila"><button type="submit" className="cj-boton cj-boton--primario" disabled={enviando}>{enviando ? 'Guardando…' : intentoPendiente ? 'Comprobar este intento' : revisando ? forma.tipo === 'renovacion' ? 'Confirmar renovación' : 'Confirmar' : 'Revisar'}</button>{revisando && <button type="button" className="cj-boton" disabled={enviando || intentoPendiente} onClick={() => { clave.current = null; setRevisando(false); setRenovacionPrevia(null) }}>Volver a editar</button>}<button type="button" className="rc-limpiar" disabled={enviando || intentoPendiente} onClick={() => { setForma(null); setRevisando(false); setRenovacionPrevia(null); clave.current = null }}>Cancelar</button></div>

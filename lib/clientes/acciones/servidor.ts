@@ -33,7 +33,7 @@ export function leerCuerpoAccion(x: unknown): CuerpoAccion | string {
             };
             break;
         case 'pausa':
-            b = { tipo: 'pausa', desde: texto(o.desde), motivo };
+            b = { tipo: 'pausa', desde: texto(o.desde), hasta: texto(o.hasta), vuelta: texto(o.vuelta), motivo, ...(o.ajuste === true ? { ajuste: true } : {}) };
             break;
         case 'reanudar':
             b = {

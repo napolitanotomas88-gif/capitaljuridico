@@ -11,7 +11,7 @@ export const SHEET_GUIONES = process.env.SHEET_ID_GUIONES?.trim() ?? ''
 type Celda = string | number | boolean | null | undefined
 type Fila = Celda[]
 
-export interface ClienteCRM { nombre: string; estado: string }              // estado: ACTIVO | PAUSADO | FINALIZADO | INACTIVO
+export interface ClienteCRM { nombre: string; estado: string; id?: string }              // estado: ACTIVO | PAUSADO | FINALIZADO | INACTIVO
 export interface FilaCuentaMeta { cuenta: string; actual: boolean; clienteCRM: string }
 export interface FilaAlias { alias: string; cliente: string }
 export interface FilaGuion { alias: string; diaRealizado: string | null; grabado: boolean; fechaGrabacion: string | null; nota: string | null }
@@ -86,7 +86,7 @@ export async function leerSheets(hoy: string): Promise<DatosSheets> {
   ])
   const [agencia, cuentasMeta, alias] = crm
   return {
-    clientes: agencia.filter(r => txt(r[0]) && txt(r[1])).map(r => ({ nombre: txt(r[1]), estado: txt(r[2]).toUpperCase() })),
+    clientes: agencia.filter(r => txt(r[0]) && txt(r[1])).map(r => ({ nombre: txt(r[1]), estado: txt(r[2]).toUpperCase(), id: txt(r[0]).toUpperCase() })),
     cuentasMeta: cuentasMeta.filter(r => txt(r[0])).map(r => ({ cuenta: txt(r[0]), actual: !txt(r[1]).toUpperCase().startsWith('N'), clienteCRM: txt(r[2]) })),
     alias: alias.filter(r => txt(r[0]) && txt(r[1])).map(r => ({ alias: txt(r[0]), cliente: txt(r[1]) })),
     guiones: guiones[0].map(r => {
