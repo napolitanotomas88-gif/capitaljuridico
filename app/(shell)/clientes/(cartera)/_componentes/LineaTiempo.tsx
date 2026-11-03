@@ -57,10 +57,11 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
   const closers = useMemo(() => [...new Set(filas.map(x => x.closer).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [filas])
   const visibles = useMemo(() => filtrarRecorrido(filas, f), [filas, f])
   const grupos = useMemo(() => agruparPorEtapa(visibles), [visibles])
-  const enColumnas = (xs: FilaRecorrido[]) => xs.filter(x => f.cierre || !ETAPAS_CIERRE.includes(x.etapa)).length
+  const conCierre = f.cierre || f.texto.trim() !== ''   // al buscar por nombre también aparecen los pausados y las bajas (si no, una clienta pausada no se encontraba al buscarla)
+  const enColumnas = (xs: FilaRecorrido[]) => xs.filter(x => conCierre || !ETAPAS_CIERRE.includes(x.etapa)).length
   const cuentaFrenados = useMemo(() => enColumnas(filtrarRecorrido(filas, { ...f, frenados: true })), [filas, f])   // eslint-disable-line react-hooks/exhaustive-deps
   const cuentaVencen = useMemo(() => enColumnas(filtrarRecorrido(filas, { ...f, vencen: true })), [filas, f])         // eslint-disable-line react-hooks/exhaustive-deps
-  const columnas = f.etapa ? [f.etapa] : RECORRIDO.concat(f.cierre ? ETAPAS_CIERRE : [])
+  const columnas = f.etapa ? [f.etapa] : RECORRIDO.concat(conCierre ? ETAPAS_CIERRE : [])
   const totalRecorrido = filas.filter(x => !ETAPAS_CIERRE.includes(x.etapa)).length
   const mostrando = columnas.reduce((s, e) => s + grupos.get(e)!.length, 0)
   const activos = [
