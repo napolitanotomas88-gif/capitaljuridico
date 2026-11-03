@@ -143,7 +143,17 @@ export function textoTrabados(nuevos: ClienteTrabado[], siguen: ClienteTrabado[]
   if (viejos.length) lineas.push(`🕰️ Con el alta de hace más de ${DIAS_VIEJO} días y sin campaña visible (¿gastan en una cuenta que el token no ve, o con otro nombre en «Cuentas Meta»?): ${viejos.map(t => `${esc(t.cliente)}${t.idCrm ? ` (${t.idCrm})` : ''}`).join(' · ')}`)
   if (siguen.length) lineas.push(`Siguen trabados (ya avisados, ${siguen.length}): ${siguen.slice(0, 12).map(t => `${esc(t.cliente)} (${NOMBRE_ETAPA_TRABA[t.etapa].toLowerCase()}, ${t.dias} d)`).join(' · ')}${siguen.length > 12 ? ' …' : ''}`)
   lineas.push('El detalle de cada uno, en /anuncios → «Por lanzar». Nada se activa en Meta: todo queda en pausa hasta que Valen confirme.')
-  let txt = lineas.join('\n')
-  while (txt.length > 1900 && lineas.length > 3) { lineas.splice(lineas.length - 2, 1); txt = `${lineas.join('\n')}\n…` }
-  return txt.slice(0, 1900)
+  return lineas.join('\n')
+}
+
+/** Un texto largo en mensajes de Discord de hasta `max` caracteres, cortando entre renglones (nunca se pierde un cliente). */
+export function partirMensaje(txt: string, max = 1900): string[] {
+  const out: string[] = []
+  let actual = ''
+  for (const l of txt.split('\n')) {
+    const linea = l.length > max ? `${l.slice(0, max - 1)}…` : l
+    if (actual && actual.length + 1 + linea.length > max) { out.push(actual); actual = linea } else actual = actual ? `${actual}\n${linea}` : linea
+  }
+  if (actual) out.push(actual)
+  return out
 }

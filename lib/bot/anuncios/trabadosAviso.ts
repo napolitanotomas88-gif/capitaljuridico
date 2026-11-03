@@ -6,7 +6,7 @@
 // Menciona a Valen y a Tomás siempre, y a Faus / René / Gero M si alguno de los nuevos es suyo (si su ID está configurado).
 // ANUNCIOS_TRABADOS=0 lo apaga. Con dry (la vista previa de la alerta) no escribe ni manda nada. Nunca tira.
 import type { Tablero } from '@/lib/anuncios/tablero'
-import { clientesTrabados, textoTrabados, type ClienteTrabado, type EntradaTraba, type TandaTraba } from '@/lib/anuncios/trabados'
+import { clientesTrabados, partirMensaje, textoTrabados, type ClienteTrabado, type EntradaTraba, type TandaTraba } from '@/lib/anuncios/trabados'
 
 export interface DepsTrabados {
   hoy(): string
@@ -91,7 +91,7 @@ export async function depsTrabadosReales(): Promise<DepsTrabados> {
     soltar: reg.soltarAviso,
     enviar: async (texto, menciones) => {
       if (!webhook) throw new Error('falta DISCORD_WEBHOOK_ANUNCIOS')
-      return (await enviarDiscord(webhook, [texto], menciones))[0] ?? ''
+      return (await enviarDiscord(webhook, partirMensaje(texto), menciones))[0] ?? ''   // en varios mensajes si es largo
     },
     menciones: {
       valen: idDiscord(process.env.DISCORD_ID_VALENTINO), tomas: mk.tomi, faus: idDiscord(process.env.DISCORD_ID_FAUS),

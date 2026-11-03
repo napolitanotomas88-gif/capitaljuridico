@@ -10,6 +10,10 @@
 import { tokens } from '@/lib/bot/anuncios/docAds'
 
 export const DIAS_BARRIDO = 21
+/** Apellidos muy comunes: solos no alcanzan para una candidata clara. */
+const APELLIDOS_COMUNES = new Set(('gonzalez rodriguez gomez fernandez lopez diaz martinez perez garcia sanchez romero sosa alvarez torres ruiz '
+  + 'ramirez flores benitez acosta medina herrera suarez aguirre gimenez gutierrez pereyra rojas molina castro ortiz silva nuñez nunez '
+  + 'luna juarez cabrera rios ferreyra godoy morales dominguez moreno peralta vega carrizo quiroga ponce vazquez cardozo').split(/\s+/))
 /** Nombres de pila frecuentes: como segundo nombre no cuentan como apellido. */
 const NOMBRES_DE_PILA = new Set(('jose maria juan luis carlos ana pablo andrea jorge javier daniel diego lucas martin martina sofia sofi lucia laura '
   + 'florencia flor gabriel gabriela alejandro alejandra fernando fernanda esteban eduardo manuel miguel angel antonio francisco paula '
@@ -63,7 +67,8 @@ export function puntuarCuentas(cliente: { nombre: string; negocio?: string | nul
     if (completo && ts.length > 1) { puntos += 3; por.push(`nombre completo en ${completo[0]}`) }
     for (const a of apellidos) {
       const donde = campos.find(([, t]) => contiene(t, a))
-      if (donde && !completo) { puntos += 2; por.push(`apellido «${a}» en ${donde[0]}`) }
+      // Un apellido muy común («López») suma poco: solo no alcanza para proponer la cuenta
+      if (donde && !completo) { puntos += APELLIDOS_COMUNES.has(a) ? 1 : 2; por.push(`apellido «${a}»${APELLIDOS_COMUNES.has(a) ? ' (común)' : ''} en ${donde[0]}`) }
     }
     if (negocio.length >= 2) {
       const donde = campos.find(([, t]) => negocio.filter(w => contiene(t, w)).length >= 2)
