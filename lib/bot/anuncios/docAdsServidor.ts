@@ -26,14 +26,32 @@ const idValido = (id: string) => /^[A-Za-z0-9_-]{10,80}$/.test(id)
 
 
 /** Nombre y md5 de un archivo de Drive, o null si la cuenta de servicio no lo puede leer (sin compartir / borrado). */
-async function archivo(id: string): Promise<{ nombre: string; md5: string | null; video: boolean } | null> {
+async function archivo(id: string): Promise<{ nombre: string; md5: string | null; video: boolean; publico?: boolean } | null> {
   if (!idValido(id)) return null
   try {
     const r = await googleJson<{ name?: string; mimeType?: string; md5Checksum?: string; trashed?: boolean }>(`${API}/files/${id}?fields=name,mimeType,md5Checksum,trashed&supportsAllDrives=true`, { scopes: SCOPE })
     if (r.trashed) return null
-    return { nombre: r.name ?? id, md5: r.md5Checksum ?? null, video: (r.mimeType ?? '').startsWith('video/') }
+    const video = (r.mimeType ?? '').startsWith('video/')
+    return { nombre: r.name ?? id, md5: r.md5Checksum ?? null, video, publico: video ? await publico(id) : undefined }
   } catch {
     return null
+  }
+}
+
+/**
+ * ¿Meta lo puede bajar? Meta descarga el video del enlace público de Drive (sin sesión), así que la cuenta de servicio
+ * puede leerlo y Meta no (archivo compartido solo con la cuenta de servicio o el equipo). Se pide el primer KB sin sesión:
+ * 200/206 con contenido = público; una redirección (al login) o un 4xx = no. Si la red falla, undefined (no se sabe: no frena).
+ */
+async function publico(id: string): Promise<boolean | undefined> {
+  try {
+    const r = await fetch(`https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`, { headers: { Range: 'bytes=0-1023' }, redirect: 'manual', signal: AbortSignal.timeout(15_000) })
+    await r.body?.cancel().catch(() => {})
+    if (r.status === 200 || r.status === 206) return !(r.headers.get('content-type') ?? '').includes('text/html')
+    if ((r.status >= 300 && r.status < 400) || r.status === 401 || r.status === 403 || r.status === 404) return false
+    return undefined
+  } catch {
+    return undefined
   }
 }
 

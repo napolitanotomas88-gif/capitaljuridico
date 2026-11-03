@@ -24,7 +24,8 @@ import { lineasFicha, type Subida } from './videos'
 export const DIAS_CAMPANA_RECIENTE = 45
 export const MAX_ARMADOS_POR_CORRIDA = 3
 
-export interface ArchivoDrive { nombre: string; md5: string | null; video: boolean }
+/** publico: false = la cuenta de servicio lo lee pero Meta no lo puede bajar (no está «con cualquiera que tenga el enlace»). */
+export interface ArchivoDrive { nombre: string; md5: string | null; video: boolean; publico?: boolean }
 export interface PedidoSeco { ruta: string; cuerpo: Record<string, unknown> }
 export interface ResumenSeco {
   campana: string | null
@@ -165,7 +166,8 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
     for (const v of delDoc) {
       let a: ArchivoDrive | null = null
       try { a = await deps.archivo(v.drive!) } catch { a = null }
-      const legible = !!a && a.video
+      // Meta lo baja del enlace público: si no es público, el armado fallaría a mitad de camino (y el reclamo ya no se suelta)
+      const legible = !!a && a.video && a.publico !== false
       if (!legible) noLegibles.push(`video ${v.numero}`)
       if (a?.md5) md5s.add(a.md5)
       if (legible && !videos.some(x => x.drive === v.drive)) {
