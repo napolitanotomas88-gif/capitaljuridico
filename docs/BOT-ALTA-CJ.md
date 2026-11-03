@@ -518,7 +518,9 @@ Clientes / CUENTA_QA CUENTA_QA - C.J
 
 Regla: **todo cliente activo tiene su carpeta «<Nombre> - C.J» con Crudos, Editados, Marca y Guiones** (y la Bienvenida si arrancó hace 7 días o menos). Código: `lib/bot/alta/driveCompleto.ts` (núcleo, sin red) y `lib/bot/alta/driveCompletoServidor.ts` (dependencias reales). Ruta `/api/bot/drive-completo` (regla `propio`: solo `Bearer CRON_SECRET`), cron de `vercel.json` `30 12 * * *` = **9:30 de Argentina**. Tests: `scripts/test-bot-drive-completo.mjs`.
 
-**Qué hace, cliente por cliente** (ACTIVO en el CRM, línea agencia, con ID; sin archivados, sin «PRUEBA…», sin los «no cliente»; los más nuevos primero):
+**Corte por fecha de ingreso (Tomás, 3/11/2026):** solo entran los clientes con **Día 1 del CRM el 20/10/2026 o después** (`BOT_DRIVE_COMPLETO_DESDE`, AAAA-MM-DD, por defecto `2026-10-20`). Los de Día 1 anterior o sin Día 1 se **ignoran por completo**: no se completan, no se crean y no se avisan en 🛠️; solo se cuentan en el resumen como `fuera_corte` («el resto ya están bien armados»). El paso Drive del alta («Cargar alta») no cambia: siempre arma los 5 elementos.
+
+**Qué hace, cliente por cliente** (ACTIVO en el CRM, línea agencia, con ID; sin archivados, sin «PRUEBA…», sin los «no cliente»; dentro del corte; los más nuevos primero):
 1. **Busca su carpeta** en la raíz de Clientes: por el vínculo registrado (registro del vigía `cj_grab_carpetas` con vínculo alta / aylu / tomas / bot, Doc de guiones `cj_guiones_documentos`, `cj_altas`) o por el nombre exacto (normalizado, sin «- C.J» / «- SKWD»).
 2. **Una sola carpeta → la revisa**: lista lo que tiene (cuenta de servicio, solo lectura), lo reconoce por el prefijo y crea **solo lo que falta** con `prepararDriveCliente` (las mismas funciones del alta, idempotente: el puente busca por nombre adentro de la carpeta).
 3. **Ninguna carpeta y ningún parecido → la crea completa** (carpeta + Crudos, Editados, Marca, Guiones y, si es reciente, Bienvenida). Solo si arrancó hace **21 días o menos**: un cliente más viejo sin carpeta casi seguro tiene una con otro nombre.

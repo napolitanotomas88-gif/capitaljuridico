@@ -18,6 +18,10 @@
 //   5. Registra en el Despacho: las raíces Crudos / Editados / Marca en el registro del vigía (con el ID y vigiladas) y el
 //      Doc de guiones como «listo» (si lo creó esta corrida o el cliente es reciente y no tiene otro registrado).
 // Tope: TOPE_POR_CORRIDA clientes con llamadas al Puente por corrida (los nuevos primero); el resto queda para mañana.
+// Corte (Tomás, 3/11/2026: «empezá a aplicarla en los clientes nuevos que ingresaron a partir del 20/10/2026; el resto ya
+// están bien armados»): solo entran los clientes con Día 1 del CRM ≥ BOT_DRIVE_COMPLETO_DESDE (por defecto 2026-10-20). Los
+// de Día 1 anterior o sin Día 1 se ignoran por completo (ni completar, ni crear, ni avisar): solo se cuentan en el resumen
+// como «fuera de corte». El paso Drive del alta («Cargar alta») no cambia: siempre arma los 5 elementos.
 // Modos (BOT_DRIVE_COMPLETO_MODO): 'ensayo' (por defecto: lee todo, no escribe nada en Drive ni en la base y no avisa;
 // devuelve el plan), 'real', 'apagado'. ?dry=1 fuerza el ensayo.
 import { claveNombre, crearCruceCarpetas } from '../../clientes/prioridad'
@@ -34,6 +38,16 @@ export const modoDriveCompleto = (env: Record<string, string | undefined> = proc
   return v === 'real' || v === 'apagado' ? v : 'ensayo'
 }
 export const TOPE_POR_CORRIDA = 10
+/** Corte por fecha de ingreso (Día 1 del CRM): solo se revisan los clientes con Día 1 en esta fecha o después. */
+export const VARIABLE_DESDE = 'BOT_DRIVE_COMPLETO_DESDE'
+export const DESDE_POR_DEFECTO = '2026-10-20'
+const esYmd = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T12:00:00Z`))
+export const desdeDriveCompleto = (env: Record<string, string | undefined> = process.env): string => {
+  const v = env[VARIABLE_DESDE]?.trim()
+  return esYmd(v) ? v : DESDE_POR_DEFECTO
+}
+/** ¿Entra en la revisión? Solo con Día 1 válido y en la fecha de corte o después (sin Día 1: fuera). */
+export const dentroDelCorte = (c: Pick<ClienteActivo, 'dia1'>, desde: string = DESDE_POR_DEFECTO): boolean => esYmd(c.dia1) && c.dia1 >= desde
 /** La bienvenida y el registro de un Doc de guiones que ya existía, solo para los que arrancaron hace 7 días o menos (los
  *  que no pasaron por el bot): a los más viejos no se les arma bienvenida ni se les cambia el Doc vinculado. */
 export const DIAS_RECIENTE = 7
@@ -70,12 +84,15 @@ export interface EntradaPlan {
    *  mete (el puente busca-y-crea sin bloqueo: dos corridas a la vez podrían duplicar). */
   altasEnCurso?: readonly { id_crm: string | null; nombre: string }[]
   hoy: string   // YYYY-MM-DD (Argentina)
+  /** Corte por Día 1 (YYYY-MM-DD); sin él, DESDE_POR_DEFECTO. */
+  desde?: string
 }
 
 export type Decision =
   | { tipo: 'revisar'; cliente: ClienteActivo; carpeta: CarpetaRaiz; por: 'registro' | 'nombre'; vinculo: string | null }
   | { tipo: 'crear'; cliente: ClienteActivo }
   | { tipo: 'en_alta'; cliente: ClienteActivo }
+  | { tipo: 'fuera_corte'; cliente: ClienteActivo }
   | { tipo: 'ambiguo'; cliente: ClienteActivo; codigo: string; motivo: string; carpetas: { id: string; nombre: string }[] }
 
 const dias = (desde: string | null, hasta: string): number | null => {
@@ -104,7 +121,10 @@ export function decidir(e: EntradaPlan): Decision[] {
   const orden = [...e.clientes].sort((a, b) => (b.dia1 ?? '').localeCompare(a.dia1 ?? ''))
   const enAlta = (c: ClienteActivo) => (e.altasEnCurso ?? []).some((a) => (a.id_crm && a.id_crm.toUpperCase() === c.id.toUpperCase())
     || (claveNombre(c.nombre).length > 0 && (` ${claveNombre(a.nombre)} `).includes(` ${claveNombre(c.nombre)} `)))
+  const desde = esYmd(e.desde) ? e.desde : DESDE_POR_DEFECTO
   for (const c of orden) {
+    // Antes del corte o sin Día 1: no se toca ni se avisa (regla de Tomás 3/11/2026)
+    if (!dentroDelCorte(c, desde)) { out.push({ tipo: 'fuera_corte', cliente: c }); continue }
     const id = c.id.toUpperCase()
     const k = claveNombre(c.nombre)
     if (enAlta(c)) { out.push({ tipo: 'en_alta', cliente: c }); continue }
@@ -170,11 +190,11 @@ export interface DepsDriveCompleto {
 export interface OpcionesCorrida { modo: Exclude<ModoDriveCompleto, 'apagado'>; tope?: number; deadline?: number }
 
 export interface LineaPlan {
-  id: string; cliente: string; accion: 'nada' | 'completar' | 'crear' | 'registrar' | 'ambiguo' | 'en_alta' | 'tope' | 'error'
+  id: string; cliente: string; accion: 'nada' | 'completar' | 'crear' | 'registrar' | 'ambiguo' | 'en_alta' | 'tope' | 'error' | 'fuera_corte'
   carpeta?: string | null; faltan?: string[]; registra?: string[]; hecho?: string[]; motivo?: string
 }
 export interface ResultadoCorrida {
-  modo: string; hoy: string; activos: number; revisados: number
+  modo: string; hoy: string; desde: string; activos: number; revisados: number
   resumen: Record<LineaPlan['accion'], number>
   plan: LineaPlan[]; avisos: { clave: string; estado: string }[]; errores: string[]
 }
@@ -226,6 +246,8 @@ export async function correrDriveCompleto(deps: DepsDriveCompleto, op: OpcionesC
   const plantilla = deps.plantillaGuionesId()
 
   for (const d of decisiones) {
+    // Fuera de corte: ni línea en el plan (solo cuenta en el resumen)
+    if (d.tipo === 'fuera_corte') continue
     const c = d.cliente
     const id = c.id.toUpperCase()
     const reciente = esReciente(c, entrada.hoy)
@@ -328,9 +350,11 @@ export async function correrDriveCompleto(deps: DepsDriveCompleto, op: OpcionesC
     }
   }
 
-  const resumen = { nada: 0, completar: 0, crear: 0, registrar: 0, ambiguo: 0, en_alta: 0, tope: 0, error: 0 } as Record<LineaPlan['accion'], number>
+  const resumen = { nada: 0, completar: 0, crear: 0, registrar: 0, ambiguo: 0, en_alta: 0, tope: 0, error: 0, fuera_corte: 0 } as Record<LineaPlan['accion'], number>
   for (const l of plan) resumen[l.accion]++
-  return { modo: op.modo, hoy: entrada.hoy, activos: entrada.clientes.length, revisados: plan.length, resumen, plan, avisos, errores }
+  resumen.fuera_corte = decisiones.filter((d) => d.tipo === 'fuera_corte').length
+  const desde = esYmd(entrada.desde) ? entrada.desde : DESDE_POR_DEFECTO
+  return { modo: op.modo, hoy: entrada.hoy, desde, activos: entrada.clientes.length, revisados: plan.length, resumen, plan, avisos, errores }
 }
 
 async function registrar(

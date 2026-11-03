@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { prepararDriveCliente, clasificarHijos, MIME_CARPETA_DRIVE, MIME_DOC_DRIVE, MOTIVO_CARPETA_REUSADA } from '../lib/bot/alta/driveCliente.ts'
-import { decidir, correrDriveCompleto, esReciente, modoDriveCompleto, TOPE_POR_CORRIDA } from '../lib/bot/alta/driveCompleto.ts'
+import { decidir, correrDriveCompleto, esReciente, modoDriveCompleto, desdeDriveCompleto, dentroDelCorte, DESDE_POR_DEFECTO, TOPE_POR_CORRIDA } from '../lib/bot/alta/driveCompleto.ts'
 
 for (const k of ['GOOGLE_SERVICE_ACCOUNT_EMAIL', 'GOOGLE_PRIVATE_KEY']) delete process.env[k]
 
@@ -122,6 +122,8 @@ test('si no se puede listar la carpeta, sigue como antes (el puente busca por el
 
 // ── decidir ──────────────────────────────────────────────────────────────────────────────────────────────────────
 const HOY = '2026-11-02'
+// Las pruebas de la lógica de siempre corren sin corte (todo Día 1 válido entra); el corte se prueba aparte
+const SIN_CORTE = '2000-01-01'
 const cli = (id_, nombre, dia1 = '2026-10-30') => ({ id: id_, nombre, dia1 })
 const carp = (n, nombre) => ({ id: id(n), nombre })
 
@@ -132,7 +134,7 @@ test('decidir: por registro, por nombre exacto, crear (nuevo y sin parecidos) y 
     carpetas: [carp(1, 'Herminia Varela - C.J'), carp(2, 'Fausto Ledesma - C.J')],
     vinculos: [{ drive_id: id(1), id_crm: 'A1', origen: 'vigia', vinculo: 'tomas' }],
     altasEnCurso: [{ id_crm: null, nombre: 'Ofelia Brun' }],
-    hoy: HOY,
+    hoy: HOY, desde: SIN_CORTE,
   })
   const por = Object.fromEntries(ds.map((d) => [d.cliente.id, d]))
   assert.equal(por.A1.tipo, 'revisar'); assert.equal(por.A1.por, 'registro'); assert.equal(por.A1.vinculo, 'tomas')
@@ -142,7 +144,7 @@ test('decidir: por registro, por nombre exacto, crear (nuevo y sin parecidos) y 
 })
 
 test('decidir: ambigüedades (no se toca nada)', () => {
-  const base = { todosCrm: [], vinculos: [], hoy: HOY }
+  const base = { todosCrm: [], vinculos: [], hoy: HOY, desde: SIN_CORTE }
   const uno = (c, extra) => decidir({ ...base, ...extra, clientes: [c], todosCrm: [{ id: c.id, nombre: c.nombre }, ...(extra.todosCrm ?? [])] })[0]
   // Dos carpetas: la registrada y otra con su nombre exacto
   assert.equal(uno(cli('A1', 'Ana Paz'), { carpetas: [carp(1, 'Ana Paz - C.J'), carp(2, 'Ana Paz - SKWD')], vinculos: [{ drive_id: id(1), id_crm: 'A1', origen: 'vigia', vinculo: 'bot' }] }).codigo, 'dos_carpetas')
@@ -159,7 +161,8 @@ test('decidir: ambigüedades (no se toca nada)', () => {
   assert.equal(uno(cli('A1', 'Eliseo Fabian Arroyo'), { carpetas: [carp(1, 'Eliseo - SKWD')] }).codigo, 'parecida')
   // Cliente viejo sin carpeta
   assert.equal(uno(cli('A1', 'Zoe Quiroga', '2026-08-01'), { carpetas: [] }).codigo, 'viejo_sin_carpeta')
-  assert.equal(uno(cli('A1', 'Zoe Quiroga', null), { carpetas: [] }).codigo, 'viejo_sin_carpeta')
+  // Sin Día 1: fuera del corte (se ignora, no se avisa)
+  assert.equal(uno(cli('A1', 'Zoe Quiroga', null), { carpetas: [] }).tipo, 'fuera_corte')
 })
 
 test('modo por defecto: ensayo; reciente = Día 1 de 7 días o menos', () => {
@@ -205,7 +208,7 @@ const ENTRADA = {
   todosCrm: [{ id: 'A1', nombre: 'Ana Paz' }, { id: 'A2', nombre: 'Zoe Quiroga' }, { id: 'A3', nombre: 'Maria Jose Ugarte' }, { id: 'A4', nombre: 'Rita Olmos' }],
   carpetas: [carp(1, 'Ana Paz - C.J'), carp(3, 'Majo Ugarte - SKWD'), carp(4, 'Rita Olmos - C.J')],
   vinculos: [{ drive_id: id(1), id_crm: 'A1', origen: 'vigia', vinculo: 'tomas' }],
-  hoy: HOY,
+  hoy: HOY, desde: SIN_CORTE,
 }
 const HIJOS = {
   [id(1)]: [{ id: id(11), name: 'Crudos - AP', mimeType: MIME_CARPETA_DRIVE }, { id: id(12), name: 'Editados - AP', mimeType: MIME_CARPETA_DRIVE }, { id: id(13), name: 'Guiones - AP', mimeType: MIME_DOC_DRIVE }],
@@ -251,14 +254,14 @@ test('real: completa sin bienvenida a los viejos, crea la nueva, registra, avisa
 test('tope: no llama al puente para más de N clientes por corrida', async () => {
   const clientes = Array.from({ length: TOPE_POR_CORRIDA + 3 }, (_, i) => cli(`A${i + 10}`, `Cliente Numero${'x'.repeat(i + 1)} Apellido${i}`, '2026-09-01'))
   const carpetas = clientes.map((c, i) => carp(200 + i, `${c.nombre} - C.J`))
-  const { deps, hecho } = depsJuguete({ clientes, todosCrm: clientes, carpetas, vinculos: [], hoy: HOY }, {})
+  const { deps, hecho } = depsJuguete({ clientes, todosCrm: clientes, carpetas, vinculos: [], hoy: HOY, desde: SIN_CORTE }, {})
   const r = await correrDriveCompleto(deps, { modo: 'real' })
   assert.equal(hecho.preparar.length, TOPE_POR_CORRIDA)
   assert.equal(r.resumen.tope, 3)
 })
 
 test('sin nada que hacer: no manda resumen', async () => {
-  const { deps, hecho } = depsJuguete({ clientes: [cli('A4', 'Rita Olmos')], todosCrm: [{ id: 'A4', nombre: 'Rita Olmos' }], carpetas: [carp(4, 'Rita Olmos - C.J')], vinculos: [], hoy: HOY },
+  const { deps, hecho } = depsJuguete({ clientes: [cli('A4', 'Rita Olmos')], todosCrm: [{ id: 'A4', nombre: 'Rita Olmos' }], carpetas: [carp(4, 'Rita Olmos - C.J')], vinculos: [], hoy: HOY, desde: SIN_CORTE },
     { [id(4)]: [...HIJOS[id(4)], { id: id(45), name: 'Bienvenida - Rita Olmos', mimeType: MIME_DOC_DRIVE }] }, { vigia: [id(4), id(41), id(42), id(43)], listos: ['A4'] })
   const r = await correrDriveCompleto(deps, { modo: 'real' })
   assert.equal(r.resumen.nada, 1)
@@ -267,7 +270,7 @@ test('sin nada que hacer: no manda resumen', async () => {
 
 test('con Doc de guiones registrado fuera de su carpeta: no le copia otro', async () => {
   const hijos = { [id(5)]: [{ id: id(51), name: 'Crudos - VP', mimeType: MIME_CARPETA_DRIVE }, { id: id(52), name: 'Editados - VP', mimeType: MIME_CARPETA_DRIVE }, { id: id(53), name: 'Marca - VP', mimeType: MIME_CARPETA_DRIVE }] }
-  const { deps, hecho } = depsJuguete({ clientes: [cli('A5', 'Vera Paz', '2026-09-01')], todosCrm: [{ id: 'A5', nombre: 'Vera Paz' }], carpetas: [carp(5, 'Vera Paz - C.J')], vinculos: [], hoy: HOY },
+  const { deps, hecho } = depsJuguete({ clientes: [cli('A5', 'Vera Paz', '2026-09-01')], todosCrm: [{ id: 'A5', nombre: 'Vera Paz' }], carpetas: [carp(5, 'Vera Paz - C.J')], vinculos: [], hoy: HOY, desde: SIN_CORTE },
     hijos, { vigia: [id(5), id(51), id(52), id(53)], listos: ['A5'] })
   const r = await correrDriveCompleto(deps, { modo: 'real' })
   assert.equal(r.resumen.nada, 1)
@@ -276,10 +279,82 @@ test('con Doc de guiones registrado fuera de su carpeta: no le copia otro', asyn
 
 test('avisos: los ya avisados no tapan el tope de los que siguen', async () => {
   const clientes = Array.from({ length: 12 }, (_, i) => cli(`A${i + 60}`, `Persona${'q'.repeat(i + 1)} Sincarpeta${'z'.repeat(i + 1)}`, '2026-01-01'))
-  const { deps, hecho } = depsJuguete({ clientes, todosCrm: clientes, carpetas: [], vinculos: [], hoy: HOY }, {})
+  const { deps, hecho } = depsJuguete({ clientes, todosCrm: clientes, carpetas: [], vinculos: [], hoy: HOY, desde: SIN_CORTE }, {})
   await correrDriveCompleto(deps, { modo: 'real' })
   const primera = hecho.avisos.filter((a) => a.canal === 'operaciones').length
   assert.equal(primera, 8)
   await correrDriveCompleto(deps, { modo: 'real' })
   assert.equal(new Set(hecho.avisos.filter((a) => a.canal === 'operaciones').map((a) => a.clave)).size, 12)
+})
+
+// ── Corte por fecha de ingreso (Tomás, 3/11/2026: solo clientes con Día 1 desde el 20/10/2026) ───────────────────────────
+test('corte: variable BOT_DRIVE_COMPLETO_DESDE (por defecto 2026-10-20) y dentroDelCorte', () => {
+  assert.equal(DESDE_POR_DEFECTO, '2026-10-20')
+  assert.equal(desdeDriveCompleto({}), '2026-10-20')
+  assert.equal(desdeDriveCompleto({ BOT_DRIVE_COMPLETO_DESDE: ' 2026-10-25 ' }), '2026-10-25')
+  assert.equal(desdeDriveCompleto({ BOT_DRIVE_COMPLETO_DESDE: '20/10/2026' }), '2026-10-20')   // inválida → por defecto
+  assert.equal(dentroDelCorte({ dia1: '2026-10-20' }), true)
+  assert.equal(dentroDelCorte({ dia1: '2026-10-19' }), false)
+  assert.equal(dentroDelCorte({ dia1: null }), false)
+  assert.equal(dentroDelCorte({ dia1: 'sin fecha' }), false)
+})
+
+const CORTE = {
+  clientes: [
+    cli('B1', 'Ana Paz', '2026-10-19'),             // anterior al corte, con carpeta incompleta
+    cli('B2', 'Zoe Quiroga', null),                 // sin Día 1, sin carpeta
+    cli('B3', 'Maria Jose Ugarte', '2026-09-12'),   // anterior y ambiguo (carpeta parecida): no se avisa
+    cli('B4', 'Rita Olmos', '2026-10-20'),          // justo en el corte, falta Marca
+    cli('B5', 'Lucio Ferreyra', '2026-10-31'),      // nuevo sin carpeta → se crea
+    cli('B6', 'Nora Bianchi Toledo', '2026-08-01'), // viejo sin carpeta: antes avisaba «viejo_sin_carpeta»
+  ],
+  todosCrm: [{ id: 'B1', nombre: 'Ana Paz' }, { id: 'B2', nombre: 'Zoe Quiroga' }, { id: 'B3', nombre: 'Maria Jose Ugarte' }, { id: 'B4', nombre: 'Rita Olmos' }, { id: 'B5', nombre: 'Lucio Ferreyra' }, { id: 'B6', nombre: 'Nora Bianchi Toledo' }],
+  carpetas: [carp(1, 'Ana Paz - C.J'), carp(3, 'Majo Ugarte - SKWD'), carp(4, 'Rita Olmos - C.J')],
+  vinculos: [],
+  hoy: HOY,
+}
+const HIJOS_CORTE = {
+  [id(1)]: [{ id: id(11), name: 'Crudos - AP', mimeType: MIME_CARPETA_DRIVE }],
+  [id(4)]: [{ id: id(41), name: 'Crudos', mimeType: MIME_CARPETA_DRIVE }, { id: id(42), name: 'Editados', mimeType: MIME_CARPETA_DRIVE }, { id: id(44), name: 'Guiones - RO', mimeType: MIME_DOC_DRIVE }],
+}
+
+test('corte en decidir: anterior al corte y sin Día 1 → fuera_corte; desde el corte → igual que antes', () => {
+  const por = Object.fromEntries(decidir(CORTE).map((d) => [d.cliente.id, d]))   // sin desde: el de por defecto
+  assert.equal(por.B1.tipo, 'fuera_corte')
+  assert.equal(por.B2.tipo, 'fuera_corte')
+  assert.equal(por.B3.tipo, 'fuera_corte')
+  assert.equal(por.B6.tipo, 'fuera_corte')
+  assert.equal(por.B4.tipo, 'revisar')
+  assert.equal(por.B5.tipo, 'crear')
+  // Con el corte movido al 2000: B3 vuelve a ser ambiguo y B6 «viejo_sin_carpeta», como antes
+  const sin = Object.fromEntries(decidir({ ...CORTE, desde: SIN_CORTE }).map((d) => [d.cliente.id, d]))
+  assert.equal(sin.B3.tipo, 'ambiguo')
+  assert.equal(sin.B6.codigo, 'viejo_sin_carpeta')
+  assert.equal(sin.B1.tipo, 'revisar')
+})
+
+test('corte en la corrida real: los de fuera no se tocan, no se avisan ni aparecen en el plan; solo cuentan en el resumen', async () => {
+  const { deps, hecho } = depsJuguete(CORTE, HIJOS_CORTE)
+  const r = await correrDriveCompleto(deps, { modo: 'real' })
+  assert.equal(r.desde, '2026-10-20')
+  assert.equal(r.resumen.fuera_corte, 4)
+  assert.deepEqual(r.plan.map((l) => l.id).sort(), ['B4', 'B5'])
+  assert.deepEqual(hecho.preparar.map((p) => p.nombre).sort(), ['Lucio Ferreyra', 'Rita Olmos'])
+  const pB4 = hecho.preparar.find((p) => p.nombre === 'Rita Olmos')
+  assert.equal(pB4.o.guardado.carpeta.id, id(4))
+  assert.ok(!hecho.vigia.some((f) => ['B1', 'B2', 'B3', 'B6'].includes(f.id_crm)))
+  assert.ok(!hecho.docs.some((d) => ['B1', 'B2', 'B3', 'B6'].includes(d.idCrm)))
+  assert.equal(hecho.avisos.filter((a) => a.canal === 'operaciones').length, 0)   // ni B3 ni B6 se avisan
+  const resumen = hecho.avisos.filter((a) => a.canal === 'sistema')
+  assert.equal(resumen.length, 1)
+  assert.ok(!resumen[0].lineas.join(' ').match(/B1|B2|B3|B6/))
+})
+
+test('corte en el ensayo: el plan solo trae clientes con Día 1 desde el corte', async () => {
+  const { deps, hecho } = depsJuguete({ ...CORTE, desde: '2026-10-25' }, HIJOS_CORTE)
+  const r = await correrDriveCompleto(deps, { modo: 'ensayo' })
+  assert.equal(r.desde, '2026-10-25')
+  assert.deepEqual(r.plan.map((l) => l.id), ['B5'])
+  assert.equal(r.resumen.fuera_corte, 5)
+  assert.deepEqual(hecho, { preparar: [], vigia: [], docs: [], avisos: [] })
 })
