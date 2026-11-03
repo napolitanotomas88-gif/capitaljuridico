@@ -23,7 +23,7 @@ Archivar necesita doble confirmación, ID comprobado y versión actual. Sale de 
 3. Crear la tanda idempotente y resolver el documento automáticamente. Priorizar vínculos exactos del alta, tabla canónica e índices autorizados; usar alias configurados explícitos cuando corresponda. No buscar por parecido ni crear un Doc vacío si existe uno legado verificado.
 4. Si hace falta crear, reservar antes el ID CRM, guardar la carpeta y copiar la plantilla por el mecanismo existente. Una respuesta dudosa no autoriza una segunda copia.
 5. Generar, revisar y corregir con el motor configurado. Editar un guion invalida su verificación; una corrección selectiva invalida los guiones afectados.
-6. Verificar **cada guion** y dar **un único check final humano** de un revisor configurado (`GUIONES_REVISOR_FAUS` o `KICKOFF_REVISOR_TOMI`). El motor no aprueba en nombre de la persona.
+6. Verificar **cada guion** y dar **un único check final humano** de Faus, que revisa y da el check final (`GUIONES_REVISOR_FAUS`; `KICKOFF_REVISOR_TOMI` conserva el permiso técnico, no se le pide). El motor no aprueba en nombre de la persona.
 7. Escribir bajo **Video** de la **TANDA** correcta con `cargarEnChips`. Conservar contenido manual, clave estable, revisión de publicación y la tanda realmente usada.
 8. Notificar a coordinación la versión lista. `/clientes/entregas` exige permiso Clientes y whitelist explícita; confirmar entrega requiere origen, versión y confirmación. Aprobar guiones no manda directamente al cliente.
 

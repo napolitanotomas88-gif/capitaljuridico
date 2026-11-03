@@ -9,8 +9,6 @@
 //     Desde el 3/11/2026 (Tomás): menciona a Faus (revisa y da el check final) y Gero M (atento), nunca a Tomás; guarda la ronda de revisión y el vigía recuerda a las 24/48 h
 //     (avisoRevision.ts).
 // Solo servidor.
-import { idDiscord } from '@/lib/fathomAnuncios/discord'
-import { ID_TOMAS } from '@/lib/fathomAnuncios/procesar'
 import { leerKickoff } from '../kickoff/registro'
 import { kbDeRama } from '../kickoff/kb/index'
 import { urlDespacho, webhookKickoff } from '../kickoff/entorno'
@@ -30,7 +28,6 @@ import { guardarRonda, leerRondas, limpiarRondas, marcarRonda, reservarRonda } f
 
 const TOPE_DISPARO_MS = 25_000
 export const webhookGuiones = (): string => process.env.DISCORD_WEBHOOK_GUIONES?.trim() || webhookKickoff()
-export const revisoresGuiones = (): { tomi: string; faus: string | null } => ({ tomi: idDiscord(process.env.DISCORD_ID_TOMAS) ?? ID_TOMAS, faus: idDiscord(process.env.DISCORD_ID_FAUS) })
 
 export async function leerKickoffParaGuiones(recordingId: number): Promise<KickoffParaGuiones | null> {
   const f = await leerKickoff(recordingId)

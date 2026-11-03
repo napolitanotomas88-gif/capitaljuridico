@@ -21,7 +21,7 @@ Leer `docs/CONTEXTO-HUB.md`, `docs/INDICE.md` y la guía del módulo antes de ca
 - Un alta por referido que cierra obtiene un mes calendario adicional sin cargo. Comprobar si ya está incluido; no duplicarlo ni confundirlo con el saldo del referidor.
 - La renovación real consume automáticamente sólo meses liberados, vigentes y elegibles según los topes del programa. Congelar/revisar fechas y saldo, y registrar renovación más canje en una operación idempotente. Los créditos USD requieren confirmación separada; pausar o reanudar no canjea nada.
 - Guardar cada guion bajo su sección plegable **Video**, dentro de la **TANDA** correspondiente. Usar `cargarEnChips`; conservar texto manual y claves de carga para corregir sin duplicar.
-- Verificar cada guion. El check final lo da **una** persona autorizada por `GUIONES_REVISOR_FAUS` o `KICKOFF_REVISOR_TOMI`; no exige dos aprobaciones ni acepta una aprobación inventada por el motor.
+- Verificar cada guion. El check final lo da **Faus** (`GUIONES_REVISOR_FAUS`): revisa y da el check final; `KICKOFF_REVISOR_TOMI` conserva el permiso técnico pero no se le pide ni se lo menciona; no exige dos aprobaciones ni acepta una aprobación inventada por el motor.
 - Una tanda aprobada y escrita genera un aviso interno de entrega. Aviso, publicación del Doc y envío al cliente son estados distintos.
 - La pausa detiene el consumo de días de servicio. Retomar compensa los días correspondientes y deja eventos en la línea de tiempo.
 - Archivar requiere doble confirmación y retira al cliente de las colas operativas. Conservar historial y registros contables; no interpretar el archivo como permiso para borrar Drive, grupos o campañas.
