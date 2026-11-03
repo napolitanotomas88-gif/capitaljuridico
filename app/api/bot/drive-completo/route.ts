@@ -22,7 +22,9 @@ export async function GET(req: Request) {
   const q = new URL(req.url).searchParams
   const modo = q.get('dry') === '1' ? 'ensayo' : modoDriveCompleto()
   if (modo === 'apagado') return NextResponse.json({ ok: true, modo, nada: 'BOT_DRIVE_COMPLETO_MODO=apagado' }, { headers: SIN_CACHE })
-  const t = Number(q.get('tope'))
+  // Sin ?tope (el cron) va el de por defecto: Number(null) es 0 y dejaba la corrida sin hacer nada (revisión 2/11/2026)
+  const crudo = q.get('tope')
+  const t = crudo !== null && crudo.trim() !== '' ? Number(crudo) : NaN
   const tope = Number.isInteger(t) && t >= 0 ? Math.min(t, 25) : TOPE_POR_CORRIDA
   try {
     const { correrDriveCompletoReal } = await import('@/lib/bot/alta/driveCompletoServidor')

@@ -229,8 +229,11 @@ export async function correrDriveCompleto(deps: DepsDriveCompleto, op: OpcionesC
     const c = d.cliente
     const id = c.id.toUpperCase()
     const reciente = esReciente(c, entrada.hoy)
-    const quiere: ClaveAdentro[] = reciente ? [...CLAVES_ADENTRO] : [...ESENCIALES]
-    const omitir: ClaveAdentro[] = reciente ? [] : ['bienvenida']
+    // Si ya tiene un Doc de guiones registrado en el Despacho (aunque esté fuera de su carpeta), no se le copia otro: dos Docs
+    // de guiones confunden a quien escribe y al vigía (revisión 2/11/2026)
+    const conDoc = listos.has(id)
+    const quiere: ClaveAdentro[] = (reciente ? [...CLAVES_ADENTRO] : [...ESENCIALES]).filter((k) => !(k === 'guiones' && conDoc))
+    const omitir: ClaveAdentro[] = [...(reciente ? [] : ['bienvenida' as const]), ...(conDoc ? ['guiones' as const] : [])]
     if (d.tipo === 'en_alta') { plan.push({ id, cliente: c.nombre, accion: 'en_alta', motivo: 'su alta está en curso o en Fee: el paso Drive del alta arma la carpeta (con la primera cuota completa)' }); continue }
     if (d.tipo === 'ambiguo') {
       plan.push({ id, cliente: c.nombre, accion: 'ambiguo', motivo: d.motivo, carpeta: d.carpetas.map((x) => x.nombre).join(' · ') || null })
@@ -305,8 +308,12 @@ export async function correrDriveCompleto(deps: DepsDriveCompleto, op: OpcionesC
       const firma = [d.codigo, ...d.carpetas.map((x) => x.id).sort()].join(',')
       const clave = `drive-completo:ambiguo:${d.cliente.id.toUpperCase()}:${firma}`.slice(0, 280)
       const lineas = [d.motivo, ...d.carpetas.slice(0, 3).map((x) => `${x.nombre}: ${urlCarpetaDrive(x.id)}`), 'No se tocó nada: cuando quede una sola carpeta en Clientes con su nombre (o vinculada en /clientes/edicion), la revisión diaria la completa sola.']
-      try { avisos.push({ clave, estado: await deps.avisar({ canal: 'operaciones', tipo: 'drive_completo_ambiguo', clave, titulo: 'Drive del cliente: revisar a mano', cliente: d.cliente.nombre, idCrm: d.cliente.id, lineas, menciones: ['aylu', 'gero_m'] }) }) } catch (e) { errores.push(`aviso ${d.cliente.id}: ${motivo(e)}`) }
-      n++
+      // Solo cuentan para el tope los que salieron: los ya avisados («ya_estaba») no tapan a los que siguen
+      try {
+        const estado = await deps.avisar({ canal: 'operaciones', tipo: 'drive_completo_ambiguo', clave, titulo: 'Drive del cliente: revisar a mano', cliente: d.cliente.nombre, idCrm: d.cliente.id, lineas, menciones: ['aylu', 'gero_m'] })
+        avisos.push({ clave, estado })
+        if (estado !== 'ya_estaba') n++
+      } catch (e) { errores.push(`aviso ${d.cliente.id}: ${motivo(e)}`); n++ }
     }
     const hechos = plan.filter((l) => (l.accion === 'completar' || l.accion === 'crear' || l.accion === 'registrar') && ((l.hecho?.length ?? 0) > 0 || (l.registra?.length ?? 0) > 0))
     const fallas = plan.filter((l) => l.accion === 'error')
