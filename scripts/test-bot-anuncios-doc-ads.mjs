@@ -97,7 +97,7 @@ function deps(o = {}) {
   const reclamadas = new Set(o.yaReclamadas ?? [])
   return { log, d: {
     leerDoc: async () => DOC,
-    archivo: async id => (o.ilegibles ?? []).includes(id) ? null : { nombre: `Juana ${id.slice(-1)}.mp4`, md5: `md5-${id}`, video: true },
+    archivo: async id => (o.ilegibles ?? []).includes(id) ? null : { nombre: `Juana ${id.slice(-1)}.mp4`, md5: `md5-${id}`, video: true, publico: !(o.privados ?? []).includes(id) },
     editados: async () => o.editados ?? [{ id: 'EDITADO000001', nombre: 'Juana 1.mp4', md5: `md5-${ID(1)}`, guionesDoc: null }],
     gruposExtra: async s => s.videos.map(v => ({ videos: [{ nombre: v.nombre, drive: v.id }], textos: [], titulos: [], guiones: [] })),
     variacion: async cs => ({ textos: ['amplio'], titulos: ['T1', 'T2'] }),
@@ -168,6 +168,13 @@ describe('lanzarDesdeDoc', () => {
     const r = await L.lanzarDesdeDoc(tab(), d)
     assert.deepEqual(r.clientes[0].noLegibles, ['video 2'])
     assert.match(r.clientes[0].texto, /no puedo leer video 2/i)
+  })
+  test('video que la cuenta de servicio lee pero no es público (Meta no lo puede bajar): no se usa y se avisa', async () => {
+    const { d, log } = deps({ privados: [ID(2)] })
+    const r = await L.lanzarDesdeDoc(tab(), d)
+    assert.deepEqual(r.clientes[0].noLegibles, ['video 2'])
+    assert.ok(!r.clientes[0].videos.some(v => v.drive === ID(2)))
+    assert.ok(log.armados.every(a => !JSON.stringify(a).includes(ID(2))))
   })
   test('un cliente con nota distinta de LISTO no arma; y g01 sabe a quién cubre el Doc', async () => {
     const { d, log } = deps()
