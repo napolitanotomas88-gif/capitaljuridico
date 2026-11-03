@@ -12,14 +12,14 @@ interface Props {
   periodLabel: string
 }
 
-// Descripciones según la fórmula de la col Q "Lead Scoring" del CRM de ventas (puntos por urgencia + facturación, desde el 1/11/2026)
+// Descripciones según la fórmula de la col Q "Lead Scoring" del CRM de ventas (desde el 3/11/2026: cada combinación de urgencia + facturación toma la letra según su cash por call histórico)
 const LETRAS: Array<{ key: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E'; color: string; texto: string; desc: string }> = [
-  { key: 'A+', color: '#0f4a38', texto: 'var(--tono-bueno)', desc: '6 pts · YA + $1.5–3K' },
-  { key: 'A', color: '#1f6b52', texto: 'var(--tono-bueno)', desc: '5 pts · YA + $750–1.5K o $3K+' },
-  { key: 'B', color: '#5f9a7a', texto: 'var(--tono-bueno)', desc: '4 pts · 2–4 sem + $1.5–3K · YA + $0–1.5K (opción vieja)' },
-  { key: 'C', color: '#be8f49', texto: 'var(--brand-texto)', desc: '3 pts · YA + $0–750 · 2–4 sem + $750–1.5K o $3K+ · meses + $1.5–3K' },
-  { key: 'D', color: '#7f202c', texto: 'var(--tono-malo)', desc: '2 pts · meses o aún no sé + $750–1.5K o $3K+' },
-  { key: 'E', color: '#8c7b62', texto: 'var(--text-muted)', desc: '0–1 pts · 2–4 sem + $0–750 · meses o aún no sé + $0–750' },
+  { key: 'A+', color: '#0f4a38', texto: 'var(--tono-bueno)', desc: 'YA o 2–4 sem + $1.5–3K' },
+  { key: 'A', color: '#1f6b52', texto: 'var(--tono-bueno)', desc: 'YA + $750–1.5K' },
+  { key: 'B', color: '#5f9a7a', texto: 'var(--tono-bueno)', desc: 'meses + $1.5–3K · aún no sé + $750–1.5K o $3K+' },
+  { key: 'C', color: '#be8f49', texto: 'var(--brand-texto)', desc: 'YA + $0–750, $0–1.5K (vieja) o $3K+ · 2–4 sem + $750–1.5K o $3K+ · meses + $3K+ · aún no sé + $1.5–3K' },
+  { key: 'D', color: '#7f202c', texto: 'var(--tono-malo)', desc: '2–4 sem + $0–750 o $0–1.5K (vieja) · meses + $0–1.5K (vieja) · aún no sé + $0–750' },
+  { key: 'E', color: '#8c7b62', texto: 'var(--text-muted)', desc: 'meses + $0–750 o $750–1.5K · aún no sé + $0–1.5K (vieja)' },
 ]
 
 function fmtUSD(n: number) {
@@ -76,7 +76,7 @@ export function LeadQualityCard({ stats, sinClasificar, periodLabel }: Props) {
       </div>
 
       <p style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 10 }}>
-        Letra de la columna &quot;Lead Scoring&quot; (col Q) de las hojas de closers: la misma fórmula del CRM (puntos: urgencia YA 3 · 2–4 sem 1; facturación $750–1.5K 2 · $1.5–3K 3 · $3K+ 2).
+        Letra de la columna &quot;Lead Scoring&quot; (col Q) de las hojas de closers: la misma fórmula del CRM: cada combinación de urgencia y facturación toma la letra según el cash por call que dejó históricamente.
         Cash = FECCU del Registro de Pagos matcheado por nombre o teléfono del cliente.
         {sinClasificar > 0 ? ` ${sinClasificar} ${sinClasificar === 1 ? 'agenda sin Lead Scoring (no clasificada)' : 'agendas sin Lead Scoring (no clasificadas)'}.` : ''}
       </p>
