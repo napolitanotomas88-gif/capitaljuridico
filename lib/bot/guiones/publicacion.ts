@@ -20,8 +20,9 @@ export interface DepsPublicacion {
   altaEdicion?(fila: FilaTanda, docId: string, tanda: number): Promise<ResultadoAlta>
   error(id: number, motivo: string, dudoso: boolean): Promise<void>
   exigirActivo?(idCrm: string | null): Promise<void>
-  /** d02: el link al grupo Contenido del cliente (solo con GUIONES_WHATSAPP=real y la aprobación posterior al corte). */
-  whatsapp?(fila: FilaTanda): Promise<{ estado: string; motivo?: string }>
+  /** d02: el «para enviar» del link (📤). Con `problema`, la carga en el Doc falló o quedó dudosa: sale igual con la advertencia
+   *  (Tomás, 3/11/2026: SIEMPRE tras el check final). */
+  whatsapp?(fila: FilaTanda, problema?: { dudoso: boolean; motivo: string } | null): Promise<{ estado: string; motivo?: string }>
   /** Falla de la carga en el Doc (2/11/2026): aviso en #🧰-sistema-bot a Gero M y Aylu. Nunca tira. */
   alertar?(a: Alerta): Promise<unknown>
 }
@@ -51,7 +52,8 @@ export function alertaFallaPublicacion(t: TandaFallida, motivo: string, dudoso: 
     lineas: [
       `Tanda ${t.tanda ?? '¿?'} (registro ${t.id}) aprobada, pero no quedó escrita en el Doc del cliente.`,
       `Motivo: ${motivo}`,
-      dudoso ? 'Puede haberse escrito a medias: revisá el Doc antes de reintentar (no duplicar la tanda).' : 'No se le mandó nada al cliente ni quedó el «para enviar».',
+      dudoso ? 'Puede haberse escrito a medias: revisá el Doc antes de reintentar (no duplicar la tanda).' : 'No se le mandó nada al cliente.',
+      'El «para enviar» igual quedó en 📤 con la advertencia: no se manda hasta que el Doc esté bien (al reintentar se actualiza solo).',
       'Reintentar: botón «Revisar publicación y aviso» en la tanda (lo tocan Tomi o Faus).',
     ],
     link: id ? `/guiones/${encodeURIComponent(id)}` : '/guiones', menciones: ['gero_m', 'aylu'],
@@ -70,7 +72,7 @@ const reales: DepsPublicacion = {
   exigirActivo: exigirClienteNoArchivado,
   // d02 sin WhatsApp (2/11/2026): el link queda «para enviar» (📤 en Discord + /clientes/para-enviar) y la entrega se confirma
   // en /clientes/entregas o con «Enviado»; el aviso de la campanita (notificar) sigue igual
-  whatsapp: async (fila) => (await import('./whatsappCliente')).guionesParaEnviar(fila),
+  whatsapp: async (fila, problema) => (await import('./whatsappCliente')).guionesParaEnviar(fila, new Date(), problema ?? null),
   alertar: async (a) => (await import('@/lib/alertas')).alertar(a),
 }
 /** Una aprobación publica el Doc y, con GUIONES_WHATSAPP=real (d02), manda el link al grupo Contenido del cliente;
@@ -127,6 +129,16 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
     if (deps.alertar && !archivado) {
       const tanda = (conocida as { doc?: { tanda?: number | null } | null }).doc?.tanda ?? conocida.tanda ?? null
       await deps.alertar(alertaFallaPublicacion({ ...conocida, tanda }, motivo, dudoso)).catch(err => console.error('Guiones: no salió la alerta de la falla —', (err as Error)?.name ?? 'error'))
+    }
+    // El «para enviar» sale IGUAL (Tomás, 3/11/2026: «SÍ O SÍ»), con la advertencia de que el Doc no quedó bien
+    if (reservada && !archivado && deps.whatsapp) {
+      try {
+        const fila = await deps.leer(id)
+        if (fila?.estado === 'aprobada' && fila.aprobacion?.cuando) {
+          const w = await deps.whatsapp(fila, { dudoso, motivo })
+          console.warn(`Guiones: publicación ${id} con falla, «para enviar» con advertencia: ${w.estado}`)
+        }
+      } catch (err) { console.error(`Guiones: publicación ${id}, no quedó el «para enviar» (lo crea el vigía) —`, String((err as Error)?.message ?? err).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)) }
     }
   }
 }

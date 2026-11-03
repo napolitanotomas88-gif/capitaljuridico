@@ -173,7 +173,11 @@ async function terminarGuion(id: number, n: number, g: GuionGuardado, uso: { inp
 /** La respuesta del cliente: decide a qué guiones va cada nota, los corrige en paralelo y vuelve a revisión con aviso. */
 async function corregirConNotas(fila: FilaTanda, e: EntradaTanda, deps: DepsProceso, tope: () => number): Promise<string> {
   const notas = fila.notas.filter(x => !x.aplicada)
-  if (!notas.length) { await deps.registro.marcarEstado(fila.id, ['con_notas'], 'a_revisar'); return 'no hay notas para aplicar' }
+  if (!notas.length) {
+    // Vuelve a revisión sin cambios: también avisa (3/11/2026: TODA tanda que pasa a a_revisar avisa en ✍️-guiones)
+    if (await deps.registro.marcarEstado(fila.id, ['con_notas'], 'a_revisar')) { const lista = await deps.registro.leerTanda(fila.id); if (lista) await avisarYAnotar(lista, 'revisar', deps) }
+    return 'no hay notas para aplicar'
+  }
   if (!(await deps.registro.marcarEstado(fila.id, ['con_notas'], 'corrigiendo'))) return `la tanda no está con notas (${fila.estado})`
   const guiones = Object.values(fila.guiones).map(g => g.guion).sort((a, b) => a.numero - b.numero)
   const cl = await clasificarNotas(guiones, notas, { topeMs: Math.min(60_000, tope()) })
