@@ -12,7 +12,7 @@
 //     copy desde el guion no arma (un cliente nuevo no tiene ganador del que copiar).
 import type { PorLanzar } from '@/lib/anuncios/tablero'
 import { DIAS_TESTEO, MIN_DIARIO_USD, decidirEstructura } from './plan'
-import { crearEnPausa, montoMeta, type Borrador, type DepsBorrador, type Graph, type GrupoBorrador } from './borrador'
+import { crearEnPausa, grupoConCopy, montoMeta, type Borrador, type DepsBorrador, type Graph, type GrupoBorrador } from './borrador'
 import type { Subida } from './videos'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Payloads de Meta: la selección de página, país y zona valida los datos usados.
@@ -95,7 +95,7 @@ export async function armarLanzamiento(s: Subida, pl: PorLanzar, grupos: GrupoBo
   if (!pais || !/^[A-Z]{2}$/.test(pais)) throw new Error('falta confirmar el país de la zona en la ficha')
   const mensual = mensualDeFicha(k.presupuesto.texto)
   if (!mensual || k.presupuesto.aConfirmar) throw new Error('falta confirmar el presupuesto mensual de la ficha')
-  const sinCopy = grupos.filter(g => !g.textos.length).map(g => g.videos.map(v => v.nombre).join(' + '))
+  const sinCopy = grupos.filter(g => !grupoConCopy(g)).map(g => g.videos.map(v => v.nombre).join(' + '))
   if (sinCopy.length) throw new Error(`faltan los textos de ${sinCopy.join(', ')} (no encontré su guion): un cliente nuevo no tiene anuncio del que copiar`)
   const g = deps.graph, cuenta = k.cuenta.id
   const cta = await g.get(cuenta, { fields: 'currency,account_status' })

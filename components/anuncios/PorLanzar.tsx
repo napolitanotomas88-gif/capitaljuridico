@@ -11,8 +11,12 @@
 // Anuncios, así que acá va todo lo necesario para lanzar. Mismo estilo que el resto del tablero: filetes finos, sin
 // sombras, latón = falta, azul = listo.
 // Desde el 26/10 (regla de Tomás) solo están los que ya tienen videos en «Editados - X» (lib/anuncios/editadosPorLanzar.ts):
-// cada uno lleva el link a su carpeta; los que todavía no tienen videos van en una línea al pie.
-import type { ReactNode } from 'react'
+// cada uno lleva el link a su carpeta. Los que todavía no tienen videos (antes, una línea al pie) van desde el 3/11 en su
+// propio bloque, cada uno con la etapa donde está trabado y quién lo destraba (lib/anuncios/trabados.ts).
+// También desde el 3/11: el estado de cada uno en el Doc «Organización de ADS - Orgánico» (LISTO · N videos, o la nota tal
+// cual) y el botón «Leer el Doc de ADS ahora» (/api/anuncios/doc-ads: arma en pausa a los LISTOS y avisa a Valen).
+import { useState, type ReactNode } from 'react'
+import { EMOJI_ETAPA, NOMBRE_ETAPA_TRABA } from '@/lib/anuncios/trabados'
 import type { PorLanzar } from '@/lib/anuncios/tablero'
 import type { EstadoMapaLanzar, GrupoPorLanzar, KickoffPorLanzar } from '@/lib/anuncios/porLanzar'
 
@@ -32,6 +36,47 @@ function Editados({ p }: { p: PorLanzar }) {
   return e.url ? <a className="enlace" href={e.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>{t}</a> : <span style={{ fontSize: 13 }}>{t}</span>
 }
 
+// Su estado en el Doc de ADS (el bloque más nuevo): azul = LISTO para lanzar; latón = otra nota o cruce dudoso
+function DocAds({ p }: { p: PorLanzar }) {
+  const d = p.docAds
+  if (!d) return null
+  return <span style={{ fontSize: 13, color: d.listo && d.firme ? 'var(--azul)' : 'var(--laton)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}»`}>🗂️ Doc de ADS: {d.texto}</span>
+}
+
+const ACCION_DOC: Record<string, string> = {
+  armado: 'armado en pausa', seco: 'prueba en seco', plan: 'para armar', ya_salio: 'ya armado o avisado', ya_tiene_campana: 'ya tiene campaña',
+  falta_ficha: 'falta la ficha', falta_cuenta: 'falta la cuenta', sin_acceso: 'sin acceso del token', borrador_apagado: 'armado automático apagado',
+  sin_videos_legibles: 'no puedo leer los videos', sin_copy: 'sin copy', error: 'error', solo_estado: 'no está LISTO', sin_tiempo: 'sigue en la próxima corrida',
+}
+type RespDoc = { leido?: boolean; apagado?: boolean; clientes?: { cliente: string; accion: string; detalle: string | null; doc: string; enviado?: boolean }[]; errores?: string[]; error?: string }
+
+// El botón para el equipo: la misma corrida de las 9:05 (arma en pausa los LISTOS, avisa a Valen). Nada se prende en Meta.
+function BotonDocAds() {
+  const [estado, setEstado] = useState<'quieto' | 'leyendo'>('quieto')
+  const [r, setR] = useState<RespDoc | null>(null)
+  const leer = async () => {
+    setEstado('leyendo'); setR(null)
+    try {
+      const x = await fetch('/api/anuncios/doc-ads', { method: 'POST' })
+      setR(await x.json().catch(() => ({ error: `respuesta ${x.status}` })))
+    } catch (e) { setR({ error: (e as Error).message }) }
+    setEstado('quieto')
+  }
+  const listos = (r?.clientes ?? []).filter(c => c.accion !== 'solo_estado')
+  return <div className="mt-3">
+    <button type="button" className="enlace" onClick={leer} disabled={estado === 'leyendo'} style={{ fontSize: 13 }}>
+      {estado === 'leyendo' ? 'Leyendo el Doc de ADS… (puede tardar un par de minutos si arma campañas)' : '🗂️ Leer el Doc de ADS ahora'}
+    </button>
+    {r && <div className="mt-2" style={{ fontSize: 12, color: 'var(--humo)' }}>
+      {r.error ? <span style={{ color: 'var(--laton)' }}>No se pudo: {r.error}</span>
+        : r.apagado ? <span style={{ color: 'var(--laton)' }}>La lectura del Doc está apagada (ANUNCIOS_DOC_ADS=0).</span>
+          : !listos.length ? <span>Leído: ningún cliente por lanzar está LISTO en el Doc.</span>
+            : <ul>{listos.map(c => <li key={c.cliente}>{c.cliente}: {ACCION_DOC[c.accion] ?? c.accion}{c.detalle ? ` · ${c.detalle}` : ''}{c.enviado ? ' · avisado en #📣-ads' : ''}</li>)}</ul>}
+      {!!r.errores?.length && <div style={{ color: 'var(--laton)' }}>{r.errores.join(' · ')}</div>}
+    </div>}
+  </div>
+}
+
 function EtapaClickUp({ p }: { p: PorLanzar }) {
   return p.clickup ? <a className="enlace" href={p.clickup.url} target="_blank" rel="noopener noreferrer">{etapaTexto(p.etapa)}</a> : <>{etapaTexto(p.etapa)}</>
 }
@@ -45,9 +90,25 @@ function FilaSinFicha({ p }: { p: PorLanzar }) {
     </span>
     <span style={{ color: 'var(--humo)', fontSize: 14, minWidth: 190 }}><EtapaClickUp p={p} /></span>
     <Editados p={p} />
+    <DocAds p={p} />
     <span style={{ fontSize: 14, flex: 1, color: p.acceso === 'si' ? 'var(--hueso)' : 'var(--laton)' }}>
       {p.acceso === 'si' ? p.cuentas.map(c => `Cuenta visible: ${cuentaCorta(c)}${c.estado === 1 ? '' : ' · con problema de estado'}`).join(' · ') : 'Sin acceso: pedir el portfolio'}
     </span>
+  </li>
+}
+
+// Un cliente sin editados todavía: la etapa donde está trabado, el motivo, quién lo destraba y la fecha de su kickoff
+function FilaEsperando({ p }: { p: PorLanzar }) {
+  const t = p.traba
+  const k = p.kickoff?.fechaIso ? new Date(p.kickoff.fechaIso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' }) : null
+  return <li className="flex flex-col md:flex-row md:items-baseline gap-x-4 gap-y-0.5" style={{ padding: '8px 0', borderBottom: '1px solid var(--filete)' }}>
+    <span style={{ fontWeight: 500, minWidth: 240 }}>{p.cliente}</span>
+    <span style={{ fontSize: 14, minWidth: 190, color: 'var(--laton)' }}>{t ? `${EMOJI_ETAPA[t.etapa]} ${NOMBRE_ETAPA_TRABA[t.etapa]}` : 'Etapa sin dato'}</span>
+    <span style={{ fontSize: 14, flex: 1 }}>
+      {t ? <>{t.motivo} → <b style={{ fontWeight: 500 }}>{t.responsable}</b></> : '—'}
+      {!!t?.ademas.length && <span style={{ color: 'var(--laton)' }}> · ⚠️ {t.ademas.join('; ')}</span>}
+    </span>
+    <span style={{ color: 'var(--humo)', fontSize: 13 }}>{k ? `Kickoff ${k}` : p.sinFicha ? 'Sin ficha de kickoff' : ''}</span>
   </li>
 }
 
@@ -116,6 +177,7 @@ function TarjetaKickoff({ p }: { p: ConFicha }) {
     <div className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-x-4 gap-y-1">
       <span style={{ fontWeight: 500, fontSize: 16 }}>{p.cliente}</span>
       <Editados p={p} />
+      <DocAds p={p} />
       <span style={{ color: 'var(--humo)', fontSize: 13 }}>Kickoff {k.fecha ?? 'sin fecha'}{k.quien ? ` · Fathom de ${k.quien}` : ''}</span>
       <span className="flex flex-wrap gap-x-4 gap-y-1">
         {k.link && <a className="enlace" href={k.link} target="_blank" rel="noopener noreferrer" title="La ficha completa en el Despacho: pide login de Google con acceso a Clientes (la clave de Anuncios no alcanza)">Ficha en el Despacho (login de Google)</a>}
@@ -168,8 +230,8 @@ const GRUPOS_FICHA: { grupo: GrupoPorLanzar; titulo: string; azul?: boolean }[] 
   { grupo: 'ya_gasta', titulo: 'Con ficha de kickoff, ya gastan en el tablero con otro nombre' },
 ]
 
-export function PanelPorLanzar({ items, avisos = [], sinEditados = [] }: { items: PorLanzar[]; avisos?: string[]; sinEditados?: string[] }) {
-  if (!items.length && !avisos.length && !sinEditados.length) return null
+export function PanelPorLanzar({ items, avisos = [], sinEditados = [], esperando = [] }: { items: PorLanzar[]; avisos?: string[]; sinEditados?: string[]; esperando?: PorLanzar[] }) {
+  if (!items.length && !avisos.length && !sinEditados.length && !esperando.length) return null
   const conFicha = items.filter((p): p is ConFicha => !!p.kickoff)
   const resto = items.filter(p => !p.kickoff)
   const sin = resto.filter(p => p.acceso === 'no'), con = resto.filter(p => p.acceso === 'si')
@@ -190,7 +252,9 @@ export function PanelPorLanzar({ items, avisos = [], sinEditados = [] }: { items
       Clientes activos del CRM que todavía no gastaron (no tienen fila en el tablero) y ya tienen videos editados para lanzar. Aparecen solos en el tablero cuando empiezan a gastar.
       {seLeyoLaBase ? ' Con ficha de kickoff: lo que hace falta para armar la campaña, sacado de la ficha del Despacho; el acceso es el de la cuenta que revisó la ficha. Sin ficha: como antes, con la etapa de ClickUp.' : ''}
       {' '}«Cuenta visible» = el tablero ya puede leer su cuenta de Meta; si no, falta el acceso al portfolio.
+      {' '}«Doc de ADS» = su estado en «Organización de ADS - Orgánico»: los LISTOS los arma el bot en pausa a las 9:05 y avisa a Valen.
     </p>
+    <BotonDocAds />
     {GRUPOS_FICHA.map(({ grupo, titulo, azul }) => {
       const xs = conFicha.filter(p => p.grupo === grupo)
       return xs.length > 0 && <section key={grupo} aria-label={titulo} className="mt-6">
@@ -201,8 +265,13 @@ export function PanelPorLanzar({ items, avisos = [], sinEditados = [] }: { items
     {!!resto.length && (seLeyoLaBase
       ? <section aria-label="Sin ficha de kickoff" className="mt-6"><h3 className="etq">Sin ficha de kickoff · {resto.length}</h3>{gruposSinFicha}</section>
       : gruposSinFicha)}
-    {!!sinEditados.length && <p className="mt-6" style={{ color: 'var(--humo)', fontSize: 13 }}>
-      Todavía sin videos editados ({sinEditados.length}): {sinEditados.join(' · ')}. Aparecen acá cuando René sube los primeros.
-    </p>}
+    {esperando.length > 0
+      ? <section aria-label="Todavía sin videos editados" className="mt-6">
+        <h3 className="etq-laton">Todavía sin videos en «Editados» · {esperando.length} · dónde está trabado cada uno</h3>
+        <ul>{esperando.map(p => <FilaEsperando key={p.cliente} p={p} />)}</ul>
+      </section>
+      : !!sinEditados.length && <p className="mt-6" style={{ color: 'var(--humo)', fontSize: 13 }}>
+        Todavía sin videos editados ({sinEditados.length}): {sinEditados.join(' · ')}. Aparecen arriba cuando René sube los primeros.
+      </p>}
   </details>
 }

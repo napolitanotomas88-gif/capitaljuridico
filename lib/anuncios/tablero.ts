@@ -27,6 +27,10 @@ import { saludTokens, type EstadoToken } from './token'
 import { avisoLecturaFichas, crearLecturaConPausa, ESPERA_KICKOFFS_MS, leerFichasKickoff, PAUSA_KICKOFFS_MS, QUE_KICKOFFS } from './kickoffs'
 import { carpetasDrive } from '@/lib/clientes/drive'
 import { filtrarConEditados, type EditadosPorLanzar } from './editadosPorLanzar'
+import { tandasPorCliente } from './tandas'
+import { diagnosticar, type Diagnostico, type EntradaTraba, type TandaTraba } from './trabados'
+import { leerDocAdsCache } from '@/lib/bot/anuncios/docAdsLeer'
+import { estadoPorCliente, parsearDocAds, textoEstadoDoc } from '@/lib/bot/anuncios/docAds'
 import { avisosFichasSueltas, cruzarKickoffs, cuentasDelCliente, opcionesCruceTablero, tokensNombre, type ConKickoff, type CuentaPorLanzar } from './porLanzar'
 
 export const DIAS_LANZAMIENTO = 10
@@ -58,8 +62,13 @@ export interface FilaAnuncio extends Analisis {
   usdPor: number | null          // unidades de su moneda por 1 USD (USD = 1 · ARS = dólar MEP venta · otras = cotización del día)
 }
 
+export interface DocAdsPorLanzar { titulo: string; texto: string; listo: boolean; firme: boolean; videos: number }
+
 export interface PorLanzar extends ConKickoff {
   cliente: string                // nombre en el CRM
+  idCrm?: string | null          // id del CRM (Agencia, col A)
+  traba?: Diagnostico            // en qué etapa está y quién lo destraba (trabados.ts)
+  docAds?: DocAdsPorLanzar | null  // su bloque más nuevo en el Doc «Organización de ADS - Orgánico» (docAds.ts, 3/11)
   etapa: string | null           // estado de la tarea en ClickUp (Seguimiento de Anuncios): coming soon, creada, aprobada… (dato secundario mientras conviva con la ficha)
   clickup: { nombre: string; url: string } | null
   editados?: EditadosPorLanzar | null   // su carpeta «Editados - X» (editadosPorLanzar.ts); null = no se encontró o Drive no respondió
@@ -80,7 +89,8 @@ export interface Tablero {
   resumen: { porLanzar: number; sinAccesoPorLanzar: number; porLanzarConFicha: number; listosParaArmar: number; erroresNuevos: number; periodoGracia: number; revisarPresupuesto: number; sinGasto: number; total: number; errores: number; aGrabar: number; lanzadas: number; revisarDia4: number; rojos: number; amarillos: number; verdes: number; erroresPago: number; saldosPorAgotarse: number; sinGuiones: number; sinGuionesNecesarios: number; frenadas: number; sinMensajes: number; enAumento: number }
   filas: FilaAnuncio[]
   excluidas: { id: string; cuenta: string; motivo: string; moneda: string }[]
-  porLanzarSinEditados?: string[]   // por lanzar con la carpeta de editados vacía: no se muestran (regla del 26/10)
+  porLanzarSinEditados?: string[]   // por lanzar con la carpeta de editados vacía: no van con los de lanzar (regla del 26/10)
+  porLanzarEsperando?: PorLanzar[]  // esos mismos, con la etapa donde están trabados (traba): el bloque los muestra aparte (3/11)
   porLanzar: PorLanzar[]         // clientes ACTIVO del CRM que todavía no tienen fila (no lanzaron): acceso a Meta y ficha de kickoff (lo que hace falta para lanzar)
   avisosPorLanzar: string[]      // los de las fichas de kickoff (lectura de la base, fichas sueltas): van en el panel, no en `avisos` (el reporte de Discord no los arrastra)
   dolar: DolarHoy | null         // venta de hoy por casa (oficial, blue, MEP, tarjeta) para pasar ARS a USD
@@ -100,6 +110,20 @@ async function seguro<T>(p: Promise<T>): Promise<{ ok: true; v: T } | { ok: fals
 const leerKickoffs = crearLecturaConPausa(() => conCache('kickoffs-lanzar-v2', REFRESCO.kickoffsSeg, () => leerFichasKickoff()),
   { esperaMs: ESPERA_KICKOFFS_MS, pausaMs: PAUSA_KICKOFFS_MS, que: QUE_KICKOFFS })
 
+/** Lo que necesita diagnosticar (trabados.ts) de un cliente de «Por lanzar». `tandas` null = no se pudo leer cj_guiones. */
+export function entradaTraba(p: Pick<PorLanzar, 'cliente' | 'idCrm' | 'kickoff' | 'sinFicha' | 'acceso' | 'editados' | 'docAds'>, tandas: Map<string, TandaTraba> | null): EntradaTraba {
+  const id = (p.idCrm ?? p.kickoff?.idCrm ?? '').toUpperCase() || null
+  return {
+    cliente: p.cliente, idCrm: id,
+    kickoff: p.kickoff ? { fechaIso: p.kickoff.fechaIso, cuenta: !!p.kickoff.cuenta } : null,
+    sinFicha: p.sinFicha, acceso: p.acceso,
+    tanda: tandas ? (id ? tandas.get(id) : undefined) : null,
+    crudos: p.editados ? p.editados.crudos ?? null : null,
+    editados: p.editados ? p.editados.cantidad : null,
+    doc: p.docAds ? { listo: p.docAds.listo && p.docAds.firme, videos: p.docAds.videos, texto: p.docAds.texto } : null,
+  }
+}
+
 export async function obtenerTablero(): Promise<Tablero> {
   const { ajustes: AJUSTES_CUENTA, base: CUENTAS_BASE, excluidas: CUENTAS_EXCLUIDAS } = cargarCuentas()
   const presupuestosCuentas = leerPresupuestosPrivados()
@@ -108,6 +132,8 @@ export async function obtenerTablero(): Promise<Tablero> {
   // Fichas de kickoff (Neon) para "Por lanzar": arranca ya y se espera recién al armar "Por lanzar", con tope (no suma
   // latencia: corre mientras se lee Meta). Si falla o tarda, "Por lanzar" sale como antes, sin la ficha.
   const kickoffsP = seguro(leerKickoffs())
+  const tandasP = tandasPorCliente()   // la última tanda de guiones de cada cliente (Neon): para la etapa de los por lanzar
+  const docP = leerDocAdsCache()        // el Doc de ADS (caché 5 min): qué clientes están LISTOS para lanzar (docAds.ts)
   const driveP = carpetasDrive(45_000)   // corre en paralelo con Meta, que tarda más · «Por lanzar» solo con videos editados (editadosPorLanzar.ts)
   const [sheetsR, descR, tokenR, dolarR, fxR, clickupR, optR] = await Promise.all([
     seguro(conCache('sheets', REFRESCO.sheetsSeg, async () => {
@@ -298,7 +324,7 @@ export async function obtenerTablero(): Promise<Tablero> {
     // Las cuentas que se parecen por el nombre (a mano, dos palabras en común o un apellido distintivo): porLanzar.ts
     const cuentas = cuentasDelCliente(c.nombre, candidatas, { manual: idPorCliente.get(normTxt(c.nombre)) ?? null, tokFilas })
     const tarea = buscarTarea([c.nombre])
-    return { cliente: c.nombre, etapa: tarea?.estado ?? null, clickup: tarea ? { nombre: tarea.nombre, url: tarea.url } : null, acceso: cuentas.length ? 'si' as const : 'no' as const, cuentas }
+    return { cliente: c.nombre, idCrm: c.id || null, etapa: tarea?.estado ?? null, clickup: tarea ? { nombre: tarea.nombre, url: tarea.url } : null, acceso: cuentas.length ? 'si' as const : 'no' as const, cuentas }
   })
   // La ficha de kickoff de cada uno (porLanzar.ts): por el nombre del CRM que guardó la ficha, con el mismo cruce del
   // tablero, o por la cuenta que revisó (solo si el tablero se la asoció con algo firme). Con cuenta en la ficha, el
@@ -321,8 +347,17 @@ export async function obtenerTablero(): Promise<Tablero> {
   if (sheetsR.ok) avisosPorLanzar.push(...avisosFichasSueltas(sueltas))
   // Regla del 26/10: «Por lanzar» = los que ya tienen videos editados. Sin Drive, se muestran todos y se avisa
   const drive = await driveP
-  const { porLanzar, sinEditados } = filtrarConEditados(todosPorLanzar, drive.carpetas, drive.carpetas.length > 0)
+  const { porLanzar, sinEditados, esperando } = filtrarConEditados(todosPorLanzar, drive.carpetas, drive.carpetas.length > 0)
   if (!drive.carpetas.length) avisosPorLanzar.push('Drive no respondió: «Por lanzar» muestra a todos, también a los que todavía no tienen videos editados.')
+  // En qué etapa está cada uno y quién lo destraba (trabados.ts): los de lanzar y los que esperan editados
+  const tandas = await tandasP
+  // El estado de cada uno en el Doc de ADS: el bloque más nuevo que se le cruza, contra todos los clientes (docAds.ts)
+  const textoDoc = await docP
+  if (textoDoc) {
+    const xs = [...filas.map(f => ({ cliente: f.clienteCRM ?? f.cliente, p: null as PorLanzar | null })), ...[...porLanzar, ...esperando].map(p => ({ cliente: p.cliente, p }))]
+    for (const [x, e] of estadoPorCliente(parsearDocAds(textoDoc), xs)) if (x.p) x.p.docAds = { titulo: e.titulo, texto: textoEstadoDoc(e), listo: e.listo, firme: e.fuerza === 'firme', videos: e.videos }
+  }
+  for (const p of [...porLanzar, ...esperando]) p.traba = diagnosticar(entradaTraba(p, tandas))
 
   const tiene = (f: FilaAnuncio, ...t: TipoMotivo[]) => f.motivos.some(x => t.includes(x.tipo))
   return {
@@ -366,6 +401,7 @@ export async function obtenerTablero(): Promise<Tablero> {
     excluidas,
     porLanzar,
     porLanzarSinEditados: sinEditados,
+    porLanzarEsperando: esperando,
     avisosPorLanzar,
     dolar,
     optimizacionesLeidas: optR.ok,

@@ -314,3 +314,49 @@ export function estadoHttpDe(e: ErrorFathomApi): number {
     default: return 502   // 401/403 de Fathom (la key es del servidor, no de quien llama), 5xx, red, respuesta rara
   }
 }
+
+// ── Lista liviana de reuniones (para las kickoffs que se perdieron, kickoffPerdida.ts, 3/11/2026) ──────────────────
+export interface ReunionListada {
+  recording_id: number
+  titulo: string
+  url: string | null
+  creada: string | null              // ISO (created_at, o el fin de la grabación)
+  externos: boolean | null           // calendar_invitees_domains_type = one_or_more_external
+}
+
+/** Las reuniones de la cuenta de Fathom de `quien` creadas desde `creadoDesde` (solo la lista: sin transcripciones). */
+export async function listarReuniones(quien: Quien, op: OpcionesTraer & { creadoDesde: string }): Promise<ReunionListada[]> {
+  const env = op.env ?? process.env
+  const clave = claveApi(quien, env)
+  if (!clave) throw new ErrorFathomApi('sin_clave', `falta ${varApiKey(quien)}: la API key de Fathom de ${GRABADORES[quien].nombre}`)
+  const ahora = op.ahora ?? (() => Date.now())
+  const ctx: Ctx = {
+    clave, quien, ahora,
+    fetch: op.fetch ?? ((input, init) => fetch(input, init)),
+    esperar: op.esperar ?? (ms => new Promise<void>(r => setTimeout(r, Math.max(0, ms)))),
+    deadline: op.deadline ?? ahora() + TOPE_TOTAL_MS,
+  }
+  const desde = fechaIso(op.creadoDesde)
+  const out: ReunionListada[] = []
+  let cursor: string | null = null
+  const vistos = new Set<string>()
+  for (let p = 0; p < Math.max(1, Math.min(20, op.maxPaginas ?? 10)); p++) {
+    const q = new URLSearchParams()
+    if (desde) q.set('created_after', desde)
+    if (cursor) q.set('cursor', cursor)
+    const r = await pedir(ctx, '/meetings', q, 'la lista de reuniones')
+    if (!esObj(r) || !Array.isArray(r.items)) throw new ErrorFathomApi('respuesta_invalida', 'Fathom devolvió la lista de reuniones sin "items"')
+    for (const m of r.items) {
+      if (!esObj(m) || typeof m.recording_id !== 'number') continue
+      const t = typeof m.title === 'string' ? m.title : typeof m.meeting_title === 'string' ? m.meeting_title : ''
+      const creada = fechaIso(typeof m.created_at === 'string' ? m.created_at : typeof m.recording_end_time === 'string' ? m.recording_end_time : null)
+      const dom = typeof m.calendar_invitees_domains_type === 'string' ? m.calendar_invitees_domains_type : null
+      out.push({ recording_id: m.recording_id, titulo: t, url: typeof m.url === 'string' ? m.url : null, creada, externos: dom ? dom === 'one_or_more_external' : null })
+    }
+    const sig: string | null = typeof r.next_cursor === 'string' && r.next_cursor ? r.next_cursor : null
+    if (!sig || vistos.has(sig)) break
+    vistos.add(sig)
+    cursor = sig
+  }
+  return out
+}

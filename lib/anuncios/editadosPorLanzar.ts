@@ -2,13 +2,14 @@
 // Regla de Tomás (26/10/2026, vía CONSULTOR): el «🚀 Para lanzar» ya no sale en la kickoff sino cuando el cliente tiene
 // videos editados (g01, lib/bot/anuncios/videos.ts). El bloque «Por lanzar» del tablero muestra lo mismo: los clientes
 // sin fila cuya carpeta «Editados - X» (Drive «Clientes», lib/clientes/drive.ts) ya tiene archivos.
-//   · Con 0 editados: no se muestran (quedan contados en `sinEditados`, para la línea de abajo del bloque).
+//   · Con 0 editados: no van con los de lanzar; desde el 3/11 se devuelven aparte (`esperando`, con los crudos de su carpeta)
+//     para que el bloque los muestre con la etapa donde están trabados (lib/anuncios/trabados.ts). `sinEditados`: los nombres.
 //   · Si no se encuentra su carpeta (nombre distinto en Drive) o Drive no respondió, se muestran igual con la marca: no se
 //     esconde a nadie por un dato que no se pudo leer.
 // Puro: las carpetas entran ya leídas.
 import type { CarpetaCliente } from '@/lib/clientes/drive'
 
-export interface EditadosPorLanzar { cantidad: number; ultimo: string | null; url: string | null; carpeta: string | null }
+export interface EditadosPorLanzar { cantidad: number; ultimo: string | null; url: string | null; carpeta: string | null; crudos?: number | null }
 
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 const IGNORAR = new Set(['estudio', 'juridico', 'abogado', 'abogada', 'abogados', 'asociados', 'legal', 'dra', 'dr', 'skwd'])
@@ -29,15 +30,16 @@ export function carpetaDe(cliente: string, carpetas: CarpetaCliente[]): CarpetaC
  * Agrega `editados` a cada cliente por lanzar y deja afuera los que tienen la carpeta de editados vacía. `driveOk` = se
  * pudo leer Drive (si no, no se filtra nada).
  */
-export function filtrarConEditados<T extends { cliente: string }>(xs: T[], carpetas: CarpetaCliente[], driveOk: boolean): { porLanzar: (T & { editados: EditadosPorLanzar | null })[]; sinEditados: string[] } {
-  if (!driveOk) return { porLanzar: xs.map(x => ({ ...x, editados: null })), sinEditados: [] }
-  const porLanzar: (T & { editados: EditadosPorLanzar | null })[] = [], sinEditados: string[] = []
+export function filtrarConEditados<T extends { cliente: string }>(xs: T[], carpetas: CarpetaCliente[], driveOk: boolean): { porLanzar: (T & { editados: EditadosPorLanzar | null })[]; sinEditados: string[]; esperando: (T & { editados: EditadosPorLanzar })[] } {
+  if (!driveOk) return { porLanzar: xs.map(x => ({ ...x, editados: null })), sinEditados: [], esperando: [] }
+  const porLanzar: (T & { editados: EditadosPorLanzar | null })[] = [], esperando: (T & { editados: EditadosPorLanzar })[] = []
   for (const x of xs) {
     const c = carpetaDe(x.cliente, carpetas)
     if (!c) { porLanzar.push({ ...x, editados: null }); continue }
     const cantidad = c.editados?.cantidad ?? 0
-    if (!cantidad) { sinEditados.push(x.cliente); continue }
-    porLanzar.push({ ...x, editados: { cantidad, ultimo: c.editados?.ultimo ?? null, url: c.editados?.url ?? null, carpeta: c.nombre } })
+    const e = { cantidad, ultimo: c.editados?.ultimo ?? null, url: c.editados?.url ?? null, carpeta: c.nombre, crudos: c.crudos ? c.crudos.cantidad : null }
+    if (!cantidad) { esperando.push({ ...x, editados: e }); continue }
+    porLanzar.push({ ...x, editados: e })
   }
-  return { porLanzar, sinEditados }
+  return { porLanzar, sinEditados: esperando.map(x => x.cliente), esperando }
 }

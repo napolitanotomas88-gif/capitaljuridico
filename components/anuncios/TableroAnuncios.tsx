@@ -254,7 +254,7 @@ export function TableroAnuncios() {
       <PanelLanzamientos filas={datos.filas} foco={foco} alOptimizar={() => void cargar()} />
       <PanelCompetencia filas={datos.filas} alRevisar={() => void cargar(false)} />
       <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
-      <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} />
+      <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} esperando={datos.porLanzarEsperando ?? []} />
       <NotasCliente />
       <GuionesAGrabar filas={datos.filas} />
 

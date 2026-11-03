@@ -346,7 +346,7 @@ export interface PartesFicha {
 }
 
 /** La cabecera que guarda la ficha (los ítems de Meta quedan dentro de portfolio_final). */
-const cabeceraMeta = (m: LecturaPortfolioMeta): PortfolioMetaFicha => ({
+export const cabeceraMeta = (m: LecturaPortfolioMeta): PortfolioMetaFicha => ({
   cuenta: m.cuenta, nombre: m.nombre, leido: m.leido, motivo: m.motivo, aviso: m.aviso, generado: m.generado, origen_cuenta: m.origen_cuenta,
   moneda: m.moneda ?? null, zona_horaria: m.zona_horaria ?? null,
 })

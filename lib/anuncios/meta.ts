@@ -425,3 +425,27 @@ export async function leerLanzamientos(ids: string[], desde: string, hasta: stri
   }
   return { lanzamientos: lanz.sort((a, b) => b.fecha.localeCompare(a.fecha)), errores: r.errores, erroresPausas }
 }
+
+/**
+ * Los nombres de las páginas que puede promocionar cada cuenta (/act_…/promote_pages), para buscar la cuenta de un cliente
+ * por el nombre de su página (lib/bot/kickoff/cuentaTemprana.ts, 3/11/2026). Solo GET, en lotes de 50, como mucho
+ * `max` cuentas. Lo que falla queda sin páginas (no tira).
+ */
+export async function paginasDeCuentas(ids: string[], max = 150): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  const token = tokensMeta()[0]?.token
+  if (!token) return out
+  const lista = [...new Set(ids)].slice(0, max)
+  for (let i = 0; i < lista.length; i += 50) {
+    const parte = lista.slice(i, i + 50)
+    try {
+      const r = await llamarBatch(token, parte.map(id => `${id}/promote_pages?fields=name&limit=10`))
+      r.forEach((x, j) => {
+        if (!x.ok) return
+        const data = (x.body as { data?: { name?: string }[] })?.data ?? []
+        out.set(parte[j], data.map(p => p.name ?? '').filter(Boolean))
+      })
+    } catch { /* sin páginas para este lote */ }
+  }
+  return out
+}

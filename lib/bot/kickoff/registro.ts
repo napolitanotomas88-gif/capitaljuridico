@@ -274,6 +274,12 @@ export async function guardarFicha(id: number, x: FichaGuardada): Promise<void> 
     WHERE recording_id = ${id}`)
 }
 
+/** Solo el JSON de la ficha (el rechequeo de la cuenta de Meta, rechequeo.ts): no toca modelo, tokens ni cliente. */
+export async function actualizarFicha(id: number, ficha: unknown): Promise<void> {
+  await asegurarTabla()
+  await consulta('actualizar ficha', q => q`UPDATE cj_kickoffs SET ficha = ${JSON.stringify(ficha)}::jsonb, actualizado = now() WHERE recording_id = ${id} AND estado = 'lista'`)
+}
+
 export interface IdeasGuardadas { ideas: unknown; version_ideas: string; tokens_in: number; tokens_out: number }
 
 /** Las ideas apenas salen (los tokens se SUMAN a los de la ficha). */
@@ -673,4 +679,24 @@ export async function guardarRevision(recordingId: number, quien: ClaveRevisor, 
       revision = jsonb_set(COALESCE(revision, '{"tomi": null, "gero_m": null}'::jsonb), ARRAY[${quien}::text], ${JSON.stringify(valor)}::jsonb, true)
     WHERE recording_id = ${recordingId} AND upper(id_crm) = ${idCrm} AND COALESCE(revision -> ${quien}::text ->> 'cuando', '') = ${previo ?? ''}
     RETURNING revision` as Promise<Record<string, unknown>[]>)
+}
+
+/** El estado de cada grabación que ya tiene fila (las kickoffs perdidas, kickoffPerdida.ts). Sin fila = no está en el mapa. */
+export async function estadosKickoff(ids: number[]): Promise<Map<number, string>> {
+  const lista = [...new Set(ids.filter(n => Number.isSafeInteger(n) && n > 0))]
+  if (!lista.length) return new Map()
+  const filas = await leer('estados', [], q => q`SELECT recording_id, estado FROM cj_kickoffs WHERE recording_id = ANY(${lista})`)
+  return new Map(filas.map(f => [Number(f.recording_id), String(f.estado)]))
+}
+
+export interface FichaListaReciente { recording_id: number; cliente_crm: string | null; id_crm: string | null; cuenta: string | null; leido: boolean; creado: string }
+
+/** Las fichas listas de los últimos `dias` días con lo de su cuenta de Meta (el chequeo temprano, cuentaTemprana.ts). */
+export async function fichasListasRecientes(dias: number): Promise<FichaListaReciente[]> {
+  const d = Math.max(1, Math.min(90, Math.round(dias)))
+  const filas = await leer('fichas recientes', [], q => q`SELECT recording_id, cliente_crm, id_crm, creado,
+      ficha -> 'portfolio_meta' ->> 'cuenta' AS cuenta, (ficha -> 'portfolio_meta' ->> 'leido') AS leido
+    FROM cj_kickoffs WHERE estado = 'lista' AND ficha ->> 'tipo_reunion' = 'kickoff' AND creado > now() - make_interval(days => ${d})
+    ORDER BY creado DESC LIMIT 100`)
+  return filas.map(f => ({ recording_id: Number(f.recording_id), cliente_crm: f.cliente_crm ? String(f.cliente_crm) : null, id_crm: f.id_crm ? String(f.id_crm) : null, cuenta: f.cuenta ? String(f.cuenta) : null, leido: String(f.leido) === 'true', creado: iso(f.creado) }))
 }
