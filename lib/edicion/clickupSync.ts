@@ -76,6 +76,23 @@ export function planSync(t: TareaSync, actual: TarjetaSync | null, op: { lista: 
   return Object.keys(cambios).length ? { tipo: 'actualizar', cambios, publicar, ignorados } : { tipo: 'nada', motivo: ignorados.length ? ignorados.join(' · ') : 'sin cambios' }
 }
 
+/**
+ * El eco (lo último que el Despacho escribió en ClickUp) se consume: si ClickUp ya muestra otro valor (una persona lo cambió
+ * después) o ya coincide con la tarjeta (convergieron), deja de valer. Sin esto, un cambio real en ClickUp que vuelve al valor
+ * que alguna vez escribió el Despacho (p. ej. «para editar» otra vez, por una corrección) se ignoraba para siempre. Puro.
+ */
+export function ecoTras(t: TareaSync, actual: TarjetaSync, aplicados: CambiosSync = {}): Partial<Record<CampoEco, string>> {
+  const etapa = etapaDeClickUp(t.estado), campos = camposDe(t)
+  const tarjeta: Record<CampoEco, string> = { etapa: aplicados.etapa ?? actual.etapa, ...{ paleta: actual.campos.paleta ?? '', crudo: actual.campos.crudo ?? '', editado: actual.campos.editado ?? '' }, ...(aplicados.campos ?? {}) }
+  const cu: Record<CampoEco, string> = { etapa: etapa ?? '', paleta: campos.paleta, crudo: campos.crudo, editado: campos.editado }
+  const out: Partial<Record<CampoEco, string>> = {}
+  for (const [k, v] of Object.entries(actual.clickup_eco ?? {}) as [CampoEco, string][]) if (v !== undefined && cu[k] === v && tarjeta[k] !== v) out[k] = v
+  return out
+}
+
+/** La marca «despacho:<id>» de una tarea dada de alta desde el tablero (va en su descripción). Puro. */
+export const marcaDespacho = (descripcion: string): string | null => /despacho:(dsp_[a-f0-9]{24})\b/.exec(descripcion ?? '')?.[1] ?? null
+
 /** Tareas raíz nuevas → cliente del CRM (el mismo cruce del import: un solo cliente por tarjeta, si no, sin cruzar). Puro. */
 export function cruzarRaices(raices: readonly { id: string; nombre: string }[], crm: readonly { id: string; nombre: string; estado?: string }[]): Map<string, string> {
   const out = new Map<string, string>(), dobles = new Set<string>()
@@ -121,10 +138,24 @@ export async function aplicarTareas(c: PoolClient, tareas: readonly TareaSync[],
     for (const f of b.rows) { r.borradas++; await historial(String(f.id), 'comentario', null, null, 'La tarea se borró (o salió de la lista) en ClickUp: la tarjeta deja de mostrarse.', { tarea: id, borrada: true }) }
   }
   for (const t of tareas) {
-    const fila = (await c.query("SELECT * FROM cj_edicion_tarjetas WHERE clickup_id=$1 OR id='cu_'||$1 ORDER BY (clickup_id=$1) DESC LIMIT 1 FOR UPDATE", [t.id])).rows[0]
+    let fila = (await c.query("SELECT * FROM cj_edicion_tarjetas WHERE clickup_id=$1 OR id='cu_'||$1 ORDER BY (clickup_id=$1) DESC LIMIT 1 FOR UPDATE", [t.id])).rows[0]
+    // Una tarea que dio de alta el Despacho puede llegar (webhook o sondeo) antes de que la outbox anote su clickup_id:
+    // se reconoce por la marca de la descripción y se vincula a SU tarjeta, nunca se crea una segunda.
+    const marca = !fila ? marcaDespacho(t.descripcion) : null
+    if (marca) {
+      fila = (await c.query("UPDATE cj_edicion_tarjetas SET clickup_id=$2,clickup_url=COALESCE(clickup_url,$3) WHERE id=$1 AND origen='despacho' AND (clickup_id IS NULL OR clickup_id=$2) RETURNING *", [marca, t.id, t.url || null])).rows[0]
+      if (fila) await c.query("UPDATE cj_edicion_tarjetas_outbox SET estado='enviado',enviado=now(),error='vinculada por la marca al llegar de ClickUp' WHERE tarjeta_id=$1 AND canal='clickup' AND estado='pendiente' AND datos->>'op'='crear'", [marca])
+    }
     const actual = fila ? tarjetaSyncDesdeFila(fila) : null
     const plan = planSync(t, actual, op)
-    if (plan.tipo === 'nada') { r.iguales++; if (actual && ms(t.actualizada) > ms(actual.clickup_actualizado)) await c.query('UPDATE cj_edicion_tarjetas SET clickup_actualizado=$2 WHERE id=$1', [actual.id, t.actualizada]); continue }
+    if (plan.tipo === 'nada') {
+      r.iguales++
+      if (actual) {
+        const eco = ecoTras(t, actual)
+        if (ms(t.actualizada) > ms(actual.clickup_actualizado) || !igual(eco, actual.clickup_eco)) await c.query('UPDATE cj_edicion_tarjetas SET clickup_actualizado=GREATEST(clickup_actualizado,$2::timestamptz),clickup_eco=$3::jsonb WHERE id=$1', [actual.id, t.actualizada, JSON.stringify(eco)])
+      }
+      continue
+    }
     if (plan.tipo === 'borrar') { await c.query('UPDATE cj_edicion_tarjetas SET borrada=now(),version=version+1,actualizado=now() WHERE id=$1', [actual!.id]); r.borradas++; await historial(actual!.id, 'comentario', null, null, 'La tarea salió de la lista de Edición en ClickUp: la tarjeta deja de mostrarse.', { tarea: t.id, borrada: true }); continue }
     if (plan.tipo === 'crear') {
       let parent: string | null = null, idCrm: string | null = null
@@ -162,9 +193,11 @@ export async function aplicarTareas(c: PoolClient, tareas: readonly TareaSync[],
         }
       }
     }
+    // actualizado = la hora del cambio en ClickUp (no la de esta escritura): si no, un cambio hecho en ClickUp mientras se
+    // aplicaba el anterior parecía «más viejo que el Despacho» y se perdía.
     await c.query(`UPDATE cj_edicion_tarjetas SET etapa=$2,campos=$3::jsonb,nombre=$4,prioridad=$5,asignados=$6::jsonb,clickup_actualizado=$7,motor_bloqueado=$8,video_version=COALESCE($9,video_version),
-      entrega_evento=CASE WHEN $10 THEN NULL ELSE entrega_evento END,clickup_id=COALESCE(clickup_id,$11),version=version+1,actualizado=now() WHERE id=$1`,
-      [a.id, k.etapa ?? a.etapa, JSON.stringify(k.campos ?? a.campos), k.nombre ?? a.nombre, k.prioridad === undefined ? a.prioridad : k.prioridad, JSON.stringify(k.asignados ?? a.asignados), t.actualizada, bloqueo, videoVersion, !!k.etapa || !!k.campos, t.id])
+      entrega_evento=CASE WHEN $10 THEN NULL ELSE entrega_evento END,clickup_id=COALESCE(clickup_id,$11),clickup_eco=$12::jsonb,version=version+1,actualizado=GREATEST(actualizado,COALESCE($7::timestamptz,actualizado)) WHERE id=$1`,
+      [a.id, k.etapa ?? a.etapa, JSON.stringify(k.campos ?? a.campos), k.nombre ?? a.nombre, k.prioridad === undefined ? a.prioridad : k.prioridad, JSON.stringify(k.asignados ?? a.asignados), t.actualizada, bloqueo, videoVersion, !!k.etapa || !!k.campos, t.id, JSON.stringify(ecoTras(t, a, k))])
     r.actualizadas++
     if (k.etapa) await historial(a.id, 'movimiento', a.etapa, k.etapa, `${a.etapa} → ${k.etapa} (en ClickUp)`, { tarea: t.id, cuando: t.actualizada, etapa: k.etapa })
     if (k.campos) await historial(a.id, 'campos', null, null, 'Se actualizaron los campos en ClickUp.', { tarea: t.id, cuando: t.actualizada, campos: k.campos })
