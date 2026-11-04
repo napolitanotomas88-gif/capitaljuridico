@@ -204,7 +204,7 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
   )
 }
 
-/** Mini recorrido arriba de la tarjeta: dónde está el cliente entre Alta y Éxito (o en qué cierre). */
+/** Mini recorrido arriba de la tarjeta: dónde está el cliente entre Onboard y Éxito (o en qué cierre). */
 function Recorrido({ fila, dia1, demo }: { fila: FilaRecorrido; dia1: string | null; demo: boolean }) {
   const pasos = ETAPAS.filter(e => !ETAPAS_CIERRE.includes(e))
   const actual = pasos.indexOf(fila.etapa)

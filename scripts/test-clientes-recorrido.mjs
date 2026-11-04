@@ -303,3 +303,8 @@ test('ocultar montos (v8): el botón solo con Finanzas y las cifras envueltas en
   assert.match(css, /\.cj-boton-montos/, 'el control de montos conserva su estilo compartido')
   assert.match(boton, /CSS_OCULTOS = '\.cj-monto,\.cj-monto \*\{color:transparent!important/)
 })
+
+test('la etapa alta se muestra como «Onboard» (4/11/2026); la clave sigue siendo alta', () => {
+  assert.equal(R.NOMBRE_ETAPA.alta, 'Onboard')
+  assert.equal(R.ETAPAS[0], 'alta')
+})
