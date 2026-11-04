@@ -387,6 +387,32 @@ describe('cargarPagoFinanzas', () => {
     assert.equal(h.filasHoja, 5720)
     assert.equal(p.llamadas.filter(l => l.tipo === 'batchUpdate').length, 1, 'inserción, valores y chip en UN solo batchUpdate')
   })
+  test('real: una 2da cuota se registra en el tablero de Cuotas; una 1ra no; si falla, avisa (4/11/2026)', async () => {
+    const llamadas = []
+    const tablero = async (pago) => { llamadas.push(pago); return { ok: true, accion: 'registrado', detalle: 'ok', avisos: [] } }
+    const app = async () => ({ ok: true, id: 1, nuevo: true, motivo: null })
+    const segunda = () => { const f = filaPrueba(); f.celdas.J = '2da Cuota'; f.fila[9] = '2da Cuota'; return f }
+    let h = hojaInicial(), d = puenteDeJuguete(), p = planillaDeJuguete(h, { drive: d })
+    const r = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    assert.ok(r.ok, r.motivo)
+    assert.equal(llamadas.length, 1)
+    assert.deepEqual([llamadas[0].fecha, llamadas[0].nombre, llamadas[0].concepto, typeof llamadas[0].usd], [HOY, 'PRUEBA BOT - borrar', '2da Cuota', 'number'])
+    assert.equal(r.tablero.accion, 'registrado')
+    h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
+    const r1 = await cargarPagoFinanzas(filaPrueba(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    assert.ok(r1.ok, r1.motivo)
+    assert.equal(llamadas.length, 1, 'la 1ra cuota de un alta nueva no va al tablero')
+    assert.equal(r1.tablero, null)
+    h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
+    const falla = async () => ({ ok: false, accion: 'sin_plan', detalle: 'no tiene plan', avisos: [] })
+    const r2 = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero: falla } })
+    assert.ok(r2.ok, 'el pago queda cargado igual')
+    assert.ok(r2.avisos.some((x) => x.includes('registrala a mano en /cuotas')))
+    // en simulación no se toca el tablero
+    h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
+    await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'simulacion', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    assert.equal(llamadas.length, 1)
+  })
   test('real: si Google rechaza el chip, repite sin chip y la col I queda con el nombre', async () => {
     const h = hojaInicial(), d = puenteDeJuguete(), p = planillaDeJuguete(h, { drive: d, rechazarChip: true })
     const r = await cargarPagoFinanzas(filaPrueba(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d } })
