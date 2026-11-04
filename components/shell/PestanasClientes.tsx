@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { pestanaActiva, type PestanaClientes } from '@/lib/auth/hubClientes'
+import { idPestana, pestanaActiva, type PestanaClientes } from '@/lib/auth/hubClientes'
 import { Icono } from './iconos'
 import { MenuRapido } from '@/components/clientes/MenuRapido'
 import { useEffect, useRef, useState } from 'react'
@@ -26,8 +26,8 @@ export function PestanasClientes({ pestanas, portales = [], oscuro = false, pued
     <nav className={`cj-hub${oscuro ? ' cj-hub--oscuro' : ''}`} aria-label="Clientes" data-pestanas={pestanas.length}>
       <ul className="cj-hub__lista">
         {pestanas.map((p) => (
-          <li key={p.clave}>
-            <Link href={p.href} className="cj-hub__pestana" aria-current={p.clave === actual ? 'page' : undefined}>
+          <li key={idPestana(p)}>
+            <Link href={p.href} className="cj-hub__pestana" aria-current={idPestana(p) === actual ? 'page' : undefined}>
               <Icono nombre={p.icono} />
               <span className="cj-hub__txt">{p.etiqueta}</span>
             </Link>
