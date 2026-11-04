@@ -3,7 +3,7 @@
 // PUBLICADO». Para cada video que entró a «publicar» (desde el tablero o desde ClickUp, publicacionesDb.ts):
 //   1. Copy: el del video en el Doc de ADS si ya está; si no, el directo (3:2:2) escrito desde su guion. Sin copy → la
 //      tarjeta queda en Publicar con «falta copy» visible y aviso.
-//   2. Doc de ADS: se anota el video en el bloque del cliente (docAdsEscribir.ts) si hay permiso; si no, sigue igual.
+//   2. Doc de ADS: una vez creado el anuncio, se anota el video en el bloque del cliente (docAdsEscribir.ts) si hay permiso.
 //   3. Cliente SIN campaña corriendo → la misma corrida del Doc (lanzarDesdeDoc, solo ese cliente y solo ese video, con su
 //      línea de base): campaña nueva EN PAUSA. Cliente CON campaña → un conjunto nuevo EN PAUSA dentro de su campaña, con
 //      este anuncio (rotación, armarBorrador; ANUNCIOS_ROTAR=real, si no queda en seco y Valen la suma a mano).
@@ -82,7 +82,9 @@ export async function publicarUna(p: PublicacionFila, d: DepsPublicar): Promise<
   try { c = await d.copy(t, drive) } catch (e) { c = { copy: null, fuente: `error: ${motivo(e)}` } }
   res.copy = { fuente: c.fuente, texto: c.copy }
   if (!c.copy) return fallo('falta_copy', 'no encontré el copy: ni en el Doc de ADS ni un guion del video para escribirlo. Cargá el guion (comentario «Guion:» en la tarjeta o en ClickUp) o el copy en el Doc')
-  res.doc = seco ? 'seco: no se escribe el Doc de ADS' : await d.escribirDoc({ cliente: cli.nombre, drive, copy: c.copy }).catch(e => `no se pudo escribir el Doc (${motivo(e)})`)
+  // El Doc de ADS se escribe DESPUÉS de crear en Meta (y de marcar la huella del video): si se escribiera antes, la corrida
+  // del Doc podía ver el video como nuevo en el medio y avisar «sumalo a mano» o armarlo por su lado (anuncio doble).
+  res.doc = seco ? 'seco: no se escribe el Doc de ADS' : 'pendiente: se escribe cuando el anuncio quede creado'
   if (cli.tipo === 'campana') {
     res.camino = 'rotacion'
     let r: Awaited<ReturnType<DepsPublicar['rotar']>>
@@ -113,6 +115,7 @@ export async function publicarUna(p: PublicacionFila, d: DepsPublicar): Promise<
     res.despues.push('la tarjeta pasaría a «publicado» en el Despacho', t.clickup_id ? 'y en ClickUp (outbox: estado → publicado)' : 'y en ClickUp cuando tenga su tarea', 'avisaría a Valen: campanita del Despacho + #📣-ads con el link al Administrador')
     return res
   }
+  res.doc = await d.escribirDoc({ cliente: cli.nombre, drive, copy: c.copy }).catch(e => `no se pudo escribir el Doc (${motivo(e)})`)
   await d.cerrarTarjeta({ tarjeta: t, anuncios: res.anuncios, link: res.link, campana: res.campana })
   res.estado = 'creado'; res.detalle = `${res.camino === 'rotacion' ? 'conjunto nuevo EN PAUSA en su campaña' : 'campaña nueva EN PAUSA'}, verificado: la tarjeta pasó a Publicado`
   await d.avisar({ ok: true, clave: `publicar:${t.id}:${drive}`, tarjeta: t, cliente: cli.nombre, lineas, link: res.link }).catch(() => {})

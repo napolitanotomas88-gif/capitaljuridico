@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createHmac } from 'node:crypto'
-import { planSync, etapaDeClickUp, ordenarTareas, cruzarRaices } from '../lib/edicion/clickupSync.ts'
+import { planSync, etapaDeClickUp, ordenarTareas, cruzarRaices, ecoTras, marcaDespacho } from '../lib/edicion/clickupSync.ts'
 import { disparaPublicacion, publicarDesde, archivoEditado } from '../lib/edicion/publicacionesDb.ts'
 import { planEscrituraDoc } from '../lib/bot/anuncios/docAdsEscribir.ts'
 import { publicarUna, estadoDesdeDoc, seccionesDeGuion } from '../lib/edicion/publicar.ts'
@@ -160,4 +160,41 @@ test('copy desde el guion y firma del webhook', () => {
   assert.equal(firmaValida(cuerpo, createHmac('sha256', secreto).update(cuerpo).digest('hex'), secreto), true)
   assert.equal(firmaValida(cuerpo, createHmac('sha256', 'otro').update(cuerpo).digest('hex'), secreto), false)
   assert.equal(firmaValida(cuerpo, null, secreto), false)
+})
+
+test('revisión 4/11: el eco se consume (un regreso real en ClickUp al valor que escribió el Despacho no se ignora)', () => {
+  // El Despacho escribió «para editar» (eco). En ClickUp la movieron a «editado» → se aplica y el eco deja de valer.
+  const t0 = tarjeta({ etapa: 'para editar', clickup_eco: { etapa: 'para editar' } })
+  const cu1 = tarea({ estado: 'editado', actualizada: '2026-11-04T12:00:00.000Z' })
+  const p1 = planSync(cu1, t0, op)
+  assert.equal(p1.cambios.etapa, 'editado')
+  assert.deepEqual(ecoTras(cu1, t0, p1.cambios), {})
+  // Después vuelven a «para editar» en ClickUp (una corrección): sin eco viejo, se aplica.
+  const t1 = { ...aplicar(t0, p1, cu1), clickup_eco: ecoTras(cu1, t0, p1.cambios) }
+  const p2 = planSync(tarea({ estado: 'para editar', actualizada: '2026-11-04T13:00:00.000Z' }), t1, op)
+  assert.equal(p2.cambios.etapa, 'para editar')
+  // El rebote verdadero se sigue ignorando: el Despacho escribió B, la tarjeta ya va por C, ClickUp todavía muestra B.
+  const t2 = tarjeta({ etapa: 'revisión', clickup_eco: { etapa: 'editado' }, campos: { paleta: '', crudo: '', editado: tarea().campos.editado } })
+  const cuB = tarea({ estado: 'editado', actualizada: '2026-11-04T14:00:00.000Z' })
+  assert.equal(planSync(cuB, t2, op).tipo, 'nada')
+  assert.deepEqual(ecoTras(cuB, t2), { etapa: 'editado' })
+})
+
+test('revisión 4/11: una tarea dada de alta desde el Despacho se reconoce por su marca (no se duplica)', () => {
+  assert.equal(marcaDespacho('Creada desde el Despacho. despacho:dsp_0123456789abcdef01234567'), 'dsp_0123456789abcdef01234567')
+  assert.equal(marcaDespacho('sin marca'), null)
+  assert.equal(marcaDespacho('despacho:otra_cosa'), null)
+})
+
+test('revisión 4/11: el Doc de ADS se escribe solo después de crear el anuncio (si falla, no se toca)', async () => {
+  const orden = []
+  const ok = deps({ escribirDoc: async () => { orden.push('doc'); return 'escrito' }, lanzar: async (...a) => { orden.push('meta'); return deps().d.lanzar(...a) }, cerrarTarjeta: async () => { orden.push('cerrar') } })
+  await publicarUna(fila, ok.d)
+  assert.deepEqual(orden, ['meta', 'doc', 'cerrar'])
+  const mal = deps({ lanzar: async () => ({ r: { cliente: 'J', idCrm: 'Z001', accion: 'error', detalle: 'x', videos: [], noLegibles: [], texto: null, listo: true, doc: '' }, errores: [] }) })
+  await publicarUna(fila, mal.d)
+  assert.equal(mal.llamadas.doc, 0)
+  const rotSeco = deps({ cliente: async () => ({ nombre: 'J', tipo: 'campana', cuenta: 'act_1' }), rotar: async () => ({ borrador: { campana: 'A', anuncios: [], link: null }, seco: null, enSeco: 'rotación en seco' }) })
+  await publicarUna(fila, rotSeco.d)
+  assert.equal(rotSeco.llamadas.doc, 0); assert.equal(rotSeco.llamadas.cerrar, 0)
 })
