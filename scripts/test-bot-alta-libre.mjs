@@ -213,6 +213,11 @@ describe('el comprobante manda cuando no contradice al mensaje (4/11/2026)', () 
     assert.equal(FIN.closerPlanilla('Nahuel'), 'Nahuel')
     assert.equal(FIN.closerPlanilla(null), '')
   })
+  test('si el mensaje trae monto, manda el mensaje aunque el comprobante difiera por una comisión (umbral del Fee)', () => {
+    const T = 'Closer: Marcos\nEste pago: 497 USD\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
+    const r = C.compararComprobante(lect({ monto_texto: 'USD 500' }), parsearAlta(T), { hoy: '2026-11-04' })
+    assert.equal(r.extras.usdComprobante, undefined)
+  })
   test('con varios comprobantes, el monto del primero no reemplaza al del mensaje (sería una parte)', () => {
     const T = 'Closer: Marcos\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
     const r = C.compararComprobante(lect({ monto_texto: 'USD 200' }), parsearAlta(T), { hoy: '2026-11-04', archivos: 2 })
