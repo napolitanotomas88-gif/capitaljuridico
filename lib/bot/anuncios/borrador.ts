@@ -145,6 +145,8 @@ const usdTxt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits:
 export const sinWhatsApp = (m: string) => /no est[aá] vinculada a una cuenta de WhatsApp|not (?:linked|connected) to a WhatsApp/i.test(m)
 export const MOTIVO_SIN_WHATSAPP = 'la página no está vinculada a WhatsApp: reconectá el WhatsApp de la página o armá los conjuntos desde el Administrador (los videos ya quedaron subidos)'
 
+/** El público cerrado: sin Advantage+ y sin sugerencias de edad ni de ubicación (el sexo queda como lo deja el Administrador). */
+export const SIN_SUGERENCIAS = { advantage_audience: 0, individual_setting: { age: 0, gender: 1, geo: 0 } }
 export interface PlantillaConjunto { billing_event: string; optimization_goal: string; destination_type: string; bid_strategy: string; promoted_object: Json; targeting: Json; zona: string }
 export interface PlantillaAnuncio { page_id: string; instagram_user_id?: string; video_data: Json; mejoras: Json }
 
@@ -186,7 +188,9 @@ export async function crearEnPausa(cuenta: string, x: {
     ? { id: String((await g.post(`${cuenta}/campaigns`, { name: x.campana.crear, objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: [], buying_type: 'AUCTION', status: 'PAUSED', is_adset_budget_sharing_enabled: false })).id), name: x.campana.crear }
     : x.campana
   // 3) Conjuntos en pausa: uno por anuncio o uno con todos
-  const t = x.conjunto.targeting
+  // Sin Advantage+ ni «Usar como sugerencia» (edad y ubicación cerradas), como deja Valen los conjuntos: con solo
+  // advantage_audience 0 el Administrador seguía mostrando Advantage+ activado y la edad como sugerencia (Tomás, 4/11).
+  const t: Json = { ...x.conjunto.targeting, targeting_automation: SIN_SUGERENCIAS }
   const anunciosDe = x.grupos.map((gr, i) => ({ gr, vs: vids.filter(v => v.grupo === i) }))
   const grupos = x.estructura.porAnuncio ? anunciosDe.map(a => [a]) : [anunciosDe]
   const edad = `${t.age_min ?? 18}-${t.age_max ?? 65}`
