@@ -11,7 +11,9 @@
 // Sin imports de Next: se prueba con node:test (scripts/test-nav.mjs).
 import { puedeVer, type Quien, type Seccion } from './roles'
 
-export type PestanaClientes = { clave: Seccion; etiqueta: string; href: string; icono: string }
+// `clave` es la sección que pide (permiso). `id` solo hace falta cuando dos pestañas comparten sección (Encuesta usa 'clientes'
+// igual que Cartera): identifica la pestaña activa sin tocar permisos.
+export type PestanaClientes = { clave: Seccion; id?: string; etiqueta: string; href: string; icono: string }
 
 /** Las pestañas del hub, en el orden en que se muestran. */
 export const PESTANAS_CLIENTES: readonly PestanaClientes[] = [
@@ -23,10 +25,17 @@ export const PESTANAS_CLIENTES: readonly PestanaClientes[] = [
   { clave: 'edicion', etiqueta: 'Edición', href: '/clientes/edicion', icono: 'edicion' },
   { clave: 'anuncios', etiqueta: 'Anuncios', href: '/anuncios', icono: 'anuncios' },
   { clave: 'referidos', etiqueta: 'Referidos', href: '/clientes/referidos', icono: 'referidos' },
+  // «Encuesta» (4/11/2026): la encuesta mensual (/clientes/encuesta). Pide 'clientes' como la Cartera; sigue también en Atajos.
+  { clave: 'clientes', id: 'encuesta', etiqueta: 'Encuesta', href: '/clientes/encuesta', icono: 'encuesta' },
 ]
 
 /** Secciones que forman el hub (las que ya no van sueltas en el menú). */
-export const SECCIONES_HUB: readonly Seccion[] = PESTANAS_CLIENTES.map((p) => p.clave)
+export const SECCIONES_HUB: readonly Seccion[] = [...new Set(PESTANAS_CLIENTES.map((p) => p.clave))]
+
+/** Identificador de la pestaña: su `id` o, si no tiene, su sección. */
+export function idPestana(p: PestanaClientes): string {
+  return p.id ?? p.clave
+}
 
 /** Pestañas que ve quien pide: solo las de sus secciones. */
 export function pestanasVisibles(quien: Quien): PestanaClientes[] {
@@ -49,14 +58,14 @@ function bajo(pathname: string, href: string): boolean {
 }
 
 /**
- * Pestaña activa para una ruta. Edición y Referidos se miran antes que Cartera (están bajo /clientes); /clientes/<id> y su
- * kickoff son la ficha: Cartera.
+ * Pestaña activa para una ruta (su idPestana). Edición, Referidos y Encuesta se miran antes que Cartera (están bajo /clientes);
+ * /clientes/<id> y su kickoff son la ficha: Cartera.
  */
-export function pestanaActiva(pathname: string): Seccion | null {
+export function pestanaActiva(pathname: string): string | null {
   const ruta = pathname.replace(/\/+$/, '') || '/'
-  const especificas = PESTANAS_CLIENTES.filter((p) => p.clave !== 'clientes')
+  const especificas = PESTANAS_CLIENTES.filter((p) => p.href !== '/clientes')
   const hit = especificas.find((p) => bajo(ruta, p.href))
-  if (hit) return hit.clave
+  if (hit) return idPestana(hit)
   return bajo(ruta, '/clientes') ? 'clientes' : null
 }
 

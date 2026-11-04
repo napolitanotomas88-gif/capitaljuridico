@@ -28,6 +28,8 @@ const P: Record<string, React.ReactNode> = {
   sistema: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
   // Portal del cliente (2/11/2026): la estrategia, un camino con su meta
   estrategia: <><circle cx="6" cy="18" r="2" /><path d="M8 18h4a4 4 0 0 0 0-8H9a3 3 0 0 1 0-6h7" /><path d="M16 2v4l3-2z" /></>,
+  // Encuesta mensual (4/11/2026): globo de respuesta con barras de puntaje
+  encuesta: <><path d="M4 4.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1h-8.5L7 20.5V17H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z" /><path d="M8 13.5V12M12 13.5V9.5M16 13.5V8" /></>,
   mas: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
   salir: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
 }

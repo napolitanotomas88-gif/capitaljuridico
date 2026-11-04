@@ -55,11 +55,14 @@ test('menú: Resumen, Clientes, Ventas, Cobro de cuotas, Trazabilidad, Finanzas,
 test('pestañas del hub en orden: Cartera, Guiones, Edición, Anuncios, Referidos, con las secciones de siempre', () => {
   assert.deepEqual(H.PESTANAS_CLIENTES.map((p) => [p.etiqueta, p.clave, p.href]), [
     ['Cargar alta', 'altas', '/clientes/altas'], ['Cartera', 'clientes', '/clientes'], ['Guiones', 'guiones', '/guiones'], ['Edición', 'edicion', '/clientes/edicion'],
-    ['Anuncios', 'anuncios', '/anuncios'], ['Referidos', 'referidos', '/clientes/referidos'],
+    ['Anuncios', 'anuncios', '/anuncios'], ['Referidos', 'referidos', '/clientes/referidos'], ['Encuesta', 'clientes', '/clientes/encuesta'],
   ])
-  assert.deepEqual(H.pestanasVisibles('socio').map((p) => p.clave), ['altas', 'clientes', 'guiones', 'edicion', 'anuncios', 'referidos'])
+  assert.deepEqual(H.pestanasVisibles('socio').map(H.idPestana), ['altas', 'clientes', 'guiones', 'edicion', 'anuncios', 'referidos', 'encuesta'])
   // 2/11/2026: sin WhatsApp el alta arranca en «Cargar alta» y la carga también CSM (Aylu, Gero M); Clientes sigue yendo a Cartera
-  assert.deepEqual(H.pestanasVisibles('csm').map((p) => p.clave), ['altas', 'clientes', 'referidos'])
+  assert.deepEqual(H.pestanasVisibles('csm').map(H.idPestana), ['altas', 'clientes', 'referidos', 'encuesta'])
+  // Encuesta (4/11/2026) pide 'clientes': sin la Cartera tampoco se ve
+  assert.ok(!H.pestanasVisibles(acceso(['edicion', 'referidos'])).some((p) => p.href === '/clientes/encuesta'))
+  assert.equal(new Set(H.SECCIONES_HUB).size, H.SECCIONES_HUB.length)
   assert.equal(H.rutaClientes('csm'), '/clientes')
   assert.equal(H.rutaClientes('socio'), '/clientes')
 })
@@ -98,6 +101,7 @@ test('pestaña activa según la ruta: la ficha y su kickoff son Cartera; Edició
   const casos = [
     ['/clientes', 'clientes'], ['/clientes/', 'clientes'], ['/clientes/A101', 'clientes'], ['/clientes/A101/kickoff', 'clientes'],
     ['/clientes/edicion', 'edicion'], ['/clientes/edicion/video/7', 'edicion'], ['/clientes/referidos', 'referidos'],
+    ['/clientes/encuesta', 'encuesta'], ['/clientes/encuesta/', 'encuesta'],
     ['/guiones', 'guiones'], ['/guiones/A101', 'guiones'], ['/anuncios', 'anuncios'], ['/anuncios/login', 'anuncios'],
     ['/ventas', null], ['/clientesx', null], ['/', null],
   ]
