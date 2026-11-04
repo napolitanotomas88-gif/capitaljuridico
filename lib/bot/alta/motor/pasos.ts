@@ -15,7 +15,7 @@ import { encolarBeneficio, procesarBeneficio } from '@/lib/clientes/beneficiosPe
 import { createHash } from 'node:crypto'
 import { FALTANTE_CORREO_SOCIOS, esAvisoFee, esRenovacion, leerSocios, parsearAlta, type AltaParseada } from '../parsear'
 import { avisosParaRevisar, estadoAlta, respuestaAlCloser, type ExtrasAlta } from '../plan'
-import { ajustarFilaPagoCliente, conceptoPagoCliente, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
+import { ajustarFilaPagoCliente, conceptoPagoCliente, fijarTipoPago, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
 import { motivoNombreDudoso } from '../nombreCliente'
 import { telefonoDelCliente, CONTRATO_SIN_ENVIAR, entradaCrmDesdeAlta } from '../crm'
 import { CARPETA_CLIENTES_DRIVE, aprobarCarpetaExistente, nombresDriveCliente, plantillaGuionesDesdeEntorno, type GuardadoDrive, type IntentoCarpeta, type ResultadoDriveCliente } from '../driveCliente'
@@ -623,6 +623,8 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
   }
   // Pago de un cliente existente: sin programa ni plan del alta nueva (4/11/2026, Adriana De Feo y Leandro Arabia frenados)
   if (plan === 'pago_cliente') ajustarFilaPagoCliente(fila, { nombre: a.nombre, concepto, ...historial })
+  // Columna O según el concepto final (Tomás, 4/11/2026: las cuotas son Payment Plan, no Upfront)
+  fijarTipoPago(fila)
   // Una seña que sigue a otra (cadena de Fee): "<Nombre> - Fee 2", "- Fee 3"… Con el mismo nombre, el puente devolvía el
   // archivo de la primera seña y el chip de la col I quedaba en ese comprobante (revisión del 24/10, ronda 2)
   if (fila.celdas.J === 'Fee' && typeof fila.celdas.I === 'string' && fila.celdas.I && alta.altaAnterior) {

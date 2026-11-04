@@ -61,6 +61,23 @@ export const cuotasAnterioresEn = (filas: readonly (readonly unknown[])[], p: { 
   historialClienteEn(filas, p).cuotas
 /** Concepto del pago siguiente de un cliente existente: la cuota que sigue a las que ya están (como mínimo, la 2da). */
 export const conceptoPagoCliente = (anteriores: number): string => conceptoCuota(Math.max(2, anteriores + 1))
+/** Columna O (Tomás, 4/11/2026): «cuando hace cuotas es Payment Plan». Una cuota (1ra, 2da…) es siempre "Payment Plan"; un
+ *  PIF, "Upfront"; un Fee, según el programa de la col B (PP → Payment Plan, PIF → Upfront). null = la regla no decide (PIF con
+ *  programa PP, Fee sin programa, Renovación): queda lo que haya. Pura. */
+export function tipoPagoDe(concepto: unknown, programa: unknown): 'Payment Plan' | 'Upfront' | null {
+  const j = String(concepto ?? '').trim(), b = String(programa ?? '')
+  const pp = /\|\s*PP\s*\|/.test(b), pif = /\|\s*PIF\s*\|/.test(b)
+  if (/cuota/i.test(j)) return 'Payment Plan'
+  if (/^pif$/i.test(j)) return pp ? null : 'Upfront'
+  if (/^fee$/i.test(j)) return pp ? 'Payment Plan' : pif ? 'Upfront' : null
+  return null
+}
+/** Aplica tipoPagoDe a la fila (después de que J y B quedaron definitivos). Modifica la fila. */
+export function fijarTipoPago(fila: FilaRegistroPagos): void {
+  const o = tipoPagoDe(fila.celdas.J, fila.celdas.B)
+  if (o && fila.celdas.O !== o) { fila.celdas.O = o; fila.fila = COLUMNAS_REGISTRO.map(({ col }) => fila.celdas[col]) }
+}
+
 /** Pago de un cliente existente (4/11/2026): la fila no es la de un alta nueva. El programa (B) y el tipo de pago (O) salen
  *  SIEMPRE de su pago anterior del Registro (lo que el closer haya escrito del plan no manda: B y O quedan del mismo pago). Si
  *  no hay programa, o no está en la lista de la col B, B queda vacío con aviso (las filas de octubre se cargaron sin él). La
@@ -73,7 +90,7 @@ export function ajustarFilaPagoCliente(fila: FilaRegistroPagos, p: { nombre: str
   c.B = enLista ? p.programa : ''
   if (p.programa && !enLista) fila.avisos.push(`Programa (col B) vacío: el de su pago anterior ("${p.programa}") no está en la lista de la columna B; completarlo a mano`)
   else if (!p.programa) fila.avisos.push('Programa (col B) vacío: el cliente no tiene programa en sus pagos anteriores del Registro; completarlo a mano')
-  c.O = p.tipoPago ?? ''
+  c.O = tipoPagoDe(p.concepto, c.B) ?? p.tipoPago ?? ''
   if (p.nombre && p.concepto && p.concepto !== 'Fee') c.I = `${p.nombre} - ${p.concepto}`
   fila.fila = COLUMNAS_REGISTRO.map(({ col }) => c[col])
 }
@@ -492,7 +509,7 @@ export function filaRegistroPagos(a: AltaParseada, extras: ExtrasRegistro): Fila
     L: '',                           // comisión de la pasarela: normalmente vacía
     M: formulaMes(FILA_NUEVA),       // no se escribe el valor: la fórmula lo calcula
     N: renovacion ? '' : 'Front-end', // un alta nueva es front-end; una renovación queda pendiente
-    O: tipoPago,
+    O: tipoPagoDe(concepto, programa?.valor ?? '') ?? tipoPago,
     P: null,                         // categoría vieja: no se toca
     Q: null,
     R: cuenta,
