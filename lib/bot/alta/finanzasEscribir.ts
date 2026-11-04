@@ -45,7 +45,7 @@
 import { google } from 'googleapis'
 import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
-import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
+import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, historialClienteEn, type HistorialCliente, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
 import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
 import { CARPETA_COMPROBANTES, ErrorPuente, MAXIMO_BYTES_ARCHIVO, bytesDeBase64, noRepetirAntesDe, puenteDriveReal, type ArchivoSubido, type PuenteDrive } from './puenteDrive'
 
@@ -743,4 +743,10 @@ export function pedidoValidacionLista(sheetId: number, columna: number, regla: V
 export async function cuotasAnterioresFinanzas(p: { nombre: string | null; telefono: string | null }): Promise<number> {
   const [filas] = await planillaFinanzasReal('simulacion').leer([`'${PESTANA_REGISTRO}'!A2:${ULTIMA}`], 'UNFORMATTED_VALUE')
   return cuotasAnterioresEn(filas, p)
+}
+
+/** Pago de un cliente existente (4/11/2026): cuántas cuotas suyas hay y su último programa y tipo de pago. SOLO LECTURA. */
+export async function historialClienteFinanzas(p: { nombre: string | null; telefono: string | null }): Promise<HistorialCliente> {
+  const [filas] = await planillaFinanzasReal('simulacion').leer([`'${PESTANA_REGISTRO}'!A2:${ULTIMA}`], 'UNFORMATTED_VALUE')
+  return historialClienteEn(filas, p)
 }

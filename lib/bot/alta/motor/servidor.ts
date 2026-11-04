@@ -9,7 +9,7 @@
 // Bearer CRON_SECRET, esperando solo el 202, como dispararMapaReal del kickoff: patrón copiado). Solo servidor.
 // Variables (solo nombres): BOT_ALTA_APROBADORES, BOT_ALTA_OPERACIONES, BOT_ALTA_EQUIPO_TELEFONOS, BOT_ALTA_CLOSERS, BOT_ALTA_MAX_COMUNIDADES_DIA, BOT_COMUNIDAD_AGREGAR_DIRECTO,
 // BOT_ALTA_DESPERTADOR, BOT_ALTA_MODELO_COMPROBANTE, DESPACHO_URL, CRON_SECRET, VERCEL_ENV, DATABASE_URL.
-import { cargarPagoFinanzas, cuotasAnterioresFinanzas } from '../finanzasEscribir'
+import { cargarPagoFinanzas, cuotasAnterioresFinanzas, historialClienteFinanzas } from '../finanzasEscribir'
 import { escribirAltaCrm } from '../crmEscribir'
 import { plantillaGuionesDesdeEntorno, prepararDriveCliente } from '../driveCliente'
 import { BASE_PANDADOC, clavePandaDoc, crearBorradorContrato, estadoDocumento } from '../pandadoc'
@@ -116,6 +116,7 @@ export function depsPasosServidor(base: Pick<DepsMotorBase, 'modo'>, env: NodeJS
       setterFuente: (tel, correo) => buscarSetterFuente(tel, { correo }),
       clienteCrm: (p) => buscarPersonaEnCrm(p),   // ¿ya es cliente? (solo lectura)
       cuotasAnteriores: (p) => cuotasAnterioresFinanzas(p),   // pago de un cliente existente: qué cuota es (solo lectura)
+      historialCliente: (p) => historialClienteFinanzas(p),   // y su programa y tipo de pago anteriores (solo lectura)
       contrato: contratoReal(),
     } satisfies Partial<DepsPasos> : {}),
     // en 'simulacion' no llama al puente. Una carpeta que ya estaba en Clientes (armada a mano) se completa sin esperar el OK

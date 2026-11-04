@@ -3,7 +3,7 @@
 // modo y las capacidades; los tests pasan versiones de juguete. Ningún paso sale a la red por su cuenta.
 import type { AltaParseada } from '../parsear'
 import type { ComprobantePago, ResultadoCargaFinanzas } from '../finanzasEscribir'
-import type { FilaRegistroPagos } from '../finanzas'
+import type { FilaRegistroPagos, HistorialCliente } from '../finanzas'
 import type { ExtrasCrm } from '../crm'
 import type { ResultadoEscrituraCrm } from '../crmEscribir'
 import type { OpcionesDrive, ResultadoDriveCliente } from '../driveCliente'
@@ -46,6 +46,8 @@ export interface DepsPasos {
   closers?: Record<string, string>
   /** Pago de un cliente existente (26/10/2026): cuántas cuotas suyas ya hay en "Registro de Pagos" (solo lectura). */
   cuotasAnteriores?: (p: { nombre: string | null; telefono: string | null }) => Promise<number>
+  /** Lo mismo más su último programa (col B) y tipo de pago (col O) (4/11/2026). Si está, manda sobre cuotasAnteriores. */
+  historialCliente?: (p: { nombre: string | null; telefono: string | null }) => Promise<HistorialCliente>
   /** Modelo con el que se lee el comprobante (para la clave de la caché). */
   modeloVision: string
   /** Nombre (como en GRUPOS_COMUNIDAD) → teléfono. "Capital Jurídico" es el propio bot y no va. */

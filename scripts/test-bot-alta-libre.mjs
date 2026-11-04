@@ -195,4 +195,37 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     assert.equal(FIN.conceptoCuota(4), '4ta Cuota')
     assert.equal(FIN.conceptoCuota(13), 'Cuota 13')
   })
+
+  test('historial: último programa (B) y tipo de pago (O) no vacíos del cliente, Fee incluidos (4/11/2026)', () => {
+    const filas = [
+      [46300, 'DFY | PP | $3900', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', '1ra Cuota', '', '', '', 'Front-end', 'Payment Plan'],
+      [46330, '', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', '2da Cuota', '', '', '', 'Front-end', ''],
+      [46331, 'DFY | PP | $3300', 'Ana Pérez', '5491130001111', 1100, '', 'Marcos', 'Mai', '', '1ra Cuota'],
+    ]
+    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: null }), { cuotas: 2, programa: 'DFY | PP | $3900', tipoPago: 'Payment Plan' })
+    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadie', telefono: null }), { cuotas: 0, programa: null, tipoPago: null })
+  })
+
+  test('fila de un pago de cliente: sin pedir programa ni plan, col I con la cuota, B del historial o vacío con aviso (4/11/2026)', () => {
+    // "2º cuota 825" sin USD ni plan (Leandro Arabia, 4/11): antes frenaba con "Programa: falta el tipo de pago"
+    const a = parsearAlta('Closer: Carlos\nIngresa pago - 2º cuota 825\nNombre: Leandro Arabia\nTel: +54 351 512-1372')
+    const extras = { fecha: '2026-11-04', pesosArs: 1291331, mepDiaAnterior: 1579.9, setter: 'Tomi / Gero', fuente: 'BIO Página Web', destinatario: 'Diaz Rangel Rosanthony' }
+    const f1 = FIN.filaRegistroPagos(a, extras)
+    assert.ok(f1.pendientes.some((x) => x.startsWith('Programa:')))
+    FIN.ajustarFilaPagoCliente(f1, { nombre: a.nombre, concepto: '2da Cuota', programa: null, tipoPago: 'Upfront' })
+    assert.deepEqual(f1.pendientes, [])
+    assert.equal(f1.celdas.I, 'Leandro Arabia - 2da Cuota')
+    assert.equal(f1.fila[8], 'Leandro Arabia - 2da Cuota')
+    assert.equal(f1.celdas.O, 'Upfront')
+    assert.equal(f1.celdas.E, 817.35)
+    assert.ok(f1.avisos.some((x) => x.startsWith('Programa (col B) vacío')))
+    // PIF con plan (Adriana De Feo, 4/11): el programa del historial manda y no se pide nada del plan
+    const b = parsearAlta('Closer: Carlos\nCompleta Pago PIF\nPago 3: 400 usd\nNombre: Adriana De Feo\nTel: +54 341 596-3816')
+    const f2 = FIN.filaRegistroPagos(b, { fecha: '2026-11-03', setter: 'Tomi / Gero', fuente: 'Webinar', cuenta: 'Empresa' })
+    FIN.ajustarFilaPagoCliente(f2, { nombre: b.nombre, concepto: '3ra Cuota', programa: 'DFY | PIF | $2600', tipoPago: null })
+    assert.ok(!f2.pendientes.some((x) => /^(Programa|Cuotas del plan)/.test(x)), f2.pendientes.join(' | '))
+    assert.equal(f2.celdas.B, 'DFY | PIF | $2600')
+    assert.equal(f2.fila[1], 'DFY | PIF | $2600')
+    assert.ok(!f2.avisos.some((x) => x.startsWith('Programa (col B) vacío')))
+  })
 })
