@@ -179,6 +179,39 @@ describe('webhook (clasificación)', () => {
   })
 })
 
+describe('columna O: las cuotas son Payment Plan (Tomás, 4/11/2026)', () => {
+  test('regla: cuota → Payment Plan; PIF → Upfront; Fee según el programa; sin decidir → null', () => {
+    assert.equal(FIN.tipoPagoDe('2da Cuota', ''), 'Payment Plan')
+    assert.equal(FIN.tipoPagoDe('1ra Cuota', 'DFY | PIF | $2600'), 'Payment Plan')
+    assert.equal(FIN.tipoPagoDe('PIF', 'DFY | PIF | $2600'), 'Upfront')
+    assert.equal(FIN.tipoPagoDe('PIF', 'DFY | PP | $3300'), null)
+    assert.equal(FIN.tipoPagoDe('Fee', 'DFY | PP | $3300'), 'Payment Plan')
+    assert.equal(FIN.tipoPagoDe('Fee', 'DFY | PIF | $2400'), 'Upfront')
+    assert.equal(FIN.tipoPagoDe('Fee', ''), null)
+    assert.equal(FIN.tipoPagoDe('Renovación', 'DFY+R | PP | $3400'), null)
+  })
+  test('pago de cliente: la 2da cuota va Payment Plan aunque sus pagos anteriores digan Upfront (Adriana/Leandro, 4/11)', () => {
+    const a = parsearAlta('Closer: Carlos\nIngresa pago - 2º cuota 825 USD\nNombre: Leandro Arabia\nTel: +54 351 512-1372')
+    const f = FIN.filaRegistroPagos(a, { fecha: '2026-11-04', setter: 'Tomi / Gero', fuente: 'BIO Página Web', cuenta: 'Empresa' })
+    f.celdas.J = '2da Cuota'
+    FIN.ajustarFilaPagoCliente(f, { nombre: a.nombre, concepto: '2da Cuota', programa: null, tipoPago: 'Upfront' })
+    assert.equal(f.celdas.O, 'Payment Plan')
+    assert.equal(f.fila[14], 'Payment Plan')
+  })
+  test('fijarTipoPago: Fee de un plan PP pasa a Payment Plan y la fila queda alineada', () => {
+    const a = parsearAlta('#ALTA\nCloser: Yami\nNombre: Noelia Vera\nTel: +54 9 11 3000 2222\nEste pago: 300 USD')
+    const f = FIN.filaRegistroPagos(a, { fecha: '2026-11-02', setter: 'Tomi / Gero', fuente: 'VSL Funnel', cuenta: 'Empresa' })
+    f.celdas.B = 'DFY | PP | $3300'; f.celdas.J = 'Fee'; f.celdas.O = 'Upfront'
+    f.fila = FIN.COLUMNAS_REGISTRO.map(({ col }) => f.celdas[col])
+    FIN.fijarTipoPago(f)
+    assert.equal(f.celdas.O, 'Payment Plan')
+    assert.equal(f.fila[14], 'Payment Plan')
+    f.celdas.B = 'DFY | PIF | $2600'; FIN.fijarTipoPago(f)
+    assert.equal(f.celdas.O, 'Upfront')
+    assert.equal(f.fila[14], 'Upfront')
+  })
+})
+
 describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () => {
   test('cuenta las cuotas y PIF del mismo cliente (nombre o teléfono) en el Registro; los Fee no; como mínimo la 2da', () => {
     const filas = [
@@ -222,7 +255,7 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     assert.deepEqual(f1.pendientes, [])
     assert.equal(f1.celdas.I, 'Leandro Arabia - 2da Cuota')
     assert.equal(f1.fila[8], 'Leandro Arabia - 2da Cuota')
-    assert.equal(f1.celdas.O, 'Upfront')
+    assert.equal(f1.celdas.O, 'Payment Plan')   // una cuota es Payment Plan aunque el historial diga Upfront (4/11)
     assert.equal(f1.celdas.E, 817.35)
     assert.ok(f1.avisos.some((x) => x.startsWith('Programa (col B) vacío')))
     // PIF con plan (Adriana De Feo, 4/11): el programa del historial manda y no se pide nada del plan
@@ -238,13 +271,13 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     const f3 = FIN.filaRegistroPagos(c, { fecha: '2026-11-03', setter: 'Mai', fuente: 'Webinar', cuenta: 'Tomi' })
     FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: 'DFY | PIF | $2600', tipoPago: 'Upfront' })
     assert.equal(f3.celdas.B, 'DFY | PIF | $2600')
-    assert.equal(f3.celdas.O, 'Upfront')
+    assert.equal(f3.celdas.O, 'Payment Plan')
     assert.ok(!f3.avisos.some((x) => /^(El programa "|El closer declaró )/.test(x)), f3.avisos.join(' | '))
     assert.ok(!f3.pendientes.some((x) => /^(Programa|Cuotas del plan)/.test(x)), f3.pendientes.join(' | '))
     // Sin programa anterior: B vacío (nunca el armado con el texto del closer), con aviso
     FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: null, tipoPago: null })
     assert.equal(f3.celdas.B, '')
-    assert.equal(f3.celdas.O, '')
+    assert.equal(f3.celdas.O, 'Payment Plan')
     // Programa viejo fuera de la lista de la col B: vacío con aviso (si no, la lista estricta frena la carga)
     FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: 'DFY | PP | $9999', tipoPago: 'Payment Plan' })
     assert.equal(f3.celdas.B, '')

@@ -295,7 +295,8 @@ describe('reglas nuevas y privacidad', () => {
   })
   test('tipo de venta es independiente de cuota y modalidad del programa define el tipo de pago', () => {
     const h = n => { const fila = []; fila[13] = n; return fila }
-    assert.deepEqual(clasificacionPago({ concepto: '2da Cuota', tipoVenta: 'Front-end' }, 'DFY | PIF | $2600', []), { tipoVenta: 'Front-end', tipoPago: 'Upfront' })
+    // Tomás, 4/11/2026: «cuando hace cuotas es Payment Plan», aunque el programa sea PIF
+    assert.deepEqual(clasificacionPago({ concepto: '2da Cuota', tipoVenta: 'Front-end' }, 'DFY | PIF | $2600', []), { tipoVenta: 'Front-end', tipoPago: 'Payment Plan' })
     assert.deepEqual(clasificacionPago({ concepto: 'PIF', tipoVenta: 'Back-end' }, 'DFY | PIF | $2600', []), { tipoVenta: 'Back-end', tipoPago: 'Upfront' })
     assert.deepEqual(clasificacionPago({ concepto: 'Renovación', tipoVenta: 'Back-end' }, 'DWY | PP | $600', []), { tipoVenta: 'Back-end', tipoPago: 'Payment Plan' })
     assert.equal(clasificacionPago({ concepto: '3ra Cuota' }, 'DWY | PP | $600', [h('Front-end'), h('Front-end')]).tipoVenta, 'Front-end')
