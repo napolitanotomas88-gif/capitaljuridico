@@ -15,7 +15,7 @@ import { encolarBeneficio, procesarBeneficio } from '@/lib/clientes/beneficiosPe
 import { createHash } from 'node:crypto'
 import { FALTANTE_CORREO_SOCIOS, esAvisoFee, esRenovacion, leerSocios, parsearAlta, type AltaParseada } from '../parsear'
 import { avisosParaRevisar, estadoAlta, respuestaAlCloser, type ExtrasAlta } from '../plan'
-import { conceptoPagoCliente, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
+import { ajustarFilaPagoCliente, conceptoPagoCliente, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
 import { motivoNombreDudoso } from '../nombreCliente'
 import { telefonoDelCliente, CONTRATO_SIN_ENVIAR, entradaCrmDesdeAlta } from '../crm'
 import { CARPETA_CLIENTES_DRIVE, aprobarCarpetaExistente, nombresDriveCliente, plantillaGuionesDesdeEntorno, type GuardadoDrive, type IntentoCarpeta, type ResultadoDriveCliente } from '../driveCliente'
@@ -594,14 +594,24 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
   // Ese número se calcula una sola vez y queda en `parcial` (si no, la fila congelada no coincidiría después de cargarla).
   const plan = alta.validacion?.estadoPlan
   let concepto: string | null = plan === 'fee' ? 'Fee' : null
+  let historial: { programa: string | null; tipoPago: string | null } = { programa: null, tipoPago: null }
   if (plan === 'pago_cliente') {
     const guardado = ctx.paso.parcial?.conceptoCuota
-    if (typeof guardado === 'string') concepto = guardado
-    else if (ctx.modo === 'seco' || !ctx.deps.cuotasAnteriores) concepto = conceptoPagoCliente(1)
+    const h = ctx.paso.parcial?.historialCliente as { programa?: unknown; tipoPago?: unknown } | undefined
+    if (typeof guardado === 'string' && (h || !ctx.deps.historialCliente || ctx.modo === 'seco')) {
+      concepto = guardado
+      historial = { programa: typeof h?.programa === 'string' ? h.programa : null, tipoPago: typeof h?.tipoPago === 'string' ? h.tipoPago : null }
+    } else if (ctx.modo === 'seco' || (!ctx.deps.historialCliente && !ctx.deps.cuotasAnteriores)) concepto = conceptoPagoCliente(1)
     else {
       try {
-        concepto = conceptoPagoCliente(await ctx.deps.cuotasAnteriores({ nombre: a.nombre, telefono: telefonoDelCliente(a)?.numero ?? null }))
-        if (ctx.real) await ctx.guardarParcial({ ...(ctx.paso.parcial ?? {}), conceptoCuota: concepto })
+        // Un pago frenado antes del 4/11 guardó la cuota sin el historial: se lee el historial y la cuota guardada se respeta
+        const quien = { nombre: a.nombre, telefono: telefonoDelCliente(a)?.numero ?? null }
+        if (ctx.deps.historialCliente) {
+          const r = await ctx.deps.historialCliente(quien)
+          concepto = typeof guardado === 'string' ? guardado : conceptoPagoCliente(r.cuotas)
+          historial = { programa: r.programa, tipoPago: r.tipoPago }
+        } else concepto = conceptoPagoCliente(await ctx.deps.cuotasAnteriores!(quien))
+        if (ctx.real) await ctx.guardarParcial({ ...(ctx.paso.parcial ?? {}), conceptoCuota: concepto, historialCliente: historial })
       } catch (e) {
         return reintentoLectura(ctx, 'lectura', `no se pudieron contar las cuotas anteriores en Finanzas (${mensaje(e)})`)
       }
@@ -611,6 +621,8 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
     fila.celdas.J = concepto; fila.fila[9] = concepto
     if (concepto === 'Fee' && a.nombre) { fila.celdas.I = `${a.nombre} - Fee`; fila.fila[8] = fila.celdas.I }
   }
+  // Pago de un cliente existente: sin programa ni plan del alta nueva (4/11/2026, Adriana De Feo y Leandro Arabia frenados)
+  if (plan === 'pago_cliente') ajustarFilaPagoCliente(fila, { nombre: a.nombre, concepto, ...historial })
   // Una seña que sigue a otra (cadena de Fee): "<Nombre> - Fee 2", "- Fee 3"… Con el mismo nombre, el puente devolvía el
   // archivo de la primera seña y el chip de la col I quedaba en ese comprobante (revisión del 24/10, ronda 2)
   if (fila.celdas.J === 'Fee' && typeof fila.celdas.I === 'string' && fila.celdas.I && alta.altaAnterior) {

@@ -33,21 +33,51 @@ const ORDINALES = ['', '1ra', '2da', '3ra', '4ta', '5ta', '6ta', '7ma', '8va', '
 /** "2da Cuota", "3ra Cuota"… (n ≥ 1; más de 12, "Cuota 13"). */
 export const conceptoCuota = (n: number): string => (ORDINALES[n] ? `${ORDINALES[n]} Cuota` : `Cuota ${n}`)
 const sinAcentosMin = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
-/** Cuántas cuotas (o PIF) de ese cliente ya hay en las filas del Registro (C = nombre, D = teléfono, J = concepto). Mismo
- *  cliente = el mismo nombre (sin acentos) o los mismos últimos 8 dígitos del teléfono. */
-export function cuotasAnterioresEn(filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): number {
+/** Lo que el Registro ya sabe de un cliente (C = nombre, D = teléfono, B = programa, J = concepto, O = tipo de pago): cuántas
+ *  cuotas (o PIF) suyas hay y el programa y tipo de pago de su pago más NUEVO que los tenga (el Registro va del más nuevo, en la
+ *  fila 2, al más viejo; las renovaciones no cuentan). Mismo cliente = los mismos últimos 8 dígitos del teléfono; el nombre (sin
+ *  acentos) solo cuando a alguno de los dos le falta el teléfono (dos clientes homónimos no se mezclan). */
+export interface HistorialCliente { cuotas: number; programa: string | null; tipoPago: string | null }
+export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): HistorialCliente {
   const nom = sinAcentosMin(p.nombre)
   const tel = (p.telefono ?? '').replace(/\D/g, '').slice(-8)
-  return filas.filter((f) => {
-    const concepto = sinAcentosMin(f[9])
-    if (!/cuota|pif/.test(concepto)) return false
-    const mismoNombre = nom.length >= 5 && sinAcentosMin(f[2]) === nom
+  const suyas = filas.filter((f) => {
     const t = String(f[3] ?? '').replace(/\D/g, '')
-    return mismoNombre || (tel.length === 8 && t.length >= 8 && t.slice(-8) === tel)
-  }).length
+    if (tel.length === 8 && t.length >= 8) return t.slice(-8) === tel
+    return nom.length >= 5 && sinAcentosMin(f[2]) === nom
+  })
+  const primero = (i: number) => {
+    for (const f of suyas) {
+      if (/renovacion/.test(sinAcentosMin(f[9]))) continue
+      const v = String(f[i] ?? '').trim()
+      if (v) return v
+    }
+    return null
+  }
+  return { cuotas: suyas.filter((f) => /cuota|pif/.test(sinAcentosMin(f[9]))).length, programa: primero(1), tipoPago: primero(14) }
 }
+/** Cuántas cuotas (o PIF) de ese cliente ya hay en las filas del Registro (ver historialClienteEn). */
+export const cuotasAnterioresEn = (filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): number =>
+  historialClienteEn(filas, p).cuotas
 /** Concepto del pago siguiente de un cliente existente: la cuota que sigue a las que ya están (como mínimo, la 2da). */
 export const conceptoPagoCliente = (anteriores: number): string => conceptoCuota(Math.max(2, anteriores + 1))
+/** Pago de un cliente existente (4/11/2026): la fila no es la de un alta nueva. El programa (B) y el tipo de pago (O) salen
+ *  SIEMPRE de su pago anterior del Registro (lo que el closer haya escrito del plan no manda: B y O quedan del mismo pago). Si
+ *  no hay programa, o no está en la lista de la col B, B queda vacío con aviso (las filas de octubre se cargaron sin él). La
+ *  col I es "<Nombre> - <cuota>" y no se piden los datos del plan (PP o PIF + total, cuotas). Modifica la fila. Pura. */
+export function ajustarFilaPagoCliente(fila: FilaRegistroPagos, p: { nombre: string | null; concepto: string | null; programa: string | null; tipoPago: string | null }): void {
+  const c = fila.celdas
+  fila.pendientes = fila.pendientes.filter((x) => !/^(Programa:|Cuotas del plan:)/.test(x))
+  fila.avisos = fila.avisos.filter((x) => !/^(El comprobante dice PP 1\/|Fee: el pago es de|El programa "|El closer declaró )/.test(x))
+  const enLista = p.programa !== null && (OPCIONES_PROGRAMA as readonly string[]).includes(p.programa)
+  c.B = enLista ? p.programa : ''
+  if (p.programa && !enLista) fila.avisos.push(`Programa (col B) vacío: el de su pago anterior ("${p.programa}") no está en la lista de la columna B; completarlo a mano`)
+  else if (!p.programa) fila.avisos.push('Programa (col B) vacío: el cliente no tiene programa en sus pagos anteriores del Registro; completarlo a mano')
+  c.O = p.tipoPago ?? ''
+  if (p.nombre && p.concepto && p.concepto !== 'Fee') c.I = `${p.nombre} - ${p.concepto}`
+  fila.fila = COLUMNAS_REGISTRO.map(({ col }) => c[col])
+}
+
 /** Lista desplegable completa de la columna K (leída el 25/10/2026). */
 export const OPCIONES_FUENTE = ['Inbound IG', 'Inbound Tiktok', 'VSL Funnel', 'BIO Página Web', 'Referido', 'Outbound', 'Webinar', 'Enrutamiento'] as const
 /** @deprecated nombre viejo (eran solo las primeras 4): usar OPCIONES_FUENTE. */
