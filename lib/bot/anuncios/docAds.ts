@@ -15,7 +15,6 @@
 // Acá, PURO (sin red; lo prueba scripts/test-bot-anuncios-doc-ads.mjs): el parser, el cruce del nombre con el CRM
 // (tolerante a una letra: «Perezz» = «Perez») y los grupos del borrador (3:2:2) con el copy del Doc como texto 1.
 import type { GrupoBorrador } from './borrador'
-import { TAMANO_322 } from './borrador'
 
 export interface VideoDoc {
   numero: number
@@ -191,20 +190,16 @@ export function textoEstadoDoc(e: EstadoDoc): string {
 export interface VideoParaArmar { drive: string; nombre: string; copy: string }
 
 /**
- * Los videos del Doc en su orden, de a 3 (una idea cada 3, como el resto del bot). El copy de cada video va como texto
- * principal de SU anuncio (copyPorVideo); `textos`/`titulos` (la variación amplia y los 2 títulos, copys.ts) se completan
- * después. Puro.
+ * Los videos del Doc en su orden, UNO POR GRUPO: cada video del Doc trae su propio copy, así que es su propia idea y va en
+ * su propio conjunto si el presupuesto alcanza (regla de estructura, plan.ts). Antes iban de a 3 como una sola idea y la
+ * campaña de A133 (4/11) salió con 1 conjunto y 3 anuncios. El copy de cada video es el texto principal de SU anuncio
+ * (copyPorVideo); `textos`/`titulos` (la variación amplia y los 2 títulos, copys.ts) se completan después. Puro.
  */
 export function gruposDesdeDoc(videos: readonly VideoParaArmar[]): GrupoBorrador[] {
-  const out: GrupoBorrador[] = []
-  for (let i = 0; i < videos.length; i += TAMANO_322) {
-    const vs = videos.slice(i, i + TAMANO_322)
-    out.push({
-      videos: vs.map(v => ({ nombre: v.nombre, drive: v.drive })), textos: [], titulos: [], guiones: [],
-      copyPorVideo: Object.fromEntries(vs.filter(v => v.copy.trim()).map(v => [v.drive, v.copy.trim()])),
-    })
-  }
-  return out
+  return videos.map(v => ({
+    videos: [{ nombre: v.nombre, drive: v.drive }], textos: [], titulos: [], guiones: [],
+    copyPorVideo: v.copy.trim() ? { [v.drive]: v.copy.trim() } : {},
+  }))
 }
 
 /** El copy del Doc como «guion» para escribir la variación amplia y los 2 títulos (copys.ts): gancho, problema y llamada. */

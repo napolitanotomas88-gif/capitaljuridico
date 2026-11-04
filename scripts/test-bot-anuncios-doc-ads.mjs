@@ -75,10 +75,11 @@ describe('cruce del nombre', () => {
 })
 
 describe('grupos y copy', () => {
-  test('de a 3 videos, con el copy propio de cada uno', () => {
+  test('un grupo por video (cada uno es su idea → su conjunto), con su copy propio', () => {
     const gs = D.gruposDesdeDoc([1, 2, 3, 4].map(n => ({ drive: ID(n), nombre: `v${n}`, copy: COPY(n) })))
-    assert.equal(gs.length, 2)
-    assert.equal(gs[0].copyPorVideo[ID(2)], COPY(2))
+    assert.equal(gs.length, 4)
+    assert.deepEqual(gs.map(g => g.videos.length), [1, 1, 1, 1])
+    assert.equal(gs[1].copyPorVideo[ID(2)], COPY(2))
     assert.ok(B.grupoConCopy(gs[0]))
     assert.ok(!B.grupoConCopy({ ...gs[0], copyPorVideo: {} }))
   })
