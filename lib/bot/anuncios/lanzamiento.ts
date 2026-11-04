@@ -74,7 +74,8 @@ export async function geoDeFicha(g: Graph, lugares: string[], radioKm: number | 
     const x = b.opciones.find(o => !elegida || region(o) === elegida)
     if (!x) { sinUbicar.push(b.q); continue }
     ubicados.push(`${x.name}${x.type !== 'region' && x.region ? ` (${x.region})` : ''}`)
-    if (x.type === 'city') (geo.cities ??= []).push({ key: x.key, radius: Math.min(80, Math.max(10, radioKm ?? 10)), distance_unit: 'kilometer' })
+    // Meta acepta radios de ciudad de 17 a 80 km (10 a 50 millas); con 10 km rechaza el conjunto (#100/1487110, A133 el 4/11).
+    if (x.type === 'city') (geo.cities ??= []).push({ key: x.key, radius: Math.min(80, Math.max(17, radioKm ?? 17)), distance_unit: 'kilometer' })
     else if (x.type === 'region') (geo.regions ??= []).push({ key: x.key })
     else if (x.type === 'subcity') (geo.subcities ??= []).push({ key: x.key })
     else (geo.neighborhoods ??= []).push({ key: x.key })
