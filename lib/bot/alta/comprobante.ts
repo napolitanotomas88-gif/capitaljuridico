@@ -126,14 +126,8 @@ export interface ContextoComparacion {
   nombres?: (string | null | undefined)[]
   /** Comprobante en otra moneda (moneda 'otra'): la cotización de su moneda_iso del día del pago (cotizacion.ts). */
   cotizacion?: CotizacionUsd | null
-  /** El mensaje del closer, tal cual: si nombra el monto del comprobante, la diferencia con "este pago" es del parseo (4/11/2026). */
-  texto?: string | null
-}
-
-/** ¿El mensaje nombra este monto en algún lado? ("Completa 1er cuota $360 (FEE de $300…)": el parseo tomó 300, el pago es 360) */
-export function textoNombraMonto(texto: string | null | undefined, m: number): boolean {
-  const re = /(?:u\$s|us\$|usd|usdt|\$)\s*(\d[\d.,]*)|(\d[\d.,]*)\s*(?:usd|usdt|d[oó]lares)/gi
-  return [...(texto ?? '').matchAll(re)].some((x) => { const n = monto(x[1] ?? x[2] ?? ''); return n !== null && Math.abs(n - m) <= Math.max(1, m * 0.01) })
+  /** Cuántos comprobantes llegaron: con más de uno, el monto del primero no reemplaza al del mensaje. */
+  archivos?: number
 }
 
 /** Margen al comparar un comprobante en otra moneda: la cotización es de mercado y la pasarela cobra con la suya
@@ -207,14 +201,12 @@ export function compararComprobante(s: SalidaComprobante | null, a: AltaParseada
     if (!pesosAlta) diferencias.push(`El comprobante es en pesos ($${m !== null ? num(m) : '?'}) y el #ALTA dice ${usdAlta !== null ? `USD ${num(usdAlta)}` : 'USD'}`)
     else if (m !== null && pesosAlta.ars !== null && !cerca(m, pesosAlta.ars)) diferencias.push(`Monto: el comprobante dice $${num(m)} y el #ALTA $${num(pesosAlta.ars)}`)
   } else if (s.moneda === 'USD' || s.moneda === 'USDT') {
-    // El monto del comprobante manda solo si no contradice al mensaje: el mensaje no trae monto (Lia Parra, 4/11) o lo nombra
-    // en otra parte (D'Arcangelo: «Completa 1er cuota $360 (FEE de $300…)»). Si de verdad no coinciden, decide un humano.
-    if (m !== null && !pesosAlta && (usdAlta === null || cerca(m, usdAlta) || textoNombraMonto(ctx.texto, m))) extras.usdComprobante = m
+    // El monto del comprobante va a la col E solo si el mensaje no trae monto (Lia Parra, 4/11/2026) o coincide, y si llegó
+    // un solo comprobante (con varios se lee solo el primero: sería una parte). Si no coinciden, decide un humano.
+    if (m !== null && !pesosAlta && (ctx.archivos ?? 1) <= 1 && (usdAlta === null || cerca(m, usdAlta))) extras.usdComprobante = m
     if (pesosAlta && pesosAlta.usdAparte === 0 && pesosAlta.ars !== null) diferencias.push(`El comprobante es en ${s.moneda} y el #ALTA dice pesos ($${num(pesosAlta.ars)})`)
     else if (m !== null && usdAlta !== null && !pesosAlta && !cerca(m, usdAlta)) {
-      // El mensaje nombra el monto del comprobante (otro número, como un Fee anterior, confundió al parseo): no hace falta OK
-      if (textoNombraMonto(ctx.texto, m)) avisos.push(`El comprobante dice ${s.moneda} ${num(m)} (como dice el mensaje); se toma ese monto y no USD ${num(usdAlta)}`)
-      else diferencias.push(`Monto: el comprobante dice ${s.moneda} ${num(m)} y el #ALTA USD ${num(usdAlta)} (con OK se carga USD ${num(usdAlta)}, lo del mensaje; si el correcto es el del comprobante, respondé NO y corregí el mensaje)`)
+      diferencias.push(`Monto: el comprobante dice ${s.moneda} ${num(m)} y el #ALTA USD ${num(usdAlta)} (con OK se carga USD ${num(usdAlta)}, lo del mensaje; si el correcto es el del comprobante, respondé NO y corregí el mensaje)`)
     }
     else if (m !== null && pesosAlta && pesosAlta.usdAparte > 0 && !cerca(m, pesosAlta.usdAparte)) avisos.push(`Pago mixto: el comprobante dice ${s.moneda} ${num(m)}; revisar la parte en pesos`)
   } else if (s.moneda === 'otra') {

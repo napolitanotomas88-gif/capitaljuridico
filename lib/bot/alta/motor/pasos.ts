@@ -222,7 +222,7 @@ async function leerComprobante(ctx: CtxPaso, v: Validacion, a: AltaParseada, pri
     const fecha = esYmdValido(sal.fecha) && sal.fecha <= hoy ? sal.fecha : hoy
     try { cotizacion = await ctx.deps.cotizacion(sal.moneda_iso, fecha) } catch { cotizacion = null }
   }
-  return { comparacion: compararComprobante(sal, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres, cotizacion, texto: ctx.alta.textoVigente }) }
+  return { comparacion: compararComprobante(sal, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres, cotizacion, archivos: ctx.alta.medios.length }) }
 }
 
 export async function pasoValidar(ctx: CtxPaso): Promise<SalidaPaso> {

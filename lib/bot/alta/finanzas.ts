@@ -59,9 +59,16 @@ export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { 
 /** Cuántas cuotas (o PIF) de ese cliente ya hay en las filas del Registro (ver historialClienteEn). */
 export const cuotasAnterioresEn = (filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): number =>
   historialClienteEn(filas, p).cuotas
+/** Col G: el nombre del closer como está en la lista desplegable (estricta) de la planilla. «Yamila» frenaba la carga de
+ *  Nancy Báez (26/10/2026): en la lista es «Yami». Lo demás queda como lo escribió el closer. */
+const ALIAS_CLOSER: Record<string, string> = { yamila: 'Yami', fernando: 'Fer', marcos: 'Marcos', carlos: 'Carlos', gero: 'Gero', tomi: 'Tomi', tomas: 'Tomi', juan: 'Juan' }
+export function closerPlanilla(closer: string | null): string {
+  const c = (closer ?? '').trim()
+  return ALIAS_CLOSER[c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()] ?? c
+}
 /** ¿El mensaje dice que este pago completa la primera cuota? ("Completa 1er cuota", "completa la primera cuota", "completa 1ra") */
 export const completaPrimeraCuota = (texto: string | null | undefined): boolean =>
-  /complet\w*\s+(?:la\s+|el\s+)?(?:1\s*(?:ra|er|era|°|º)?|primer[ao]?)\s*cuota/i.test(texto ?? '')
+  /complet\p{L}*\s+(?:la\s+|el\s+)?(?:1\s*(?:ra|er|era|°|º)?|primer[ao]?)(?:\s*cuota|\s*$|[\s.,;)])/iu.test(texto ?? '')
 /** Concepto del pago siguiente de un cliente existente: la cuota que sigue a las que ya están (como mínimo, la 2da). */
 export const conceptoPagoCliente = (anteriores: number): string => conceptoCuota(Math.max(2, anteriores + 1))
 /** Columna O (Tomás, 4/11/2026): «cuando hace cuotas es Payment Plan». Una cuota (1ra, 2da…) es siempre "Payment Plan"; un
@@ -511,7 +518,7 @@ export function filaRegistroPagos(a: AltaParseada, extras: ExtrasRegistro): Fila
     D: tel ? telefonoPlanilla(tel) : '',
     E: ef.E,
     F: ef.F,
-    G: a.closer ?? '',
+    G: closerPlanilla(a.closer),
     H: setter,
     I: comprobante,
     J: concepto,

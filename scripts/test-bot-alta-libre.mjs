@@ -183,15 +183,13 @@ describe('webhook (clasificación)', () => {
 describe('el comprobante manda cuando no contradice al mensaje (4/11/2026)', () => {
   const lect = (o) => ({ es_comprobante: true, legible: 'si', monto_texto: '', moneda: 'USD', moneda_iso: '', fecha: '2026-11-04', numero_operacion: 'OP-9', destinatario: 'ACTIS GERONIMO', ordenante: '', medio: '', notas: '', ...o })
   const DARC = 'Closer: Nahuel\nTipo de pago: Completa 1er cuota $360\n( FEE de $300 pagado en efectivo )\nNombre completo del lead: María Laura D’Arcangelo.\nTeléfono: +54 9 11 5509-8826'
-  test('D\'Arcangelo: el mensaje nombra $360 → sin OK, se carga 360, 1ra cuota y el nombre sin punto', () => {
+  test('D\'Arcangelo: si el mensaje dice 300 y el comprobante 360, frena y el aviso dice qué carga el OK; «completó 1ra» = 1ra Cuota', () => {
     const a = parsearAlta(DARC)
-    const r = C.compararComprobante(lect({ monto_texto: 'u$s 360.00' }), a, { hoy: '2026-11-04', texto: DARC })
-    assert.equal(r.resultado, 'coincide', r.diferencias.join(' | '))
-    assert.equal(r.extras.usdComprobante, 360)
-    const f = FIN.filaRegistroPagos(a, { fecha: '2026-11-04', setter: 'Tomi / Gero', fuente: 'Webinar', cuenta: 'Gero', usdComprobante: r.extras.usdComprobante })
-    assert.equal(f.celdas.E, 360)
-    assert.equal(FIN.completaPrimeraCuota(DARC), true)
-    assert.equal(FIN.completaPrimeraCuota('Ingresa pago - 2º cuota 825'), false)
+    const r = C.compararComprobante(lect({ monto_texto: 'u$s 360.00' }), a, { hoy: '2026-11-04' })
+    assert.equal(r.resultado, 'difiere')
+    assert.equal(r.extras.usdComprobante, undefined)
+    for (const t of [DARC, 'completó la 1era cuota', 'Completó 1er cuota $360', 'Completa 1ra', 'completa la primera cuota']) assert.equal(FIN.completaPrimeraCuota(t), true, t)
+    for (const t of ['Ingresa pago - 2º cuota 825', 'Completa pago PIF', 'completa 10 cuotas']) assert.equal(FIN.completaPrimeraCuota(t), false, t)
   })
   test('Lia Parra: el mensaje no trae monto → se toma el del comprobante (antes frenaba sin cargar)', () => {
     const LIA = 'Closer: Marcos\nTipo de pago: PP $3300\nNombre completo del lead: Lia Karina Parra\nTeléfono: +54 9 11 6173-8900'
@@ -210,10 +208,15 @@ describe('el comprobante manda cuando no contradice al mensaje (4/11/2026)', () 
     assert.match(r.diferencias[0], /con OK se carga USD 1\.100/)
     assert.equal(r.extras.usdComprobante, undefined)
   })
-  test('teléfonos y DNI no cuentan como montos del mensaje', () => {
-    assert.equal(C.textoNombraMonto('Tel: +54 9 11 4000 2222\nDNI: 28111333', 4000), false)
-    assert.equal(C.textoNombraMonto('Completa 1er cuota $360', 360), true)
-    assert.equal(C.textoNombraMonto('pagó 1.100 USD', 1100), true)
+  test('closer en la lista de la col G: «Yamila» → «Yami» (Nancy Báez frenada el 26/10)', () => {
+    assert.equal(FIN.closerPlanilla('Yamila'), 'Yami')
+    assert.equal(FIN.closerPlanilla('Nahuel'), 'Nahuel')
+    assert.equal(FIN.closerPlanilla(null), '')
+  })
+  test('con varios comprobantes, el monto del primero no reemplaza al del mensaje (sería una parte)', () => {
+    const T = 'Closer: Marcos\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
+    const r = C.compararComprobante(lect({ monto_texto: 'USD 200' }), parsearAlta(T), { hoy: '2026-11-04', archivos: 2 })
+    assert.equal(r.extras.usdComprobante, undefined)
   })
 })
 
