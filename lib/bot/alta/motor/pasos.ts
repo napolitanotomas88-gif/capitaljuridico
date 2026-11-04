@@ -733,7 +733,7 @@ export function interpretarFinanzas(r: ResultadoCargaFinanzas, c: { huboCorriend
   const nombre = c.nombre ?? 'el cliente'
   if (r.ok) return { estado: 'hecho', resultado: guardado, avisos: [`Finanzas: pago de ${nombre} cargado en la fila 2 de "Registro de Pagos"${r.comprobanteUrl ? ` (comprobante: ${r.comprobanteUrl})` : ''}. Aylu, revisalo.${r.avisos.length ? ` Avisos: ${r.avisos.join(' · ')}` : ''}`] }
   if (r.repetido) {
-    if (c.huboCorriendo) return { estado: 'hecho', resultado: guardado, avisos: [`Finanzas: el pago de ${nombre} ya estaba en la fila ${r.repetido.fila}: es la carga de una corrida anterior que se cortó. Aylu, revisalo.`] }
+    if (c.huboCorriendo) return { estado: 'hecho', resultado: guardado, avisos: [`Finanzas: el pago de ${nombre} ya estaba en la fila ${r.repetido.fila}: es la carga de una corrida anterior que se cortó. Aylu, revisalo; si es una 2da, 3ra… cuota, fijate en /cuotas que haya quedado registrada.`] }
     return {
       estado: 'espera', resultado: guardado,
       esperas: [{

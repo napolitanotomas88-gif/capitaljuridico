@@ -66,13 +66,21 @@ describe('pago de cuota del bot → tablero de Cuotas', () => {
     const r2 = T.pagoAlTablero([reg(dos)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 1000, concepto: '2da Cuota' }, AHORA)
     assert.equal(pendiente(r2.plan), 10)
   })
-  test('ya_estaba solo con un pago vigente del bot en un plan vigente (no abandonado ni anulado)', () => {
+  test('un pago del bot que quedó en un plan abandonado no cuenta como ya registrado: se avisa para revisar el plan nuevo', () => {
     const pago = { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '2da Cuota' }
     const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }] })
     const r1 = T.pagoAlTablero([reg(p)], pago, AHORA)
     const abandonado = { ...r1.plan, abandonado: true }
     const nuevo = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }] })
-    assert.equal(T.pagoAlTablero([reg(abandonado), reg(nuevo)], pago, AHORA).accion, 'registrado')
+    assert.equal(T.pagoAlTablero([reg(abandonado), reg(nuevo)], pago, AHORA).accion, 'revisar')
+  })
+  test('un pago del bot que después se anuló no se vuelve a registrar en silencio: se avisa', () => {
+    const pago = { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '2da Cuota' }
+    const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }, { v: '2026-12-01', usd: 500 }] })
+    const r1 = T.pagoAlTablero([reg(p)], pago, AHORA)
+    const pid = r1.plan.cuotas[0].pagos[0].id
+    const anulado = M.modificarPlan(r1.plan, { tipo: 'anular', cuota: r1.plan.cuotas[0].id, pago: pid }, '00000000-0000-4000-8000-999999999999', 'x', AHORA)
+    assert.equal(T.pagoAlTablero([reg(anulado)], pago, AHORA).accion, 'revisar')
   })
   test('el pago va a la cuota que vence primero, aunque tenga una promesa más adelante', () => {
     const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-10-01', usd: 500 }, { v: '2026-11-01', usd: 500 }] })

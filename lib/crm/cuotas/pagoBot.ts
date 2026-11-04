@@ -47,6 +47,9 @@ export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBo
   // Ya registrado por el bot (reintento del motor): un pago vigente con el mismo id de operación en un plan vigente
   const ids = new Set(Array.from({ length: 60 }, (_, i) => idOperacion(pago, i)))
   if (vivos.some(({ plan }) => plan.cuotas.some((c) => c.pagos.some((p) => !p.anulado && ids.has(p.id))))) return { accion: 'ya_estaba', detalle: `la cuota de ${quien} ya estaba registrada en el tablero` }
+  // Registrado antes por el bot y después anulado o en un plan abandonado: el mismo id no se puede volver a usar (modificarPlan
+  // lo ignoraría en silencio) y además alguien lo deshizo a propósito
+  if (planes.some(({ plan }) => plan.eventos.some((e) => ids.has(e.id)))) return { accion: 'revisar', detalle: `ese pago de ${quien} ya se había registrado en el tablero y después se anuló o se abandonó el plan` }
   const conSaldo = vivos.filter(({ plan }) => pendiente(plan) > 0)
   let candidatos: RegistroPlan[]
   if (t.length === 8) {

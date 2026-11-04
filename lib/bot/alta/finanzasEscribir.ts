@@ -507,6 +507,8 @@ export interface OpcionesCargaPago {
   archivoNuevo?: boolean
   /** Nombre del archivo que eligió un intento anterior (con su sufijo): ver OpcionesCarga.nombreArchivo. */
   nombreArchivo?: string | null
+  /** Registrar una 2da, 3ra… cuota en el tablero de Cuotas (solo el bot de altas, que muestra los avisos en Verificaciones). */
+  registrarEnTablero?: boolean
   deps?: DepsCarga
 }
 
@@ -573,7 +575,7 @@ export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: Comprob
     let tablero: ResultadoCargaFinanzas['tablero'] = null
     const c = fila.celdas
     const ymd = typeof c.A === 'number' ? serialAYmd(c.A) : null
-    if (ymd && typeof c.E === 'number' && esCuotaSiguiente(String(c.J ?? ''))) {
+    if (opciones.registrarEnTablero && ymd && typeof c.E === 'number' && esCuotaSiguiente(String(c.J ?? ''))) {
       const t = await (opciones.deps?.tablero ?? registrarPagoBotEnTablero)({ fecha: ymd, nombre: String(c.C ?? '') || null, telefono: String(c.D ?? '') || null, usd: c.E, concepto: String(c.J) })
       tablero = { ok: t.ok, accion: t.accion, detalle: t.detalle }
       avisos.push(...t.avisos)

@@ -108,7 +108,7 @@ export function depsPasosServidor(base: Pick<DepsMotorBase, 'modo'>, env: NodeJS
   const max = Number(env.BOT_ALTA_MAX_COMUNIDADES_DIA)
   return {
     ...(lecturas ? {
-      finanzas: (fila, comprobante, op) => cargarPagoFinanzas(fila, comprobante, { modo: op.modo, hasta: op.hasta, archivoNuevo: op.archivoNuevo, nombreArchivo: op.nombreArchivo }),
+      finanzas: (fila, comprobante, op) => cargarPagoFinanzas(fila, comprobante, { modo: op.modo, hasta: op.hasta, archivoNuevo: op.archivoNuevo, nombreArchivo: op.nombreArchivo, registrarEnTablero: true }),
       crm: (a, extras, op) => escribirAltaCrm(a, extras, { modo: op.modo }),
       mep: (fecha) => buscarMepDiaAnterior(fecha),
       vision: (m) => leerComprobanteConClaude(m),
