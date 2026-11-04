@@ -30,11 +30,14 @@ test('René termina/corrige con link; Aylu revisa antes de encolar el cliente', 
   assert.equal(revision.avisos.find(a => a.canal === 'cliente').link, 'https://example.test/editado')
   assert.throws(() => planTarjeta(tarjeta({ etapa: 'editado', campos: { paleta: '', crudo: '', editado: '' } }), mover('revisión'), aylu), /link/)
 })
-test('Publicar no manda a Ads ni inventa OK; Publicado exige cita y no activa Meta', () => {
-  const lista = planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicar'), aylu); assert.deepEqual(lista.avisos, [])
-  assert.throws(() => planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicado'), aylu), /cita/)
-  const ok = planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicado', { comentario: 'Cliente: «está perfecto, aprobado»' }), aylu)
-  assert.ok(ok.avisos.every(a => a.destino === 'valen')); assert.equal(ok.avisos.some(a => a.canal === 'cliente'), false)
+test('regla de Tomás (4/11): Publicar pide la cita del OK; Publicado lo pone el bot (a mano solo desde Publicar y con ID del anuncio)', () => {
+  assert.throws(() => planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicar'), aylu), /cita/)
+  const lista = planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicar', { comentario: 'Cliente: «está perfecto, aprobado»' }), aylu)
+  assert.equal(lista.tarjeta.etapa, 'publicar'); assert.deepEqual(lista.avisos, [])
+  assert.throws(() => planTarjeta(tarjeta({ etapa: 'revisión' }), mover('publicado', { comentario: 'ok del cliente' }), aylu), /bot/)
+  assert.throws(() => planTarjeta(tarjeta({ etapa: 'publicar' }), mover('publicado', { comentario: 'listo' }), aylu), /ID del anuncio/)
+  const manual = planTarjeta(tarjeta({ etapa: 'publicar' }), mover('publicado', { comentario: 'Anuncio 120212345678901234' }), tomas)
+  assert.equal(manual.tarjeta.etapa, 'publicado'); assert.equal(manual.avisos.some(a => a.canal === 'cliente'), false)
   assert.throws(() => planTarjeta(tarjeta({ etapa: 'publicado' }), mover('para editar', { comentario: 'Reabrir' }), aylu), /Tomás/)
 })
 test('retroceso exige nota, notifica a René y la tercera ronda requiere a Tomás', () => {

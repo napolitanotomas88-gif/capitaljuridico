@@ -28,7 +28,7 @@ const idValido = (id: string) => /^[A-Za-z0-9_-]{10,80}$/.test(id)
 
 
 /** Nombre y md5 de un archivo de Drive, o null si la cuenta de servicio no lo puede leer (sin compartir / borrado). */
-async function archivo(id: string): Promise<{ nombre: string; md5: string | null; video: boolean; publico?: boolean } | null> {
+export async function archivo(id: string): Promise<{ nombre: string; md5: string | null; video: boolean; publico?: boolean } | null> {
   if (!idValido(id)) return null
   try {
     const r = await googleJson<{ name?: string; mimeType?: string; md5Checksum?: string; trashed?: boolean }>(`${API}/files/${id}?fields=name,mimeType,md5Checksum,trashed&supportsAllDrives=true`, { scopes: SCOPE })

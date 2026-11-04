@@ -82,6 +82,8 @@ export interface ResultadoClienteDoc {
   texto: string | null
   seco?: ResumenSeco
   enviado?: boolean
+  /** Lo que quedó armado en Meta (EN PAUSA y verificado), para quien lo pidió (el flujo Publicar del tablero de Edición). */
+  borrador?: Borrador
 }
 export interface ResultadoDoc {
   leido: boolean; bloques: number; clientes: ResultadoClienteDoc[]; errores: string[]
@@ -345,6 +347,7 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
       continue
     }
     r.accion = error ? 'error' : 'armado'; r.detalle = error
+    if (borrador) r.borrador = borrador
     r.texto = conTexto({ borrador, error })
     // Armado (o reclamado y fallido): el juego de videos queda procesado; el reclamo ya impide repetirlo
     await marcar(e.bloque, delDoc)

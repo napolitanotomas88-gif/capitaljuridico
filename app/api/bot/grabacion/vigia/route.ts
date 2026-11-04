@@ -52,6 +52,17 @@ export async function POST(req: Request) {
   after(() => recordarGuionesARevisar().then(() => undefined).catch(e => { console.error('guiones-revision: falla inesperada —', motivo(e)) }))
   // Guiones aprobados sin su «para enviar» en 📤 (3/11/2026, «SÍ O SÍ»): la red que lo crea si el check final no lo dejó
   after(() => crearParaEnviarFaltantesReal().then(r => { if (r.faltantes.length || r.errores.length) console.log(`guiones-para-enviar: ${r.faltantes.map(f => `${f.id_crm} tanda ${f.tanda} (${f.estado})`).join(' · ') || '0'}${r.errores.length ? ` | errores ${r.errores.join(' · ')}` : ''}`) }).catch(e => { console.error('guiones-para-enviar: falla inesperada —', motivo(e)) }))
+  // Tablero de Edición ↔ ClickUp (4/11/2026): lectura de lo modificado, réplica de la outbox y anuncios de «Publicar».
+  after(async () => {
+    try {
+      const { sincronizarClickUpReal, despacharClickUpReal } = await import('@/lib/edicion/clickupServidor')
+      const { procesarPublicaciones } = await import('@/lib/edicion/publicarServidor')
+      const s = await sincronizarClickUpReal({ forzar: true })
+      const p = await despacharClickUpReal(t0 + 150_000)
+      const pub = await procesarPublicaciones({ hasta: t0 + PLAZO_VIGIA_MS })
+      console.log(`edicion-clickup: ${'apagado' in s ? 'lectura apagada' : `${s.leidas} leídas, ${s.creadas} nuevas, ${s.actualizadas} actualizadas`} · ${'apagado' in p ? 'escritura apagada' : `${p.enviados} a ClickUp`} · ${pub.procesadas.length} publicaciones${pub.errores.length ? ` | ${pub.errores.join(' · ')}` : ''}`)
+    } catch (e) { console.error('edicion-clickup: falla inesperada —', motivo(e)) }
+  })
   if (modoEdicion() !== 'real') return json({ ok: true, dry: true, nada: 'EDICION_MODO no es real: el vigía no corre (probá con ?dry=1)' }, 202)
   after(async () => {
     try {
