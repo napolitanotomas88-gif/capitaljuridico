@@ -196,13 +196,19 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     assert.equal(FIN.conceptoCuota(13), 'Cuota 13')
   })
 
-  test('historial: último programa (B) y tipo de pago (O) no vacíos del cliente, Fee incluidos (4/11/2026)', () => {
+  test('historial: programa (B) y tipo de pago (O) del pago más NUEVO (arriba en el Registro), sin renovaciones ni homónimos (4/11/2026)', () => {
+    // Como en la planilla: el pago más nuevo en la fila 2 (arriba)
     const filas = [
-      [46300, 'DFY | PP | $3900', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', '1ra Cuota', '', '', '', 'Front-end', 'Payment Plan'],
+      [46340, 'DFY+R | PP | $3400', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', 'Renovación', '', '', '', 'Back-end', 'Payment Plan'],
       [46330, '', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', '2da Cuota', '', '', '', 'Front-end', ''],
-      [46331, 'DFY | PP | $3300', 'Ana Pérez', '5491130001111', 1100, '', 'Marcos', 'Mai', '', '1ra Cuota'],
+      [46320, 'DFY | PP | $3300', 'Nadia Blanco', '5491100000000', 1100, '', 'Marcos', 'Mai', '', '1ra Cuota', '', '', '', 'Front-end', 'Upfront'],
+      [46300, 'DFY | PP | $3900', 'Nadia Blanco', '595975000001', 1300, '', 'Yamila', 'Mai', '', '1ra Cuota', '', '', '', 'Front-end', 'Payment Plan'],
+      [46290, 'DFY | PIF | $2600', 'Nadia Blanco', '595975000001', 300, '', 'Yamila', 'Mai', '', 'Fee', '', '', '', 'Front-end', 'Upfront'],
     ]
-    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: null }), { cuotas: 2, programa: 'DFY | PP | $3900', tipoPago: 'Payment Plan' })
+    // La homónima de otro teléfono (fila 46320) y la renovación no cuentan; manda el pago más nuevo con dato (46300)
+    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: '595975000001' }), { cuotas: 2, programa: 'DFY | PP | $3900', tipoPago: 'Payment Plan' })
+    // Sin teléfono, por nombre (todas las filas de ese nombre)
+    assert.equal(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: null }).programa, 'DFY | PP | $3300')
     assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadie', telefono: null }), { cuotas: 0, programa: null, tipoPago: null })
   })
 
@@ -222,10 +228,26 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     // PIF con plan (Adriana De Feo, 4/11): el programa del historial manda y no se pide nada del plan
     const b = parsearAlta('Closer: Carlos\nCompleta Pago PIF\nPago 3: 400 usd\nNombre: Adriana De Feo\nTel: +54 341 596-3816')
     const f2 = FIN.filaRegistroPagos(b, { fecha: '2026-11-03', setter: 'Tomi / Gero', fuente: 'Webinar', cuenta: 'Empresa' })
-    FIN.ajustarFilaPagoCliente(f2, { nombre: b.nombre, concepto: '3ra Cuota', programa: 'DFY | PIF | $2600', tipoPago: null })
+    FIN.ajustarFilaPagoCliente(f2, { nombre: b.nombre, concepto: '3ra Cuota', programa: 'DFY | PIF | $2600', tipoPago: 'Upfront' })
     assert.ok(!f2.pendientes.some((x) => /^(Programa|Cuotas del plan)/.test(x)), f2.pendientes.join(' | '))
     assert.equal(f2.celdas.B, 'DFY | PIF | $2600')
     assert.equal(f2.fila[1], 'DFY | PIF | $2600')
     assert.ok(!f2.avisos.some((x) => x.startsWith('Programa (col B) vacío')))
+    // Plan escrito por el closer ("PP … total 3300"): B y O salen igual del pago anterior, coherentes, sin avisos del plan
+    const c = parsearAlta('Closer: Carlos\nIngresa pago PP 2/3 de 1100 usd, total 3300\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111')
+    const f3 = FIN.filaRegistroPagos(c, { fecha: '2026-11-03', setter: 'Mai', fuente: 'Webinar', cuenta: 'Tomi' })
+    FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: 'DFY | PIF | $2600', tipoPago: 'Upfront' })
+    assert.equal(f3.celdas.B, 'DFY | PIF | $2600')
+    assert.equal(f3.celdas.O, 'Upfront')
+    assert.ok(!f3.avisos.some((x) => /^(El programa "|El closer declaró )/.test(x)), f3.avisos.join(' | '))
+    assert.ok(!f3.pendientes.some((x) => /^(Programa|Cuotas del plan)/.test(x)), f3.pendientes.join(' | '))
+    // Sin programa anterior: B vacío (nunca el armado con el texto del closer), con aviso
+    FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: null, tipoPago: null })
+    assert.equal(f3.celdas.B, '')
+    assert.equal(f3.celdas.O, '')
+    // Programa viejo fuera de la lista de la col B: vacío con aviso (si no, la lista estricta frena la carga)
+    FIN.ajustarFilaPagoCliente(f3, { nombre: c.nombre, concepto: '2da Cuota', programa: 'DFY | PP | $9999', tipoPago: 'Payment Plan' })
+    assert.equal(f3.celdas.B, '')
+    assert.ok(f3.avisos.some((x) => x.includes('no está en la lista de la columna B')))
   })
 })

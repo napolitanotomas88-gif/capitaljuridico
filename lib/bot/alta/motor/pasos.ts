@@ -598,16 +598,17 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
   if (plan === 'pago_cliente') {
     const guardado = ctx.paso.parcial?.conceptoCuota
     const h = ctx.paso.parcial?.historialCliente as { programa?: unknown; tipoPago?: unknown } | undefined
-    if (typeof guardado === 'string') {
+    if (typeof guardado === 'string' && (h || !ctx.deps.historialCliente || ctx.modo === 'seco')) {
       concepto = guardado
       historial = { programa: typeof h?.programa === 'string' ? h.programa : null, tipoPago: typeof h?.tipoPago === 'string' ? h.tipoPago : null }
     } else if (ctx.modo === 'seco' || (!ctx.deps.historialCliente && !ctx.deps.cuotasAnteriores)) concepto = conceptoPagoCliente(1)
     else {
       try {
+        // Un pago frenado antes del 4/11 guardó la cuota sin el historial: se lee el historial y la cuota guardada se respeta
         const quien = { nombre: a.nombre, telefono: telefonoDelCliente(a)?.numero ?? null }
         if (ctx.deps.historialCliente) {
           const r = await ctx.deps.historialCliente(quien)
-          concepto = conceptoPagoCliente(r.cuotas)
+          concepto = typeof guardado === 'string' ? guardado : conceptoPagoCliente(r.cuotas)
           historial = { programa: r.programa, tipoPago: r.tipoPago }
         } else concepto = conceptoPagoCliente(await ctx.deps.cuotasAnteriores!(quien))
         if (ctx.real) await ctx.guardarParcial({ ...(ctx.paso.parcial ?? {}), conceptoCuota: concepto, historialCliente: historial })
