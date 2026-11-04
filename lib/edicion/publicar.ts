@@ -27,7 +27,7 @@ export interface DepsPublicar {
   video(drive: string): Promise<{ nombre: string; legible: boolean } | null>
   copy(t: TarjetaPublicar, drive: string): Promise<CopyPublicar>
   escribirDoc(x: { cliente: string; drive: string; copy: string }): Promise<string>
-  lanzar(x: { cliente: string; idCrm: string; drive: string; copy: string; seco: boolean }): Promise<{ r: ResultadoClienteDoc | null; errores: string[] }>
+  lanzar(x: { cliente: string; idCrm: string; drive: string; copy: string; seco: boolean; nombre?: string }): Promise<{ r: ResultadoClienteDoc | null; errores: string[] }>
   rotar(x: { idCrm: string; drive: string; nombre: string; copy: string; textos?: string[]; titulos?: string[]; seco: boolean }): Promise<{ borrador: Borrador | null; seco: ResumenSeco | null; enSeco: string | null }>
   cerrarTarjeta(x: { tarjeta: TarjetaPublicar; anuncios: string[]; link: string | null; campana: string | null }): Promise<void>
   avisar(x: { ok: boolean; clave: string; tarjeta: TarjetaPublicar; cliente: string; lineas: string[]; link: string | null }): Promise<void>
@@ -86,7 +86,7 @@ export async function publicarUna(p: PublicacionFila, d: DepsPublicar): Promise<
   if (cli.tipo === 'campana') {
     res.camino = 'rotacion'
     let r: Awaited<ReturnType<DepsPublicar['rotar']>>
-    try { r = await d.rotar({ idCrm: t.id_crm, drive, nombre: v.nombre, copy: c.copy, textos: c.textos, titulos: c.titulos, seco }) } catch (e) { return fallo('error', `no pude armar la rotación en Meta (${motivo(e)})`) }
+    try { r = await d.rotar({ idCrm: t.id_crm, drive, nombre: v.nombre === 'Video' ? `${cli.nombre} ${t.nombre}` : v.nombre, copy: c.copy, textos: c.textos, titulos: c.titulos, seco }) } catch (e) { return fallo('error', `no pude armar la rotación en Meta (${motivo(e)})`) }
     res.seco = r.seco
     if (!r.borrador) return fallo('error', r.enSeco ?? 'no se armó la rotación')
     if (r.enSeco) res.detalle = r.enSeco
@@ -99,7 +99,7 @@ export async function publicarUna(p: PublicacionFila, d: DepsPublicar): Promise<
   } else {
     res.camino = 'lanzamiento'
     let out: Awaited<ReturnType<DepsPublicar['lanzar']>>
-    try { out = await d.lanzar({ cliente: cli.nombre, idCrm: t.id_crm, drive, copy: c.copy, seco }) } catch (e) { return fallo('error', `no pude armar la campaña (${motivo(e)})`) }
+    try { out = await d.lanzar({ cliente: cli.nombre, idCrm: t.id_crm, drive, copy: c.copy, seco, nombre: t.nombre }) } catch (e) { return fallo('error', `no pude armar la campaña (${motivo(e)})`) }
     const e = estadoDesdeDoc(out.r)
     res.seco = out.r?.seco ?? null
     if (e.estado === 'reintentar') return { ...res, estado: 'pendiente', detalle: e.detalle, reintentar: true }
