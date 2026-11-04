@@ -91,7 +91,7 @@ export function leerLibre(texto: string | null | undefined): LecturaLibre {
   for (const l of t.split(/\r?\n/)) {
     const kv = claveValorLibre(l)
     if (!kv) continue
-    if (!nombre && CLAVES_NOMBRE.has(kv.clave) && pareceNombre(kv.valor)) nombre = kv.valor
+    if (!nombre && CLAVES_NOMBRE.has(kv.clave) && pareceNombre(kv.valor)) nombre = kv.valor.replace(/[\s.,;:]+$/u, '') || null
     if (CLAVES_TELEFONO.has(kv.clave) && telefonos(kv.valor).length) telefono = true
   }
   return { nombre, telefono, correo: correosDe(t).length > 0, pago: tieneSenalPago(t), monto: tieneMontoPago(t) }

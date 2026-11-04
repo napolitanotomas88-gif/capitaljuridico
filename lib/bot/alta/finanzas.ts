@@ -59,6 +59,9 @@ export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { 
 /** Cuántas cuotas (o PIF) de ese cliente ya hay en las filas del Registro (ver historialClienteEn). */
 export const cuotasAnterioresEn = (filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): number =>
   historialClienteEn(filas, p).cuotas
+/** ¿El mensaje dice que este pago completa la primera cuota? ("Completa 1er cuota", "completa la primera cuota", "completa 1ra") */
+export const completaPrimeraCuota = (texto: string | null | undefined): boolean =>
+  /complet\w*\s+(?:la\s+|el\s+)?(?:1\s*(?:ra|er|era|°|º)?|primer[ao]?)\s*cuota/i.test(texto ?? '')
 /** Concepto del pago siguiente de un cliente existente: la cuota que sigue a las que ya están (como mínimo, la 2da). */
 export const conceptoPagoCliente = (anteriores: number): string => conceptoCuota(Math.max(2, anteriores + 1))
 /** Columna O (Tomás, 4/11/2026): «cuando hace cuotas es Payment Plan». Una cuota (1ra, 2da…) es siempre "Payment Plan"; un
@@ -141,6 +144,7 @@ export interface ExtrasRegistro {
   cuenta?: string           // cuenta ya decidida (Tomi, Gero o Empresa): manda sobre lo que se deduce
   destinatario?: string     // destinatario del comprobante, tal cual lo lee Claude: de ahí se deduce la cuenta (col R)
   pesosArs?: number         // monto real en pesos, leído del comprobante (col F)
+  usdComprobante?: number   // monto en USD leído del comprobante: manda sobre el que escribió el closer (4/11/2026)
   mepDiaAnterior?: number   // dólar MEP (venta) del día anterior al pago: lo busca el servidor con lib/bot/alta/mep.ts
   fechaMep?: string         // 'aaaa-mm-dd' de esa cotización (fechaCotizacion de mep.ts: si el día anterior fue domingo o
                             // feriado, la del último día hábil). Sin ella, el aviso cita el día anterior al pago.
@@ -325,7 +329,7 @@ export const textoProgramaFueraDeLista = (p: ProgramaPlanilla): string =>
   `El programa "${p.valor}" (el plan que declaró el closer) no tiene ninguna opción con ese total en la lista de la columna B` +
   (p.sugerida ? `. Sugerida: "${p.sugerida}". Cargá la fila a mano con la que corresponda y respondé OK` : '. Cargá la fila a mano con la que corresponda y respondé OK')
 
-type ExtrasEfectivo = Partial<Pick<ExtrasRegistro, 'fecha' | 'pesosArs' | 'mepDiaAnterior' | 'fechaMep'>>
+type ExtrasEfectivo = Partial<Pick<ExtrasRegistro, 'fecha' | 'pesosArs' | 'mepDiaAnterior' | 'fechaMep' | 'usdComprobante'>>
 
 /** E (USD) y F (pesos) del pago, con lo que falta y lo que hay que mirar. Pago en pesos (Tomás, 24/10/2026):
  *  F = pesos del comprobante (o, mientras no está, los que escribió el closer) y E = pesos ÷ dólar MEP (venta) del día
@@ -336,8 +340,14 @@ function efectivoRecaudado(a: AltaParseada, extras: ExtrasEfectivo): { E: number
   // El comprobante en pesos manda aunque el closer no lo haya dicho: todo el pago se toma en pesos
   const pesos = a.pagoEnPesos ?? (extras.pesosArs !== undefined ? { ars: null, usdDelCloser: a.estePagoUsd, usdAparte: 0 } : null)
   if (!pesos) {
-    if (a.estePagoUsd === null) pendientes.push('Efectivo recaudado: monto de este pago en USD')
-    return { E: a.estePagoUsd ?? '', F: '', pendientes, avisos }
+    // El comprobante en USD manda (Tomás, 4/11/2026: D'Arcangelo «completa 1er cuota $360 (FEE de $300 pagado)» se cargó con
+    // 300; Lia Parra sin monto en el mensaje no se cargó): la plata que entró es la del comprobante
+    const comp = extras.usdComprobante
+    const usd = comp ?? a.estePagoUsd
+    if (usd === null) pendientes.push('Efectivo recaudado: monto de este pago en USD')
+    if (comp !== undefined && a.estePagoUsd !== null && Math.abs(comp - a.estePagoUsd) > 1) avisos.push(`Se cargó USD ${num(comp)}, el monto del comprobante (el mensaje del closer decía USD ${num(a.estePagoUsd)})`)
+    else if (comp !== undefined && a.estePagoUsd === null) avisos.push(`Se cargó USD ${num(comp)}, el monto del comprobante (el mensaje no lo decía)`)
+    return { E: usd ?? '', F: '', pendientes, avisos }
   }
   if (!a.pagoEnPesos) avisos.push('El comprobante es en pesos y "Este pago" no lo dice: revisar')
 

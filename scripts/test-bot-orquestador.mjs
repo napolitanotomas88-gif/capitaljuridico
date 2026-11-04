@@ -252,7 +252,7 @@ describe('comprobante (parte pura)', () => {
   test('coincide con ±1 % y saca destinatario, fecha y n.º de operación', () => {
     const r = C.compararComprobante(C.leerSalida(lecturaOk({ monto_texto: 'USD 1,105.00' })), a, { hoy })
     assert.equal(r.resultado, 'coincide')
-    assert.deepEqual(r.extras, { destinatario: 'Napolitano Tomás', numeroOperacion: 'OP-1', fechaPago: '2026-10-26' })
+    assert.deepEqual(r.extras, { destinatario: 'Napolitano Tomás', numeroOperacion: 'OP-1', usdComprobante: 1105, fechaPago: '2026-10-26' })
   })
   test('difiere: monto, pesos contra USD, fecha futura o vieja, operación ya usada', () => {
     assert.match(C.compararComprobante(lecturaOk({ monto_texto: '900' }), a, { hoy }).diferencias[0], /Monto/)

@@ -453,7 +453,7 @@ export function parsearAlta(mensaje: string): AltaParseada {
           if (p?.ars != null && !RE_PESOS.test(norm(valor))) r.avisos.push(`"Este pago" trae ${p.ars.toLocaleString('es-AR')} sin decir la moneda: por la cantidad de cifras se toma como pesos (confirmar con el comprobante)`)
           break
         }
-        case 'nombre': r.nombre = valor || null; break
+        case 'nombre': r.nombre = valor.replace(/[\s.,;:]+$/u, '') || null; break   // "María Laura D’Arcangelo." → sin el punto
         case 'telefono': r.telefonos.push(...telefonos(valor)); break
         // Se cierra en la próxima "Clave: valor" (o al final). Las líneas de en medio que sigan el bloque son socios.
         case 'socios': bloqueSocios = { lineas: valor ? [valor] : [], vacia: !valor }; break

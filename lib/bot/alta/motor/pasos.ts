@@ -15,7 +15,7 @@ import { encolarBeneficio, procesarBeneficio } from '@/lib/clientes/beneficiosPe
 import { createHash } from 'node:crypto'
 import { FALTANTE_CORREO_SOCIOS, esAvisoFee, esRenovacion, leerSocios, parsearAlta, type AltaParseada } from '../parsear'
 import { avisosParaRevisar, estadoAlta, respuestaAlCloser, type ExtrasAlta } from '../plan'
-import { ajustarFilaPagoCliente, conceptoPagoCliente, fijarTipoPago, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
+import { ajustarFilaPagoCliente, completaPrimeraCuota, conceptoCuota, conceptoPagoCliente, fijarTipoPago, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
 import { motivoNombreDudoso } from '../nombreCliente'
 import { telefonoDelCliente, CONTRATO_SIN_ENVIAR, entradaCrmDesdeAlta } from '../crm'
 import { CARPETA_CLIENTES_DRIVE, aprobarCarpetaExistente, nombresDriveCliente, plantillaGuionesDesdeEntorno, type GuardadoDrive, type IntentoCarpeta, type ResultadoDriveCliente } from '../driveCliente'
@@ -67,6 +67,7 @@ export function extrasDeAlta(alta: FilaAlta): ExtrasAlta {
   if (v.cuenta) out.cuenta = v.cuenta
   if (v.comparacion?.extras.destinatario) out.destinatario = v.comparacion.extras.destinatario
   if (typeof v.comparacion?.extras.pesosArs === 'number') out.pesosArs = v.comparacion.extras.pesosArs
+  if (typeof v.comparacion?.extras.usdComprobante === 'number') out.usdComprobante = v.comparacion.extras.usdComprobante
   if (v.mep) { out.mepDiaAnterior = v.mep.venta; if (esYmdValido(v.mep.fechaCotizacion)) out.fechaMep = v.mep.fechaCotizacion }
   return out
 }
@@ -221,7 +222,7 @@ async function leerComprobante(ctx: CtxPaso, v: Validacion, a: AltaParseada, pri
     const fecha = esYmdValido(sal.fecha) && sal.fecha <= hoy ? sal.fecha : hoy
     try { cotizacion = await ctx.deps.cotizacion(sal.moneda_iso, fecha) } catch { cotizacion = null }
   }
-  return { comparacion: compararComprobante(sal, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres, cotizacion }) }
+  return { comparacion: compararComprobante(sal, a, { hoy, operacionUsadaEn: mismaOperacion, archivoUsadoEn: mismoArchivo, sinCitar: !!principal.sinCitar, nombres, cotizacion, texto: ctx.alta.textoVigente }) }
 }
 
 export async function pasoValidar(ctx: CtxPaso): Promise<SalidaPaso> {
@@ -609,7 +610,8 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
         const quien = { nombre: a.nombre, telefono: telefonoDelCliente(a)?.numero ?? null }
         if (ctx.deps.historialCliente) {
           const r = await ctx.deps.historialCliente(quien)
-          concepto = typeof guardado === 'string' ? guardado : conceptoPagoCliente(r.cuotas)
+          // «Completa 1er cuota» de un cliente que solo tiene Fee: es la 1ra cuota, no la 2da (D'Arcangelo, 4/11/2026)
+          concepto = typeof guardado === 'string' ? guardado : r.cuotas === 0 && completaPrimeraCuota(alta.textoVigente) ? conceptoCuota(1) : conceptoPagoCliente(r.cuotas)
           historial = { programa: r.programa, tipoPago: r.tipoPago }
         } else concepto = conceptoPagoCliente(await ctx.deps.cuotasAnteriores!(quien))
         if (ctx.real) await ctx.guardarParcial({ ...(ctx.paso.parcial ?? {}), conceptoCuota: concepto, historialCliente: historial })
