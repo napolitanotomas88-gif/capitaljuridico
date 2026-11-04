@@ -564,10 +564,13 @@ function enCola<T>(f: () => Promise<T>): Promise<T> {
 export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: ComprobantePago | null | undefined, opciones: OpcionesCargaPago): Promise<ResultadoCargaFinanzas> {
   return enCola(async () => {
     const r = await cargar(fila, comprobante ?? null, opciones)
-    if (!r.ok || r.modo !== 'real') return r
+    // Un reintento que choca con el mismo pago ya cargado (la invocación anterior se cortó después de escribir la planilla)
+    // igual pasa por el tablero de Cuotas: ese paso es idempotente
+    const repetidoReal = !r.ok && r.modo === 'real' && r.repetido !== null
+    if ((!r.ok || r.modo !== 'real') && !repetidoReal) return r
     // La planilla quedó verificada: copia a la app (pedido de Tomás del 1/11). Si falla, el pago está igual en la planilla.
-    const app = await (opciones.deps?.app ?? guardarPagoEnApp)(fila, r.nombreArchivo)
-    const avisos = app.ok ? [...r.avisos] : [...r.avisos, `No se pudo copiar el pago a la app de Finanzas (${app.motivo}): cargarlo a mano en Finanzas → Pagos.`]
+    const app = repetidoReal ? null : await (opciones.deps?.app ?? guardarPagoEnApp)(fila, r.nombreArchivo)
+    const avisos = !app || app.ok ? [...r.avisos] : [...r.avisos, `No se pudo copiar el pago a la app de Finanzas (${app.motivo}): cargarlo a mano en Finanzas → Pagos.`]
     // Una 2da, 3ra… cuota se registra sola en su plan del tablero de Cuotas (Tomás, 4/11/2026). Si no se puede, el pago está
     // igual en Finanzas: se avisa para registrarlo a mano en /cuotas.
     let tablero: ResultadoCargaFinanzas['tablero'] = null
@@ -579,7 +582,7 @@ export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: Comprob
       avisos.push(...t.avisos)
       if (!t.ok) avisos.push(`No se registró la cuota en el tablero de Cuotas (${t.detalle}): registrala a mano en /cuotas.`)
     }
-    return { ...r, app, tablero, avisos }
+    return repetidoReal ? { ...r, tablero, avisos } : { ...r, app, tablero, avisos }
   })
 }
 

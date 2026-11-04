@@ -40,9 +40,37 @@ describe('pago de cuota del bot → tablero de Cuotas', () => {
     assert.equal(T.idOperacion(pago, 1), T.idOperacion(pago, 1))
     assert.ok(M.uuidValido(T.idOperacion(pago, 1)))
   })
-  test('un pago que ya estaba registrado a mano (±2 USD, ±5 días) no se duplica', () => {
+  test('un pago parecido cargado a mano no se duplica: se avisa para revisar (también con diferencia de cambio)', () => {
     const p = plan({ nombre: 'Tatiana Potochnik', telefono: '5491100000001', cuotas: [{ v: '2026-10-15', usd: 1200, pagos: [{ f: '2026-10-19', usd: 1200 }] }, { v: '2026-11-19', usd: 200 }] })
-    assert.equal(T.pagoAlTablero([reg(p)], { fecha: '2026-10-20', nombre: 'Tatiana Potochnik', telefono: '5491100000001', usd: 1199, concepto: '2da Cuota' }, AHORA).accion, 'ya_estaba')
+    assert.equal(T.pagoAlTablero([reg(p)], { fecha: '2026-10-20', nombre: 'Tatiana Potochnik', telefono: '5491100000001', usd: 1199, concepto: '2da Cuota' }, AHORA).accion, 'revisar')
+    // Revisión del PR: el closer registró a mano 825 el 3/11 y el bot carga el mismo pago como 817,35 el 4/11
+    const l = plan({ nombre: 'Leandro Arabia', telefono: '543515121372', cuotas: [{ v: '2026-11-10', usd: 825, pagos: [{ f: '2026-11-03', usd: 825 }] }, { v: '2026-12-10', usd: 825 }] })
+    assert.equal(T.pagoAlTablero([reg(l)], { fecha: '2026-11-04', nombre: 'Leandro Arabia', telefono: '543515121372', usd: 817.35, concepto: '2da Cuota' }, AHORA).accion, 'revisar')
+  })
+  test('dos cuotas seguidas del mismo monto por el bot se registran las dos (no se confunden con un duplicado)', () => {
+    const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-10-25', usd: 500 }, { v: '2026-11-25', usd: 500 }] })
+    const r1 = T.pagoAlTablero([reg(p)], { fecha: '2026-11-01', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '2da Cuota' }, AHORA)
+    const r2 = T.pagoAlTablero([reg(r1.plan)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '3ra Cuota' }, AHORA)
+    assert.equal(r2.accion, 'registrado')
+    assert.equal(pendiente(r2.plan), 0)
+  })
+  test('un plan sin teléfono con el mismo nombre no se toca si el pago trae otro teléfono: se avisa', () => {
+    const p = plan({ nombre: 'Maria Lopez', telefono: '', cuotas: [{ v: '2026-11-01', usd: 500 }] })
+    assert.equal(T.pagoAlTablero([reg(p)], { fecha: '2026-11-04', nombre: 'María López', telefono: '5491199999999', usd: 500, concepto: '2da Cuota' }, AHORA).accion, 'revisar')
+  })
+  test('la diferencia de cambio nunca acredita más que un resto chico de lo que entró', () => {
+    const chico = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500, pagos: [{ f: '2026-10-01', usd: 488 }] }] })
+    const r = T.pagoAlTablero([reg(chico)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 3, concepto: '2da Cuota' }, AHORA)
+    assert.equal(pendiente(r.plan), 9)
+    const dos = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }, { v: '2026-12-01', usd: 510 }] })
+    const r2 = T.pagoAlTablero([reg(dos)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 1000, concepto: '2da Cuota' }, AHORA)
+    assert.equal(pendiente(r2.plan), 10)
+  })
+  test('el pago va a la cuota que vence primero, aunque tenga una promesa más adelante', () => {
+    const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-10-01', usd: 500 }, { v: '2026-11-01', usd: 500 }] })
+    p.cuotas[0].promesa = '2026-12-15'
+    const r = T.pagoAlTablero([reg(p)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '2da Cuota' }, AHORA)
+    assert.equal(M.saldo(r.plan.cuotas[0]), 0)
   })
   test('un pago grande cubre varias cuotas en orden y avisa lo que sobra', () => {
     const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-12-01', usd: 500 }, { v: '2026-11-01', usd: 500 }] })

@@ -408,10 +408,18 @@ describe('cargarPagoFinanzas', () => {
     const r2 = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero: falla } })
     assert.ok(r2.ok, 'el pago queda cargado igual')
     assert.ok(r2.avisos.some((x) => x.includes('registrala a mano en /cuotas')))
-    // en simulación no se toca el tablero
+    // reintento tras un corte: el mismo pago ya está en la planilla (repetido) y el tablero se vuelve a intentar (es idempotente)
     h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
+    await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    const antesRep = llamadas.length
+    const rep = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    assert.equal(rep.ok, false); assert.ok(rep.repetido)
+    assert.equal(llamadas.length, antesRep + 1)
+        // en simulación no se toca el tablero
+    h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
+    const antesSim = llamadas.length
     await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'simulacion', deps: { planilla: () => p, puente: () => d, app, tablero } })
-    assert.equal(llamadas.length, 1)
+    assert.equal(llamadas.length, antesSim)
   })
   test('real: si Google rechaza el chip, repite sin chip y la col I queda con el nombre', async () => {
     const h = hojaInicial(), d = puenteDeJuguete(), p = planillaDeJuguete(h, { drive: d, rechazarChip: true })

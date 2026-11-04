@@ -5,12 +5,13 @@
 // falla, el pago queda cargado igual en Finanzas y se avisa.
 //   · Solo cuotas que siguen a la primera ("2da Cuota", "3ra Cuota"…): la 1ra, los Fee y los PIF son de altas nuevas, que
 //     el closer arma en el tablero con su propio "Pagado".
-//   · El plan: el único que no esté abandonado, tenga saldo y sea del mismo cliente (los últimos 8 dígitos del teléfono; el
-//     nombre solo si a alguno le falta el teléfono). Ninguno o más de uno: no se toca nada y se avisa.
-//   · Sin duplicados: si el plan ya tiene un pago parecido (±USD 2 y ±5 días), no se registra otro. Los ids de operación
-//     salen del pago, así que reintentar es idempotente.
-//   · El monto va a las cuotas en orden de vencimiento. Una diferencia de cambio chica (hasta USD 10 o el 2 %) da la cuota
-//     por saldada, para que no quede un resto de centavos pidiéndose.
+//   · El plan: el único que no esté abandonado, tenga saldo y sea del mismo cliente por teléfono (últimos 8 dígitos). Solo
+//     si el pago no trae teléfono se busca por nombre. Un plan sin teléfono con el mismo nombre no se toca: se avisa.
+//   · Conservador con la plata: ante la duda NO registra y avisa para hacerlo a mano en /cuotas.
+//     - Idempotente: los ids de operación salen del pago (fecha, cliente, monto, concepto); si ya están, no se repite.
+//     - Si el plan tiene un pago cargado a mano parecido (±3 % o ±USD 10, ±10 días), puede ser el mismo: avisa.
+//   · El monto va a las cuotas por orden de vencimiento, sin pasarse de lo que entró. Solo la última cuota tocada puede darse
+//     por saldada por diferencia de cambio, si el resto es chico frente a lo que entró en ella (hasta el 1,5 %; mínimo USD 2).
 import { createHash } from 'node:crypto'
 import { modificarPlan, porCobrar, saldo, type Plan, type RegistroPlan } from './modelo'
 
@@ -20,9 +21,9 @@ export interface PagoCuotaBot { fecha: string; nombre: string | null; telefono: 
 export type ResultadoTablero =
   | { accion: 'registrado'; planId: string; nombre: string; plan: Plan; version: number; detalle: string; avisos: string[] }
   | { accion: 'ya_estaba' | 'no_aplica'; detalle: string }
-  | { accion: 'sin_plan' | 'ambiguo'; detalle: string }
+  | { accion: 'sin_plan' | 'ambiguo' | 'revisar'; detalle: string }
 
-const norm = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+const norm = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
 const tel8 = (s: unknown) => String(s ?? '').replace(/\D/g, '').slice(-8)
 const dias = (a: string, b: string) => Math.abs(Date.parse(`${a}T12:00:00Z`) - Date.parse(`${b}T12:00:00Z`)) / 864e5
 const pendiente = (p: Plan) => p.cuotas.reduce((s, c) => s + porCobrar(c), 0)
@@ -32,7 +33,7 @@ export const esCuotaSiguiente = (concepto: string) => /cuota/i.test(concepto) &&
 
 /** Id de operación estable para el pago (uuid con forma v4, del sha256 del pago y la cuota): reintentar no duplica. */
 export function idOperacion(pago: PagoCuotaBot, i: number): string {
-  const h = createHash('sha256').update(`pago-bot|${pago.fecha}|${tel8(pago.telefono) || norm(pago.nombre)}|${pago.usd}|${i}`).digest('hex')
+  const h = createHash('sha256').update(`pago-bot|${pago.fecha}|${tel8(pago.telefono) || norm(pago.nombre)}|${Math.round(pago.usd * 100)}|${norm(pago.concepto)}|${i}`).digest('hex')
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`
 }
 
@@ -41,43 +42,67 @@ export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBo
   if (!esCuotaSiguiente(pago.concepto)) return { accion: 'no_aplica', detalle: `«${pago.concepto}» no es una cuota de un cliente existente` }
   if (!(pago.usd > 0)) return { accion: 'no_aplica', detalle: 'sin monto en USD' }
   const t = tel8(pago.telefono), n = norm(pago.nombre)
-  const candidatos = planes.filter(({ plan }) => {
-    if (plan.abandonado || pendiente(plan) <= 0) return false
-    const pt = tel8(plan.telefono)
-    if (t.length === 8 && pt.length === 8) return pt === t
-    return n.length >= 5 && norm(plan.nombre) === n
-  })
   const quien = pago.nombre ?? 'el cliente'
+  const vivos = planes.filter(({ plan }) => !plan.abandonado)
+  // Ya registrado por el bot (reintento): mismo id de operación en cualquier plan
+  const ids = new Set(Array.from({ length: 60 }, (_, i) => idOperacion(pago, i)))
+  if (planes.some(({ plan }) => plan.eventos.some((e) => ids.has(e.id)))) return { accion: 'ya_estaba', detalle: `la cuota de ${quien} ya estaba registrada en el tablero` }
+  const conSaldo = vivos.filter(({ plan }) => pendiente(plan) > 0)
+  let candidatos: RegistroPlan[]
+  if (t.length === 8) {
+    candidatos = conSaldo.filter(({ plan }) => tel8(plan.telefono) === t)
+    if (!candidatos.length && n.length >= 5 && conSaldo.some(({ plan }) => tel8(plan.telefono).length < 8 && norm(plan.nombre) === n))
+      return { accion: 'revisar', detalle: `hay un plan de «${quien}» sin teléfono en el tablero: confirmá que es el mismo cliente` }
+  } else candidatos = n.length >= 5 ? conSaldo.filter(({ plan }) => norm(plan.nombre) === n) : []
   if (!candidatos.length) return { accion: 'sin_plan', detalle: `${quien} no tiene un plan con saldo en el tablero de cuotas` }
   if (candidatos.length > 1) return { accion: 'ambiguo', detalle: `${quien} tiene ${candidatos.length} planes con saldo en el tablero de cuotas` }
   const { plan, version } = candidatos[0]
-  const parecido = plan.cuotas.some((c) => c.pagos.some((p) => !p.anulado && Math.abs(p.centavos / 100 - pago.usd) <= 2 && dias(p.fecha, pago.fecha) <= 5))
-  if (parecido) return { accion: 'ya_estaba', detalle: `el plan de ${plan.nombre} ya tiene un pago de unos USD ${pago.usd} cerca del ${pago.fecha}` }
+  // ¿Un pago cargado a mano que puede ser este mismo? (no los del bot, que se reconocen por su id; no el "Pagado" inicial)
+  const tol = Math.max(10, pago.usd * 0.03)
+  const parecido = plan.cuotas.some((c) => !c.inicial && c.pagos.some((p) => !p.anulado && Math.abs(p.centavos / 100 - pago.usd) <= tol && dias(p.fecha, pago.fecha) <= 10
+    && !plan.eventos.some((e) => e.id === p.id && e.actor === ACTOR_BOT)))
+  if (parecido) return { accion: 'revisar', detalle: `el plan de ${plan.nombre} ya tiene un pago parecido cargado a mano cerca del ${pago.fecha}: puede ser el mismo` }
 
   const avisos: string[] = []
   let resto = Math.round(pago.usd * 100)
   let siguiente = plan
-  const abiertas = [...plan.cuotas].filter((c) => porCobrar(c) > 0).sort((a, b) => (a.promesa || a.vencimiento).localeCompare(b.promesa || b.vencimiento))
+  const abiertas = [...plan.cuotas].filter((c) => porCobrar(c) > 0).sort((a, b) => a.vencimiento.localeCompare(b.vencimiento))
   const partes: string[] = []
+  let ultima: { id: string; i: number; centavos: number } | null = null
   for (const [i, c] of abiertas.entries()) {
     if (resto <= 0) break
-    const s = saldo(c)
-    const tolerancia = Math.max(1000, Math.round(s * 0.02))
-    // Un resto chico de esta cuota (diferencia de cambio) la da por saldada; si no, va lo que alcance
-    const centavos = resto >= s || s - resto <= tolerancia ? s : resto
-    if (centavos !== resto && centavos > resto) avisos.push(`Diferencia de cambio: entraron USD ${(resto / 100).toFixed(2)} y la cuota era de USD ${(s / 100).toFixed(2)}; se dio por saldada`)
+    const centavos = Math.min(resto, saldo(c))
     siguiente = modificarPlan(siguiente, { tipo: 'pago', cuota: c.id, monto: (centavos / 100).toFixed(2), fecha: pago.fecha }, idOperacion(pago, i), ACTOR_BOT, ahora)
     partes.push(`USD ${(centavos / 100).toFixed(2)}`)
-    resto -= Math.min(resto, centavos)
+    resto -= centavos
+    ultima = { id: c.id, i, centavos }
   }
-  if (resto > 100) avisos.push(`Sobraron USD ${(resto / 100).toFixed(2)} sin cuota en el plan de ${plan.nombre}: revisar el plan`)
+  // Diferencia de cambio: solo la última cuota tocada, si le quedó un resto chico
+  if (ultima) {
+    const c = siguiente.cuotas.find((x) => x.id === ultima!.id)!
+    const falta = saldo(c)
+    if (falta > 0 && falta <= Math.max(200, Math.round(ultima.centavos * 0.015))) {
+      siguiente = modificarPlan(siguiente, { tipo: 'pago', cuota: c.id, monto: (falta / 100).toFixed(2), fecha: pago.fecha }, idOperacion(pago, 30 + ultima.i), ACTOR_BOT, ahora)
+      avisos.push(`Diferencia de cambio: faltaban USD ${(falta / 100).toFixed(2)} para la cuota de USD ${(c.centavos / 100).toFixed(2)}; se dio por saldada`)
+    }
+  }
+  if (resto > 0) avisos.push(`Sobraron USD ${(resto / 100).toFixed(2)} sin cuota en el plan de ${plan.nombre}: revisar el plan`)
   return { accion: 'registrado', planId: plan.id, nombre: plan.nombre, plan: siguiente, version, detalle: `registrado en el plan de ${plan.nombre}: ${partes.join(' + ')}`, avisos }
 }
 
 /** Lee los planes, registra el pago y guarda (con la versión: si otro lo cambió en el medio, reintenta una vez). Nunca tira. */
 export async function registrarPagoBotEnTablero(pago: PagoCuotaBot): Promise<{ ok: boolean; accion: ResultadoTablero['accion'] | 'error'; detalle: string; avisos: string[] }> {
   if (!esCuotaSiguiente(pago.concepto)) return { ok: true, accion: 'no_aplica', detalle: 'no es una cuota siguiente', avisos: [] }
+  const plazo = new Promise<never>((_, no) => setTimeout(() => no(new Error('el tablero de cuotas no respondió en 20 s')), 20_000).unref?.())
   try {
+    return await Promise.race([registrar(pago), plazo])
+  } catch (e) {
+    return { ok: false, accion: 'error', detalle: String((e as Error)?.message ?? e).slice(0, 200), avisos: [] }
+  }
+}
+
+async function registrar(pago: PagoCuotaBot): Promise<{ ok: boolean; accion: ResultadoTablero['accion'] | 'error'; detalle: string; avisos: string[] }> {
+  {
     const { configurado, guardarPlan, listarPlanes } = await import('./db')
     if (!configurado()) return { ok: false, accion: 'error', detalle: 'el tablero de cuotas no tiene base configurada', avisos: [] }
     for (let intento = 0; intento < 2; intento++) {
@@ -88,7 +113,5 @@ export async function registrarPagoBotEnTablero(pago: PagoCuotaBot): Promise<{ o
       if (await guardarPlan(r.plan, r.version, responsable)) return { ok: true, accion: 'registrado', detalle: r.detalle, avisos: r.avisos }
     }
     return { ok: false, accion: 'error', detalle: 'el plan cambió dos veces mientras se registraba el pago', avisos: [] }
-  } catch (e) {
-    return { ok: false, accion: 'error', detalle: String((e as Error)?.message ?? e).slice(0, 200), avisos: [] }
   }
 }
