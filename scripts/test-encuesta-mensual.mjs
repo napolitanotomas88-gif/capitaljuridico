@@ -46,11 +46,30 @@ test('asignar a mano y descartar', () => {
   assert.equal(e.promedio, 8)
 })
 
-test('una ronda nueva tapa a la anterior; vence a los 30 días', () => {
+test('una ronda nueva tapa a la anterior; sin ronda nueva el pendiente sigue (no vence por días)', () => {
   const respuestas = respuestasDeFilas(filas, clientesCrm)
   const e = M.estadoEncuesta({ envios: [...envios, { idCrm: 'A901', dia: '2026-11-07', por: null }], respuestas, asignaciones: [], clientes, hoy: '2026-11-08' })
   assert.ok(e.noContestaron.some((c) => c.id === 'A901' && c.dias === 1))   // la respuesta del 4/11 es de la ronda anterior
-  assert.equal(M.estadoEncuesta({ envios, respuestas, asignaciones: [], clientes, hoy: '2026-12-10' }).total, 0)
+  // 36 días después sin marcar la siguiente: A903 sigue en el aviso
+  const tarde = M.estadoEncuesta({ envios, respuestas, asignaciones: [], clientes, hoy: '2026-12-10' })
+  assert.deepEqual(M.pendientesDeAviso(tarde).map((f) => [f.id, f.dias]), [['A903', 36]])
+  // Se marca la ronda de diciembre: deja de salir hasta el día 3 de esa ronda
+  const dic = [...envios, ...['A901', 'A902', 'A903'].map((idCrm) => ({ idCrm, dia: '2026-12-01', por: null }))]
+  assert.equal(M.avisoPendientes(M.estadoEncuesta({ envios: dic, respuestas, asignaciones: [], clientes, hoy: '2026-12-03' })), null)
+  assert.equal(M.pendientesDeAviso(M.estadoEncuesta({ envios: dic, respuestas, asignaciones: [], clientes, hoy: '2026-12-04' })).length, 3)
+  // «Sin asignar» mira solo la ronda en curso: la respuesta suelta de noviembre ya no aparece en diciembre
+  assert.equal(M.estadoEncuesta({ envios: dic, respuestas, asignaciones: [], clientes, hoy: '2026-12-04' }).sinAsignar.length, 0)
+})
+
+test('recordatorio: solo el día 1; la tarde solo si no se marcó la ronda del mes; una clave por mes y turno', () => {
+  assert.equal(M.recordatorioMensual('manana', '2026-12-02', []), null)
+  const m = M.recordatorioMensual('manana', '2026-12-01', envios)
+  assert.equal(m.clave, 'encuesta-recordatorio:2026-12:manana')
+  assert.equal(m.texto, 'Hoy, día 1, toca mandar la encuesta mensual de satisfacción a los clientes activos. Cuando salga, marcala como enviada en Clientes → Encuesta.')
+  const t = M.recordatorioMensual('tarde', '2026-12-01', envios)   // la ronda de noviembre no cuenta para diciembre
+  assert.equal(t.clave, 'encuesta-recordatorio:2026-12:tarde')
+  assert.equal(t.urgente, true)
+  assert.equal(M.recordatorioMensual('tarde', '2026-12-01', [...envios, { idCrm: 'A901', dia: '2026-12-01', por: null }]), null)
 })
 
 test('aviso: desde el día 3, una línea por cliente, partido en bloques', () => {

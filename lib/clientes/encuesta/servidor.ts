@@ -3,7 +3,8 @@
 //   · cj_encuesta_envios (id_crm, dia, por, creado): una fila por cliente y día en que Tomás marcó «encuesta enviada».
 //   · cj_encuesta_asignaciones (clave, id_crm, por, creado): las respuestas «sin asignar» corregidas a mano (id_crm NULL = descartada).
 // Respuestas: la planilla del Typeform (SHEET_ID_TYPEFORM, solo lectura), con la HORA de cada respuesta (respuestasDeFilas).
-// El aviso sale a 🛠️-operaciones por lib/alertas (deduplicado por día). Nunca se le escribe al cliente.
+// El aviso sale a 🛠️-operaciones por lib/alertas (deduplicado por día). El recordatorio del día 1 va a 🛠️-operaciones y a la
+// campanita de Tomás (deduplicado por mes y turno). Nunca se le escribe al cliente.
 import { neon } from '@neondatabase/serverless'
 import { respuestasDeFilas } from '@/lib/bot/exito/rondas'
 import { alertar } from '@/lib/alertas'
@@ -11,7 +12,7 @@ import { clientesPrueba } from '@/lib/bot/clientesPrueba'
 import { cargarVista } from '../vista'
 import { esYmdValido, hoyArgentina, type Ymd } from '../fechas'
 import type { Cliente } from '../tipos'
-import { avisoPendientes, estadoEncuesta, responsableDe, type AsignacionEncuesta, type EnvioEncuesta, type EstadoEncuesta } from './modelo'
+import { avisoPendientes, estadoEncuesta, ORIGEN_RECORDATORIO, recordatorioMensual, responsableDe, type AsignacionEncuesta, type EnvioEncuesta, type EstadoEncuesta, type TurnoRecordatorio } from './modelo'
 
 const ID = /^[A-Za-z]\d{1,6}$/
 const q = () => neon(process.env.DATABASE_URL!.trim(), { fetchOptions: { signal: AbortSignal.timeout(8_000) } })
@@ -133,4 +134,34 @@ export async function avisarEncuesta(op: { dry?: boolean; ahora?: Date } = {}): 
   const estados: string[] = []
   if (!op.dry) for (const p of partes) estados.push((await alertar(p)).estado)
   return { ...base, pendientes: a.bloques.join('\n').split('\n').length, mensajes: partes.map((p) => [p.titulo, ...p.lineas, p.copiar].join('\n')), estados }
+}
+
+/**
+ * Recordatorio del día 1 (9:30 y, si no se marcó la ronda del mes, 18:00): mensaje en 🛠️-operaciones con mención a Tomás y
+ * campanita del Despacho para él (por mail; sin mail configurado, a la sección Clientes). Fuera del día 1 no hace nada.
+ */
+export async function recordarEncuesta(op: { turno: TurnoRecordatorio; dry?: boolean; ahora?: Date }): Promise<{ hoy: Ymd; recordatorio: string | null; estado: string | null; campanita: number }> {
+  const hoy = hoyArgentina(op.ahora)
+  // Sin base no se puede saber si la ronda ya se marcó: la tarde no avisa a ciegas
+  if (op.turno === 'tarde' && !hayBase()) throw new Error('Base no configurada')
+  const r = recordatorioMensual(op.turno, hoy, op.turno === 'tarde' ? await leerEnvios() : [])
+  if (!r) return { hoy, recordatorio: null, estado: null, campanita: 0 }
+  if (op.dry) return { hoy, recordatorio: `${r.titulo}\n${r.texto}`, estado: 'seco', campanita: 0 }
+  const { estado } = await alertar({ canal: 'operaciones', tipo: 'encuesta_recordatorio', clave: r.clave, emoji: '📋', titulo: r.titulo, lineas: [r.texto], link: '/clientes/encuesta', menciones: ['tomas'], urgente: r.urgente })
+  const { destinatariosBandeja } = await import('@/lib/bot/proyeccion/bandeja')
+  const { crearNotificacion } = await import('@/lib/notificaciones/registro')
+  const tomas = destinatariosBandeja().filter((d) => d.nombre === 'Tomás')
+  const base = { tipo: 'encuesta_recordatorio', titulo: r.titulo, cuerpo: r.texto, url: '/clientes/encuesta', urgente: r.urgente, origen: ORIGEN_RECORDATORIO }
+  const notas = tomas.length
+    ? tomas.map((d, i) => ({ ...base, paraEmail: d.email, clave: `${r.clave}:${i + 1}` }))
+    : [{ ...base, paraSeccion: 'clientes' as const, clave: r.clave }]
+  let campanita = 0
+  for (const n of notas) if (await crearNotificacion(n)) campanita++
+  return { hoy, recordatorio: r.titulo, estado, campanita }
+}
+
+/** Al marcar la ronda del mes, el recordatorio de la campanita queda resuelto. */
+export async function cerrarRecordatorio(dia: Ymd, por: string): Promise<void> {
+  const { cerrarNotificacionesPorPatron } = await import('@/lib/notificaciones/registro')
+  await cerrarNotificacionesPorPatron(ORIGEN_RECORDATORIO, `${ORIGEN_RECORDATORIO}:${dia.slice(0, 7)}:%`, por).catch(() => 0)
 }
