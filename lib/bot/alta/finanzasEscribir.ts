@@ -47,6 +47,7 @@ import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
 import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, historialClienteEn, type HistorialCliente, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
 import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
+import { esCuotaSiguiente, registrarPagoBotEnTablero, type PagoCuotaBot } from '../../crm/cuotas/pagoBot'
 import { CARPETA_COMPROBANTES, ErrorPuente, MAXIMO_BYTES_ARCHIVO, bytesDeBase64, noRepetirAntesDe, puenteDriveReal, type ArchivoSubido, type PuenteDrive } from './puenteDrive'
 
 export const PESTANA_REGISTRO = 'Registro de Pagos'
@@ -490,6 +491,8 @@ export interface DepsCarga {
   /** Copia a la app de Finanzas (Neon) después de una carga real verificada. Por defecto guardarPagoEnApp (sin
    *  DATABASE_URL no hace nada); los tests la reemplazan. */
   app?: (fila: FilaRegistroPagos, nombreArchivo: string | null) => Promise<ResultadoPagoApp>
+  /** Registra la cuota en el tablero de Cuotas (por defecto registrarPagoBotEnTablero; los tests la reemplazan). */
+  tablero?: (pago: PagoCuotaBot) => Promise<{ ok: boolean; accion: string; detalle: string; avisos: string[] }>
 }
 export interface OpcionesCargaPago {
   modo: ModoFinanzas
@@ -504,6 +507,8 @@ export interface OpcionesCargaPago {
   archivoNuevo?: boolean
   /** Nombre del archivo que eligió un intento anterior (con su sufijo): ver OpcionesCarga.nombreArchivo. */
   nombreArchivo?: string | null
+  /** Registrar una 2da, 3ra… cuota en el tablero de Cuotas (solo el bot de altas, que muestra los avisos en Verificaciones). */
+  registrarEnTablero?: boolean
   deps?: DepsCarga
 }
 
@@ -539,6 +544,8 @@ export interface ResultadoCargaFinanzas {
   /** El mismo pago (cliente + fecha + monto) ya estaba en esa fila: no se cargó. Lo usa el motor del bot para no depender
    *  del texto del motivo. null si no hubo repetido (o si no se llegó a controlar). */
   repetido: { fila: number } | null
+  /** Registro en el tablero de Cuotas de una 2da, 3ra… cuota (4/11/2026). null si no corrió. */
+  tablero?: { ok: boolean; accion: string; detalle: string } | null
 }
 
 const mensajeDe = (e: unknown) => String((e as Error)?.message ?? e).slice(0, 200)
@@ -562,8 +569,23 @@ export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: Comprob
     if (!r.ok || r.modo !== 'real') return r
     // La planilla quedó verificada: copia a la app (pedido de Tomás del 1/11). Si falla, el pago está igual en la planilla.
     const app = await (opciones.deps?.app ?? guardarPagoEnApp)(fila, r.nombreArchivo)
-    const avisos = app.ok ? r.avisos : [...r.avisos, `No se pudo copiar el pago a la app de Finanzas (${app.motivo}): cargarlo a mano en Finanzas → Pagos.`]
-    return { ...r, app, avisos }
+    const avisos = app.ok ? [...r.avisos] : [...r.avisos, `No se pudo copiar el pago a la app de Finanzas (${app.motivo}): cargarlo a mano en Finanzas → Pagos.`]
+    // Una 2da, 3ra… cuota se registra sola en su plan del tablero de Cuotas (Tomás, 4/11/2026). Si no se puede, el pago está
+    // igual en Finanzas: se avisa para registrarlo a mano en /cuotas.
+    let tablero: ResultadoCargaFinanzas['tablero'] = null
+    const c = fila.celdas
+    const ymd = typeof c.A === 'number' ? serialAYmd(c.A) : null
+    if (opciones.registrarEnTablero && ymd && typeof c.E === 'number' && esCuotaSiguiente(String(c.J ?? ''))) {
+      const t = await (opciones.deps?.tablero ?? registrarPagoBotEnTablero)({ fecha: ymd, nombre: String(c.C ?? '') || null, telefono: String(c.D ?? '') || null, usd: c.E, concepto: String(c.J) })
+      tablero = { ok: t.ok, accion: t.accion, detalle: t.detalle }
+      avisos.push(...t.avisos)
+      if (!t.ok) avisos.push(t.accion === 'revisar'
+        ? `Tablero de Cuotas: no se registró la cuota porque ${t.detalle}. Revisá el plan en /cuotas: si ese pago ya está, no hagas nada; si no, registralo.`
+        : t.accion === 'error'
+          ? `Tablero de Cuotas: no se pudo confirmar el registro de la cuota (${t.detalle}). Antes de registrarla a mano, fijate en /cuotas si ya quedó.`
+          : `Tablero de Cuotas: no se registró la cuota (${t.detalle}): registrala a mano en /cuotas.`)
+    }
+    return { ...r, app, tablero, avisos }
   })
 }
 
