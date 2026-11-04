@@ -74,6 +74,20 @@ async function copyDe(t: TarjetaPublicar, drive: string): Promise<{ copy: string
   return r ? { copy: r.textos[1], textos: r.textos, titulos: r.titulos, fuente: `escrito desde el ${fuente}` } : { copy: null, fuente: `${fuente}: no se pudo escribir el copy` }
 }
 
+/**
+ * El editado puede estar en el Drive del editor sin compartir con la cuenta de servicio, pero «con cualquiera que tenga el
+ * enlace» (que es lo que Meta necesita para bajarlo). Si la cuenta no lo ve, se mira el enlace público: video = legible.
+ */
+async function archivoOPublico(id: string, nombre: string): Promise<{ nombre: string; md5: string | null; video: boolean; publico?: boolean } | null> {
+  const a = await archivo(id).catch(() => null)
+  if (a) return a
+  try {
+    const r = await fetch(`https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download&confirm=t`, { headers: { Range: 'bytes=0-1023' }, redirect: 'manual', signal: AbortSignal.timeout(15_000) })
+    await r.body?.cancel().catch(() => {})
+    const tipo = r.headers.get('content-type') ?? ''
+    return (r.status === 200 || r.status === 206) && tipo.startsWith('video/') ? { nombre, md5: null, video: true, publico: true } : null
+  } catch { return null }
+}
 export function depsPublicarReales(op: { modo?: 'real' | 'seco'; deadline: number }): DepsPublicar {
   let tablero: Promise<Tablero> | null = null
   const t = () => (tablero ??= obtenerTablero())
@@ -82,14 +96,14 @@ export function depsPublicarReales(op: { modo?: 'real' | 'seco'; deadline: numbe
     modo: op.modo ?? modoPublicar(),
     tarjeta: id => transaccionTarjetas(c => tarjetaPublicar(c, id)),
     cliente: async idCrm => { const { fila, pl } = await buscar(idCrm); return fila ? { nombre: fila.clienteCRM ?? fila.cliente, tipo: 'campana', cuenta: fila.id } : pl ? { nombre: pl.cliente, tipo: 'por_lanzar', cuenta: pl.kickoff?.cuenta?.id ?? null } : { nombre: idCrm, tipo: null, cuenta: null } },
-    video: async drive => { const a = await archivo(drive); return a ? { nombre: a.nombre, legible: a.video && a.publico !== false } : null },
+    video: async drive => { const a = await archivoOPublico(drive, 'Video'); return a ? { nombre: a.nombre, legible: a.video && a.publico !== false } : null },
     copy: copyDe,
     escribirDoc: x => escribirVideoEnDoc(x, { docId: docAdsId() }),
     lanzar: async x => {
       const tb = await t(), base = depsDocAdsReales(tb)
       const sintetico = `${x.cliente} - LISTO\nvideo 1: ${linkDrive(x.drive)}\n${x.copy}\n\n`
       // Solo este cliente y solo este video (sin sumar «Editados»); el aviso lo manda publicar.ts (uno solo, con el resultado).
-      const deps = { ...base, leerDoc: async () => sintetico + await base.leerDoc().catch(() => ''), editados: async () => [], enviar: async () => 'despacho-publicar' }
+      const deps = { ...base, archivo: (id: string) => id === x.drive ? archivoOPublico(id, `${x.cliente} ${x.nombre ?? 'video'}`) : base.archivo(id), leerDoc: async () => sintetico + await base.leerDoc().catch(() => ''), editados: async () => [], enviar: async () => 'despacho-publicar' }
       const r = await lanzarDesdeDoc(tb, deps, { seco: x.seco, solo: x.idCrm, deadline: op.deadline })
       return { r: r.clientes.find(c => c.idCrm === x.idCrm) ?? r.clientes.find(c => c.cliente === x.cliente) ?? null, errores: r.errores }
     },
