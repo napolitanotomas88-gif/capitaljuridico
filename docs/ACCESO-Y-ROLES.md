@@ -380,6 +380,7 @@ Guiones, Edición, Anuncios y Referidos dejaron de ser entradas sueltas del men�
 - Acciones de cliente: idempotencia y revisión previa; pagos y precios de renovación requieren Finanzas. Los archivados se conservan para restaurar y quedan fuera de la cartera activa.
 | `/api/clientes/sincronizar` | Cron diario con `Bearer CRON_SECRET` | Recupera pedidos durables y meses de referidos; actualiza avisos internos. No crea pedidos nuevos. |
 | `/api/clientes/inactivos/cron` | Cron diario con `Bearer CRON_SECRET` | Alerta interna cada tres días sin respuesta. No envía mensajes al cliente. |
+| `/api/clientes/encuesta/cron` | Cron diario con `Bearer CRON_SECRET` | Encuesta mensual: los que no contestaron (desde el día 3 del envío marcado en `/clientes/encuesta`) van a 🛠️-operaciones. No envía mensajes al cliente. |
 
 ## Portal del cliente (2/11/2026)
 

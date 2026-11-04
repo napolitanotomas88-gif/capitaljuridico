@@ -1,0 +1,2 @@
+.cj-encuesta__elegir { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px 16px; }
+.cj-encuesta__elegir label { display: flex; gap: 6px; align-items: baseline; font-size: 14px; overflow-wrap: anywhere; }
