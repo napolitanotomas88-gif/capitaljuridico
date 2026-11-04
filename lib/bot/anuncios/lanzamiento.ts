@@ -12,7 +12,7 @@
 //     copy desde el guion no arma (un cliente nuevo no tiene ganador del que copiar).
 import type { PorLanzar } from '@/lib/anuncios/tablero'
 import { DIAS_TESTEO, MIN_DIARIO_USD, decidirEstructura } from './plan'
-import { crearEnPausa, grupoConCopy, montoMeta, type Borrador, type DepsBorrador, type Graph, type GrupoBorrador } from './borrador'
+import { SIN_SUGERENCIAS, crearEnPausa, grupoConCopy, montoMeta, type Borrador, type DepsBorrador, type Graph, type GrupoBorrador } from './borrador'
 import type { Subida } from './videos'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Payloads de Meta: la selección de página, país y zona valida los datos usados.
@@ -127,7 +127,7 @@ export async function armarLanzamiento(s: Subida, pl: PorLanzar, grupos: GrupoBo
       billing_event: 'IMPRESSIONS', optimization_goal: 'CONVERSATIONS', destination_type: 'WHATSAPP', bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       promoted_object: { page_id: pagina.id }, zona,
       targeting: {
-        age_min: 18, age_max: 64, geo_locations: geo, targeting_automation: { advantage_audience: 0 },
+        age_min: 18, age_max: 64, geo_locations: geo, targeting_automation: SIN_SUGERENCIAS,
         publisher_platforms: ['facebook', 'instagram'], facebook_positions: ['feed', 'story', 'facebook_reels', 'profile_feed'],
         instagram_positions: ['stream', 'story', 'reels', 'profile_feed'], device_platforms: ['mobile'],
       },

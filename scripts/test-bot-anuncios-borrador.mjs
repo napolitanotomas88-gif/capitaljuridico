@@ -71,7 +71,7 @@ describe('armarBorrador', () => {
     const set = m.posts[2][1]
     assert.equal(set.status, 'PAUSED'); assert.equal(set.campaign_id, 'C1'); assert.equal(set.daily_budget, '469170')
     assert.equal(set.attribution_spec, undefined)
-    assert.deepEqual(set.targeting, TARGETING)
+    assert.deepEqual(set.targeting, { ...TARGETING, targeting_automation: B.SIN_SUGERENCIAS }) // el molde se copia, pero siempre sin Advantage+ ni sugerencias
     assert.equal(set.name, 'Broad | CABA + radio | 25-64 | USD 3/día | Tanda 2 | 28/10')
     for (const [r, c] of m.posts) if (r.endsWith('/ads')) assert.equal(c.status, 'PAUSED')
     const cr = m.posts[3][1]

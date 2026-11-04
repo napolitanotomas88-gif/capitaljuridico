@@ -147,7 +147,7 @@ describe('armarLanzamiento', () => {
       assert.equal(x.status, 'PAUSED'); assert.equal(x.daily_budget, String(Math.round(3.5 * 1500 * 100)))
       assert.equal(x.destination_type, 'WHATSAPP'); assert.equal(x.optimization_goal, 'CONVERSATIONS')
       assert.deepEqual(x.targeting.geo_locations.cities, [{ key: '123', radius: 17, distance_unit: 'kilometer' }]) // la ficha pide 15 km: Meta no acepta menos de 17
-      assert.equal(x.targeting.targeting_automation.advantage_audience, 0); assert.deepEqual(x.targeting.device_platforms, ['mobile'])
+      assert.deepEqual(x.targeting.targeting_automation, { advantage_audience: 0, individual_setting: { age: 0, gender: 1, geo: 0 } }); assert.deepEqual(x.targeting.device_platforms, ['mobile'])
       assert.deepEqual(x.targeting.publisher_platforms, ['facebook', 'instagram'])
     }
     assert.match(sets[0].name, /^1- Broad \| Lomas de Zamora 15 km \| 18-64 \| USD 3,5\/día \| Tanda 1 \| 28\/10\/26$/)
