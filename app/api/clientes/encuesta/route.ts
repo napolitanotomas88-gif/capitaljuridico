@@ -3,7 +3,7 @@ import { asegurarUsuarios } from '@/lib/auth/accesos'
 import { exigirAccesoApi, sesionDePeticion } from '@/lib/auth/acceso'
 import { mismoOrigen } from '@/lib/bot/kickoff/acciones'
 import { esYmdValido, hoyArgentina, sumarDias } from '@/lib/clientes/fechas'
-import { asignarRespuesta, marcarEnviada, quitarEnvio } from '@/lib/clientes/encuesta/servidor'
+import { asignarRespuesta, cerrarRecordatorio, marcarEnviada, quitarEnvio } from '@/lib/clientes/encuesta/servidor'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
         if (!ids.length) return json(422, { ok: false, mensaje: 'Elegí al menos un cliente.' })
         if (ids.length > 500) return json(413, { ok: false, mensaje: 'Demasiados clientes.' })
         const n = await marcarEnviada(ids, dia, por)
+        if (dia.slice(0, 7) === hoy.slice(0, 7)) await cerrarRecordatorio(dia, por)
         return json(200, { ok: true, mensaje: n === ids.length ? `Listo: ${n} marcados como enviados.` : `Listo: ${n} nuevos (${ids.length - n} ya estaban marcados ese día).` })
       }
       case 'quitar': {

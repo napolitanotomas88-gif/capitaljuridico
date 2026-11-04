@@ -7,13 +7,17 @@
 //     cuenta igual.
 //   · Lo que no cruza con un único cliente (nombre, apellido y estudio: lib/seguimiento/typeform.ts) va a «sin asignar» y se
 //     corrige a mano en el Despacho (asignar a un ID o descartar). También va ahí la respuesta de un cliente sin envío marcado.
-//   · Una ronda vale 30 días; desde el día 3 sin respuesta entra en el aviso diario de 🛠️-operaciones. Nunca se le escribe al cliente.
+//   · Cadencia (Tomás, 4/11/2026): una ronda por mes, el DÍA 1 (cada 30 días, nunca cada 15). El día 1 a las 9:30 sale el
+//     recordatorio para mandarla y, si a las 18:00 todavía no se marcó la ronda del mes, uno segundo y último (recordatorioMensual).
+//   · Desde el día 3 sin respuesta el cliente entra en el aviso diario de 🛠️-operaciones, y sigue ahí hasta que se le marca la
+//     ronda siguiente (sin vencimiento por días). Nunca se le escribe al cliente.
 import type { Encuesta } from '@/lib/bot/exito/almacen'
 import { rondasVigentes, vinculos, type RespuestaEncuesta } from '@/lib/bot/exito/rondas'
 import { diasEntre, ymdAFechaAR, type Ymd } from '../fechas'
 
 export const PRIMER_AVISO_DIAS = 3
-export const VIGENCIA_DIAS = 30
+/** Ventana de «sin asignar»: las respuestas desde la ronda más vieja de las marcadas en los últimos 30 días antes de la última. */
+export const VENTANA_SIN_ASIGNAR_DIAS = 30
 const ESTADOS_FUERA = new Set(['FINALIZADO', 'INACTIVO'])
 
 export interface EnvioEncuesta { idCrm: string; dia: Ymd; por: string | null }
@@ -52,13 +56,16 @@ export function estadoEncuesta(p: {
   const porId = new Map(p.clientes.map((c) => [c.id.toUpperCase(), c]))
 
   const contestaron: Contesto[] = [], noContestaron: FilaEncuesta[] = []
+  const vigentes = rondasVigentes(rondas).filter((r) => r.id.slice(0, 10) <= p.hoy)
+  const ultima = vigentes.reduce<Ymd | null>((m, r) => (!m || r.id.slice(0, 10) > m ? r.id.slice(0, 10) : m), null)
   let desde: string | null = null
-  for (const r of rondasVigentes(rondas)) {
+  // Cada cliente cuenta con su última ronda hasta que se le marca la siguiente (sin vencimiento por días)
+  for (const r of vigentes) {
     const c = porId.get(r.idCrm!)
     const dia = r.id.slice(0, 10)
     const dias = diasEntre(dia, p.hoy)
-    if (!c || ESTADOS_FUERA.has(c.estado) || dias < 0 || dias > VIGENCIA_DIAS) continue
-    if (!desde || r.enviadaEn! < desde) desde = r.enviadaEn!
+    if (!c || ESTADOS_FUERA.has(c.estado)) continue
+    if (diasEntre(dia, ultima!) <= VENTANA_SIN_ASIGNAR_DIAS && (!desde || r.enviadaEn! < desde)) desde = r.enviadaEn!
     const fila: FilaEncuesta = { id: c.id.toUpperCase(), nombre: c.nombre, responsable: c.responsable, enviada: dia, dias }
     const x = respuestaDe.get(r.id)
     if (x) contestaron.push({ ...fila, valor: x.valor, respondidaEn: x.enviadaEn })
@@ -108,4 +115,26 @@ export function avisoPendientes(e: EstadoEncuesta): { titulo: string; lineas: st
   }
   if (actual) bloques.push(actual)
   return { titulo: `Encuesta mensual: ${pend.length} sin contestar`, lineas, bloques }
+}
+
+// ── Recordatorio del día 1 (Tomás, 4/11/2026) ──────────────────────────────────────────────────────────────────────────
+export type TurnoRecordatorio = 'manana' | 'tarde'
+export const ORIGEN_RECORDATORIO = 'encuesta-recordatorio'
+export interface Recordatorio { clave: string; titulo: string; texto: string; urgente: boolean }
+
+/** Hay ronda del mes si algún envío está marcado en el mismo mes que hoy. */
+export const rondaDelMesMarcada = (envios: readonly Pick<EnvioEncuesta, 'dia'>[], hoy: Ymd): boolean =>
+  envios.some((e) => e.dia.slice(0, 7) === hoy.slice(0, 7) && e.dia <= hoy)
+
+/**
+ * El recordatorio de mandar la encuesta: solo el día 1. A la mañana (9:30) siempre; a la tarde (18:00) solo si todavía no se
+ * marcó la ronda del mes, y es el último. La clave (mes + turno) hace que salga una sola vez por mes aunque el cron se repita.
+ */
+export function recordatorioMensual(turno: TurnoRecordatorio, hoy: Ymd, envios: readonly Pick<EnvioEncuesta, 'dia'>[]): Recordatorio | null {
+  if (hoy.slice(8, 10) !== '01') return null
+  if (turno === 'tarde' && rondaDelMesMarcada(envios, hoy)) return null
+  const clave = `${ORIGEN_RECORDATORIO}:${hoy.slice(0, 7)}:${turno}`
+  return turno === 'manana'
+    ? { clave, urgente: false, titulo: 'Encuesta mensual: hoy toca mandarla', texto: 'Hoy, día 1, toca mandar la encuesta mensual de satisfacción a los clientes activos. Cuando salga, marcala como enviada en Clientes → Encuesta.' }
+    : { clave, urgente: true, titulo: 'Encuesta mensual: último recordatorio', texto: 'Todavía no se marcó la encuesta mensual de este mes. Hoy, día 1, toca mandarla a los clientes activos. Cuando salga, marcala como enviada en Clientes → Encuesta.' }
 }

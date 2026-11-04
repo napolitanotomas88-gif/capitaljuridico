@@ -3,7 +3,7 @@ import { SeccionTitulo } from '@/components/ui'
 import { exigirAcceso } from '@/lib/auth/sesion'
 import { sumarDias, ymdAFechaAR } from '@/lib/clientes/fechas'
 import { cargarEncuesta, type DatosEncuesta } from '@/lib/clientes/encuesta/servidor'
-import { PRIMER_AVISO_DIAS, VIGENCIA_DIAS } from '@/lib/clientes/encuesta/modelo'
+import { PRIMER_AVISO_DIAS } from '@/lib/clientes/encuesta/modelo'
 import { AsignarRespuesta, MarcarEnvio, QuitarEnvio } from './Acciones'
 import '../altas/altas.css'
 import './encuesta.css'
@@ -43,7 +43,7 @@ export default async function EncuestaPage() {
 
       <section className="cj-pila cj-pila--chica" aria-labelledby="encuesta-no">
         <SeccionTitulo etiqueta="Seguimiento" titulo={`No contestaron (${e.noContestaron.length})`} nivel={2} />
-        <p className="cj-texto-2">Desde el día {PRIMER_AVISO_DIAS} sin respuesta salen todos los días en 🛠️-operaciones, hasta {VIGENCIA_DIAS} días después del envío.</p>
+        <p className="cj-texto-2">Desde el día {PRIMER_AVISO_DIAS} sin respuesta salen todos los días en 🛠️-operaciones, hasta que se marca la ronda siguiente (el día 1 de cada mes).</p>
         {e.noContestaron.length > 0 && (
           <div className="cj-tabla-scroll" role="region" aria-label="No contestaron" tabIndex={0}>
             <table className="cj-tabla">
