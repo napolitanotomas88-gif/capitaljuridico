@@ -1,6 +1,7 @@
 // ── Llamadas de venta desde la API de Fathom ─────────────────────────────────────────────────
 // Las grabaciones son de la cuenta de Fathom de CADA closer (la cuenta de Tomás no las ve: no hay equipo en Fathom).
-// Por eso se aceptan varias claves: FATHOM_API_KEYS = {"Carlos":"…","Marcos":"…"} (JSON) o FATHOM_API_KEY suelta.
+// Por eso se aceptan varias claves: FATHOM_API_KEYS = {"Carlos":"…","Marcos":"…"} (JSON), FATHOM_API_KEY suelta y, desde el
+// 4/11/2026, una variable por closer FATHOM_API_KEY_<CLOSER> (Nahuel, Brenda…; se suman sin tocar el JSON).
 // Cómo se encuentra la llamada de un cierre: el link de la planilla (Grabación 1–3, share_url o url de Fathom); si no
 // coincide, una reunión con el mail del lead entre los invitados, ±2 días de la fecha de la llamada.
 // API: https://api.fathom.ai/external/v1 con X-Api-Key. /meetings pagina con cursor; summary y transcript por grabación.
@@ -23,6 +24,13 @@ export function clavesFathom(): { nombre: string; clave: string }[] {
   }
   const suelta = process.env.FATHOM_API_KEY?.trim()
   if (suelta && !lista.some((k) => k.clave === suelta)) lista.push({ nombre: 'principal', clave: suelta })
+  for (const [variable, valor] of Object.entries(process.env)) {
+    const m = /^FATHOM_API_KEY_([A-Z0-9_]+)$/.exec(variable)
+    const clave = valor?.trim()
+    if (!m || !clave || lista.some((k) => k.clave === clave)) continue
+    const nombre = m[1].toLowerCase().split('_').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+    lista.push({ nombre, clave })
+  }
   return lista
 }
 
