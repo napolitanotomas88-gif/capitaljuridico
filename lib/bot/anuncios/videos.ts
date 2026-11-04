@@ -133,7 +133,7 @@ export function lineaBorrador(b: ResultadoBorrador, diarioUSD: number): { linea:
     : { linea: null, falta: `no pude armarlo en Meta (${b.error})` }
   const x = b.ok, n = x.anuncios.length
   const sets = x.conjuntos.length === 1 ? `1 conjunto «${escaparDiscord(x.conjuntos[0].nombre)}» con ${plural(n, 'anuncio', 'anuncios')}` : `${x.conjuntos.length} conjuntos, uno por idea`
-  return { linea: `📝 **Armado en Meta, todo EN PAUSA:** ${x.nueva ? `campaña nueva «${escaparDiscord(x.campana)}»` : `en «${escaparDiscord(x.campana)}»`}, ${sets}, a ${usd(diarioUSD)}/día cada conjunto · [Abrir en el Administrador](<${x.link}>). Revisalo y prendelo vos${x.nueva ? '' : '; el ganador sigue como está'}.`, falta: null }
+  return { linea: `📝 **Armado en Meta, todo EN PAUSA:** ${x.nueva ? `campaña nueva «${escaparDiscord(x.campana)}»` : `en «${escaparDiscord(x.campana)}»`}, ${sets}, a ${usd(diarioUSD)}/día cada conjunto · [Abrir en el Administrador](<${x.link}>). Revisalo y prendelo vos${x.nueva ? '' : '; el ganador sigue como está'}.\n✂️ **Antes de prenderlo, el recorte del feed:** en cada anuncio nuevo, «Editar contenido multimedia» → «Editar video» → «Recortar» → 1:1, y subí el cuadro hasta que entre el título de arriba con el subtítulo (Meta no deja hacerlo por API).`, falta: null }
 }
 
 const corto = (x: string, n = 220) => { const t = x.replace(/\s+/g, ' ').trim(); return escaparDiscord(t.length > n ? `${t.slice(0, n - 1)}…` : t) }
