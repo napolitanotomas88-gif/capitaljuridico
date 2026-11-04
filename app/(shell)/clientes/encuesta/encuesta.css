@@ -1,2 +1,7 @@
 .cj-encuesta__elegir { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px 16px; }
 .cj-encuesta__elegir label { display: flex; gap: 6px; align-items: baseline; font-size: 14px; overflow-wrap: anywhere; }
+.cj-encuesta__filtro { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cj-encuesta__filtro select { max-width: 260px; }
+.cj-encuesta__tracker td, .cj-encuesta__tracker th { white-space: nowrap; }
+.cj-encuesta__si { color: var(--cj-ok); font-weight: 600; }
+.cj-encuesta__no { color: var(--cj-alerta); font-weight: 600; }

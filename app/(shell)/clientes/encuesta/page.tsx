@@ -5,11 +5,12 @@ import { sumarDias, ymdAFechaAR } from '@/lib/clientes/fechas'
 import { cargarEncuesta, type DatosEncuesta } from '@/lib/clientes/encuesta/servidor'
 import { PRIMER_AVISO_DIAS } from '@/lib/clientes/encuesta/modelo'
 import { AsignarRespuesta, MarcarEnvio, QuitarEnvio } from './Acciones'
+import { Tracker } from './Tracker'
 import '../altas/altas.css'
 import './encuesta.css'
 
 // Encuesta mensual de satisfacción (4/11/2026): Tomás manda el Typeform a mano, marca acá el envío y ve quién contestó, quién
-// no y las respuestas que no cruzaron con un cliente. Los que no contestaron desde el día 3 salen todos los días en 🛠️-operaciones.
+// no, el historial por mes (tracker) y las respuestas que no cruzaron con un cliente. Los que no contestaron desde el día 3 salen todos los días en 🛠️-operaciones.
 export const metadata: Metadata = { title: 'Encuesta mensual' }
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,12 @@ export default async function EncuestaPage() {
       {(d.aviso || d.crmViejo) && <div className="cj-aviso"><p>{d.aviso ?? 'El CRM no respondió: se muestran los datos guardados.'}</p></div>}
 
       <MarcarEnvio activos={d.activos.map((a) => ({ ...a, ultimoEnvio: a.ultimoEnvio ? dia(a.ultimoEnvio) : null }))} hoy={d.hoy} minimo={sumarDias(d.hoy, -30)} />
+
+      <section className="cj-pila cj-pila--chica" aria-label="Historial por mes">
+        <SeccionTitulo etiqueta="Historial" titulo="Por mes" nivel={2} />
+        <p className="cj-texto-2">✓ respondió ese mes · ✗ se le marcó la ronda y no respondió · — no hubo ronda. Arriba, los que no completaron.</p>
+        <Tracker tracker={d.tracker} />
+      </section>
 
       <section className="cj-pila cj-pila--chica" aria-labelledby="encuesta-no">
         <SeccionTitulo etiqueta="Seguimiento" titulo={`No contestaron (${e.noContestaron.length})`} nivel={2} />
