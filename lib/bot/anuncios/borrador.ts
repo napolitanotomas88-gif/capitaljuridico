@@ -248,9 +248,11 @@ export async function crearEnPausa(cuenta: string, x: {
   const nAd = (i: number) => `idea ${i + 1}`
   const sinTextos = x.grupos.map((gr, i) => (grupoConCopy(gr) ? null : nAd(i))).filter(Boolean)
   if (sinTextos.length) faltan.push(`${sinTextos.length === x.grupos.length ? 'el copy' : `el copy del ${sinTextos.join(', ')}`} es el del anuncio ganador: escribí los 2 textos y los 2 títulos`)
-  const cortos = x.grupos.map((gr, i) => (gr.videos.length < TAMANO_322 ? `la ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
+  // Los del Doc de ADS van de a uno a propósito (cada video con su copy es su idea): ni «faltan videos» ni «agrupé de a 3»
+  const deTres = x.grupos.some(gr => !gr.copyPorVideo)
+  const cortos = x.grupos.map((gr, i) => (!gr.copyPorVideo && gr.videos.length < TAMANO_322 ? `la ${nAd(i)} tiene ${gr.videos.length}` : null)).filter(Boolean)
   if (cortos.length) faltan.push(`3:2:2 pide 3 videos por idea y ${cortos.join(', ')}: sumale de la próxima tanda o dejalo así`)
-  if (x.grupos.length) faltan.push(`agrupé los videos de a 3 en orden (${x.grupos.map((gr, i) => `${nAd(i)}: ${gr.videos.map(v => numeroOVideo(v.nombre)).join('-')}`).join(' · ')}): confirmá que cada idea junte videos del mismo concepto`)
+  if (deTres) faltan.push(`agrupé los videos de a 3 en orden (${x.grupos.map((gr, i) => `${nAd(i)}: ${gr.videos.map(v => numeroOVideo(v.nombre)).join('-')}`).join(' · ')}): confirmá que cada idea junte videos del mismo concepto`)
   const conGuion = x.grupos.map((gr, i) => (gr.textos.length && gr.guiones.length ? `${nAd(i)} ← ${gr.guiones.join(', ')}` : null)).filter(Boolean)
   if (conGuion.length) faltan.push(`textos escritos desde el guion (${conGuion.join(' · ')}): confirmá que sean los de sus videos`)
   const act = cuenta.replace(/^act_/, '')
