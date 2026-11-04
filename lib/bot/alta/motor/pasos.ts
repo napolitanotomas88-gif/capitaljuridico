@@ -580,7 +580,8 @@ export async function pasoValidar(ctx: CtxPaso): Promise<SalidaPaso> {
 
 // ── Finanzas ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-const comparable = (f: FilaRegistroPagos) => JSON.stringify(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'N', 'O', 'R'].map((c) => f.celdas[c as keyof typeof f.celdas]))
+// Sin la col O: es una clasificación que sale de J y B (tipoPagoDe), y se recalcula sobre la fila congelada al cargar
+const comparable = (f: FilaRegistroPagos) => JSON.stringify(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'N', 'R'].map((c) => f.celdas[c as keyof typeof f.celdas]))
 
 export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
   const alta = ctx.alta, a = altaParseada(alta)
@@ -653,7 +654,9 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
       }],
     }
   }
-  const usar = congelada ?? fila
+  // Una fila congelada antes de la regla de la col O (4/11/2026) se carga con la regla aplicada
+  const usar = congelada ? structuredClone(congelada) : fila
+  if (congelada) fijarTipoPago(usar)
   // Comprobante: se vuelve a bajar (Whapi lo guarda 30 días)
   let comprobante = null
   const principal = alta.medios[0]

@@ -199,12 +199,16 @@ describe('columna O: las cuotas son Payment Plan (Tomás, 4/11/2026)', () => {
     assert.equal(f.fila[14], 'Payment Plan')
   })
   test('fijarTipoPago: Fee de un plan PP pasa a Payment Plan y la fila queda alineada', () => {
-    const a = parsearAlta('#ALTA\nCloser: Yami\nNombre: Noelia Vera\nTel: +54 9 11 3000 2222\nPrograma: DFY PP 3300\nEste pago: 300 USD')
+    const a = parsearAlta('#ALTA\nCloser: Yami\nNombre: Noelia Vera\nTel: +54 9 11 3000 2222\nEste pago: 300 USD')
     const f = FIN.filaRegistroPagos(a, { fecha: '2026-11-02', setter: 'Tomi / Gero', fuente: 'VSL Funnel', cuenta: 'Empresa' })
-    f.celdas.O = 'Upfront'; f.celdas.J = 'Fee'
+    f.celdas.B = 'DFY | PP | $3300'; f.celdas.J = 'Fee'; f.celdas.O = 'Upfront'
+    f.fila = FIN.COLUMNAS_REGISTRO.map(({ col }) => f.celdas[col])
     FIN.fijarTipoPago(f)
-    if (/\|\s*PP\s*\|/.test(String(f.celdas.B))) { assert.equal(f.celdas.O, 'Payment Plan'); assert.equal(f.fila[14], 'Payment Plan') }
-    else assert.equal(f.celdas.O, 'Upfront')
+    assert.equal(f.celdas.O, 'Payment Plan')
+    assert.equal(f.fila[14], 'Payment Plan')
+    f.celdas.B = 'DFY | PIF | $2600'; FIN.fijarTipoPago(f)
+    assert.equal(f.celdas.O, 'Upfront')
+    assert.equal(f.fila[14], 'Upfront')
   })
 })
 

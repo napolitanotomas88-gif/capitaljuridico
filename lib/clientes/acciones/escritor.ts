@@ -219,7 +219,8 @@ export function clasificacionPago(p: Pick<CuerpoPago, 'concepto' | 'tipoVenta'>,
     const modalidad = programa.split('|').map(x => x.trim().toUpperCase());
     const pif = modalidad.includes('PIF'), pp = modalidad.includes('PP');
     if (pif === pp) error('El programa debe indicar una modalidad única PIF o PP para verificar el tipo de pago.');
-    return { tipoVenta: tipoVenta!, tipoPago: pif ? 'Upfront' : 'Payment Plan' };
+    // Una cuota es siempre Payment Plan, aunque el programa sea PIF (Tomás, 4/11/2026: «cuando hace cuotas es Payment Plan»)
+    return { tipoVenta: tipoVenta!, tipoPago: /cuota/i.test(String(p.concepto ?? '')) || !pif ? 'Payment Plan' : 'Upfront' };
 }
 export async function prepararPago(c: Cliente, p: CuerpoPago, lectura?: LecturaAcciones) {
     const { planillaFinanzasReal, buscarRepetido, armarCarga, lecturaDesde } = await import('@/lib/bot/alta/finanzasEscribir');
