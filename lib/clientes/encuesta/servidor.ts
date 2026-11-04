@@ -12,7 +12,7 @@ import { clientesPrueba } from '@/lib/bot/clientesPrueba'
 import { cargarVista } from '../vista'
 import { esYmdValido, hoyArgentina, type Ymd } from '../fechas'
 import type { Cliente } from '../tipos'
-import { avisoPendientes, estadoEncuesta, ORIGEN_RECORDATORIO, recordatorioMensual, responsableDe, type AsignacionEncuesta, type EnvioEncuesta, type EstadoEncuesta, type TurnoRecordatorio } from './modelo'
+import { avisoPendientes, estadoEncuesta, ORIGEN_RECORDATORIO, trackerEncuesta, type TrackerEncuesta, recordatorioMensual, responsableDe, type AsignacionEncuesta, type EnvioEncuesta, type EstadoEncuesta, type TurnoRecordatorio } from './modelo'
 
 const ID = /^[A-Za-z]\d{1,6}$/
 const q = () => neon(process.env.DATABASE_URL!.trim(), { fetchOptions: { signal: AbortSignal.timeout(8_000) } })
@@ -81,6 +81,8 @@ async function filasTypeform(): Promise<unknown[][] | null> {
 export interface ClienteParaMarcar { id: string; nombre: string; linea: string; responsable: string; ultimoEnvio: Ymd | null }
 export interface DatosEncuesta {
   estado: EstadoEncuesta
+  /** Una fila por cliente activo y una columna por mes (desde octubre de 2026). */
+  tracker: TrackerEncuesta
   /** Clientes ACTIVOS con ID (los de prueba no), para marcar el envío. */
   activos: ClienteParaMarcar[]
   hoy: Ymd
@@ -102,17 +104,16 @@ export async function cargarEncuesta(op: { ahora?: Date } = {}): Promise<DatosEn
   // (con todos los finalizados aparecen tocayos y el cruce, que nunca adivina, mandaría más respuestas a «sin asignar»).
   const paraCruce = conId.filter((c) => c.estado === 'ACTIVO' || c.estado === 'PAUSADO' || enviados.has(c.id.toUpperCase()))
   const respuestas = filas ? respuestasDeFilas(filas, paraCruce.map((c) => ({ id: c.id, nombre: c.nombre, mail: c.mail, celular: c.celular }))) : []
-  const estado = estadoEncuesta({
-    envios, respuestas, asignaciones, hoy,
-    clientes: conId.map((c) => ({ id: c.id, nombre: c.nombre, estado: c.estado, responsable: responsableDe(c) })),
-  })
+  const clientes = conId.map((c) => ({ id: c.id, nombre: c.nombre, estado: c.estado, responsable: responsableDe(c) }))
+  const estado = estadoEncuesta({ envios, respuestas, asignaciones, hoy, clientes })
+  const tracker = trackerEncuesta({ envios, respuestas, asignaciones, hoy, clientes })
   const ultimo = new Map<string, Ymd>()
   for (const e of envios) { const k = e.idCrm.toUpperCase(); if (!ultimo.has(k) || e.dia > ultimo.get(k)!) ultimo.set(k, e.dia) }
   const activos = conId.filter((c) => c.estado === 'ACTIVO')
     .map((c) => ({ id: c.id.toUpperCase(), nombre: c.nombre, linea: c.linea, responsable: responsableDe(c), ultimoEnvio: ultimo.get(c.id.toUpperCase()) ?? null }))
     .sort((a, b) => a.id.localeCompare(b.id, 'es', { numeric: true }))
   return {
-    estado, activos, hoy, crmViejo: datos.fuente === 'snapshot_viejo',
+    estado, tracker, activos, hoy, crmViejo: datos.fuente === 'snapshot_viejo',
     aviso: filas === null ? 'No se pudo leer la planilla del Typeform: las respuestas pueden estar incompletas.' : null,
   }
 }

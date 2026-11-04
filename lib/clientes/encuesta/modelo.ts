@@ -42,14 +42,19 @@ const aRonda = (e: EnvioEncuesta): Encuesta => ({
 /** Responsable para el seguimiento: el CSM del roster y, si no hay, el closer. */
 export const responsableDe = (c: { csm?: string; closer?: string }): string => c.csm?.trim() || c.closer?.trim() || 'sin responsable'
 
+/** Aplica las correcciones a mano: asignada → a ese ID; descartada → afuera. */
+function conAsignaciones(respuestas: readonly RespuestaEncuesta[], asignaciones: readonly AsignacionEncuesta[]): RespuestaEncuesta[] {
+  const asignada = new Map(asignaciones.map((a) => [a.clave, a.idCrm?.toUpperCase() ?? null]))
+  return respuestas
+    .filter((r) => asignada.get(r.clave) !== null)
+    .map((r) => (asignada.has(r.clave) ? { ...r, idCliente: asignada.get(r.clave)!, motivo: null } : r))
+}
+
 export function estadoEncuesta(p: {
   envios: readonly EnvioEncuesta[]; respuestas: readonly RespuestaEncuesta[]; asignaciones: readonly AsignacionEncuesta[]
   clientes: readonly ClienteEncuesta[]; hoy: Ymd
 }): EstadoEncuesta {
-  const asignada = new Map(p.asignaciones.map((a) => [a.clave, a.idCrm?.toUpperCase() ?? null]))
-  const respuestas = p.respuestas
-    .filter((r) => asignada.get(r.clave) !== null)
-    .map((r) => (asignada.has(r.clave) ? { ...r, idCliente: asignada.get(r.clave)!, motivo: null } : r))
+  const respuestas = conAsignaciones(p.respuestas, p.asignaciones)
   const envios = p.envios.map((e) => ({ ...e, idCrm: e.idCrm.toUpperCase() }))
   const rondas = envios.map(aRonda)
   const respuestaDe = new Map(vinculos(rondas, respuestas).map((v) => [v.ronda.id, v.respuesta]))
@@ -137,4 +142,63 @@ export function recordatorioMensual(turno: TurnoRecordatorio, hoy: Ymd, envios: 
   return turno === 'manana'
     ? { clave, urgente: false, titulo: 'Encuesta mensual: hoy toca mandarla', texto: 'Hoy, día 1, toca mandar la encuesta mensual de satisfacción a los clientes activos. Cuando salga, marcala como enviada en Clientes → Encuesta.' }
     : { clave, urgente: true, titulo: 'Encuesta mensual: último recordatorio', texto: 'Todavía no se marcó la encuesta mensual de este mes. Hoy, día 1, toca mandarla a los clientes activos. Cuando salga, marcala como enviada en Clientes → Encuesta.' }
+}
+
+// ── Tracker por mes (Tomás, 4/11/2026) ─────────────────────────────────────────────────────────────────────────────────
+// Una fila por cliente ACTIVO y una columna por mes desde octubre de 2026. Cada casilla:
+//   · completo: respondió la ronda de ese mes (aunque haya contestado después), o respondió ese mes sin ronda marcada (octubre:
+//     se mandó antes de que existieran las rondas);
+//   · no_completo: se marcó la ronda de ese mes y no respondió;
+//   · null: no hubo ronda ese mes.
+// Las respuestas de prueba (PRUEBA BOT, webhook) ya no llegan: las descarta el cruce (respuestasDeFilas).
+export const PRIMER_MES_TRACKER = '2026-10'
+export type CasillaTracker = { estado: 'completo'; valor: number | null } | { estado: 'no_completo'; enviada: Ymd } | null
+export interface FilaTracker { id: string; nombre: string; responsable: string; casillas: CasillaTracker[]; noCompleto: number; completo: number }
+export interface TrackerEncuesta { meses: string[]; filas: FilaTracker[] }
+
+/** Los meses del tracker (AAAA-MM), de octubre de 2026 al de hoy. */
+export function mesesTracker(hoy: Ymd): string[] {
+  const out: string[] = []
+  let [a, m] = PRIMER_MES_TRACKER.split('-').map(Number)
+  const fin = hoy.slice(0, 7)
+  for (let mes = PRIMER_MES_TRACKER; mes <= fin; mes = `${a}-${String(m).padStart(2, '0')}`) {
+    out.push(mes)
+    if (++m > 12) { m = 1; a++ }
+  }
+  return out
+}
+
+/** El mes (AAAA-MM) de un instante, en hora de Argentina. */
+const mesAR = (iso: string): string => new Date(Date.parse(iso) - 3 * 3600_000).toISOString().slice(0, 7)
+
+export function trackerEncuesta(p: {
+  envios: readonly EnvioEncuesta[]; respuestas: readonly RespuestaEncuesta[]; asignaciones: readonly AsignacionEncuesta[]
+  clientes: readonly ClienteEncuesta[]; hoy: Ymd
+}): TrackerEncuesta {
+  const meses = mesesTracker(p.hoy)
+  const respuestas = conAsignaciones(p.respuestas, p.asignaciones)
+  const rondas = p.envios.filter((e) => e.dia <= p.hoy).map((e) => aRonda({ ...e, idCrm: e.idCrm.toUpperCase() }))
+  const respuestaDe = new Map(vinculos(rondas, respuestas).map((v) => [v.ronda.id, v.respuesta]))
+  const usadas = new Set([...respuestaDe.values()].map((r) => r.clave))
+  const sueltas = respuestas.filter((r) => r.idCliente && !usadas.has(r.clave))
+
+  const filas = p.clientes.filter((c) => c.estado === 'ACTIVO').map((c): FilaTracker => {
+    const id = c.id.toUpperCase()
+    const propias = rondas.filter((r) => r.idCrm === id).sort((a, b) => a.id.localeCompare(b.id))
+    const casillas = meses.map((mes): CasillaTracker => {
+      const delMes = propias.filter((r) => r.id.slice(0, 7) === mes)
+      const contestada = delMes.map((r) => respuestaDe.get(r.id)).filter(Boolean).at(-1)
+      if (contestada) return { estado: 'completo', valor: contestada.valor }
+      if (delMes.length) return { estado: 'no_completo', enviada: delMes.at(-1)!.id.slice(0, 10) }
+      const suelta = sueltas.filter((r) => r.idCliente!.toUpperCase() === id && mesAR(r.enviadaEn) === mes).sort((a, b) => a.enviadaEn.localeCompare(b.enviadaEn)).at(-1)
+      return suelta ? { estado: 'completo', valor: suelta.valor } : null
+    })
+    return {
+      id, nombre: c.nombre, responsable: c.responsable, casillas,
+      noCompleto: casillas.filter((x) => x?.estado === 'no_completo').length, completo: casillas.filter((x) => x?.estado === 'completo').length,
+    }
+  })
+  // «No completó» primero (más meses sin completar arriba), después los que menos completaron
+  filas.sort((a, b) => b.noCompleto - a.noCompleto || a.completo - b.completo || a.id.localeCompare(b.id, 'es', { numeric: true }))
+  return { meses, filas }
 }

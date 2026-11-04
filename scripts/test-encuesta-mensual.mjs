@@ -91,3 +91,26 @@ test('responsable: CSM y si no, closer', () => {
   assert.equal(M.responsableDe({ csm: '', closer: 'Marcos' }), 'Marcos')
   assert.equal(M.responsableDe({}), 'sin responsable')
 })
+
+test('tracker: una columna por mes desde octubre; ✓ con puntaje, ✗ con ronda sin respuesta, — sin ronda; no completó primero', () => {
+  assert.deepEqual(M.mesesTracker('2026-11-04'), ['2026-10', '2026-11'])
+  assert.deepEqual(M.mesesTracker('2027-01-01'), ['2026-10', '2026-11', '2026-12', '2027-01'])
+  const conOctubre = [...filas,
+    fila('15/10/2026, 11:00:00', 'oct1', 'Carla', 'Ficticia', '', 9),     // octubre sin ronda marcada: cuenta como completó
+    fila('4/11/2026, 14:11:54', 'prueba', 'PRUEBA', 'BOT', 'BOT BOT', 6),  // la prueba del bot: se ignora
+  ]
+  const respuestas = respuestasDeFilas(conOctubre, clientesCrm)
+  assert.ok(!respuestas.some((r) => r.clave === 'prueba'))
+  const t = M.trackerEncuesta({ envios, respuestas, asignaciones: [], clientes, hoy: '2026-11-08' })
+  assert.deepEqual(t.meses, ['2026-10', '2026-11'])
+  const ver = (id) => t.filas.find((f) => f.id === id).casillas.map((c) => (c ? (c.estado === 'completo' ? `✓${c.valor ?? ''}` : '✗') : '—'))
+  assert.deepEqual(ver('A901'), ['—', '✓8'])
+  assert.deepEqual(ver('A902'), ['—', '✓10'])
+  assert.deepEqual(ver('A903'), ['✓9', '✗'])
+  assert.deepEqual(ver('A904'), ['—', '✓7'])   // respondió en noviembre sin ronda marcada
+  assert.ok(!t.filas.some((f) => f.id === 'A905'))   // finalizado: no es una fila
+  assert.equal(t.filas[0].id, 'A903')   // «No completó» primero
+  // Una respuesta descartada a mano no cuenta
+  const sin = M.trackerEncuesta({ envios, respuestas, asignaciones: [{ clave: 'r4', idCrm: null }], clientes, hoy: '2026-11-08' })
+  assert.deepEqual(sin.filas.find((f) => f.id === 'A904').casillas, [null, null])
+})
