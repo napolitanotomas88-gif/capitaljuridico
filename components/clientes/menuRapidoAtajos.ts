@@ -14,6 +14,7 @@ export function atajosDelHub(accesos: readonly AccesoRapido[], p: { puedeEditarC
       }
     }
   }
+  if (rutas.has('/clientes')) out.push({ href: '/clientes/encuesta', etiqueta: 'Encuesta mensual' })
   if (rutas.has('/clientes') && p.puedeEntregarGuiones) out.push({ href: '/clientes/entregas', etiqueta: 'Entregar guiones listos' })
   if (rutas.has('/guiones')) out.push({ href: '/guiones', etiqueta: 'Revisar guiones' })
   if (rutas.has('/clientes/edicion')) out.push({ href: '/clientes/edicion', etiqueta: 'Revisar edición' })

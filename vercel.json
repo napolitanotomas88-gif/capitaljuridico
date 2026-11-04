@@ -73,6 +73,10 @@
       "schedule": "30 13 * * *"
     },
     {
+      "path": "/api/clientes/encuesta/cron",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/clientes/inactivos/cron",
       "schedule": "15 12 * * *"
     },
