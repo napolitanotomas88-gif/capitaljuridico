@@ -263,7 +263,7 @@ const FAMILIA: Record<Etapa, string> = {
   alta: 'prod', kickoff: 'prod', guiones: 'prod', grabacion: 'prod2', edicion: 'prod2', por_lanzar: 'prod2',
   lanzado: 'lanza', exito: 'exito', renovacion: 'renov', pausa: 'cierre', baja: 'cierre', sin_dato: 'cierre',
 }
-const LEYENDA: [string, string][] = [['prod', 'Alta a Guiones'], ['prod2', 'Grabación a Por lanzar'], ['lanza', 'Lanzado'], ['exito', 'Éxito'], ['renov', 'Renovación']]
+const LEYENDA: [string, string][] = [['prod', 'Onboard a Guiones'], ['prod2', 'Grabación a Por lanzar'], ['lanza', 'Lanzado'], ['exito', 'Éxito'], ['renov', 'Renovación']]
 const POR_TRAMO_CERRADO = 6
 
 /** El eje literal: regla de 0 a 4 meses con un punto por cliente en su día y, debajo, los tramos de 30 días. */

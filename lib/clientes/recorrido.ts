@@ -24,8 +24,10 @@ export type Etapa = (typeof ETAPAS)[number]
 export const ETAPAS_PRODUCCION: readonly Etapa[] = ['alta', 'kickoff', 'guiones', 'grabacion', 'edicion', 'por_lanzar']
 // Las que van a la derecha, separadas del recorrido: no avanzan, se cierran
 export const ETAPAS_CIERRE: readonly Etapa[] = ['pausa', 'baja', 'sin_dato']
+// La etapa 'alta' se muestra como «Onboard» (Tomás, 4/11/2026: separarla de la acción «Cargar alta»). La clave sigue siendo
+// 'alta' en la base, los filtros y las URLs; el hito «Alta» (la fecha en que entró) tampoco cambia.
 export const NOMBRE_ETAPA: Record<Etapa, string> = {
-  alta: 'Alta', kickoff: 'Kickoff', guiones: 'Guiones', grabacion: 'Grabación', edicion: 'Edición', por_lanzar: 'Por lanzar',
+  alta: 'Onboard', kickoff: 'Kickoff', guiones: 'Guiones', grabacion: 'Grabación', edicion: 'Edición', por_lanzar: 'Por lanzar',
   lanzado: 'Lanzado', exito: 'Éxito', renovacion: 'Renovación', pausa: 'Pausa', baja: 'Baja', sin_dato: 'Sin dato',
 }
 export const AYUDA_ETAPA: Record<Etapa, string> = {
