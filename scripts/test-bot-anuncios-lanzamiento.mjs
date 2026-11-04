@@ -146,7 +146,7 @@ describe('armarLanzamiento', () => {
     for (const x of sets) {
       assert.equal(x.status, 'PAUSED'); assert.equal(x.daily_budget, String(Math.round(3.5 * 1500 * 100)))
       assert.equal(x.destination_type, 'WHATSAPP'); assert.equal(x.optimization_goal, 'CONVERSATIONS')
-      assert.deepEqual(x.targeting.geo_locations.cities, [{ key: '123', radius: 15, distance_unit: 'kilometer' }])
+      assert.deepEqual(x.targeting.geo_locations.cities, [{ key: '123', radius: 17, distance_unit: 'kilometer' }]) // la ficha pide 15 km: Meta no acepta menos de 17
       assert.equal(x.targeting.targeting_automation.advantage_audience, 0); assert.deepEqual(x.targeting.device_platforms, ['mobile'])
       assert.deepEqual(x.targeting.publisher_platforms, ['facebook', 'instagram'])
     }
