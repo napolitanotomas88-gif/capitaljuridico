@@ -5,6 +5,7 @@ import { ETAPAS_TARJETAS, COLOR_ETAPA_TARJETA, type CamposTarjetaEdicion, type E
 import { buscarTarjeta, cantidadDescendientes, coincideTarjeta, esRegresoTarjeta, reemplazarTarjeta } from '@/lib/edicion/vistaTarjetas'
 import { tarjetasEdicionDemo } from '@/lib/edicion/demoTarjetas'
 import type { RolEdicion } from '@/lib/edicion/tipos'
+import { NuevaTarjeta } from './NuevaTarjeta'
 import './tarjetas.css'
 
 const RUTA = '/api/edicion/tarjetas'
@@ -35,13 +36,16 @@ export function TableroTarjetas({ demo, rol, inicial }: { demo: boolean; rol: Ro
   const [enviando, setEnviando] = useState(false)
   const [pendiente, setPendiente] = useState<PedidoTarjetaEdicion | null>(null)
   const [mensaje, setMensaje] = useState<{ texto: string; error: boolean } | null>(() => inicial && !inicial.ok ? { texto: inicial.mensaje ?? 'No se pudo leer el tablero.', error: true } : null)
+  const [sincronizado, setSincronizado] = useState<string | null>(inicial?.sincronizado ?? null)
+  const [puedeCrear, setPuedeCrear] = useState(!!inicial?.crear)
+  const [creando, setCreando] = useState(false)
   const bloqueo = useRef(false)
   const detalleId = useRef<string | null>(null)
   const eventosDemo = useRef(new Map<string, EventoTarjetaEdicion[]>())
 
   const aplicarLectura = (j: RespuestaTarjetasEdicion) => {
     if (!j.ok) { setMensaje({ texto: j.mensaje ?? 'No se pudo leer el tablero. Reintentá.', error: true }); return }
-    setTarjetas(j.tarjetas ?? []); setPermisos(j.permisos ?? SIN_PERMISOS)
+    setTarjetas(j.tarjetas ?? []); setPermisos(j.permisos ?? SIN_PERMISOS); if (j.sincronizado !== undefined) setSincronizado(j.sincronizado ?? null); setPuedeCrear(!!j.crear)
   }
   useEffect(() => {
     if (demo || inicial) return
@@ -53,7 +57,15 @@ export function TableroTarjetas({ demo, rol, inicial }: { demo: boolean; rol: Ro
   const cargar = async () => {
     if (demo) return
     setCargando(true); setMensaje(null)
-    try { aplicarLectura(await leer()) } catch { setMensaje({ texto: 'No se pudo conectar con el tablero.', error: true }) }
+    // Actualizar = traer de ClickUp lo modificado y después releer el tablero (antes solo releía la base).
+    let aviso: { texto: string; error: boolean } | null = null
+    try {
+      const r = await fetch(`${RUTA}/sincronizar`, { method: 'POST', cache: 'no-store' })
+      const j = await r.json().catch(() => ({})) as { ok?: boolean; mensaje?: string; sincronizado?: string | null }
+      if (j.sincronizado) setSincronizado(j.sincronizado)
+      aviso = j.mensaje ? { texto: j.mensaje, error: !r.ok || !j.ok } : null
+    } catch { aviso = { texto: 'No se pudo leer ClickUp ahora: se muestra lo último sincronizado.', error: true } }
+    try { aplicarLectura(await leer()); if (aviso) setMensaje(aviso) } catch { setMensaje({ texto: 'No se pudo conectar con el tablero.', error: true }) }
     finally { setCargando(false) }
   }
   const cargarDetalle = async (id: string) => {
@@ -120,7 +132,9 @@ export function TableroTarjetas({ demo, rol, inicial }: { demo: boolean; rol: Ro
     <div className="et-herramientas">
       <label className="ed-campo"><span>Buscar cliente o video</span><input type="search" value={consulta} onChange={e => setConsulta(e.target.value)} placeholder="Nombre o ID del cliente" /></label>
       <span className="ed-sub">{tarjetas.length} clientes · {tarjetas.reduce((n, t) => n + cantidadDescendientes(t), 0)} videos</span>
+      {!demo && <span className="ed-sub" role="status">{sincronizado ? `Sincronizado con ClickUp ${fecha(sincronizado)}` : 'Sin sincronizar con ClickUp todavía'}</span>}
       {!demo && <button type="button" className="cj-boton cj-boton--secundario" disabled={cargando || enviando} onClick={() => void cargar()}>{cargando ? 'Actualizando…' : 'Actualizar'}</button>}
+      {!demo && puedeCrear && <button type="button" className="cj-boton cj-boton--primario" disabled={enviando} onClick={() => setCreando(true)}>Nueva tarjeta</button>}
     </div>
     {demo && <p className="cj-aviso">Datos de ejemplo: podés probar los movimientos. No se guardan ni se envían mensajes.</p>}
     {!abierta && !aMover && resultado}
@@ -139,6 +153,7 @@ export function TableroTarjetas({ demo, rol, inicial }: { demo: boolean; rol: Ro
       })}
     </div>}
     {abierta && <Dialogo titulo={abierta.nombre} volverA={abierta.id} bloqueado={bloqueado} cerrar={() => { if (!bloqueado) { detalleId.current = null; setSeleccionada(null) } }}>{!aMover && resultado}<DetalleTarjeta key={abierta.id} t={abierta} historial={historial} cargando={detalleCargando} error={detalleError} demo={demo} rol={rol} permisos={{ campos: permisos.campos && editable(abierta), comentar: permisos.comentar && editable(abierta) }} bloqueado={bloqueado} enviar={mandar} etapas={etapasPara(abierta)} proponer={proponer} /></Dialogo>}
+    {creando && <Dialogo titulo="Nueva tarjeta" volverA="" cerrar={() => setCreando(false)}><NuevaTarjeta tarjetas={tarjetas} listo={(_t, texto) => { setCreando(false); setMensaje({ texto, error: false }); void leer().then(aplicarLectura).catch(() => {}) }} /></Dialogo>}
     {aMover && movimiento && <Dialogo titulo={`Mover ${aMover.nombre}`} volverA={aMover.id} bloqueado={bloqueado} cerrar={() => { if (!bloqueado) setMovimiento(null) }}>{resultado}<Movimiento key={`${aMover.id}:${movimiento.etapa}`} t={aMover} etapa={movimiento.etapa} rol={rol} bloqueado={bloqueado} confirmar={p => mandar({ ...p, clave: claveNueva() })} /></Dialogo>}
   </div>
 }
@@ -209,17 +224,18 @@ function DetalleTarjeta({ t, historial, cargando, error, demo, rol, permisos, bl
 
 function Movimiento({ t, etapa, rol, bloqueado, confirmar }: { t: TarjetaEdicion; etapa: EtapaTarjeta; rol: RolEdicion; bloqueado: boolean; confirmar: (p: Omit<Extract<PedidoTarjetaEdicion, { accion: 'mover' }>, 'clave'>) => Promise<boolean | undefined> }) {
   const [comentario, setComentario] = useState(''), [cliente, setCliente] = useState(false), [autorizar, setAutorizar] = useState(false)
-  const regreso = esRegresoTarjeta(t.etapa, etapa), publicado = etapa === 'publicado', tercera = regreso && cliente && (t.ronda_cliente ?? 0) >= 2
+  const regreso = esRegresoTarjeta(t.etapa, etapa), publicado = etapa === 'publicado', publicar = etapa === 'publicar' && t.etapa === 'revisión', tercera = regreso && cliente && (t.ronda_cliente ?? 0) >= 2
   return <form className="ed-pila" onSubmit={e => { e.preventDefault(); void confirmar({ accion: 'mover', id: t.id, version: t.version, etapa, ...(comentario.trim() ? { comentario: comentario.trim() } : {}), ...(regreso ? { origen: cliente ? 'cliente' : 'interno' } : {}), ...(tercera && autorizar ? { autorizarTercera: true } : {}) }) }}>
     <p><strong>{t.etapa}</strong> → <strong>{etapa}</strong></p>
     {t.hijos.length > 0 && <p className="ed-sub">Se mueve esta tarjeta. Cada video conserva su propio estado.</p>}
     {etapa === 'revisión' && <p className="ed-sub">Se prepara el envío del link editado al cliente. Si WhatsApp está desconectado, queda pendiente.</p>}
-    {publicado && <p className="ed-sub">El OK queda anotado y se avisa al equipo de Anuncios.</p>}
+    {publicar && <p className="ed-sub">El OK queda anotado y el bot arma el anuncio EN PAUSA en Meta. Cuando quede creado y verificado, la pasa solo a Publicado y avisa a Valen. Nada se activa.</p>}
+    {publicado && <p className="ed-sub">Publicado lo pone el bot cuando creó el anuncio. A mano, pegá el ID del anuncio de Meta.</p>}
     {!regreso && (etapa === 'editado' || etapa === 'corregido') && <p className="ed-sub">Se avisa a Aylu para revisar el video.</p>}
-    <label className="ed-campo"><span>{publicado ? 'Pegá el mensaje del cliente con su OK' : regreso ? 'Comentario para la corrección' : 'Comentario (opcional)'}</span><textarea rows={3} value={comentario} maxLength={4000} onChange={e => setComentario(e.target.value)} required={regreso || publicado} disabled={bloqueado} /></label>
+    <label className="ed-campo"><span>{publicar ? 'Pegá el mensaje del cliente con su OK' : publicado ? 'ID del anuncio en Meta' : regreso ? 'Comentario para la corrección' : 'Comentario (opcional)'}</span><textarea rows={3} value={comentario} maxLength={4000} onChange={e => setComentario(e.target.value)} required={regreso || publicado || publicar} disabled={bloqueado} /></label>
     {regreso && <label className="ed-opcion"><input type="checkbox" checked={cliente} onChange={e => setCliente(e.target.checked)} disabled={bloqueado} /><span>Es un pedido de corrección del cliente</span></label>}
     {tercera && (rol === 'tomas' ? <label className="ed-opcion"><input type="checkbox" checked={autorizar} onChange={e => setAutorizar(e.target.checked)} disabled={bloqueado} required /><span>Autorizo una nueva ronda del cliente</span></label> : <p className="cj-aviso">Esta ronda del cliente necesita la autorización de Tomás.</p>)}
     {regreso && <p className="ed-sub">El comentario queda en el historial y acompaña el aviso a René para la corrección.</p>}
-    <button type="submit" className="cj-boton cj-boton--primario" disabled={bloqueado || ((regreso || publicado) && !comentario.trim()) || (tercera && (rol !== 'tomas' || !autorizar))}>{bloqueado ? 'Guardando…' : 'Confirmar movimiento'}</button>
+    <button type="submit" className="cj-boton cj-boton--primario" disabled={bloqueado || ((regreso || publicado || publicar) && !comentario.trim()) || (tercera && (rol !== 'tomas' || !autorizar))}>{bloqueado ? 'Guardando…' : 'Confirmar movimiento'}</button>
   </form>
 }

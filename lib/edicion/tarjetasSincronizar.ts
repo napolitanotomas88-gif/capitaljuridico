@@ -16,6 +16,7 @@ export function etapaDesdeVideo(estado: EstadoVideo): EtapaTarjeta | null {
   }
 }
 
+const etapaFinal = (actual: string, del_motor: EtapaTarjeta): string => ['publicar', 'publicado'].includes(actual) && ['revisión', 'publicar', 'publicado'].includes(del_motor) ? actual : del_motor
 /** Se ejecuta después del evento operativo ya confirmado; no manda ni encola mensajes. */
 export async function sincronizarEventosTarjetas(eventos: readonly EventoVideo[]): Promise<void> {
   const ids = [...new Set(eventos.filter(e => e.datos?.origen !== 'tarjetas').map(e => e.video_id).filter(id => Number.isSafeInteger(id) && id > 0))]
@@ -49,8 +50,9 @@ export async function sincronizarEventosTarjetas(eventos: readonly EventoVideo[]
       const siguientes = {...campos, ...(editado ? {editado} : {})}
       const bloqueado = v.estado === 'pausado' || v.estado === 'descartado'
       const bloqueo = bloqueado ? v.estado : null
-      const changed = !!etapa && etapa !== tarjeta.etapa || !!editado && editado !== campos.editado || (tarjeta.motor_bloqueado ?? null) !== bloqueo
-      const next = etapa ?? tarjeta.etapa
+      const changed = !!etapa && etapaFinal(tarjeta.etapa, etapa) !== tarjeta.etapa || !!editado && editado !== campos.editado || (tarjeta.motor_bloqueado ?? null) !== bloqueo
+      // «Publicar» espera el anuncio del bot (publicar.ts): el motor no la saca de ahí ni la cierra (solo un retroceso).
+      const next = ['publicar', 'publicado'].includes(tarjeta.etapa) && ['revisión', 'publicar', 'publicado'].includes(etapa ?? '') ? tarjeta.etapa : etapa ?? tarjeta.etapa
       const row = (await c.query(`UPDATE cj_edicion_tarjetas t SET etapa=$2,campos=$3::jsonb,video_version=$4,
         ronda_cliente=GREATEST(t.ronda_cliente,$5),version=t.version+$6,actualizado=CASE WHEN $6=1 THEN now() ELSE t.actualizado END,
         entrega_evento=CASE WHEN $7 THEN NULL ELSE t.entrega_evento END,motor_bloqueado=$8

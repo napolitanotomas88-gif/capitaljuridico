@@ -1,5 +1,5 @@
 // Modelo literal de ClickUp: la etapa de un padre nunca mueve ni aprueba sus hijos.
-import { ETAPAS_TARJETAS, type CamposTarjetaEdicion, type EtapaTarjeta, type PedidoTarjetaEdicion, type TarjetaEdicion } from './tarjetasTipos'
+import { ETAPAS_TARJETAS, type CamposTarjetaEdicion, type EtapaTarjeta, type PedidoNuevaTarjeta, type PedidoTarjetaEdicion, type TarjetaEdicion, type VideoNuevoEdicion } from './tarjetasTipos'
 import type { Persona, RolEdicion } from './tipos'
 export class ErrorTarjeta extends Error {
   readonly status: number; readonly codigo: string
@@ -7,6 +7,8 @@ export class ErrorTarjeta extends Error {
 }
 export interface TarjetaGuardada extends Omit<TarjetaEdicion, 'hijos'> { ronda_cliente: number; actualizado: string; entrega_evento?: string | null; video_version?: number | null; motor_bloqueado?: string | null }
 export interface AvisoTarjeta { canal: 'hub' | 'discord' | 'cliente'; destino: 'rene' | 'aylu' | 'valen' | 'cliente'; texto: string; link?: string; tipo_aviso?: string }
+/** Un ID de anuncio de Meta (números largos) dentro del comentario de un «publicado» a mano. */
+export const ID_ANUNCIO = /\b\d{10,20}\b/
 export const esEtapaTarjeta = (x: unknown): x is EtapaTarjeta => (ETAPAS_TARJETAS as readonly unknown[]).includes(x)
 export const urlCampo = (x: string): boolean => { try { const u = new URL(x); return u.protocol === 'https:' && !u.username && !u.password } catch { return false } }
 const limpia = (x: unknown, max: number) => typeof x === 'string' && x.length <= max && !x.includes('\u0000') ? x.trim() : null
@@ -29,7 +31,7 @@ export function validarPedidoTarjeta(x: unknown): PedidoTarjetaEdicion {
 export function etapasPermitidasTarjeta(t: TarjetaGuardada, rol: RolEdicion): EtapaTarjeta[] {
   if (t.motor_bloqueado && !(t.motor_bloqueado === 'finalizado_en_clickup' && rol === 'tomas' && t.etapa === 'publicado')) return []
   if (rol === 'rene') return ['para editar', 'editando', 'editado', 'corregido'].includes(t.etapa) ? ['para editar', 'editando', 'editado', 'corregido'].filter(e => e !== t.etapa) as EtapaTarjeta[] : []
-  return rol === 'aylu' || rol === 'tomas' ? ETAPAS_TARJETAS.filter(e => e !== t.etapa && (e !== 'revisión' || ['editado', 'corregido'].includes(t.etapa)) && (e !== 'publicar' || ['revisión', 'publicado'].includes(t.etapa)) && (e !== 'publicado' || ['revisión', 'publicar'].includes(t.etapa)) && (t.etapa !== 'publicado' || rol === 'tomas')) : []
+  return rol === 'aylu' || rol === 'tomas' ? ETAPAS_TARJETAS.filter(e => e !== t.etapa && (e !== 'revisión' || ['editado', 'corregido'].includes(t.etapa)) && (e !== 'publicar' || ['revisión', 'publicado'].includes(t.etapa)) && (e !== 'publicado' || t.etapa === 'publicar') && (t.etapa !== 'publicado' || rol === 'tomas')) : []
 }
 export function planTarjeta(t: TarjetaGuardada, p: PedidoTarjetaEdicion, actor: Persona): { tarjeta: TarjetaGuardada; texto: string; avisos: AvisoTarjeta[] } {
   if (!t.id_crm) throw new ErrorTarjeta('Falta vincular esta tarjeta a un cliente CRM único.', 409, 'sin_vinculo_crm')
@@ -57,7 +59,10 @@ export function planTarjeta(t: TarjetaGuardada, p: PedidoTarjetaEdicion, actor: 
     if (p.etapa === 'revisión' && (!['editado', 'corregido'].includes(t.etapa) || !urlCampo(t.campos.editado))) throw new ErrorTarjeta('Aylu o Tomás deben revisar un editado/corregido con link antes de pasarlo al cliente.', 409, 'falta_revision')
     if (p.etapa === 'publicar' && !['revisión', 'publicado'].includes(t.etapa)) throw new ErrorTarjeta('Antes de Publicar, el video debe pasar por Revisión.', 409, 'falta_revision')
     if (['editado', 'corregido', 'publicar', 'publicado'].includes(p.etapa) && !urlCampo(t.campos.editado)) throw new ErrorTarjeta('Falta el link HTTPS del editado.', 422, 'falta_editado')
-    if (p.etapa === 'publicado' && (!['revisión', 'publicar'].includes(t.etapa) || !p.comentario || p.comentario.length < 5)) throw new ErrorTarjeta('Para cerrar hace falta la cita del OK del cliente desde Revisión/Publicar.', 422, 'falta_ok_cliente')
+    // Regla de Tomás (4/11): en PUBLICAR el bot arma el anuncio y, cuando quedó creado y verificado en pausa, la pasa a PUBLICADO.
+    // La cita del OK del cliente se pega al pasar a Publicar; Publicado a mano solo con el ID del anuncio de Meta.
+    if (p.etapa === 'publicar' && t.etapa === 'revisión' && (!p.comentario || p.comentario.length < 5)) throw new ErrorTarjeta('Para pasar a Publicar hace falta la cita del OK del cliente.', 422, 'falta_ok_cliente')
+    if (p.etapa === 'publicado' && (t.etapa !== 'publicar' || !ID_ANUNCIO.test(p.comentario ?? ''))) throw new ErrorTarjeta('Publicado lo pone el bot cuando verificó el anuncio en pausa. A mano, solo desde Publicar y con el ID del anuncio de Meta.', 422, 'falta_id_anuncio')
     if (p.autorizarTercera && actor.rol !== 'tomas') throw new ErrorTarjeta('Sólo Tomás autoriza la tercera ronda del cliente.', 403, 'tope_rondas')
     if (retroceso && p.origen === 'cliente' && ['revisión', 'publicar', 'publicado'].includes(t.etapa)) {
       if (t.ronda_cliente >= 2 && !(actor.rol === 'tomas' && p.autorizarTercera)) throw new ErrorTarjeta('La tercera ronda del cliente espera autorización de Tomás. René todavía no recibe el pedido.', 409, 'tope_rondas')
@@ -68,7 +73,6 @@ export function planTarjeta(t: TarjetaGuardada, p: PedidoTarjetaEdicion, actor: 
     if (p.etapa === 'para editar' || retroceso) { avisar('rene', `Para editar / corrección: ${texto}`); for (const a of avisos) a.tipo_aviso = retroceso ? 'correccion' : 'para_editar' }
     if (p.etapa === 'editado' || p.etapa === 'corregido') avisar('aylu', `${p.etapa}: revisar el video antes de enviarlo al cliente.`)
     if (p.etapa === 'revisión') { avisos.push({ canal: 'cliente', destino: 'cliente', texto: 'Ya revisamos tu video y está listo. Te lo dejamos acá:', link: t.campos.editado }); avisar('aylu', 'Revisión aprobada: la entrega queda en «Para enviar» (📤) para pegarla en el grupo Contenido.') }
-    if (p.etapa === 'publicado') avisar('valen', `El cliente dio el OK. Cita: ${p.comentario}\nEditado: ${t.campos.editado}`)
   }
   for (const a of avisos) if (!a.tipo_aviso) a.tipo_aviso = p.accion === 'mover' ? p.etapa : 'comentario'
   return { tarjeta, texto, avisos }
@@ -84,3 +88,26 @@ export function arbolTarjetas(filas: readonly TarjetaGuardada[]): TarjetaEdicion
   }
   return raices
 }
+// ── Alta desde el tablero (4/11/2026): Aylu y Tomás crean la tarjeta del cliente y sus videos; viaja a ClickUp por la outbox ──
+export const MAX_VIDEOS_ALTA = 12
+export const PRIORIDADES_ALTA = ['urgent', 'high', 'normal', 'low'] as const
+export function validarNuevaTarjeta(x: unknown): PedidoNuevaTarjeta {
+  const p = x as Record<string, unknown> | null
+  if (!p || typeof p !== 'object' || p.accion !== 'crear' || !/^[A-Za-z0-9_.:-]{8,100}$/.test(String(p.clave ?? ''))) throw new ErrorTarjeta('Falta la clave estable del alta.', 422, 'entrada_invalida')
+  const idCrm = String(p.id_crm ?? '').trim().toUpperCase(), cliente = limpia(p.cliente, 120)
+  if (!/^[A-Z]\d{1,6}$/.test(idCrm) || !cliente) throw new ErrorTarjeta('Elegí un cliente del CRM.', 422, 'entrada_invalida')
+  const padre = p.padre_id === null || p.padre_id === undefined || p.padre_id === '' ? null : String(p.padre_id)
+  if (padre !== null && !/^[A-Za-z0-9_-]{5,80}$/.test(padre)) throw new ErrorTarjeta('Tarjeta del cliente inválida.', 422, 'entrada_invalida')
+  if (!Array.isArray(p.videos) || p.videos.length < 1 || p.videos.length > MAX_VIDEOS_ALTA) throw new ErrorTarjeta(`Cargá entre 1 y ${MAX_VIDEOS_ALTA} videos.`, 422, 'entrada_invalida')
+  const videos = p.videos.map((v, i) => {
+    const o = (v ?? {}) as Record<string, unknown>
+    const nombre = limpia(o.nombre, 120) || `Video ${i + 1}`, crudo = limpia(o.crudo ?? '', 2000), editado = limpia(o.editado ?? '', 2000), guion = limpia(o.guion ?? '', 6000)
+    if (crudo === null || editado === null || guion === null || crudo && !urlCampo(crudo) || editado && !urlCampo(editado)) throw new ErrorTarjeta(`Video ${i + 1}: los links deben ser HTTPS.`, 422, 'entrada_invalida')
+    const prioridad = o.prioridad ? String(o.prioridad) : null, asignado = o.asignado ? String(o.asignado) : null
+    if (prioridad && !(PRIORIDADES_ALTA as readonly string[]).includes(prioridad) || asignado && !['rene', 'aylu', 'tomas'].includes(asignado)) throw new ErrorTarjeta(`Video ${i + 1}: prioridad o asignado inválido.`, 422, 'entrada_invalida')
+    return { nombre, crudo, editado, guion, prioridad, asignado }
+  })
+  return { accion: 'crear', clave: String(p.clave), id_crm: idCrm, cliente, padre_id: padre, videos }
+}
+/** La etapa con la que entra un video nuevo: con editado → editado; con crudo → para editar; sin nada → en espera de datos. */
+export const etapaInicial = (v: Pick<VideoNuevoEdicion, 'crudo' | 'editado'>): EtapaTarjeta => v.editado ? 'editado' : v.crudo ? 'para editar' : 'en espera de datos'
