@@ -3096,7 +3096,7 @@ describe('alta en formato libre', () => {
     const abierta = (await m.almacen.leerAlta(id)).esperas.find((x) => x.motivo === 'validar' && x.estado === 'abierta')
     if (abierta) await m.correr([await citando(m, id, 'validar', 'OK Empresa')])
     const f = m.dj.llamadas.finanzas.at(-1).fila
-    assert.equal(f.celdas.C, 'Nadia Blanco'); assert.equal(f.celdas.G, 'Yamila'); assert.equal(f.celdas.E, 1299); assert.equal(f.celdas.J, 'PIF')
+    assert.equal(f.celdas.C, 'Nadia Blanco'); assert.equal(f.celdas.G, 'Yami'); assert.equal(f.celdas.E, 1299); assert.equal(f.celdas.J, 'PIF')
     assert.equal((await pasosDe(m, id)).crm.estado, 'hecho')
   })
 

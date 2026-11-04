@@ -12,6 +12,7 @@ const L = await import('../lib/bot/alta/altaLibre.ts')
 const { parsearAlta } = await import('../lib/bot/alta/parsear.ts')
 const W = await import('../lib/bot/whapi/webhook.ts')
 const FIN = await import('../lib/bot/alta/finanzas.ts')
+const C = await import('../lib/bot/alta/comprobante.ts')
 
 // El ejemplo real (Ventas C.J., 26/10 16:31, closer Yamila)
 const NADIA = `Completa PIF 1299 USD
@@ -176,6 +177,51 @@ describe('webhook (clasificación)', () => {
   test('el documento suelto del mismo autor sigue siendo un adjunto', () => {
     const c = W.clasificar(msj({ type: 'document', document: { id: 'doc-2', mime_type: 'application/pdf', file_name: 'dLocal Go - Checkout.pdf' } }), GRUPOS, T)
     assert.equal(c.evento.tipo, 'adjunto')
+  })
+})
+
+describe('el comprobante manda cuando no contradice al mensaje (4/11/2026)', () => {
+  const lect = (o) => ({ es_comprobante: true, legible: 'si', monto_texto: '', moneda: 'USD', moneda_iso: '', fecha: '2026-11-04', numero_operacion: 'OP-9', destinatario: 'ACTIS GERONIMO', ordenante: '', medio: '', notas: '', ...o })
+  const DARC = 'Closer: Nahuel\nTipo de pago: Completa 1er cuota $360\n( FEE de $300 pagado en efectivo )\nNombre completo del lead: María Laura D’Arcangelo.\nTeléfono: +54 9 11 5509-8826'
+  test('D\'Arcangelo: si el mensaje dice 300 y el comprobante 360, frena y el aviso dice qué carga el OK; «completó 1ra» = 1ra Cuota', () => {
+    const a = parsearAlta(DARC)
+    const r = C.compararComprobante(lect({ monto_texto: 'u$s 360.00' }), a, { hoy: '2026-11-04' })
+    assert.equal(r.resultado, 'difiere')
+    assert.equal(r.extras.usdComprobante, undefined)
+    for (const t of [DARC, 'completó la 1era cuota', 'Completó 1er cuota $360', 'Completa 1ra', 'completa la primera cuota']) assert.equal(FIN.completaPrimeraCuota(t), true, t)
+    for (const t of ['Ingresa pago - 2º cuota 825', 'Completa pago PIF', 'completa 10 cuotas']) assert.equal(FIN.completaPrimeraCuota(t), false, t)
+  })
+  test('Lia Parra: el mensaje no trae monto → se toma el del comprobante (antes frenaba sin cargar)', () => {
+    const LIA = 'Closer: Marcos\nTipo de pago: PP $3300\nNombre completo del lead: Lia Karina Parra\nTeléfono: +54 9 11 6173-8900'
+    const a = parsearAlta(LIA)
+    const r = C.compararComprobante(lect({ monto_texto: 'US$ 300' }), a, { hoy: '2026-11-04', texto: LIA })
+    assert.equal(r.extras.usdComprobante, 300)
+    const f = FIN.filaRegistroPagos(a, { fecha: '2026-11-04', setter: 'Mai', fuente: 'Webinar', cuenta: 'Gero', usdComprobante: 300 })
+    assert.equal(f.celdas.E, 300)
+    assert.ok(!f.pendientes.some((x) => x.startsWith('Efectivo recaudado')))
+  })
+  test('si de verdad no coinciden, frena y el aviso dice qué carga el OK; no usa el del comprobante', () => {
+    const T = 'Closer: Marcos\nEste pago: 1100 USD\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
+    const a = parsearAlta(T)
+    const r = C.compararComprobante(lect({ monto_texto: '900' }), a, { hoy: '2026-11-04', texto: T })
+    assert.equal(r.resultado, 'difiere')
+    assert.match(r.diferencias[0], /con OK se carga USD 1\.100/)
+    assert.equal(r.extras.usdComprobante, undefined)
+  })
+  test('closer en la lista de la col G: «Yamila» → «Yami» (Nancy Báez frenada el 26/10)', () => {
+    assert.equal(FIN.closerPlanilla('Yamila'), 'Yami')
+    assert.equal(FIN.closerPlanilla('Nahuel'), 'Nahuel')
+    assert.equal(FIN.closerPlanilla(null), '')
+  })
+  test('si el mensaje trae monto, manda el mensaje aunque el comprobante difiera por una comisión (umbral del Fee)', () => {
+    const T = 'Closer: Marcos\nEste pago: 497 USD\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
+    const r = C.compararComprobante(lect({ monto_texto: 'USD 500' }), parsearAlta(T), { hoy: '2026-11-04' })
+    assert.equal(r.extras.usdComprobante, undefined)
+  })
+  test('con varios comprobantes, el monto del primero no reemplaza al del mensaje (sería una parte)', () => {
+    const T = 'Closer: Marcos\nNombre: Ana Pérez\nTel: +54 9 11 3000 1111'
+    const r = C.compararComprobante(lect({ monto_texto: 'USD 200' }), parsearAlta(T), { hoy: '2026-11-04', archivos: 2 })
+    assert.equal(r.extras.usdComprobante, undefined)
   })
 })
 
