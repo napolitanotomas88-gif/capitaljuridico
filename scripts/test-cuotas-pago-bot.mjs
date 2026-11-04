@@ -66,6 +66,14 @@ describe('pago de cuota del bot → tablero de Cuotas', () => {
     const r2 = T.pagoAlTablero([reg(dos)], { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 1000, concepto: '2da Cuota' }, AHORA)
     assert.equal(pendiente(r2.plan), 10)
   })
+  test('ya_estaba solo con un pago vigente del bot en un plan vigente (no abandonado ni anulado)', () => {
+    const pago = { fecha: '2026-11-04', nombre: 'Ana Pérez', telefono: '5491130001111', usd: 500, concepto: '2da Cuota' }
+    const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }] })
+    const r1 = T.pagoAlTablero([reg(p)], pago, AHORA)
+    const abandonado = { ...r1.plan, abandonado: true }
+    const nuevo = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-11-01', usd: 500 }] })
+    assert.equal(T.pagoAlTablero([reg(abandonado), reg(nuevo)], pago, AHORA).accion, 'registrado')
+  })
   test('el pago va a la cuota que vence primero, aunque tenga una promesa más adelante', () => {
     const p = plan({ nombre: 'Ana Pérez', telefono: '5491130001111', cuotas: [{ v: '2026-10-01', usd: 500 }, { v: '2026-11-01', usd: 500 }] })
     p.cuotas[0].promesa = '2026-12-15'
@@ -90,6 +98,7 @@ describe('pago de cuota del bot → tablero de Cuotas', () => {
     const r = T.pagoAlTablero([reg(a), reg(b)], { fecha: '2026-11-04', nombre: 'Maria Lopez', telefono: '5491100000002', usd: 500, concepto: '2da Cuota' }, AHORA)
     assert.equal(r.accion, 'registrado'); assert.equal(r.planId, b.id)
     assert.equal(T.pagoAlTablero([reg(a), reg(b)], { fecha: '2026-11-04', nombre: 'Maria Lopez', telefono: null, usd: 500, concepto: '2da Cuota' }, AHORA).accion, 'ambiguo')
+    assert.equal(T.pagoAlTablero([reg(a)], { fecha: '2026-11-04', nombre: 'Maria Lopez', telefono: null, usd: 500, concepto: '2da Cuota' }, AHORA).accion, 'revisar')
     assert.equal(T.pagoAlTablero([reg(a)], { fecha: '2026-11-04', nombre: 'Otra Persona', telefono: '5491199999999', usd: 500, concepto: '2da Cuota' }, AHORA).accion, 'sin_plan')
   })
   test('planes abandonados o ya pagados no cuentan', () => {

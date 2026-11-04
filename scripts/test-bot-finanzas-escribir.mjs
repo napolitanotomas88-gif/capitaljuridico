@@ -408,14 +408,17 @@ describe('cargarPagoFinanzas', () => {
     const r2 = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero: falla } })
     assert.ok(r2.ok, 'el pago queda cargado igual')
     assert.ok(r2.avisos.some((x) => x.includes('registrala a mano en /cuotas')))
-    // reintento tras un corte: el mismo pago ya está en la planilla (repetido) y el tablero se vuelve a intentar (es idempotente)
+    // un 'revisar' (pago parecido cargado a mano) no pide registrarla a mano a ciegas
     h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
-    await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
+    const revisar = async () => ({ ok: false, accion: 'revisar', detalle: 'el plan ya tiene un pago parecido', avisos: [] })
+    const r3 = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero: revisar } })
+    assert.ok(r3.avisos.some((x) => x.includes('si ese pago ya está, no hagas nada')))
+    // reintento que choca con el mismo pago ya cargado (repetido): no toca el tablero
     const antesRep = llamadas.length
     const rep = await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'real', deps: { planilla: () => p, puente: () => d, app, tablero } })
     assert.equal(rep.ok, false); assert.ok(rep.repetido)
-    assert.equal(llamadas.length, antesRep + 1)
-        // en simulación no se toca el tablero
+    assert.equal(llamadas.length, antesRep)
+    // en simulación no se toca el tablero
     h = hojaInicial(); d = puenteDeJuguete(); p = planillaDeJuguete(h, { drive: d })
     const antesSim = llamadas.length
     await cargarPagoFinanzas(segunda(), COMPROBANTE, { modo: 'simulacion', deps: { planilla: () => p, puente: () => d, app, tablero } })

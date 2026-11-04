@@ -6,7 +6,7 @@
 //   · Solo cuotas que siguen a la primera ("2da Cuota", "3ra Cuota"…): la 1ra, los Fee y los PIF son de altas nuevas, que
 //     el closer arma en el tablero con su propio "Pagado".
 //   · El plan: el único que no esté abandonado, tenga saldo y sea del mismo cliente por teléfono (últimos 8 dígitos). Solo
-//     si el pago no trae teléfono se busca por nombre. Un plan sin teléfono con el mismo nombre no se toca: se avisa.
+//     si el pago no trae teléfono se busca por nombre (y solo planes sin teléfono). Si no se puede confirmar, se avisa.
 //   · Conservador con la plata: ante la duda NO registra y avisa para hacerlo a mano en /cuotas.
 //     - Idempotente: los ids de operación salen del pago (fecha, cliente, monto, concepto); si ya están, no se repite.
 //     - Si el plan tiene un pago cargado a mano parecido (±3 % o ±USD 10, ±10 días), puede ser el mismo: avisa.
@@ -44,16 +44,21 @@ export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBo
   const t = tel8(pago.telefono), n = norm(pago.nombre)
   const quien = pago.nombre ?? 'el cliente'
   const vivos = planes.filter(({ plan }) => !plan.abandonado)
-  // Ya registrado por el bot (reintento): mismo id de operación en cualquier plan
+  // Ya registrado por el bot (reintento del motor): un pago vigente con el mismo id de operación en un plan vigente
   const ids = new Set(Array.from({ length: 60 }, (_, i) => idOperacion(pago, i)))
-  if (planes.some(({ plan }) => plan.eventos.some((e) => ids.has(e.id)))) return { accion: 'ya_estaba', detalle: `la cuota de ${quien} ya estaba registrada en el tablero` }
+  if (vivos.some(({ plan }) => plan.cuotas.some((c) => c.pagos.some((p) => !p.anulado && ids.has(p.id))))) return { accion: 'ya_estaba', detalle: `la cuota de ${quien} ya estaba registrada en el tablero` }
   const conSaldo = vivos.filter(({ plan }) => pendiente(plan) > 0)
   let candidatos: RegistroPlan[]
   if (t.length === 8) {
     candidatos = conSaldo.filter(({ plan }) => tel8(plan.telefono) === t)
     if (!candidatos.length && n.length >= 5 && conSaldo.some(({ plan }) => tel8(plan.telefono).length < 8 && norm(plan.nombre) === n))
       return { accion: 'revisar', detalle: `hay un plan de «${quien}» sin teléfono en el tablero: confirmá que es el mismo cliente` }
-  } else candidatos = n.length >= 5 ? conSaldo.filter(({ plan }) => norm(plan.nombre) === n) : []
+  } else {
+    // Sin teléfono en el pago, por nombre; si ese plan sí tiene teléfono no se puede confirmar que sea el mismo cliente
+    candidatos = n.length >= 5 ? conSaldo.filter(({ plan }) => norm(plan.nombre) === n) : []
+    if (candidatos.length === 1 && tel8(candidatos[0].plan.telefono).length === 8)
+      return { accion: 'revisar', detalle: `el pago de «${quien}» no trae teléfono y su plan sí: confirmá que es el mismo cliente` }
+  }
   if (!candidatos.length) return { accion: 'sin_plan', detalle: `${quien} no tiene un plan con saldo en el tablero de cuotas` }
   if (candidatos.length > 1) return { accion: 'ambiguo', detalle: `${quien} tiene ${candidatos.length} planes con saldo en el tablero de cuotas` }
   const { plan, version } = candidatos[0]
@@ -90,28 +95,26 @@ export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBo
   return { accion: 'registrado', planId: plan.id, nombre: plan.nombre, plan: siguiente, version, detalle: `registrado en el plan de ${plan.nombre}: ${partes.join(' + ')}`, avisos }
 }
 
-/** Lee los planes, registra el pago y guarda (con la versión: si otro lo cambió en el medio, reintenta una vez). Nunca tira. */
+/** Lee los planes, registra el pago y guarda (con la versión: si otro lo cambió en el medio, reintenta una vez). Cada consulta
+ *  se corta a los 10 s (AbortSignal): no queda nada corriendo en segundo plano que escriba después del aviso. Nunca tira. */
 export async function registrarPagoBotEnTablero(pago: PagoCuotaBot): Promise<{ ok: boolean; accion: ResultadoTablero['accion'] | 'error'; detalle: string; avisos: string[] }> {
   if (!esCuotaSiguiente(pago.concepto)) return { ok: true, accion: 'no_aplica', detalle: 'no es una cuota siguiente', avisos: [] }
-  const plazo = new Promise<never>((_, no) => setTimeout(() => no(new Error('el tablero de cuotas no respondió en 20 s')), 20_000).unref?.())
+  const url = process.env.CUOTAS_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim()
+  if (!url) return { ok: false, accion: 'error', detalle: 'el tablero de cuotas no tiene base configurada', avisos: [] }
   try {
-    return await Promise.race([registrar(pago), plazo])
-  } catch (e) {
-    return { ok: false, accion: 'error', detalle: String((e as Error)?.message ?? e).slice(0, 200), avisos: [] }
-  }
-}
-
-async function registrar(pago: PagoCuotaBot): Promise<{ ok: boolean; accion: ResultadoTablero['accion'] | 'error'; detalle: string; avisos: string[] }> {
-  {
-    const { configurado, guardarPlan, listarPlanes } = await import('./db')
-    if (!configurado()) return { ok: false, accion: 'error', detalle: 'el tablero de cuotas no tiene base configurada', avisos: [] }
+    const { neon } = await import('@neondatabase/serverless')
+    const sql = () => neon(url, { fetchOptions: { signal: AbortSignal.timeout(10_000) } })
     for (let intento = 0; intento < 2; intento++) {
-      const planes = await listarPlanes()
+      const filas = await sql()`SELECT data, version FROM cj_cuotas_planes`
+      const planes: RegistroPlan[] = filas.map((f) => ({ plan: f.data as Plan, version: Number(f.version) }))
       const r = pagoAlTablero(planes, pago)
       if (r.accion !== 'registrado') return { ok: r.accion === 'ya_estaba', accion: r.accion, detalle: r.detalle, avisos: [] }
       const responsable = planes.find((x) => x.plan.id === r.planId)!.plan.responsable
-      if (await guardarPlan(r.plan, r.version, responsable)) return { ok: true, accion: 'registrado', detalle: r.detalle, avisos: r.avisos }
+      const g = await sql()`UPDATE cj_cuotas_planes SET data=${JSON.stringify(r.plan)}::jsonb, version=version+1, updated_at=now() WHERE id=${r.planId}::uuid AND version=${r.version} AND owner_id=${responsable} RETURNING id`
+      if (g.length) return { ok: true, accion: 'registrado', detalle: r.detalle, avisos: r.avisos }
     }
     return { ok: false, accion: 'error', detalle: 'el plan cambió dos veces mientras se registraba el pago', avisos: [] }
+  } catch (e) {
+    return { ok: false, accion: 'error', detalle: String((e as Error)?.message ?? e).slice(0, 200), avisos: [] }
   }
 }
