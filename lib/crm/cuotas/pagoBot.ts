@@ -30,6 +30,9 @@ const pendiente = (p: Plan) => p.cuotas.reduce((s, c) => s + porCobrar(c), 0)
 
 /** ¿Este concepto es una cuota que sigue a la primera? ("2da Cuota", "3ra Cuota", "Cuota 13"…) */
 export const esCuotaSiguiente = (concepto: string) => /cuota/i.test(concepto) && !/^\s*1\s*ra\b/i.test(concepto)
+/** ¿Va al tablero? Una cuota siguiente, o el "PIF" que completa un PIF pagado con Fee (si el closer le armó plan con saldo, se
+ *  descuenta ahí: Tomás, 5/11/2026). */
+export const aplicaAlTablero = (concepto: string) => esCuotaSiguiente(concepto) || /^\s*pif\s*$/i.test(concepto)
 
 /** Id de operación estable para el pago (uuid con forma v4, del sha256 del pago y la cuota): reintentar no duplica. */
 export function idOperacion(pago: PagoCuotaBot, i: number): string {
@@ -39,7 +42,7 @@ export function idOperacion(pago: PagoCuotaBot, i: number): string {
 
 /** Decide y arma el cambio. Pura: no lee ni escribe nada. */
 export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBot, ahora = new Date()): ResultadoTablero {
-  if (!esCuotaSiguiente(pago.concepto)) return { accion: 'no_aplica', detalle: `«${pago.concepto}» no es una cuota de un cliente existente` }
+  if (!aplicaAlTablero(pago.concepto)) return { accion: 'no_aplica', detalle: `«${pago.concepto}» no es una cuota de un cliente existente` }
   if (!(pago.usd > 0)) return { accion: 'no_aplica', detalle: 'sin monto en USD' }
   const t = tel8(pago.telefono), n = norm(pago.nombre)
   const quien = pago.nombre ?? 'el cliente'
@@ -101,7 +104,7 @@ export function pagoAlTablero(planes: readonly RegistroPlan[], pago: PagoCuotaBo
 /** Lee los planes, registra el pago y guarda (con la versión: si otro lo cambió en el medio, reintenta una vez). Cada consulta
  *  se corta a los 10 s (AbortSignal): no queda nada corriendo en segundo plano que escriba después del aviso. Nunca tira. */
 export async function registrarPagoBotEnTablero(pago: PagoCuotaBot): Promise<{ ok: boolean; accion: ResultadoTablero['accion'] | 'error'; detalle: string; avisos: string[] }> {
-  if (!esCuotaSiguiente(pago.concepto)) return { ok: true, accion: 'no_aplica', detalle: 'no es una cuota siguiente', avisos: [] }
+  if (!aplicaAlTablero(pago.concepto)) return { ok: true, accion: 'no_aplica', detalle: 'no es una cuota siguiente', avisos: [] }
   const url = process.env.CUOTAS_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim()
   if (!url) return { ok: false, accion: 'error', detalle: 'el tablero de cuotas no tiene base configurada', avisos: [] }
   try {

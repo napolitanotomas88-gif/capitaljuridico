@@ -285,10 +285,36 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
       [46290, 'DFY | PIF | $2600', 'Nadia Blanco', '595975000001', 300, '', 'Yamila', 'Mai', '', 'Fee', '', '', '', 'Front-end', 'Upfront'],
     ]
     // La homónima de otro teléfono (fila 46320) y la renovación no cuentan; manda el pago más nuevo con dato (46300)
-    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: '595975000001' }), { cuotas: 2, programa: 'DFY | PP | $3900', tipoPago: 'Payment Plan' })
+    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: '595975000001' }), { cuotas: 2, programa: 'DFY | PP | $3900', tipoPago: 'Payment Plan', primerPago: 46290, pagadoUsd: 2900 })
     // Sin teléfono, por nombre (todas las filas de ese nombre)
     assert.equal(FIN.historialClienteEn(filas, { nombre: 'Nadia Blanco', telefono: null }).programa, 'DFY | PP | $3300')
-    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadie', telefono: null }), { cuotas: 0, programa: null, tipoPago: null })
+    assert.deepEqual(FIN.historialClienteEn(filas, { nombre: 'Nadie', telefono: null }), { cuotas: 0, programa: null, tipoPago: null, primerPago: null, pagadoUsd: 0 })
+  })
+
+  test('PIF tras Fee: completa el PIF dentro del primer mes → "PIF" / Upfront (Patricia Marimon, 5/11/2026)', () => {
+    const filas = [[46324, 'DFY | PIF | $2600', 'Patricia Marimon', '51 975 537 200', 200, '', 'Carlos', 'Tomi / Gero', '', 'Fee', '', '', '', 'Front-end', 'Upfront']]
+    const h = FIN.historialClienteEn(filas, { nombre: 'Patricia Marimon', telefono: '+51 975537200' })
+    assert.equal(FIN.totalPif('DFY | PIF | $2600'), 2600)
+    assert.equal(FIN.totalPif('DFY | PIF | $6.000'), 6000)
+    assert.equal(FIN.totalPif('DFY | PP | $3300'), null)
+    assert.equal(FIN.completaPifTrasFee(h, 2400, 46331), true)
+    assert.equal(FIN.tipoPagoDe('PIF', 'DFY | PIF | $2600'), 'Upfront')
+    // No completa el total → sigue como cuota
+    assert.equal(FIN.completaPifTrasFee(h, 1000, 46331), false)
+    // Fuera del primer mes → sigue como cuota
+    assert.equal(FIN.completaPifTrasFee(h, 2400, 46324 + 40), false)
+    // Programa PP: nunca
+    assert.equal(FIN.completaPifTrasFee({ ...h, programa: 'DFY | PP | $3300' }, 3100, 46331), false)
+    // Ya tenía una cuota: no
+    assert.equal(FIN.completaPifTrasFee({ ...h, cuotas: 1 }, 2400, 46331), false)
+    // Tolerancia por comisión (USD 2.390 completa 2.600 con 200 de Fee)
+    assert.equal(FIN.completaPifTrasFee(h, 2390, 46331), true)
+    // Un homónimo sin teléfono no suma plata ni fecha
+    const conHomonimo = [...filas, [46320, 'DFY | PIF | $2600', 'Patricia Marimon', '', 1500, '', 'Marcos', 'Mai', '', 'Fee', '', '', '', 'Front-end', 'Upfront']]
+    const h2 = FIN.historialClienteEn(conHomonimo, { nombre: 'Patricia Marimon', telefono: '+51 975537200' })
+    assert.equal(h2.pagadoUsd, 200)
+    assert.equal(h2.primerPago, 46324)
+    assert.equal(FIN.completaPifTrasFee(h2, 900, 46331), false)
   })
 
   test('fila de un pago de cliente: sin pedir programa ni plan, col I con la cuota, B del historial o vacío con aviso (4/11/2026)', () => {
