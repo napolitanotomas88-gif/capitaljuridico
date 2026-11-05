@@ -23,8 +23,8 @@ TANDA 2°
 HOOK: ¿Te deben horas extra?
 PROBLEMA: No te las pagan.
 CTA: Escribime.`
-const AMPLIO = 'Un lunes te llaman a la oficina y te dicen que no vuelvas.\nTe dan un papel con números que no entendés y te apuran para que firmes.\nLo que no te dicen es que muchas liquidaciones vienen mal hechas: antigüedad, preaviso, vacaciones, aguinaldo.\nUna firma apurada puede costarte meses de sueldo.\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes.'
-const COPY = '¿Te despidieron sin causa? ⬇️\nSi firmás la liquidación sin revisarla, podés perder plata que te corresponde por antigüedad, preaviso o sueldo.\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes algo que después no puedas reclamar.'
+const AMPLIO = '¿Te despidieron sin causa? ⚠️⬇️\n\nTe dan un papel con números que no entendés y te apuran para que firmes. Pensás que ya está, que no hay nada para hacer.\n\nEnviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes.'
+const COPY = '¿Te despidieron sin causa? ⚠️⬇️\n\nTe apuran para que firmes la liquidación.\n\nEnviame un mensaje 💬 y te ayudo a revisar tu caso.'
 
 describe('copys: qué guion es de qué video', () => {
   test('número del archivo', () => {
@@ -41,8 +41,12 @@ describe('copys: qué guion es de qué video', () => {
     assert.equal(C.elegirGuion(doc, 5, 'X 1.mp4'), null)
     assert.equal(C.elegirGuion(doc, 1, 'sin numero.mp4'), null)
   })
-  test('el copy tiene que cumplir el molde', () => {
+  test('el copy tiene que cumplir la estructura del 4/11 (hook ⚠️⬇️ · blanco · cuerpo · blanco · CTA 💬, ≤180)', () => {
     assert.equal(C.copyValido(COPY), COPY)
+    assert.equal(C.copyValido(COPY.replace(/\n\n/g, '\n')), null)   // sin líneas en blanco
+    assert.equal(C.copyValido(COPY.replace(' ⚠️⬇️', ' ⬇️')), null)   // el hook termina en ⚠️⬇️ o 🚨⬇️
+    assert.equal(C.copyValido(COPY.replace('caso.', 'caso. 🙌')), null)   // solo ⬇️ 💬 ⚠️ 🚨
+    assert.equal(C.copyValido(COPY.replace('la liquidación.', 'la liquidación. ' + 'x'.repeat(80))), null)   // más de 180
     assert.equal(C.copyValido('Una sola línea sin flecha'), null)
     assert.equal(C.copyValido('Gancho sin flecha\nProblema largo que no sirve para nada en este caso concreto de prueba.\nEnviame un mensaje 💬 y te ayudo.'), null)
   })
@@ -55,6 +59,9 @@ describe('copys: qué guion es de qué video', () => {
     assert.equal(C.textosValidos({ amplio: COPY, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)   // el amplio no puede ser el directo
     assert.equal(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: 'Escribime hoy', titulo2: 'escribime hoy' }), null)
     assert.equal(C.textosValidos({ amplio: AMPLIO, directo: 'sin molde', titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)
+    assert.equal(C.textosValidos({ amplio: AMPLIO, directo: COPY.replace('sin causa', 'sin aviso'), titulo1: 'Escribime hoy', titulo2: 'Vemos tu caso' }), null)   // mismo hook
+    assert.equal(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: 'Escribime hoy y revisamos juntos tu liquidación', titulo2: 'Vemos tu caso' }), null)   // título > 40
+    assert.equal(C.textosValidos({ amplio: AMPLIO, directo: COPY, titulo1: '¿Te despidieron sin causa?', titulo2: 'Vemos tu caso' }), null)   // título = hook
   })
   test('gruposConTextos: de a 3 en orden, un pedido por anuncio; sin doc o si Claude falla, sin textos y con aviso', async () => {
     const s = { numero: 1, videos: [4, 2, 1, 3].map(i => ({ id: `v${i}`, nombre: `Cliente ${i}.mp4` })) }

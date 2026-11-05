@@ -325,13 +325,13 @@ export async function lanzarDesdeDoc(t: Pick<Tablero, 'filas' | 'porLanzar' | 'p
         if (!await deps.reclamar(clave, { tipo: 'docads', cuenta: k!.cuenta!.id, campana_id: 'doc', cliente: pl.cliente, texto_cliente: null })) { r.accion = 'ya_salio'; r.detalle = 'este juego de videos ya se armó o se avisó'; await marcar(e.bloque, delDoc); continue }
       } catch (err) { errores.push(`reclamar ${clave}: ${motivo(err)}`); r.accion = 'error'; r.detalle = motivo(err); continue }
     }
-    // La variación amplia y los 2 títulos desde los copys del Doc (si falla, va solo el copy del Doc)
+    // Los 2 textos (amplio + directo, estructura del 4/11) y los 2 títulos desde los copys del Doc; si no cumplen, va solo el copy del Doc
     for (const g of gruposDoc) {
       const cs = g.videos.map(v => g.copyPorVideo?.[v.drive]).filter((c): c is string => !!c)
       if (!cs.length) continue
       try {
         const v = await deps.variacion(cs)
-        if (v) { g.textos = [v.textos[0]]; g.titulos = v.titulos }
+        if (v) { g.textos = v.textos; g.titulos = v.titulos }
       } catch { /* va solo el copy del Doc */ }
     }
     const grupos = [...gruposDoc, ...gruposExtra]

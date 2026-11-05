@@ -103,7 +103,7 @@ function deps(o = {}) {
     archivo: async id => (o.ilegibles ?? []).includes(id) ? null : { nombre: `Juana ${id.slice(-1)}.mp4`, md5: `md5-${id}`, video: true, publico: !(o.privados ?? []).includes(id) },
     editados: async () => o.editados ?? [{ id: 'EDITADO000001', nombre: 'Juana 1.mp4', md5: `md5-${ID(1)}`, guionesDoc: null }],
     gruposExtra: async s => s.videos.map(v => ({ videos: [{ nombre: v.nombre, drive: v.id }], textos: [], titulos: [], guiones: [] })),
-    variacion: async cs => ({ textos: ['amplio'], titulos: ['T1', 'T2'] }),
+    variacion: async cs => ({ textos: ['amplio', 'directo'], titulos: ['T1', 'T2'] }),
     campanas: async () => o.campanas ?? [],
     lineaBase: async () => ('base' in o ? o.base : VACIA()),
     crearLineaBase: async f => { log.creada = f },
@@ -128,7 +128,7 @@ describe('lanzarDesdeDoc', () => {
     assert.equal(log.armados.length, 1)
     const g = log.armados[0].grupos[0]
     assert.equal(g.copyPorVideo[ID(1)], COPY(1))
-    assert.deepEqual([g.textos, g.titulos], [['amplio'], ['T1', 'T2']])
+    assert.deepEqual([g.textos, g.titulos], [['amplio', 'directo'], ['T1', 'T2']])   // los 2 textos con la estructura del 4/11
     assert.equal(log.enviados.length, 1)
     assert.match(log.enviados[0], /<@111>.*Para lanzar desde el Doc de ADS/)
     assert.match(log.enviados[0], /EN PAUSA/)
