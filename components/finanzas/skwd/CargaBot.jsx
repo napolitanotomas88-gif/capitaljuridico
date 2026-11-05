@@ -10,12 +10,8 @@ import { enviarAccion, nuevoId } from '../../../app/(shell)/clientes/altas/_comp
 const PROGRAMAS = OPCIONES_PROGRAMA.filter((p) => p !== 'Fee')
 const MEDIOS = ['Transferencia', 'Tarjeta', 'Mercado Pago', 'Efectivo', 'Stripe', 'PayPal', 'Wise', 'Binance']
 
-// Regla de Tomás (5/11/2026): «Con el bot» es SOLO para clientes nuevos (con todos sus datos); el pago de un cliente que ya
-// está en el servicio (CRM, Drive y accesos) va por «Carga directa». Por eso el alta va siempre completa.
-const nuevo = () => ({ ...pagoParaBotVacio(), altaNueva: true })
-
 export default function CargaBot({ onListo }) {
-  const [d, setD] = useState(nuevo)
+  const [d, setD] = useState(pagoParaBotVacio)
   const [closer, setCloser] = useState('')
   const [archivos, setArchivos] = useState([])
   const [ocupado, setOcupado] = useState(null)
@@ -46,7 +42,7 @@ export default function CargaBot({ onListo }) {
     if (accion === 'previsualizar') { setPrevia(r); return }
     setRes(r)
     if (r.ok) {
-      setD(nuevo()); setCloser(''); setArchivos([]); setPrevia(null); id.current = nuevoId()
+      setD(pagoParaBotVacio()); setCloser(''); setArchivos([]); setPrevia(null); id.current = nuevoId()
       if (inputArchivos.current) inputArchivos.current.value = ''
       onListo && onListo()
     }
@@ -103,20 +99,27 @@ export default function CargaBot({ onListo }) {
           <span>Comprobantes (imagen o PDF)<span className="pe-obligatorio" aria-hidden="true"> *</span></span>
           <input ref={inputArchivos} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" onChange={(e) => setArchivos([...e.target.files])} />
         </label>
-        {campo('correo', 'Correo', { type: 'email', required: true })}
-        {campo('inicio', 'Inicio del servicio', { type: 'date', required: true })}
-        {campo('dni', 'DNI / CI', { required: true })}
-        {campo('cuit', 'CUIT / CUIL', { required: true })}
-        {campo('direccion', 'Dirección', { required: true })}
-        {campo('socios', 'Socios (nombre, teléfono y correo; «No tiene» si no hay)')}
-        <label style={{ gridColumn: '1 / -1' }}>
-          <span>Cuotas que faltan, sin este pago (una por renglón: dd/mm/aaaa monto){d.programa.includes('| PP |') && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>
-          <textarea name="cuotas" value={d.cuotas} onChange={cambiar} rows={4} placeholder={'06/12/2026 825\n06/01/2027 825'} />
+        <label className="check" style={{ gridColumn: '1 / -1' }}>
+          <input type="checkbox" name="altaNueva" checked={d.altaNueva} onChange={cambiar} /> Es un cliente nuevo (alta): completá sus datos
         </label>
+        {d.altaNueva && (
+          <>
+            {campo('correo', 'Correo', { type: 'email', required: true })}
+            {campo('inicio', 'Inicio del servicio', { type: 'date', required: true })}
+            {campo('dni', 'DNI / CI', { required: true })}
+            {campo('cuit', 'CUIT / CUIL', { required: true })}
+            {campo('direccion', 'Dirección', { required: true })}
+            {campo('socios', 'Socios (nombre, teléfono y correo; «No tiene» si no hay)')}
+            <label style={{ gridColumn: '1 / -1' }}>
+              <span>Cuotas que faltan, sin este pago (una por renglón: dd/mm/aaaa monto){d.programa.includes('| PP |') && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>
+              <textarea name="cuotas" value={d.cuotas} onChange={cambiar} rows={4} placeholder={'06/12/2026 825\n06/01/2027 825'} />
+            </label>
+          </>
+        )}
         <p className="pe-ayuda" style={{ gridColumn: '1 / -1' }}>
-          Solo para un cliente nuevo (también si paga una seña): el bot carga el pago en la planilla y en esta lista (el tipo de pago lo
-          calcula solo), lo da de alta en el CRM y arma su carpeta de Drive y lo demás. Si le falta algo, lo pregunta en Altas. El pago de
-          un cliente que ya está en el servicio va por «Carga directa».
+          El bot decide si es alta nueva, seña (Fee) o cuota de un cliente que ya está, y carga el pago en la planilla y en esta lista (el
+          tipo de pago lo calcula solo). En un alta nueva crea el cliente, la carpeta de Drive y lo demás, como «Cargar alta». Si le falta
+          algo, lo pregunta en Verificaciones.
         </p>
         <div className="acciones">
           <button type="button" onClick={() => void mandar('previsualizar')} disabled={!!ocupado}>{ocupado === 'previsualizar' ? 'Leyendo…' : 'Vista previa'}</button>
