@@ -300,8 +300,8 @@ export default function Pagos({ onCorregir }) {
       <h2>{editandoId ? (editaImportado ? `Revisión del pago #${editandoId} (importado)` : `Editando pago #${editandoId}`) : 'Cargar pago'}</h2>
       {!editandoId && (
         <div className="acciones" role="radiogroup" aria-label="Cómo cargar el pago">
-          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'bot'} onChange={() => setModoCarga('bot')} /> Con el bot (alta, seña o cuota de un cliente)</label>
-          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'directo'} onChange={() => setModoCarga('directo')} /> Carga directa (sin bot: otros ingresos o correcciones)</label>
+          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'bot'} onChange={() => setModoCarga('bot')} /> Con el bot: cliente nuevo (completar todo)</label>
+          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'directo'} onChange={() => setModoCarga('directo')} /> Carga directa: pago de un cliente que ya está en el servicio</label>
         </div>
       )}
       {!editandoId && modoCarga === 'bot' ? (
