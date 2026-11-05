@@ -16,6 +16,10 @@ export interface PagoParaBot {
   /** Pesos de este pago, si se pagó en pesos. */
   pesos: string
   medio: string
+  /** Setter de la venta (Tomi / Gero, Mai, ENRU / Mai). Vacío = el bot lo busca en el CRM de ventas. */
+  setter: string
+  /** Fuente (col K), respaldo: el bot la saca de los UTM del lead y usa esta solo si no alcanzan. */
+  fuente: string
   /** Alta nueva: los datos del cliente que pide el #ALTA. */
   altaNueva: boolean
   correo: string
@@ -23,13 +27,13 @@ export interface PagoParaBot {
   cuit: string
   direccion: string
   inicio: string               // aaaa-mm-dd
-  /** Una cuota por renglón: "dd/mm/aaaa 1100". */
+  /** Las cuotas que FALTAN (sin este pago), una por renglón: "dd/mm/aaaa 1100". */
   cuotas: string
   socios: string
 }
 
 export const pagoParaBotVacio = (): PagoParaBot => ({
-  cliente: '', telefono: '', programa: '', montoUsd: '', pesos: '', medio: '', altaNueva: false,
+  cliente: '', telefono: '', programa: '', montoUsd: '', pesos: '', medio: '', setter: '', fuente: '', altaNueva: false,
   correo: '', dni: '', cuit: '', direccion: '', inicio: '', cuotas: '', socios: '',
 })
 
@@ -60,7 +64,7 @@ export function faltanParaBot(p: PagoParaBot, closer: string, archivos: number):
     if (!t(p.dni)) f.push('DNI / CI')
     if (!t(p.cuit)) f.push('CUIT / CUIL')
     if (!t(p.direccion)) f.push('Dirección')
-    if (partesPrograma(p.programa)?.tipo === 'PP' && !t(p.cuotas)) f.push('Cuotas (fecha y monto, una por renglón)')
+    if (partesPrograma(p.programa)?.tipo === 'PP' && !t(p.cuotas)) f.push('Cuotas que faltan (fecha y monto, una por renglón)')
   }
   return f
 }
@@ -76,6 +80,8 @@ export function textoAltaDesdePago(p: PagoParaBot, closer: string): string {
     `Este pago: ${pago}${t(p.medio) ? ` · ${t(p.medio)}` : ''}`,
     `Nombre completo: ${t(p.cliente)}`,
     `Teléfono: ${t(p.telefono)}`,
+    ...(t(p.setter) ? [`Setter: ${t(p.setter)}`] : []),
+    ...(t(p.fuente) ? [`Fuente: ${t(p.fuente)}`] : []),
   ]
   if (p.altaNueva) {
     if (t(p.socios)) lineas.push(`Socios: ${t(p.socios)}`)
@@ -92,4 +98,10 @@ export function textoAltaDesdePago(p: PagoParaBot, closer: string): string {
 
 /** Los closers que acepta «Cargar alta» (copia de CLOSERS_DESPACHO de lib/bot/alta/despacho/evento.ts, que no se puede
  *  importar del lado del navegador porque usa node:crypto; la prueba verifica que sigan iguales). */
+/** Las opciones de setter de la planilla (col H). */
+/** Las opciones de fuente de la planilla (col K, OPCIONES_FUENTE de lib/bot/alta/finanzas.ts). */
+export const FUENTES_BOT = ['Inbound IG', 'Inbound Tiktok', 'VSL Funnel', 'BIO Página Web', 'Referido', 'Outbound', 'Webinar', 'Enrutamiento'] as const
+
+export const SETTERS_BOT = ['Tomi / Gero', 'Mai', 'ENRU / Mai'] as const
+
 export const CLOSERS_BOT = ['Carlos', 'Marcos', 'Yami', 'Nahuel', 'Brenda'] as const

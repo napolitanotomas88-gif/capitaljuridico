@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { OPCIONES_PROGRAMA } from '../../../lib/bot/alta/finanzas'
-import { CLOSERS_BOT, faltanParaBot, pagoParaBotVacio, textoAltaDesdePago } from '../../../lib/finanzasSkwd/altaDesdePago'
+import { CLOSERS_BOT, FUENTES_BOT, SETTERS_BOT, faltanParaBot, pagoParaBotVacio, textoAltaDesdePago } from '../../../lib/finanzasSkwd/altaDesdePago'
 import { enviarAccion, nuevoId } from '../../../app/(shell)/clientes/altas/_componentes/enviar'
 
 // Finanzas → Pagos, modo «Con el bot» (Tomás, 5/11/2026): el pago se manda al bot de altas, igual que «Cargar alta».
@@ -74,6 +74,20 @@ export default function CargaBot({ onListo }) {
             {CLOSERS_BOT.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
+        <label>
+          Setter
+          <select name="setter" value={d.setter} onChange={cambiar}>
+            <option value="">Que lo busque el bot</option>
+            {SETTERS_BOT.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        <label>
+          Fuente
+          <select name="fuente" value={d.fuente} onChange={cambiar}>
+            <option value="">Que la busque el bot</option>
+            {FUENTES_BOT.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
         {campo('montoUsd', 'Este pago (USD)', { type: 'number', step: '0.01', min: '0' })}
         {campo('pesos', 'Este pago en pesos (si pagó en ARS)', { type: 'number', step: '1', min: '0' })}
         <label>
@@ -97,8 +111,8 @@ export default function CargaBot({ onListo }) {
             {campo('direccion', 'Dirección', { required: true })}
             {campo('socios', 'Socios (nombre, teléfono y correo; «No tiene» si no hay)')}
             <label style={{ gridColumn: '1 / -1' }}>
-              <span>Cuotas (una por renglón: dd/mm/aaaa monto){d.programa.includes('| PP |') && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>
-              <textarea name="cuotas" value={d.cuotas} onChange={cambiar} rows={4} placeholder={'06/11/2026 825\n06/12/2026 825'} />
+              <span>Cuotas que faltan, sin este pago (una por renglón: dd/mm/aaaa monto){d.programa.includes('| PP |') && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>
+              <textarea name="cuotas" value={d.cuotas} onChange={cambiar} rows={4} placeholder={'06/12/2026 825\n06/01/2027 825'} />
             </label>
           </>
         )}
