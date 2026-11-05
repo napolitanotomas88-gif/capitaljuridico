@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { ORDEN_CONCEPTOS } from './calculoDashboard'
 import { dolares, fechaCorta, mesLargo } from './formato'
+import CargaBot from './CargaBot'
 
 // Registro de pagos.
 // - LEE de la vista pagos_vigentes (los datos con las correcciones aplicadas; sin correcciones es idéntica a la tabla pagos).
@@ -72,6 +73,8 @@ export default function Pagos({ onCorregir }) {
   const [form, setForm] = useState(vacio())
   const [quien, setQuien] = useState('') // selector «Quién recibió» del formulario ('' = Sin asignar)
   const [editandoId, setEditandoId] = useState(null)
+  // «Con el bot» por defecto (Tomás, 5/11/2026): el pago lo carga el bot de altas, que hace todo lo de «Cargar alta»
+  const [modoCarga, setModoCarga] = useState('bot')
   const [filtros, setFiltros] = useState(filtrosVacios)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -295,7 +298,15 @@ export default function Pagos({ onCorregir }) {
   return (
     <>
       <h2>{editandoId ? (editaImportado ? `Revisión del pago #${editandoId} (importado)` : `Editando pago #${editandoId}`) : 'Cargar pago'}</h2>
-      {editaImportado ? (
+      {!editandoId && (
+        <div className="acciones" role="radiogroup" aria-label="Cómo cargar el pago">
+          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'bot'} onChange={() => setModoCarga('bot')} /> Con el bot (alta, seña o cuota de un cliente)</label>
+          <label className="check"><input type="radio" name="modoCarga" checked={modoCarga === 'directo'} onChange={() => setModoCarga('directo')} /> Carga directa (sin bot: otros ingresos o correcciones)</label>
+        </div>
+      )}
+      {!editandoId && modoCarga === 'bot' ? (
+        <CargaBot onListo={cargar} />
+      ) : editaImportado ? (
         <form onSubmit={guardar} className="form">
           <p className="aviso" style={{ gridColumn: '1 / -1' }}>
             Este pago es <strong>importado</strong>: sus datos originales no se editan acá. Para cambiar un dato usá <strong>Corregir</strong> (se conserva el original).
