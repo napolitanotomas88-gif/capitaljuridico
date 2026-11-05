@@ -92,9 +92,9 @@ export default function CargaBot({ onListo }) {
           <>
             {campo('correo', 'Correo', { type: 'email', required: true })}
             {campo('inicio', 'Inicio del servicio', { type: 'date', required: true })}
-            {campo('dni', 'DNI / CI')}
-            {campo('cuit', 'CUIT / CUIL')}
-            {campo('direccion', 'Dirección')}
+            {campo('dni', 'DNI / CI', { required: true })}
+            {campo('cuit', 'CUIT / CUIL', { required: true })}
+            {campo('direccion', 'Dirección', { required: true })}
             {campo('socios', 'Socios (nombre, teléfono y correo; «No tiene» si no hay)')}
             <label style={{ gridColumn: '1 / -1' }}>
               <span>Cuotas (una por renglón: dd/mm/aaaa monto){d.programa.includes('| PP |') && <span className="pe-obligatorio" aria-hidden="true"> *</span>}</span>

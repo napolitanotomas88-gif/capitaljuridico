@@ -56,6 +56,10 @@ export function faltanParaBot(p: PagoParaBot, closer: string, archivos: number):
   if (p.altaNueva) {
     if (!t(p.correo)) f.push('Correo')
     if (!t(p.inicio)) f.push('Fecha de inicio del servicio')
+    // El bot los pide para el alta (CRM, contrato): mejor cargarlos acá que esperar al closer en Verificaciones
+    if (!t(p.dni)) f.push('DNI / CI')
+    if (!t(p.cuit)) f.push('CUIT / CUIL')
+    if (!t(p.direccion)) f.push('Dirección')
     if (partesPrograma(p.programa)?.tipo === 'PP' && !t(p.cuotas)) f.push('Cuotas (fecha y monto, una por renglón)')
   }
   return f
