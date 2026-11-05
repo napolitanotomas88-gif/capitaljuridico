@@ -58,7 +58,10 @@ export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { 
     }
     return null
   }
-  const pagos = suyas.filter((f) => !/renovacion/.test(sinAcentosMin(f[9])))
+  // Para la plata y la fecha (PIF tras Fee) solo cuentan las filas con su mismo teléfono: un homónimo sin teléfono en la col D no
+  // suma (con teléfono no hay forma de confirmar que sea el mismo cliente)
+  const porTelefono = (f: readonly unknown[]) => String(f[3] ?? '').replace(/\D/g, '').slice(-8) === tel
+  const pagos = suyas.filter((f) => !/renovacion/.test(sinAcentosMin(f[9])) && (tel.length !== 8 || porTelefono(f)))
   const seriales = pagos.map((f) => f[0]).filter((v): v is number => typeof v === 'number' && v > 0)
   const pagadoUsd = pagos.reduce((s, f) => s + (montoUsdCelda(f[4]) ?? 0), 0)
   return {

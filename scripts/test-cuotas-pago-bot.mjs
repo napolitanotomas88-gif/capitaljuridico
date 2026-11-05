@@ -22,6 +22,15 @@ describe('pago de cuota del bot → tablero de Cuotas', () => {
     assert.equal(T.esCuotaSiguiente('PIF'), false)
     assert.equal(T.pagoAlTablero([reg(leandro())], { fecha: '2026-11-04', nombre: 'Leandro Arabia', telefono: '543515121372', usd: 825, concepto: '1ra Cuota' }, AHORA).accion, 'no_aplica')
   })
+  test('PIF tras Fee (5/11/2026): el "PIF" también va al tablero; sin plan con saldo queda sin_plan', () => {
+    assert.equal(T.aplicaAlTablero('PIF'), true)
+    assert.equal(T.aplicaAlTablero('2da Cuota'), true)
+    assert.equal(T.aplicaAlTablero('1ra Cuota'), false)
+    assert.equal(T.aplicaAlTablero('Fee'), false)
+    const r = T.pagoAlTablero([reg(leandro())], { fecha: '2026-11-04', nombre: 'Leandro Arabia', telefono: '543515121372', usd: 825, concepto: 'PIF' }, AHORA)
+    assert.equal(r.accion, 'registrado')
+    assert.equal(T.pagoAlTablero([], { fecha: '2026-11-05', nombre: 'Patricia Marimon', telefono: '+51975537200', usd: 2400, concepto: 'PIF' }, AHORA).accion, 'sin_plan')
+  })
   test('Leandro (4/11): 817,35 en pesos salda la 2da cuota de 825 por diferencia de cambio, sin resto de centavos', () => {
     const p = leandro()
     const r = T.pagoAlTablero([reg(p)], { fecha: '2026-11-04', nombre: 'Leandro Arabia', telefono: '543515121372', usd: 817.35, concepto: '2da Cuota' }, AHORA)

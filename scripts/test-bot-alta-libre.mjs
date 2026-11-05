@@ -309,6 +309,12 @@ describe('pago de un cliente existente: qué cuota es (Tomás, 26/10/2026)', () 
     assert.equal(FIN.completaPifTrasFee({ ...h, cuotas: 1 }, 2400, 46331), false)
     // Tolerancia por comisión (USD 2.390 completa 2.600 con 200 de Fee)
     assert.equal(FIN.completaPifTrasFee(h, 2390, 46331), true)
+    // Un homónimo sin teléfono no suma plata ni fecha
+    const conHomonimo = [...filas, [46320, 'DFY | PIF | $2600', 'Patricia Marimon', '', 1500, '', 'Marcos', 'Mai', '', 'Fee', '', '', '', 'Front-end', 'Upfront']]
+    const h2 = FIN.historialClienteEn(conHomonimo, { nombre: 'Patricia Marimon', telefono: '+51 975537200' })
+    assert.equal(h2.pagadoUsd, 200)
+    assert.equal(h2.primerPago, 46324)
+    assert.equal(FIN.completaPifTrasFee(h2, 900, 46331), false)
   })
 
   test('fila de un pago de cliente: sin pedir programa ni plan, col I con la cuota, B del historial o vacío con aviso (4/11/2026)', () => {

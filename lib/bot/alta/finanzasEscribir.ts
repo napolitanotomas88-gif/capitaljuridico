@@ -47,7 +47,7 @@ import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
 import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, historialClienteEn, type HistorialCliente, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
 import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
-import { esCuotaSiguiente, registrarPagoBotEnTablero, type PagoCuotaBot } from '../../crm/cuotas/pagoBot'
+import { aplicaAlTablero, registrarPagoBotEnTablero, type PagoCuotaBot } from '../../crm/cuotas/pagoBot'
 import { CARPETA_COMPROBANTES, ErrorPuente, MAXIMO_BYTES_ARCHIVO, bytesDeBase64, noRepetirAntesDe, puenteDriveReal, type ArchivoSubido, type PuenteDrive } from './puenteDrive'
 
 export const PESTANA_REGISTRO = 'Registro de Pagos'
@@ -575,11 +575,13 @@ export function cargarPagoFinanzas(fila: FilaRegistroPagos, comprobante: Comprob
     let tablero: ResultadoCargaFinanzas['tablero'] = null
     const c = fila.celdas
     const ymd = typeof c.A === 'number' ? serialAYmd(c.A) : null
-    if (opciones.registrarEnTablero && ymd && typeof c.E === 'number' && esCuotaSiguiente(String(c.J ?? ''))) {
+    if (opciones.registrarEnTablero && ymd && typeof c.E === 'number' && aplicaAlTablero(String(c.J ?? ''))) {
       const t = await (opciones.deps?.tablero ?? registrarPagoBotEnTablero)({ fecha: ymd, nombre: String(c.C ?? '') || null, telefono: String(c.D ?? '') || null, usd: c.E, concepto: String(c.J) })
       tablero = { ok: t.ok, accion: t.accion, detalle: t.detalle }
       avisos.push(...t.avisos)
-      if (!t.ok) avisos.push(t.accion === 'revisar'
+      // Un PIF sin plan con saldo en el tablero es lo normal (el PIF no tiene cuotas): no se avisa
+      const pifSinPlan = /^\s*pif\s*$/i.test(String(c.J ?? '')) && t.accion === 'sin_plan'
+      if (!t.ok && !pifSinPlan) avisos.push(t.accion === 'revisar'
         ? `Tablero de Cuotas: no se registró la cuota porque ${t.detalle}. Revisá el plan en /cuotas: si ese pago ya está, no hagas nada; si no, registralo.`
         : t.accion === 'error'
           ? `Tablero de Cuotas: no se pudo confirmar el registro de la cuota (${t.detalle}). Antes de registrarla a mano, fijate en /cuotas si ya quedó.`
