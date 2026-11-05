@@ -78,7 +78,7 @@ Con nombre ({{1}} = nombre, {{2}} = «jueves 12 de noviembre a las 15:00», {{3}
 
 > Hola {{1}}, cómo estás? Soy Marcos Carlomagno, consultor de estudios jurídicos del equipo de Gerónimo Actis.
 >
-> Nos vemos en la reunión el {{2}} (hora {{3}}) para analizar qué frena a tu estudio a sumar más clientes cada mes.
+> Nos vemos en la reunión el {{2}} (hora {{3}}) para analizar cómo podemos mejorar la captación de clientes en tu estudio.
 >
 > Para aprovecharla al máximo, mirá este video antes y mandame la palabra clave que pedimos al final del mismo: https://capitaljuridico.com.ar/confirmarreunion
 
@@ -134,7 +134,7 @@ Sin nombre: «Hola, cómo estás?» y el mismo resto.
 > 2) Reservate los 60 minutos completos.
 > 3) No solemos reprogramar: si te surge algo, avisanos con 3 horas de anticipación.
 >
-> Te va a estar contactando NOMBRE Y APELLIDO DEL CLOSER, consultor del equipo, para mandarte el link de la reunión y seguir con el proceso.
+> Te va a estar contactando NOMBRE Y APELLIDO DEL CLOSER, consultor del equipo, para mandarte el link de la reunión y seguir con el proceso. Muchos éxitos!
 
 En la tarjeta: cada mensaje de la escalera se marca con «Enviado (n de 4)». En cualquier paso el lead puede confirmar («Confirmó · decide solo», «Confirmó · vienen decisores», «Confirmó (falta decisores)») o reprogramar.
 
