@@ -34,6 +34,7 @@ import { estadoPorCliente, parsearDocAds, textoEstadoDoc } from '@/lib/bot/anunc
 import { lineaBaseDe, novedad } from '@/lib/bot/anuncios/docAdsBase'
 import { leerFilasBase } from '@/lib/bot/anuncios/docAdsBaseNeon'
 import { avisosFichasSueltas, cruzarKickoffs, cuentasDelCliente, opcionesCruceTablero, tokensNombre, type ConKickoff, type CuentaPorLanzar } from './porLanzar'
+import { avisoSinAcceso, esSinPermiso } from './sinAcceso'
 
 export const DIAS_LANZAMIENTO = 10
 export const REFRESCO = { lanzamientosSeg: 900, clickupSeg: 3600, cuentasSeg: 150, insightsSeg: 720, sheetsSeg: 300, descubrimientoSeg: 1800, tokenSeg: 3600, dolarSeg: 1800, monedasSeg: 21600, kickoffsSeg: 300, pantallaSeg: 15 }
@@ -54,6 +55,7 @@ export interface FilaAnuncio extends Analisis {
   pausado: boolean
   guiones: Guiones
   sinDatosCuenta: boolean        // Meta no devolvió la cuenta (permisos / límite)
+  sinAcceso: boolean             // Meta dice que el dueño de la cuenta no nos da permiso (#200): el gasto y el CPL no se actualizan
   estadoSemanal: Pick<Analisis, 'semaforo' | 'motivos' | 'frase' | 'prioridad'> & { nivel: Analisis['cpl']['nivel'] }
   previo: { semaforo: Semaforo; rendimiento: TipoMotivo[]; aGrabar: boolean }   // evaluación "como si fuera ayer" (alerta diaria)
   rama: { id: Rama; nombre: string; fuente: 'clickup' | 'manual' | 'cuenta'; tarea: string | null; umbral: { ok: number; medio: number } } | null
@@ -208,7 +210,9 @@ export async function obtenerTablero(): Promise<Tablero> {
     const actuales = lanzPorCuenta.get(o.cuenta) ?? []
     if (!actuales.some(l => l.campanaId === o.campanaId)) lanzPorCuenta.set(o.cuenta, [...actuales, { cuenta: o.cuenta, campanaId: o.campanaId, campana: o.campana, fecha: o.fechaLanzada, anuncios: 0, gasto: null, mensajes: null }])
   }
-  if (lanzR.ok && Object.keys(lanzR.v.data.errores).length) avisos.push(`No se pudieron completar los anuncios activos de ${Object.keys(lanzR.v.data.errores).length} cuentas; no se infieren revisiones de una lectura incompleta.`)
+  // Las cuentas sin permiso (#200) van en un aviso aparte, con nombre de cliente y qué hacer (5/11, pedido de Tomás)
+  const lanzOtros = lanzR.ok ? Object.entries(lanzR.v.data.errores).filter(([, e]) => !esSinPermiso(e)).map(([id]) => id) : []
+  if (lanzOtros.length) avisos.push(`No se pudieron completar los anuncios activos de ${lanzOtros.length} cuenta${lanzOtros.length > 1 ? 's' : ''}; no se infieren revisiones de una lectura incompleta.`)
   if (lanzR.ok && Object.keys(lanzR.v.data.erroresPausas ?? {}).length) avisos.push(`No se pudo leer el historial de pausas de ${Object.keys(lanzR.v.data.erroresPausas).length} cuentas: una campaña reactivada podría no reiniciar su espera de 3 días.`)
   if (!lanzR.ok) avisos.push(`No se pudieron leer los lanzamientos de Meta (${lanzR.error}).`)
   const cuentasMeta: ResultadoCuentas = cuentasR.ok ? cuentasR.v.data : { cuentas: {}, errores: {}, limitado: false }
@@ -224,7 +228,9 @@ export async function obtenerTablero(): Promise<Tablero> {
   if (!insightsR.ok) avisos.push(`Meta no devolvió gasto ni mensajes (${insightsR.error}).`)
   else if (insightsR.v.viejo) avisos.push(`Meta no respondió al refrescar el gasto (${insightsR.v.error}): datos de ${haceTiempo(insightsR.v.at)}.`)
   if (cuentasMeta.limitado || insights?.limitado) avisos.push('Meta está limitando pedidos (rate limit): algunas cuentas muestran el último dato bueno. Se reintenta solo, no hace falta recargar.')
-  const fallidas = new Set([...Object.keys(cuentasMeta.errores), ...Object.keys(insights?.errores ?? {})])
+  const erroresDe = (id: string) => [cuentasMeta.errores[id], insights?.errores[id], lanzR.ok ? lanzR.v.data.errores[id] : undefined].filter((e): e is string => !!e)
+  const sinPermiso = new Set(ids.filter(id => erroresDe(id).some(esSinPermiso)))
+  const fallidas = new Set([...Object.keys(cuentasMeta.errores), ...Object.keys(insights?.errores ?? {})].filter(id => !sinPermiso.has(id)))
   if (fallidas.size) {
     const ej = cuentasMeta.errores[[...fallidas][0]] ?? insights?.errores[[...fallidas][0]] ?? ''
     avisos.push(`${fallidas.size} cuenta${fallidas.size > 1 ? 's' : ''} no se pudo leer en el último refresco (ej.: ${ej}).`)
@@ -298,6 +304,8 @@ export async function obtenerTablero(): Promise<Tablero> {
       pausado: res.pausado,
       guiones,
       sinDatosCuenta: !cuenta,
+      sinAcceso: sinPermiso.has(id),
+      ...(sinPermiso.has(id) ? { frase: 'Sin acceso a la cuenta publicitaria: el gasto y el CPL no están actualizados. El cliente tiene que volver a darle acceso a Gerónimo Actis.' } : {}),
       usdPor,
       rama,
       lanzamientos: (lanzPorCuenta.get(id) ?? []).map(l => ({
@@ -321,6 +329,9 @@ export async function obtenerTablero(): Promise<Tablero> {
   const pausas = await pausasVigentes(filas.filter(f => f.idCrm && (f.pausado || f.semaforo === 'sin_gasto')).map(f => f.idCrm!))
   for (const f of filas) f.sinGasto = causaSinGasto(f, f.idCrm ? pausas.get(f.idCrm.toUpperCase()) ?? null : null)
   filas.sort((x, y) => y.prioridad - x.prioridad || y.gasto.d7 - x.gasto.d7 || x.cliente.localeCompare(y.cliente))
+  // Sin acceso (#200): los ex-clientes ya quedaron afuera (excluidas); de los vigentes, quién y qué hacer
+  const sinAccesoFilas = filas.filter(f => f.sinAcceso)
+  if (sinAccesoFilas.length) avisos.push(avisoSinAcceso(sinAccesoFilas.map(f => f.cliente)))
 
   // ── Por lanzar: clientes ACTIVO del CRM sin fila. Se cruzan con las cuentas de Meta visibles (¿hay acceso?), con su ficha
   //    de kickoff del Despacho (lo que hace falta para armar la campaña) y con ClickUp (la etapa, mientras convivan) ──
@@ -423,3 +434,4 @@ export async function obtenerTablero(): Promise<Tablero> {
     optimizacionesLeidas: optR.ok,
   }
 }
+

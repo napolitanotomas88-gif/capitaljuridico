@@ -472,10 +472,11 @@ function FilaTabla({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
       <td style={{ paddingLeft: 14, borderLeft: `3px solid ${colorDe(f)}` }}><Estado s={f.semaforo} nuevo={f.pago.nuevo} /></td>
       <td style={{ minWidth: 220, maxWidth: 300 }}>
         <Identidad f={f} />
+        {f.sinAcceso && <div style={{ marginTop: 4, marginLeft: -4 }}><ChapaSinAcceso /></div>}
         <div style={{ marginTop: 8 }}><Enlaces f={f} /></div>
       </td>
       <td style={{ minWidth: 220, maxWidth: 320 }}><PorQue f={f} /></td>
-      <td style={{ textAlign: 'right' }}>
+      <td style={{ textAlign: 'right', ...atenuado(f) }}>
         <div className="serif num" style={{ fontSize: 28, lineHeight: 1.05, ...marcaOrden(ordenado && periodo === 'd7') }}>{cpl(f.cpl.d7, f, f.gasto.d7)}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}><span title={`Nivel según el CPL ${periodo === 'ayer' ? 'del día anterior' : 'de 7 días'}`}><NivelCPL f={f} /> <small style={{ color: 'var(--humo)' }}>color: {periodo === 'ayer' ? 'día anterior' : '7 días'}</small></span></div>
         <RitmoPresupuesto f={f} />
@@ -591,11 +592,11 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
           <div style={{ fontSize: 12, color: 'var(--humo)', overflowWrap: 'anywhere' }}>{f.rama ? <span style={{ color: 'var(--laton)' }}>{f.rama.nombre} · </span> : ''}{f.cuenta.trim().toLowerCase() !== f.cliente.trim().toLowerCase() ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}</div>
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.4, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }} className="min-w-0">{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
-        <div className="num" style={{ textAlign: 'right' }}>
+        <div className="num" style={{ textAlign: 'right', ...atenuado(f) }}>
           <span className="serif" style={{ fontSize: 22, ...marcaOrden(ordenado && periodo === 'd7') }}>{cplSemanal}</span><small style={{ color: 'var(--humo)' }}> {f.moneda}</small>
           <div style={{ fontSize: 10, color: 'var(--humo)', whiteSpace: 'nowrap' }}><ObjReal f={f} /></div>
         </div>
-        <div className="num" style={{ textAlign: 'right' }}>
+        <div className="num" style={{ textAlign: 'right', ...atenuado(f) }}>
           <span className="serif" style={{ fontSize: 20 }}>{fmtGasto(f.gasto.ayer, f.moneda)}</span>
           <div style={{ fontSize: ordenado && periodo === 'ayer' ? 13 : 10, color: 'var(--humo)', ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</div>
         </div>
@@ -610,7 +611,7 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
         </div>
         <Chapas f={f} />
         <div style={{ fontSize: 13.5, lineHeight: 1.4, marginTop: 3, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }}>{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
-        <div className="grid grid-cols-2 gap-4 my-2 num" aria-label={`Métricas; estado por ${periodo === 'ayer' ? 'ayer' : '7 días'}`}>
+        <div className="grid grid-cols-2 gap-4 my-2 num" style={atenuado(f)} aria-label={`Métricas; estado por ${periodo === 'ayer' ? 'ayer' : '7 días'}`}>
           <div><div className="etq" style={{ fontSize: 9 }}>CPL semanal</div><div style={marcaOrden(ordenado && periodo === 'd7')}>{cplSemanal} {f.moneda}</div><small style={{ color: 'var(--humo)', display: 'block' }}><ObjReal f={f} /></small></div>
           <div><div className="etq" style={{ fontSize: 9 }}>Gasto ayer</div><div>{fmtGasto(f.gasto.ayer, f.moneda)}</div><small style={{ color: 'var(--humo)', ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</small></div>
         </div>
@@ -669,9 +670,22 @@ function IconoAumento({ f }: { f: FilaAnuncio }) {
 
 // Las chapas (en aumento, lanzada / revisar para optimizar) van en su renglón, debajo del nombre: así no le comen ancho
 function Chapas({ f }: { f: FilaAnuncio }) {
-  if (!f.aumento && !f.lanzamientos.length) return null
-  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3, marginLeft: -4 }}>{f.aumento && <IconoAumento f={f} />}{f.lanzamientos.length > 0 && <IconoLanzada f={f} />}</div>
+  if (!f.aumento && !f.lanzamientos.length && !f.sinAcceso) return null
+  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3, marginLeft: -4 }}>{f.sinAcceso && <ChapaSinAcceso />}{f.aumento && <IconoAumento f={f} />}{f.lanzamientos.length > 0 && <IconoLanzada f={f} />}</div>
 }
+
+// Sin acceso a la cuenta (Meta #200): lo que se ve de gasto y CPL es viejo o no está
+function ChapaSinAcceso() {
+  return (
+    <span title="Meta no nos deja leer esta cuenta: el gasto y el CPL no están actualizados" className="num"
+      style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '1px 6px', marginLeft: 4, verticalAlign: '2px', whiteSpace: 'nowrap', color: 'var(--hueso)', border: '1px dashed var(--filete-fuerte)' }}>
+      Sin acceso · dato no actualizado
+    </span>
+  )
+}
+
+// Las cifras de una cuenta sin acceso se atenúan: no son de hoy
+const atenuado = (f: FilaAnuncio): React.CSSProperties => f.sinAcceso ? { opacity: 0.45 } : {}
 
 // Objetivo y real del presupuesto en un renglón
 function ObjReal({ f }: { f: FilaAnuncio }) {
