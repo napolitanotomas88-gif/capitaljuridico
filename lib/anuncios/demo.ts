@@ -53,6 +53,7 @@ export function tableroDemo(hoy: string): Tablero {
       sinGasto: causaSinGasto({ ...a, pausado: !!p.pausado }, p.pausado ? { desde: hoy, hasta: `${hoy.slice(0, 8)}28`, vuelta: null, motivo: 'Vacaciones del estudio (ejemplo)' } : null),
       guiones: { estado: i % 3 === 0 ? 'pendiente' : 'grabado', detalle: 'Ejemplo', alias: [] },
       sinDatosCuenta: false,
+      sinAcceso: false,
       estadoSemanal: { semaforo: a.semaforo, motivos: a.motivos, frase: a.frase, prioridad: a.prioridad, nivel: a.cpl.nivel },
       previo: { semaforo: a.semaforo, rendimiento: [], aGrabar: !!a.aGrabar },
       rama: null, clickup: null,
