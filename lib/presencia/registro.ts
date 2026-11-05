@@ -26,7 +26,7 @@ const SECCION_POR_PREFIJO: readonly [string, string][] = [
   ['/cuotas', 'Cobro de cuotas'],
   ['/clientes/edicion', 'Edición'],
   ['/clientes/referidos', 'Referidos'],
-  ['/clientes/altas', 'Cargar alta'],
+  ['/clientes/altas', 'Altas'],
   ['/clientes', 'Clientes'],
   ['/guiones', 'Guiones'],
   ['/anuncios', 'Anuncios'],

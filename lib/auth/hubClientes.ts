@@ -19,7 +19,7 @@ export type PestanaClientes = { clave: Seccion; id?: string; etiqueta: string; h
 export const PESTANAS_CLIENTES: readonly PestanaClientes[] = [
   // «Cargar alta» (26/10/2026, PRIMERA desde el 2/11/2026: sin WhatsApp el alta arranca acá). Sección propia 'altas'. Igual
   // «Clientes» del menú sigue llevando a Cartera (rutaClientes la saltea si hay otra pestaña).
-  { clave: 'altas', etiqueta: 'Cargar alta', href: '/clientes/altas', icono: 'tarea' },
+  { clave: 'altas', etiqueta: 'Altas', href: '/clientes/altas', icono: 'tarea' },
   { clave: 'clientes', etiqueta: 'Cartera', href: '/clientes', icono: 'cartera' },
   { clave: 'guiones', etiqueta: 'Guiones', href: '/guiones', icono: 'guiones' },
   { clave: 'edicion', etiqueta: 'Edición', href: '/clientes/edicion', icono: 'edicion' },
