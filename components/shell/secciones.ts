@@ -16,7 +16,7 @@ export const ETIQUETA_SECCION: Record<Seccion, string> = {
   trazabilidad: 'Trazabilidad',
   clientes: 'Clientes',
   referidos: 'Referidos',
-  altas: 'Cargar alta',
+  altas: 'Altas',
   finanzas: 'Finanzas',
   anuncios: 'Anuncios',
   configuracion: 'Configuración',
@@ -30,7 +30,7 @@ export const ETIQUETA_ACCESO: Record<Seccion, string> = {
   edicion: 'Clientes · Edición',
   anuncios: 'Clientes · Anuncios',
   referidos: 'Clientes · Referidos',
-  altas: 'Clientes · Cargar alta',
+  altas: 'Clientes · Altas',
 }
 
 /** Entradas del menú. "Clientes" agrupa las cinco pestañas del hub. */

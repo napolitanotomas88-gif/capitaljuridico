@@ -73,7 +73,7 @@ export default async function ClientesPage({ searchParams }: Props) {
         acciones={
           <div className="cj-fila">
             {/* Sin WhatsApp (2/11/2026): el alta arranca acá; lo que antes iba por WhatsApp se manda y se aprueba en el Despacho */}
-            {puedeVer(sesion, 'altas') && <BotonEnlace href="/clientes/altas" variante="marca">＋ Cargar alta</BotonEnlace>}
+            {puedeVer(sesion, 'altas') && <BotonEnlace href="/finanzas/pagos" variante="marca">＋ Cargar pago o alta</BotonEnlace>}
             <BotonEnlace href="/clientes/para-enviar" variante="secundario">📤 Para enviar</BotonEnlace>
             <BotonEnlace href="/clientes/aprobaciones" variante="secundario">✅ Aprobaciones</BotonEnlace>
             {/* Ocultar o mostrar los montos en pantalla (solo con Finanzas; sin Finanzas ni llegan) */}

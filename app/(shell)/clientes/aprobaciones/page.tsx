@@ -21,7 +21,7 @@ export default async function AprobacionesPage() {
   return (
     <div className="cj-pila cj-altas">
       <SeccionTitulo etiqueta="Clientes" titulo={`Aprobaciones (${items.length})`} />
-      <p className="cj-texto-2">OK y NO de Éxito y Bajas (antes se respondían citando en Verificaciones C.J.). Las altas se aprueban en <Link href="/clientes/altas" className="cj-enlace">Cargar alta</Link>.</p>
+      <p className="cj-texto-2">OK y NO de Éxito y Bajas (antes se respondían citando en Verificaciones C.J.). Las altas se aprueban en <Link href="/clientes/altas" className="cj-enlace">Altas</Link>.</p>
       {!aprobador && <div className="cj-aviso"><p>Solo Tomás, Gero A, Gero M y Aylu pueden aprobar.</p></div>}
       {errores.map((e) => <div key={e} className="cj-aviso"><p>{e}</p></div>)}
       {items.length === 0 && errores.length === 0 && <p className="cj-texto-2">No hay nada para aprobar.</p>}

@@ -6,18 +6,17 @@ import { obtenerSesion } from '@/lib/auth/sesion'
 import { aprobadorDe, closerDeSesion, faltantesAprobadores, puedeCargar, puedeMarcarAMano } from '@/lib/bot/alta/despacho/aprobadores'
 import { canalDelEntorno } from '@/lib/bot/alta/motor/servidor'
 import { modoDesdeEntorno } from '@/lib/bot/alta/motor/modo'
-import { CLOSERS_DESPACHO } from '@/lib/bot/alta/despacho/evento'
 import { altasParaPantalla } from '@/lib/bot/alta/despacho/servidor'
-import { FormCargar } from './_componentes/FormCargar'
+import Link from 'next/link'
 import { TarjetaAlta } from './_componentes/TarjetaAlta'
 import './altas.css'
 
-// «Cargar alta» (Despacho → Clientes, 26/10/2026): el bot del alta de Capital Jurídico sin WhatsApp. Todo en una pantalla:
-//   · el formulario (texto del closer, closer y comprobantes) con la vista previa de lo que entendió el bot;
+// «Altas» (Despacho → Clientes, 26/10/2026): el bot del alta de Capital Jurídico sin WhatsApp. Desde el 5/11/2026 los pagos
+// (y con ellos las altas) se cargan en Finanzas → Pagos, modo «Con el bot» (Tomás: «eliminar Cargar alta»); acá quedan:
 //   · las altas abiertas, cada una con sus pedidos (el mismo texto de Verificaciones C.J) y sus botones OK / NO, los datos que
 //     faltan del closer y lo que queda a mano (grupos, bienvenida y Skool) con "Hecho a mano".
 // El aviso de Discord trae ?alta=<id>#espera-<id>: esa alta va primero y el navegador baja hasta la espera.
-export const metadata: Metadata = { title: 'Cargar alta' }
+export const metadata: Metadata = { title: 'Altas' }
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
@@ -37,7 +36,7 @@ export default async function AltasPage({ searchParams }: Props) {
 
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo="Cargar alta" />
+      <SeccionTitulo etiqueta="Clientes" titulo="Altas" />
 
       {(modo !== 'real' || canal !== 'ambos' || faltan.length > 0) && (
         <div className="cj-panel cj-altas__estado">
@@ -48,10 +47,9 @@ export default async function AltasPage({ searchParams }: Props) {
         </div>
       )}
 
-      <section aria-labelledby="altas-nueva" className="cj-pila cj-pila--chica">
-        <SeccionTitulo etiqueta="Nueva" titulo="Pegar el alta" nivel={2} />
-        <FormCargar closers={[...CLOSERS_DESPACHO]} closerFijo={closerPropio} />
-      </section>
+      <div className="cj-panel cj-altas__estado">
+        <p>Los pagos y las altas se cargan en <Link href="/finanzas/pagos" className="cj-enlace">Finanzas → Pagos</Link>, con la opción «Con el bot». Acá se siguen las altas en curso y se responden sus pedidos.</p>
+      </div>
 
       <section aria-labelledby="altas-abiertas" className="cj-pila cj-pila--chica">
         <SeccionTitulo etiqueta="En curso" titulo={`Altas abiertas (${ordenadas.length})`} nivel={2} />
