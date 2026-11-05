@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
+import { after } from 'next/server'
 import { ErrorLectura } from '@/components/clientes/ErrorLectura'
 import { Estado } from '@/components/ui'
 import { destinoSinPermiso } from '@/lib/auth/hubClientes'
@@ -7,6 +8,7 @@ import { accesoPortal, idsConMailDePortal } from '@/lib/auth/portal'
 import { puedeVer, rutaInicial } from '@/lib/auth/roles'
 import { obtenerSesion } from '@/lib/auth/sesion'
 import { armarPortal, type PaginaPortal } from '@/lib/clientes/portal/armar'
+import { avisarIngresoPortal } from '@/lib/clientes/portal/ingreso'
 import { EditorPortal } from './_componentes/EditorPortal'
 import { VistaPortal } from './_componentes/VistaPortal'
 
@@ -36,7 +38,12 @@ export default async function PortalClientePage({ params }: Props) {
   }
   if (!pagina) notFound()
 
-  if (acceso.tipo === 'cliente') return <VistaPortal p={pagina} />
+  if (acceso.tipo === 'cliente') {
+    // Aviso a Tomás de que el cliente entró (uno por día), después de responder
+    const visita = { id: pagina.id, nombre: pagina.nombreCRM }
+    after(() => avisarIngresoPortal(visita))
+    return <VistaPortal p={pagina} />
+  }
 
   // Equipo: el panel para armarlo y, abajo, exactamente lo que ve el cliente
   const conMail = idsConMailDePortal().has(pagina.id)
