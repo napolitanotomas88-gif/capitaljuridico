@@ -17,6 +17,8 @@ test('nivel de una reserva por su nombre (nombres del 26/10; las viejas "Reunió
   assert.equal(nivelDeNombre('Reunión Consultiva - Reagenda Carlos'), 0)
   assert.equal(nivelDeNombre('Reunión WEBINAR'), 0)
   assert.equal(nivelDeEvento('Leads A y B - 2 DÍAS DE AGENDA', 'x'), 1)
+  assert.equal(nivelDeEvento('ORGÁNICO (Instagram, WhatsApp, referidos) · A y B · sin doble reserva', 'Reunión Consultiva'), 0)
+  assert.equal(nivelDeEvento('REFERIDOS (link de referidos) · Carlos y Marcos · sin doble reserva', 'Reunión Consultiva'), 0)
   assert.equal(nivelDeEvento('Leads C - 2 DÍAS DE AGENDA', 'x'), 2)
   assert.equal(nivelDeEvento('Leads D+E - 2 DÍAS DE AGENDA', 'x'), 3)
 })
