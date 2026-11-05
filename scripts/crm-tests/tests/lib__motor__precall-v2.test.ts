@@ -58,30 +58,44 @@ describe("encendido: solo reuniones desde PRECALL_V2_DESDE", () => {
 });
 
 describe("tarjeta del pre-caller", () => {
-  it("1ª llamada → 2ª llamada → pre-call por chat", () => {
+  it("1ª llamada → 2ª llamada → escalera por chat; en las llamadas también puede confirmar por chat", () => {
     const [a] = v2({});
     expect(a.tipo).toBe("PRE_CALLER");
     expect(a.titulo).toBe("1ª llamada");
-    expect(a.botones.find((b) => b.id === "noAtendio")!.cambios).toEqual({ contactoPrecaller: PRECALLER.noAtendio1 });
-    expect(v2({ contactoPrecaller: PRECALLER.noAtendio1 })[0].titulo).toBe("2ª llamada");
-    const [chat] = v2({ contactoPrecaller: PRECALLER.noAtendio2 });
-    expect(chat.titulo).toBe("Pre-call por chat");
-    expect(chat.botones[0].cambios).toEqual({ contactoPrecaller: PRECALLER.porChat });
+    expect(ids(a)).toEqual(["atendio", "noAtendio", "respondioChat"]);
+    expect(a.botones[1].cambios).toEqual({ contactoPrecaller: PRECALLER.noAtendio1 });
+    expect(a.botones[2].cambios).toEqual({ contactoPrecaller: PRECALLER.porChat, confirmoPrecaller: "Si" });
+    const [segunda] = v2({ contactoPrecaller: PRECALLER.noAtendio1 });
+    expect(segunda.titulo).toMatch(/^2ª llamada/);
+    expect(segunda.botones[1].cambios).toEqual({ contactoPrecaller: PRECALLER.noAtendio2 });
   });
-  it("por chat: confirma con decisores, reprograma o sigue con S1, S2 y después 🔴", () => {
-    const [a] = v2({ contactoPrecaller: PRECALLER.porChat });
-    expect(ids(a)).toEqual(["confirmoSolo", "confirmoDecisores", "reprograma", "seguimiento"]);
-    expect(a.botones[3].cambios).toEqual({ seguimientosPrecaller: "S1" });
-    expect(v2({ contactoPrecaller: PRECALLER.porChat, seguimientosPrecaller: "S1" })[0].botones[3].cambios).toEqual({ seguimientosPrecaller: "S2" });
-    const [tope] = v2({ contactoPrecaller: PRECALLER.porChat, seguimientosPrecaller: "S2" });
-    expect(tope.atrasado).toBe(true);
-    expect(ids(tope)).toContain("sinRespuesta");
+  it("escalera: ¿Pudiste leerme? → decisores → seguimiento de decisores → ultimátum → cancelar", () => {
+    const titulos = ["", "S1", "S2", "S3"].map((s) => v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: s })[0]);
+    expect(titulos.map((t) => t.titulo)).toEqual([
+      "Chat: «¿Pudiste leerme?»",
+      "Chat: preguntar por los decisores (2 h después)",
+      "Chat: seguimiento de decisores",
+      "Chat: ultimátum (confirmamos o liberamos)",
+    ]);
+    expect(titulos[3].botones[0].cambios).toEqual({ seguimientosPrecaller: "S4" });
+    // En cualquier paso puede confirmar o reprogramar
+    expect(ids(titulos[1])).toEqual(["seguimiento", "confirmoSolo", "confirmoDecisores", "confirmo", "reprograma"]);
+    const [fin] = v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S4" });
+    expect(fin.titulo).toBe("Sin respuesta al ultimátum: cancelar la reunión");
+    expect(fin.atrasado).toBe(true);
+    expect(ids(fin)).toContain("sinRespuesta");
   });
   it("la llamada efectiva no ofrece seguimientos de chat", () => {
     expect(ids(v2({ contactoPrecaller: PRECALLER.llamadaEfectiva })[0])).toEqual(["confirmoSolo", "confirmoDecisores", "reprograma"]);
   });
+  it("por chat: confirmó → pregunta de decisores → recomendaciones y pase", () => {
+    expect(v2({ contactoPrecaller: PRECALLER.porChat, confirmoPrecaller: "Si" })[0].titulo).toBe("Chat: preguntar por los decisores");
+    const [pase] = v2({ contactoPrecaller: PRECALLER.porChat, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.vienenDecisores });
+    expect(pase.titulo).toBe("Chat: mandar las recomendaciones y pasar al closer");
+    expect(pase.botones[0].pide).toBe("pase");
+  });
   it("confirmó: pide decisores si faltan y después el pase (F, AI y estado)", () => {
-    expect(v2({ contactoPrecaller: PRECALLER.porChat, confirmoPrecaller: PRECALLER.reprograma })[0].titulo).toBe("¿Vienen decisores?");
+    expect(v2({ contactoPrecaller: PRECALLER.llamadaEfectiva, confirmoPrecaller: PRECALLER.reprograma })[0].titulo).toBe("¿Vienen decisores?");
     const [pase] = v2({ contactoPrecaller: PRECALLER.llamadaEfectiva, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.decideSolo });
     expect(pase.titulo).toBe("Pasar al closer");
     expect(pase.botones[0]).toMatchObject({
