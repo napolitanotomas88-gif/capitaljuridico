@@ -58,8 +58,11 @@ describe("camposProhibidos", () => {
     expect(camposProhibidos({ nombre: "x", fechaCall: "y", situacion: "Fee" })).toEqual(["nombre", "fechaCall"]);
     expect(camposProhibidos({ inventado: "1" })).toEqual(["inventado"]);
   });
-  it("la lista blanca es F, R, S, T, V, W, Y, Z, AA, AB, AC, AD, AE, AF, AG, AH, AI y AJ: sin U ni X", () => {
-    expect(CAMPOS_ESCRIBIBLES.map((c) => COLUMNAS[c])).toEqual(["F", "R", "S", "T", "V", "W", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK"]);
+  it("la lista blanca es F, R, S, T, V, W, Y, Z, AA–AK y AM–AV (pre-call v2): sin U, X ni AL", () => {
+    expect(CAMPOS_ESCRIBIBLES.map((c) => COLUMNAS[c])).toEqual([
+      "F", "R", "S", "T", "V", "W", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK",
+      "AM", "AN", "AO", "AP", "AQ", "AR", "AS", "AT", "AU", "AV",
+    ]);
     expect(camposProhibidos({ presentoCall2: "", seguimientoPost2: "Hacer", seguimientoPost1: "Hacer" })).toEqual(["presentoCall2", "seguimientoPost2"]);
     for (const c of COLUMNAS_IGNORADAS) expect(camposProhibidos({ [c]: "" })).toEqual([c]);
   });

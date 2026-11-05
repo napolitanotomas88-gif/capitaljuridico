@@ -10,12 +10,14 @@ import {
   esCerrado,
   esResultadoReagenda,
   formularioCierre,
+  formularioPase,
   formularioReagenda,
   formularioSeguimiento,
   formularioSituacion,
   mananaInput,
   tituloFormulario,
   type CampoMonto,
+  type DatosPase,
   type DatosReagenda,
   type Montos,
   type ResultadoFormulario,
@@ -87,6 +89,14 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
   const [reagenda, setReagenda] = useState<DatosReagenda>({ fechaHora: "", datos: item.valores.datosReagenda.trim() });
   // Coordinar fecha: el día acordado para el próximo seguimiento ("AAAA-MM-DD" del input de tipo date)
   const [fechaSeguimiento, setFechaSeguimiento] = useState("");
+  // Pase al closer (pre-call v2): arranca con lo que el lead puso en el calendario; el pre-caller corrige lo que cambió.
+  const pase0: DatosPase = {
+    facturacion: item.calendario?.facturacion ?? "",
+    situacion: item.calendario?.situacion ?? "",
+    urgencia: item.calendario?.urgencia ?? "",
+    notas: "",
+  };
+  const [pase, setPase] = useState<DatosPase>(pase0);
   const refNoVino = useRef<HTMLFieldSetElement>(null);
   const refNuevaReunion = useRef<HTMLFieldSetElement>(null);
   const refSeguimiento = useRef<HTMLFieldSetElement>(null);
@@ -100,6 +110,7 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
     Object.values(montos).some((v) => v?.trim()) ||
     reagenda.fechaHora !== "" ||
     fechaSeguimiento !== "" ||
+    (Object.keys(pase0) as (keyof DatosPase)[]).some((k) => pase[k] !== pase0[k]) ||
     reagenda.datos.trim() !== item.valores.datosReagenda.trim();
   const refSucio = useRef(sucio);
   useEffect(() => {
@@ -165,6 +176,9 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
         break;
       case "cancelacion":
         resultado = { ok: true, cambios: boton.cambios, detalle: "Cancelada en Calendly" };
+        break;
+      case "pase":
+        resultado = formularioPase(boton, pase);
         break;
     }
     if (!resultado.ok) {
@@ -364,6 +378,40 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
                   Calendly&rdquo;.
                 </p>
               </div>
+            )}
+
+            {boton.pide === "pase" && (
+              <fieldset className="space-y-3">
+                <legend className="text-sm">
+                  Lo que confirmó el lead. Arranca con lo que puso en el calendario: corregí lo que cambió.
+                </legend>
+                {(
+                  [
+                    ["facturacion", "Facturación"],
+                    ["situacion", "Situación actual del estudio"],
+                    ["urgencia", "Urgencia"],
+                    ["notas", "Notas para el closer (opcional)"],
+                  ] as [keyof DatosPase, string][]
+                ).map(([clave, etiqueta]) => (
+                  <label key={clave} className="block">
+                    <span className="mb-1 block text-sm font-semibold">{etiqueta}</span>
+                    <textarea
+                      name={clave}
+                      rows={clave === "notas" ? 3 : 2}
+                      value={pase[clave]}
+                      onChange={(e) => {
+                        setPase((p) => ({ ...p, [clave]: e.target.value }));
+                        setError(null);
+                      }}
+                      className="w-full rounded-xl border-2 border-gris-borde bg-blanco px-3 py-2 text-base text-negro focus:border-dorado"
+                    />
+                  </label>
+                ))}
+                <p className="text-sm text-gris-texto">
+                  Al confirmar, el lead pasa al closer y sale solo, desde el WhatsApp del closer, el video de traspaso con la cita y
+                  el video de pre-llamada (palabra LISTO).
+                </p>
+              </fieldset>
             )}
 
             {boton.pide === "reagenda" && (

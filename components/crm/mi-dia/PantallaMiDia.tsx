@@ -2,7 +2,8 @@ import { NOMBRE_ADMIN, puedeVerHoja } from "@/lib/crm/auth";
 import type { Sesion } from "@/lib/crm/auth";
 import { closers, type Closer } from "@/lib/crm/config";
 import { conDiagnostico } from "@/lib/crm/errores";
-import { datosMiDia } from "@/lib/crm/mi-dia";
+import { datosMiDia, datosPrecaller } from "@/lib/crm/mi-dia";
+import { VISTA_PRECALLER, precallV2Activo } from "@/lib/crm/config/precallV2";
 import { leerDesplegables } from "@/lib/crm/sheets/desplegables";
 import { MiDia } from "./MiDia";
 
@@ -14,10 +15,19 @@ import { MiDia } from "./MiDia";
 export async function PantallaMiDia({ closer, sesion }: { closer: Closer; sesion: Sesion }) {
   const ahora = new Date();
   // Si la lectura falla, `conDiagnostico` le dice a la pantalla de error de qué tipo fue.
-  const [datos, desplegables] = await conDiagnostico(Promise.all([datosMiDia(closer.hoja, ahora), leerDesplegables(closer.hoja)]));
   const esAdmin = sesion.rol === "admin";
   // El selector de hoja: el socio ve todas; quien tiene varias pestañas (pre-caller), las suyas
   const hojasElegibles = closers().filter((c) => puedeVerHoja(sesion, c.hoja));
+  // Pre-call v2: la vista del pre-caller junta las hojas que puede ver (los desplegables de V no se usan ahí: los de la primera)
+  const esVistaPrecaller = closer.id === VISTA_PRECALLER.id;
+  const hojaDesplegables = esVistaPrecaller ? (hojasElegibles[0]?.hoja ?? "") : closer.hoja;
+  const [datos, desplegables] = await conDiagnostico(
+    Promise.all([
+      esVistaPrecaller ? datosPrecaller(hojasElegibles.map((c) => c.hoja), ahora) : datosMiDia(closer.hoja, ahora),
+      leerDesplegables(hojaDesplegables),
+    ]),
+  );
+  const opciones = [...(precallV2Activo() && (esAdmin || hojasElegibles.length > 1) ? [VISTA_PRECALLER] : []), ...hojasElegibles];
 
   return (
     <MiDia
@@ -31,7 +41,7 @@ export async function PantallaMiDia({ closer, sesion }: { closer: Closer; sesion
       closer={{ id: closer.id, nombre: closer.nombre, hoja: closer.hoja }}
       situaciones={desplegables.situacion}
       esAdmin={esAdmin}
-      closers={esAdmin || hojasElegibles.length > 1 ? hojasElegibles.map((c) => ({ id: c.id, nombre: c.nombre })) : []}
+      closers={esAdmin || hojasElegibles.length > 1 ? opciones.map((c) => ({ id: c.id, nombre: c.nombre })) : []}
       excluirDelProgreso={NOMBRE_ADMIN}
     />
   );

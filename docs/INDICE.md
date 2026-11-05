@@ -25,6 +25,7 @@ Esta edición pública conserva arquitectura, contratos, guardas, procedimientos
 | Anuncios | [Bot](BOT-ANUNCIOS-CJ.md), [Fathom](FATHOM-ANUNCIOS.md) |
 | Éxito y bajas | [Éxito](BOT-EXITO-CJ.md), [bajas](BOT-BAJAS-CJ.md) |
 | Prueba con cliente ficticio | [Punta a punta y limpieza](PRUEBA-PUNTA-A-PUNTA.md) |
+| Pre-call v2 (pre-caller + closer, apagado) | [Encendido](ENCENDIDO-PRECALL-V2.md) · [SOP borrador](SOP-PRECALL-V2-BORRADOR.md) |
 | Ventas, cuotas y atribución | [Ventas](CRM-VENTAS-INTEGRADO.md), [integración](VENTAS-INTEGRACION.md), [contrato histórico](CRM-VENTAS-JERO.md), [cuotas](CUOTAS.md), [trazabilidad](TRAZABILIDAD.md), [atribución](EOD_ATRIBUCION_HISTORIAS.md) |
 | Presentación | [Diseño](DISENO-CAPITAL-JURIDICO.md), [relevamiento histórico saneado](RELEVAMIENTO-EDICION-CJ.md) |
 | Mensajería | [Whapi](BOT-WHAPI-CJ.md), [guardas vigentes](FLUJOS-VIGENTES.md), [WhatsApp de la bandeja al equipo](NOTIF-WHATSAPP.md) |

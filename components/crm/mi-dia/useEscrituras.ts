@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cancelarReunion, deshacerAccion, deshacerOperacion, ejecutarAccion } from "@/lib/crm/acciones";
+import { cancelarReunion, deshacerAccion, deshacerOperacion, ejecutarAccion, pasarAlCloser } from "@/lib/crm/acciones";
 import type { Cambios, ItemCliente, OperacionHecha, Resultado } from "@/lib/crm/contratos";
 import type { Boton, Pedido } from "@/lib/crm/motor/proxima-accion";
 import { VALORES } from "@/lib/crm/config/crm";
@@ -153,7 +153,10 @@ export function useEscrituras(items?: readonly ItemCliente[]): Escrituras {
       const esperado = esperadoPara(item.valores, cambios);
       // "Cancelar reunión" cancela además en Calendly (otra server action)
       const cancela = boton.pide === "cancelacion";
-      const resultado = await llamar(() => (cancela ? cancelarReunion : ejecutarAccion)({ ...item.identidad, cambios, esperado, motivo }));
+      // "Pasar al closer" (pre-call v2) escribe y además dispara el WhatsApp del closer (otra server action)
+      const pase = boton.pide === "pase";
+      const accion = cancela ? cancelarReunion : pase ? pasarAlCloser : ejecutarAccion;
+      const resultado = await llamar(() => accion({ ...item.identidad, cambios, esperado, motivo }));
       ocupar(clave, false);
 
       if (!resultado.ok) {
@@ -164,9 +167,10 @@ export function useEscrituras(items?: readonly ItemCliente[]): Escrituras {
         return;
       }
 
-      // Sin Deshacer: volver la fila atrás no devolvería la reunión en Calendly.
-      if (cancela) {
-        setToast({ tipo: "info", texto: `Reunión cancelada · ${nombre}` });
+      // Sin Deshacer: volver la fila atrás no devolvería la reunión en Calendly ni el WhatsApp que ya le llegó al lead.
+      if (cancela || pase) {
+        const texto = cancela ? `Reunión cancelada · ${nombre}` : ["Pasado al closer", nombre, resultado.datos.aviso].filter(Boolean).join(" · ");
+        setToast({ tipo: "info", texto });
         router.refresh();
         return;
       }

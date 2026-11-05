@@ -112,7 +112,7 @@ async function calendly(): Promise<{ h: Record<string, string>; org: string } | 
 }
 
 type EventoAPI = { uri: string; start_time: string; status?: string; event_memberships?: { user?: string; user_name?: string }[] };
-type InvitadoAPI = { email?: string; text_reminder_number?: string | null; reschedule_url?: string; status?: string };
+type InvitadoAPI = { email?: string; text_reminder_number?: string | null; reschedule_url?: string; status?: string; timezone?: string | null; first_name?: string | null; name?: string };
 type TipoAPI = {
   uri: string;
   name: string;
@@ -246,6 +246,25 @@ export async function linkReprogramacion(
   }
   const mail = fila.valores.email.trim();
   return { error: `No encontré en Calendly la reunión del ${corto(reunion)} de este lead${mail ? ` (${mail})` : ""}.` };
+}
+
+/**
+ * La reunión actual del lead tal como está en Calendly (pase al closer del pre-call v2): inicio, zona horaria del lead, closer
+ * (anfitrión) y nombre. `{ error }` si no se encuentra; quien llama decide con qué datos de la planilla seguir.
+ */
+export async function reunionEnCalendly(
+  fila: FilaLead,
+): Promise<{ inicio: Date; zona: string | null; closer: string; nombre: string } | { error: string }> {
+  const b = await buscarReunion(fila);
+  if ("error" in b) return b;
+  if (!b.evento) return { error: "No encontré la reunión en Calendly." };
+  const { ev, invitado } = b.evento;
+  return {
+    inicio: new Date(ev.start_time),
+    zona: invitado.timezone ?? null,
+    closer: ev.event_memberships?.[0]?.user_name ?? "",
+    nombre: invitado.first_name ?? invitado.name ?? "",
+  };
 }
 
 /**

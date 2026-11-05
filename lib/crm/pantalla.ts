@@ -25,7 +25,7 @@ import {
   type Pedido,
   type TipoAccion,
 } from "@/lib/crm/motor/proxima-accion";
-import { etiquetaCampo } from "@/lib/crm/sheets/columnas";
+import { etiquetaCampo, type Campo } from "@/lib/crm/sheets/columnas";
 import {
   LARGO_MAXIMO_CELDA,
   MENSAJE_MILES,
@@ -522,6 +522,8 @@ export function tituloFormulario(pide: Pedido, reagendada = false): string {
       return "Coordinar fecha del próximo seguimiento";
     case "cancelacion":
       return "¿Cancelar la reunión?";
+    case "pase":
+      return "Pre-call hecho: pasar al closer";
   }
 }
 
@@ -715,4 +717,36 @@ export function formularioReagenda(boton: Boton, datos: DatosReagenda, abActual 
     cambios.datosReagenda = extra;
   }
   return { ok: true, cambios, detalle: texto.slice(0, 16) };
+}
+
+/** Lo que confirmó el pre-caller (pre-call v2): arranca con lo que el lead puso en el calendario. */
+export type DatosPase = { facturacion: string; situacion: string; urgencia: string; notas: string };
+
+/** Largo máximo de cada dato del pase (las notas, como los datos de la reagenda). */
+const MAX_DATO_PASE = 300;
+
+/**
+ * "Pre-call hecho → pasar al closer": facturación, situación del estudio y urgencia confirmadas (obligatorias) y notas para
+ * el closer (opcional). La fecha y hora del pase (AU) la pone el servidor (`pasarAlCloser`).
+ */
+export function formularioPase(boton: Boton, datos: DatosPase): ResultadoFormulario {
+  const campos: [keyof DatosPase, Campo, string, boolean][] = [
+    ["facturacion", "facturacionConfirmada", "la facturación", true],
+    ["situacion", "situacionConfirmada", "la situación del estudio", true],
+    ["urgencia", "urgenciaConfirmada", "la urgencia", true],
+    ["notas", "notasCloser", "las notas para el closer", false],
+  ];
+  const cambios: Cambios = { ...boton.cambios };
+  for (const [clave, campo, nombre, obligatorio] of campos) {
+    const valor = datos[clave].replace(/\s+/g, " ").trim();
+    if (!valor) {
+      if (obligatorio) return fallo(`Completá ${nombre} (lo que confirmó el lead).`);
+      continue;
+    }
+    const max = clave === "notas" ? MAX_TEXTO_REAGENDA : MAX_DATO_PASE;
+    if (valor.length > max) return fallo(`${nombre[0].toUpperCase()}${nombre.slice(1)} pasa de ${max} caracteres.`);
+    if (/^[=+]/.test(valor)) return fallo(`${nombre[0].toUpperCase()}${nombre.slice(1)} no puede empezar con "=" ni "+": ${PISTA_FORMULA}.`);
+    cambios[campo] = valor;
+  }
+  return { ok: true, cambios, detalle: "Pasado al closer" };
 }

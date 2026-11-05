@@ -3,9 +3,16 @@
 // Sin red ni "server-only", para poder testearla.
 
 import { FASES_PRECALL, MAX_SEGUIMIENTOS, VALORES } from "@/lib/crm/config/crm";
+import {
+  CONFIRMACIONES_PRECALLER,
+  CONTACTOS_PRECALLER,
+  DECISORES_PRECALLER,
+  ESTADOS_PRECALLER,
+  MAX_SEGUIMIENTOS_PRECALLER,
+} from "@/lib/crm/config/precallV2";
 import type { Cambios, Identidad } from "@/lib/crm/contratos";
 import { formatearFechaSheet, parsearFechaSheet } from "@/lib/crm/fechas";
-import { CAMPOS_ESCRIBIBLES, CAMPOS_TEXTO_LIBRE, COLUMNAS, etiquetaCampo, rango, type Campo, type FilaLead } from "./columnas";
+import { CAMPOS_ESCRIBIBLES, CAMPOS_PRECALL_V2, CAMPOS_TEXTO_LIBRE, COLUMNAS, etiquetaCampo, rango, type Campo, type FilaLead } from "./columnas";
 
 export const normalizarTexto = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -49,6 +56,11 @@ export const LISTAS_FIJAS: Partial<Record<Campo, readonly string[]>> = {
   llamadaPrecall: [VALORES.llamadaEfectiva, VALORES.llamadaNoEfectiva],
   banderaRoja: [VALORES.si],
   recordatorioPrecall: ["1", "2", "3"],
+  contactoPrecaller: CONTACTOS_PRECALLER,
+  confirmoPrecaller: CONFIRMACIONES_PRECALLER,
+  decisoresPrecaller: DECISORES_PRECALLER,
+  seguimientosPrecaller: SEGUIMIENTOS.slice(0, MAX_SEGUIMIENTOS_PRECALLER),
+  estadoPrecaller: ESTADOS_PRECALLER,
 };
 
 export const esNumero = (v: string) => /^-?\d+([.,]\d+)?$/.test(v.trim());
@@ -139,8 +151,11 @@ export function conUltimoToque(cambios: Cambios, ahora: Date): Cambios {
 export function tocaUltimoToque(cambios: Cambios): boolean {
   // El pre-call (una fase de F, la llamada del pre-caller en AI y/o la bandera roja en AJ) no toca AG: no frena los
   // seguimientos de ese día.
+  // Lo del pre-caller (AM–AV, pre-call v2) tampoco: es parte del pre-call.
   const campos = Object.keys(cambios);
-  if (campos.length === 0 || campos.some((c) => c !== "precall" && c !== "llamadaPrecall" && c !== "banderaRoja" && c !== "recordatorioPrecall")) return true;
+  const delPrecall = (c: string) =>
+    c === "precall" || c === "llamadaPrecall" || c === "banderaRoja" || c === "recordatorioPrecall" || (CAMPOS_PRECALL_V2 as readonly string[]).includes(c);
+  if (campos.length === 0 || campos.some((c) => !delPrecall(c))) return true;
   if (!("precall" in cambios)) return false;
   const valor = normalizarTexto(cambios.precall ?? "");
   return !FASES_PRECALL.some((fase) => normalizarTexto(fase) === valor);
