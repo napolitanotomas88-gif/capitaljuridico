@@ -32,7 +32,8 @@ function aUSD(f: FilaAnuncio, t: number): FilaVista {
   }
 }
 const CLAVE_VISTA = 'anuncios:vista'
-const COLUMNAS_LISTA = 'minmax(170px, 1.1fr) minmax(0, 1.8fr) 105px 105px 110px 60px'
+// Cliente con más ancho (el nombre va completo, con salto de línea) y CPL al ancho de «Obj. … · Real …» en un renglón
+const COLUMNAS_LISTA = 'minmax(210px, 1.4fr) minmax(0, 1.5fr) 200px 105px 110px 60px'
 
 export function TableroAnuncios() {
   const [datosFuente, setDatos] = useState<Tablero | null>(null)
@@ -584,15 +585,15 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
       {/* Escritorio y tablet */}
       <div className="hidden lg:grid items-center gap-x-4" style={{ gridTemplateColumns: COLUMNAS_LISTA, padding: '12px 0 12px 14px' }}>
         <div className="min-w-0">
-          <div style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.3, display: 'flex', alignItems: 'baseline', minWidth: 0 }}><span className="truncate">{f.cliente}</span>{f.aumento && <span style={{ flexShrink: 0 }}><IconoAumento f={f} /></span>}{f.lanzamientos.length > 0 && <span style={{ flexShrink: 0 }}><IconoLanzada f={f} /></span>}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{f.cliente}</div>
+          <Chapas f={f} />
           <LineaSinGasto f={f} />
-          <div style={{ fontSize: 12, color: 'var(--humo)' }} className="truncate">{f.rama ? <span style={{ color: 'var(--laton)' }}>{f.rama.nombre} · </span> : ''}{f.cuenta.trim().toLowerCase() !== f.cliente.trim().toLowerCase() ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}</div>
+          <div style={{ fontSize: 12, color: 'var(--humo)', overflowWrap: 'anywhere' }}>{f.rama ? <span style={{ color: 'var(--laton)' }}>{f.rama.nombre} · </span> : ''}{f.cuenta.trim().toLowerCase() !== f.cliente.trim().toLowerCase() ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}</div>
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.4, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }} className="min-w-0">{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
         <div className="num" style={{ textAlign: 'right' }}>
           <span className="serif" style={{ fontSize: 22, ...marcaOrden(ordenado && periodo === 'd7') }}>{cplSemanal}</span><small style={{ color: 'var(--humo)' }}> {f.moneda}</small>
-          <div style={{ fontSize: 10, color: 'var(--humo)' }}>Objetivo: {fmtMonto(f.presupuesto.objetivoDiarioUSD, 'USD')}/día</div>
-          <div style={{ fontSize: 10, color: 'var(--humo)' }}>Real: {fmtMonto(f.presupuesto.realDiarioUSD, 'USD')}/día</div>
+          <div style={{ fontSize: 10, color: 'var(--humo)', whiteSpace: 'nowrap' }}><ObjReal f={f} /></div>
         </div>
         <div className="num" style={{ textAlign: 'right' }}>
           <span className="serif" style={{ fontSize: 20 }}>{fmtGasto(f.gasto.ayer, f.moneda)}</span>
@@ -604,13 +605,13 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
       {/* Celular */}
       <div className="lg:hidden" style={{ padding: '12px 0 12px 12px' }}>
         <div className="flex items-baseline justify-between gap-3">
-          <div style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.3, display: 'flex', alignItems: 'baseline' }} className="min-w-0"><span className="truncate">{f.cliente}</span>{f.aumento && <span style={{ flexShrink: 0 }}><IconoAumento f={f} /></span>}{f.lanzamientos.length > 0 && <span style={{ flexShrink: 0 }}><IconoLanzada f={f} /></span>}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.3, overflowWrap: 'anywhere' }} className="min-w-0">{f.cliente}</div>
           <LineaSinGasto f={f} />
-
         </div>
+        <Chapas f={f} />
         <div style={{ fontSize: 13.5, lineHeight: 1.4, marginTop: 3, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }}>{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
         <div className="grid grid-cols-2 gap-4 my-2 num" aria-label={`Métricas; estado por ${periodo === 'ayer' ? 'ayer' : '7 días'}`}>
-          <div><div className="etq" style={{ fontSize: 9 }}>CPL semanal</div><div style={marcaOrden(ordenado && periodo === 'd7')}>{cplSemanal} {f.moneda}</div><small style={{ color: 'var(--humo)', display: 'block' }}>Objetivo: {fmtMonto(f.presupuesto.objetivoDiarioUSD, 'USD')}/día</small><small style={{ color: 'var(--humo)', display: 'block' }}>Real: {fmtMonto(f.presupuesto.realDiarioUSD, 'USD')}/día</small></div>
+          <div><div className="etq" style={{ fontSize: 9 }}>CPL semanal</div><div style={marcaOrden(ordenado && periodo === 'd7')}>{cplSemanal} {f.moneda}</div><small style={{ color: 'var(--humo)', display: 'block' }}><ObjReal f={f} /></small></div>
           <div><div className="etq" style={{ fontSize: 9 }}>Gasto ayer</div><div>{fmtGasto(f.gasto.ayer, f.moneda)}</div><small style={{ color: 'var(--humo)', ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</small></div>
         </div>
         <div className="flex items-center justify-between gap-3" style={{ marginTop: 6 }}>
@@ -664,6 +665,17 @@ function IconoAumento({ f }: { f: FilaAnuncio }) {
       {'\u2197\uFE0E'} {f.aumento.dias}d
     </span>
   )
+}
+
+// Las chapas (en aumento, lanzada / revisar para optimizar) van en su renglón, debajo del nombre: así no le comen ancho
+function Chapas({ f }: { f: FilaAnuncio }) {
+  if (!f.aumento && !f.lanzamientos.length) return null
+  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3, marginLeft: -4 }}>{f.aumento && <IconoAumento f={f} />}{f.lanzamientos.length > 0 && <IconoLanzada f={f} />}</div>
+}
+
+// Objetivo y real del presupuesto en un renglón
+function ObjReal({ f }: { f: FilaAnuncio }) {
+  return <>Obj. {fmtMonto(f.presupuesto.objetivoDiarioUSD, 'USD')}/día · Real {fmtMonto(f.presupuesto.realDiarioUSD, 'USD')}/día</>
 }
 
 // Azul = campaña con anuncios nuevos (últimos 10 días). Muestra el día de la más nueva; día 4-5 = revisar
