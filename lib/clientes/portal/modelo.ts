@@ -23,9 +23,16 @@ export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: fals
 /** Secciones sumadas después (2/11/2026): en un portal guardado ANTES (sin la clave) quedan ocultas hasta que el equipo las tilde. */
 const SECCIONES_NUEVAS: ReadonlySet<SeccionPortal> = new Set(['progreso', 'reporte'])
 
+/** Cómo se lee la barra (5/11/2026): acumulado desde que arrancamos, o casos del mes en curso contra una meta mensual. */
+export const MODOS_CASOS = ['acumulado', 'mensual'] as const
+export type ModoCasos = (typeof MODOS_CASOS)[number]
+
 /** Un punto del contador de casos: cuántos casos llevaba conseguidos el estudio a esa fecha (acumulado). */
 export interface PuntoCasos { fecha: string; casos: number }
 export interface ProgresoCasos {
+  /** acumulado (por defecto): casos desde que arrancamos contra el objetivo final. mensual: casos del mes en curso (salen del
+   *  historial, que sigue siendo acumulado) contra una meta por mes (ej.: 500 por mes) */
+  modo: ModoCasos
   /** Casos conseguidos hasta hoy (acumulado desde que arrancamos). null = sin cargar. */
   casos: number | null
   /** Fecha del último conteo */
@@ -40,7 +47,7 @@ export interface ProgresoCasos {
 /** Reporte de anuncios: qué cuentas de Meta son del cliente (las elige el EQUIPO; el cliente nunca pide una) y cuánto vale un caso. */
 export interface ConfigReporte { cuentas: string[]; valorCaso: number }
 export const VALOR_CASO_POR_DEFECTO = 2000
-export const PROGRESO_VACIO: ProgresoCasos = { casos: null, actualizado: null, meta: null, hito: null, historial: [] }
+export const PROGRESO_VACIO: ProgresoCasos = { modo: 'acumulado', casos: null, actualizado: null, meta: null, hito: null, historial: [] }
 export const REPORTE_VACIO: ConfigReporte = { cuentas: [], valorCaso: VALOR_CASO_POR_DEFECTO }
 /** act_ + dígitos: nada más (va en la URL de Graph del lado del servidor) */
 export const ID_CUENTA_META = /^act_\d{5,25}$/
@@ -148,6 +155,8 @@ function validarProgreso(x: unknown): ProgresoCasos | string {
   if (casos === undefined) return 'Casos conseguidos: tiene que ser un número entero (0 o más).'
   if (meta === undefined) return 'Objetivo final de casos: tiene que ser un número entero mayor que 0.'
   if (actualizado === undefined) return 'La fecha del conteo de casos tiene que ser una fecha real.'
+  const modo = o.modo === undefined || o.modo === null ? 'acumulado' : o.modo
+  if (!(MODOS_CASOS as readonly unknown[]).includes(modo)) return 'Casos: la forma de medir es acumulado o por mes.'
   let hito: ProgresoCasos['hito'] = null
   if (o.hito !== undefined && o.hito !== null) {
     const h = typeof o.hito === 'object' && !Array.isArray(o.hito) ? (o.hito as Record<string, unknown>) : null
@@ -169,7 +178,7 @@ function validarProgreso(x: unknown): ProgresoCasos | string {
   }
   if (casos !== null && actualizado) porFecha.set(actualizado, casos)
   const historial = [...porFecha].map(([f, c]) => ({ fecha: f, casos: c })).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(-TOPES.historial)
-  return { casos, actualizado, meta, hito, historial }
+  return { modo: modo as ModoCasos, casos, actualizado, meta, hito, historial }
 }
 
 function validarReporte(x: unknown): ConfigReporte | string {
@@ -205,13 +214,18 @@ export function casosDelMes(historial: readonly PuntoCasos[], mes: string): numb
   return Math.max(0, alCierre.casos - base.casos)
 }
 
-/** Lo que dibuja la barra: porcentajes sobre el objetivo final (topeados a 100) y si la marca ya se pasó. null sin datos. */
-export function barraCasos(p: ProgresoCasos): { casos: number; meta: number; porcentaje: number; hito: { casos: number; fecha: string | null; porcentaje: number; logrado: boolean; faltan: number } | null; faltan: number } | null {
-  if (p.casos === null || p.meta === null) return null
+/**
+ * Lo que dibuja la barra: porcentajes sobre el objetivo (topeados a 100) y si la marca ya se pasó. null sin datos. En modo mensual
+ * los casos son los del mes de `hoy` (casosDelMes: hacen falta dos conteos que lo cubran; si no, null) y `mes` dice cuál es.
+ */
+export function barraCasos(p: Omit<ProgresoCasos, 'modo'> & { modo?: ModoCasos }, hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })): { casos: number; meta: number; porcentaje: number; hito: { casos: number; fecha: string | null; porcentaje: number; logrado: boolean; faltan: number } | null; faltan: number; mes: string | null } | null {
+  const mes = p.modo === 'mensual' ? hoy.slice(0, 7) : null
+  const casos = mes ? casosDelMes(p.historial, mes) : p.casos
+  if (casos === null || p.meta === null) return null
   const pct = (n: number) => Math.min(100, Math.max(0, Math.round((n / p.meta!) * 10_000) / 100))
   return {
-    casos: p.casos, meta: p.meta, porcentaje: pct(p.casos), faltan: Math.max(0, p.meta - p.casos),
-    hito: p.hito ? { ...p.hito, porcentaje: pct(p.hito.casos), logrado: p.casos >= p.hito.casos, faltan: Math.max(0, p.hito.casos - p.casos) } : null,
+    casos, meta: p.meta, porcentaje: pct(casos), faltan: Math.max(0, p.meta - casos), mes,
+    hito: p.hito ? { ...p.hito, porcentaje: pct(p.hito.casos), logrado: casos >= p.hito.casos, faltan: Math.max(0, p.hito.casos - casos) } : null,
   }
 }
 
