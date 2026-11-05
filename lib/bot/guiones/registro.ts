@@ -138,6 +138,15 @@ export async function tandasARevisar(): Promise<FilaTanda[]> {
   return excluirArchivados(filas.filter(f => !!f.id_crm), archivados, f => f.id_crm)
 }
 
+/** Tandas abiertas (ni enviadas ni cerradas), sin clientes archivados: el resumen de guiones trabados (resumen.ts). */
+export async function tandasAbiertas(): Promise<FilaTanda[]> {
+  const archivados = await leerArchivados()
+  const filas = await correr('tandas abiertas', async q => {
+    try { return (await q`SELECT * FROM cj_guiones WHERE estado <> ALL(${['enviada', 'cerrada']}) ORDER BY actualizado ASC LIMIT 200`).map(x => aFila(x as Record<string, unknown>)) } catch (e) { if (sinTabla(e)) return []; throw e }
+  })
+  return excluirArchivados(filas.filter(f => !!f.id_crm), archivados, f => f.id_crm)
+}
+
 /** La última tanda avisada en ese grupo de WhatsApp (respuesta del cliente que trae el webhook de Whapi). */
 export async function tandaPorGrupo(grupo: string): Promise<FilaTanda | undefined> {
   return correr('tanda por grupo', async q => {

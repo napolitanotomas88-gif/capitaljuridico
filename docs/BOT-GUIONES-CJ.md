@@ -66,6 +66,10 @@ Carga: acción `cargarEnChips` del Puente Drive (`docs/guiones/puente/GuionesChi
 Script + una línea en el `switch` de `doPost` de Codigo.gs; lo publica CONSULTOR). El guion N va bajo el chip N de la
 `TANDA N°` que elige el puente (tanda 0): la que ya cargó el bot con esa clave o la primera con todos los chips vacíos (el Doc de
 CUENTA_QA CUENTA_QA, «Guiones - CUENTA_QA», ya tenía la TANDA 1° cargada a mano). Si falta el chip del 6.º, lo agrega copiando el último.
+Si no hay ninguna tanda libre (5/11/2026), agrega al final la siguiente con el mismo formato (título y chips copiados de la
+última, chips en «No iniciado» por la Docs API) y carga ahí: ya no se traba esperando que alguien la arme a mano.
+Resumen diario a Gero M (cron de guiones, días hábiles, `lib/bot/guiones/resumen.ts`): solo lo que falta corregir/verificar,
+el check final y el check que no entró al Doc. El mismo listado, completo, está arriba en /guiones («Tandas pendientes»).
 La tanda usada se guarda en `doc.tanda` y la nombra el WhatsApp al cliente. Solo escribe bajo chips vacíos o ya cargados por el
 bot (rango con nombre invisible `cjg|<clave>|<n>`, clave estable `cj-guiones-<recording>-<tanda>`): una corrección reemplaza lo
 suyo; si una persona ya escribió bajo un chip, frena sin tocar nada. **El valor del chip no se puede cambiar por script**

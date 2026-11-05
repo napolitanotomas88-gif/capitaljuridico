@@ -25,6 +25,7 @@ import { notificarRevision } from './entrega'
 import { exigirClienteNoArchivado, leerArchivados } from '@/lib/clientes/archivados'
 import { alertaBarrido, alertaRevision, claveAviso, correrRecordatoriosRevision, desdeAviso } from './avisoRevision'
 import { guardarRonda, leerRondas, limpiarRondas, marcarRonda, reservarRonda } from './rondas'
+import { alertaResumen, tandasPendientes } from './resumen'
 
 const TOPE_DISPARO_MS = 25_000
 export const webhookGuiones = (): string => process.env.DISCORD_WEBHOOK_GUIONES?.trim() || webhookKickoff()
@@ -134,7 +135,23 @@ export async function barridoGuionesARevisar(op: { dry?: boolean } = {}) {
   return { lista, alerta: alerta.estado }
 }
 
-export const motorGuiones = (): 'local' | 'api' => (process.env.GUIONES_MOTOR?.trim() === 'api' ? 'api' : 'local')
+/** Resumen diario a Gero M (5/11/2026): lo que falta corregir, verificar, dar el check o reintentar en el Doc. Lo corre el
+ *  cron de guiones en días hábiles; una vez por día (clave por fecha). Nunca tira. */
+export async function resumenGuionesPendientes(op: { dry?: boolean; ahora?: Date } = {}) {
+  try {
+    const ahora = op.ahora ?? new Date()
+    const pendientes = tandasPendientes(await reg.tandasAbiertas(), ahora)
+    const dia = new Date(ahora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)
+    const alerta = alertaResumen(pendientes, urlDespacho(), dia)
+    if (op.dry || !alerta) return { dia, pendientes, alerta: alerta ? 'en seco' : 'nada pendiente' }
+    return { dia, pendientes, alerta: (await alertar(alerta)).estado }
+  } catch (e) {
+    console.error('guiones-resumen: falla —', String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 160))
+    return null
+  }
+}
+
+export const motorGuiones =(): 'local' | 'api' => (process.env.GUIONES_MOTOR?.trim() === 'api' ? 'api' : 'local')
 
 export function depsReales(motor: 'local' | 'api' = motorGuiones()): DepsProceso {
   return {
