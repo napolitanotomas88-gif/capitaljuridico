@@ -33,6 +33,7 @@ function docDeJuguete(estructura) {
       getParent: () => (hijos.includes(el) ? cuerpo : null),
       removeFromParent: () => { const i = hijos.indexOf(el); if (i >= 0) hijos.splice(i, 1); return el },
       copy: () => elemento({ tipo: el.tipo, texto: el.texto, heading: el.heading, chip: el.chip }),
+      replaceText: (re, s) => { el.texto = el.texto.replace(new RegExp(re, 'g'), s); return el },
       editAsText: () => {
         const t = {
           getText: () => el.texto,
@@ -51,6 +52,8 @@ function docDeJuguete(estructura) {
     getChildIndex: (el) => { const i = hijos.indexOf(el); if (i < 0) throw new Error('no es hijo'); return i },
     insertParagraph: (i, texto) => { const el = elemento({ tipo: 'PARAGRAPH', texto, heading: 'NORMAL', bold: true, bg: '#ffff00' }); hijos.splice(i, 0, el); return el },
     insertListItem: (i, li) => { hijos.splice(i, 0, li); return li },
+    appendParagraph: (x) => { const el = typeof x === 'string' ? elemento({ tipo: 'PARAGRAPH', texto: x, heading: 'NORMAL' }) : x; hijos.push(el); return el },
+    appendListItem: (li) => { hijos.push(li); return li },
   }
   for (const e of estructura) hijos.push(elemento(e))
   const conteo = { guardar: 0 }
@@ -77,7 +80,7 @@ function plantilla() {
   return e
 }
 
-function entorno({ nombre = 'Guiones - PRUEBA', estructura = plantilla(), candadoLibre = true } = {}) {
+function entorno({ nombre = 'Guiones - PRUEBA', estructura = plantilla(), candadoLibre = true, docs = null } = {}) {
   const d = docDeJuguete(estructura)
   const llamadas = { abrir: 0, liberar: 0 }
   const ctx = {
@@ -90,9 +93,11 @@ function entorno({ nombre = 'Guiones - PRUEBA', estructura = plantilla(), candad
       openById: () => { llamadas.abrir++; return d.doc },
     },
     LockService: { getScriptLock: () => ({ tryLock: () => candadoLibre, releaseLock: () => { llamadas.liberar++ } }) },
+    ...(docs ? { Docs: docs } : {}),
   }
   vm.createContext(ctx)
   vm.runInContext(CHIPS, ctx)
+  if (docs) vm.runInContext(ESTADO, ctx)
   return { ...d, llamadas, cargar: (p) => ctx.cargarEnChips_(JSON.parse(JSON.stringify(p))) }
 }
 
@@ -228,12 +233,42 @@ test('tanda 0: elige la primera TANDA con todos los chips vacíos y, en una corr
   assert.ok(bajoChips(e.hijos, 3).every(ps => ps.length === 0))
 })
 
-test('tanda 0 sin ninguna tanda libre: error sin escribir', () => {
+test('tanda 0 sin ninguna tanda libre: crea la TANDA siguiente al final, con el mismo formato, y carga ahí (5/11)', () => {
   const est = plantilla()
   for (const t of [1, 2, 3]) { const i = est.findIndex(x => x.texto === `TANDA ${t}°`) + 2; est.splice(i, 0, { tipo: 'PARAGRAPH', texto: 'a mano', heading: 'NORMAL' }) }
-  const e = entorno({ estructura: est })
-  assert.match(e.cargar(pedido({ tanda: 0 })).error, /ninguna «TANDA N°» con todos los chips vacíos/)
+  const lote = []
+  const docs = { Documents: {
+    get: () => ({ tabs: [{ tabProperties: { tabId: 't.0' }, documentTab: { dropdownDefinitions: DEF, body: { content: [
+      par('TANDA 3°\n'), par('Video: ', { id: 'v3', valor: 'Grabado completo' }), par('TANDA 4°\n'),
+      ...[1, 2, 3, 4, 5, 6].map(n => par('Video: ', { id: `n${n}`, valor: n === 1 ? 'No iniciado' : 'Grabado completo' })),
+    ] } } }] }),
+    batchUpdate: (cuerpo) => { lote.push(...JSON.parse(JSON.stringify(cuerpo.requests))) },
+  } }
+  const e = entorno({ estructura: est, docs })
+  const r = e.cargar(pedido({ tanda: 0 }))
+  assert.equal(r.ok, true, r.error); assert.equal(r.tanda, 4); assert.equal(r.creada, true); assert.equal(r.agregados, 0); assert.equal(r.reiniciados, 5)
+  const titulo = e.hijos.find(x => x.texto === 'TANDA 4°')
+  assert.ok(titulo, 'el título nuevo'); assert.equal(titulo.heading, 'HEADING2', 'copia del título de la tanda anterior')
+  const t4 = bajoChips(e.hijos, 4)
+  assert.equal(t4.length, 6)
+  t4.forEach((ps, k) => assert.equal(ps[3], `Hook del guion ${k + 1}`))
+  assert.ok(e.hijos.slice(e.hijos.indexOf(titulo)).filter(x => x.tipo === 'LIST_ITEM').every(x => x.heading === 'HEADING4' && x.chip), 'chips copiados del último')
+  for (const t of [1, 2, 3]) assert.ok(bajoChips(e.hijos, t).some(ps => ps.includes('a mano')), `la TANDA ${t} no se toca`)
+  assert.deepEqual(lote.map(x => x.updateDropdownProperties.dropdownId), ['n2', 'n3', 'n4', 'n5', 'n6'])
+  assert.ok(lote.every(x => x.updateDropdownProperties.dropdownProperties.selectedOptionId === 'dropdownItem.no'))
+  // una corrección vuelve a la misma tanda, sin crear otra
+  const r2 = e.cargar(pedido({ tanda: 0, guiones: [1, 2, 3, 4, 5, 6].map(n => guion(n, ' v2')) }))
+  assert.equal(r2.tanda, 4); assert.equal(r2.creada, false); assert.equal(r2.reemplazados, 6)
+  assert.equal(e.hijos.filter(x => /^TANDA \d/.test(x.texto)).length, 4)
+})
+
+test('tanda 0 sin ninguna tanda con chips para copiar: error sin escribir; con tanda explícita no crea nada', () => {
+  const e = entorno({ estructura: [{ tipo: 'PARAGRAPH', texto: '📲 Guiones', heading: 'HEADING1' }] })
+  assert.match(e.cargar(pedido({ tanda: 0 })).error, /ninguna «TANDA N°» con chips «Video:» para copiar/)
   assert.equal(e.conteo.guardar, 0)
+  const f = entorno()
+  assert.match(f.cargar(pedido({ tanda: 7 })).error, /no tiene el título «TANDA 7°»/)
+  assert.equal(f.hijos.filter(x => /^TANDA \d/.test(x.texto)).length, 3)
 })
 
 test('con tanda explícita, lo que el bot cargó en OTRA tanda no habilita a escribir sobre texto ajeno', () => {

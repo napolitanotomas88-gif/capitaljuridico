@@ -9,6 +9,9 @@ import { Resumen, SeccionTitulo, type DatoResumen } from '@/components/ui'
 import { pedidoDemo } from '@/lib/clientes/demo'
 import { sumarDias } from '@/lib/clientes/fechas'
 import { TablaGuiones } from './TablaGuiones'
+import { TandasPendientes } from './TandasPendientes'
+import { baseConfigurada, tandasAbiertas } from '@/lib/bot/guiones/registro'
+import { tandasPendientes } from '@/lib/bot/guiones/resumen'
 import { leerArchivados, excluirArchivados } from '@/lib/clientes/archivados'
 
 export const metadata: Metadata = { title: 'Guiones' }
@@ -74,6 +77,8 @@ export default async function GuionesPage({ searchParams }: Props) {
     console.error('Guiones: no se pudo armar la tabla:', (e as Error).message?.slice(0, 160))
     avisos.push('No se pudo leer el CRM de clientes: la tabla de guiones no está disponible ahora.')
   }
+  // Las tandas del bot que esperan a alguien (5/11/2026). Si la base falla, el panel lo dice y el resto sigue.
+  const tandas = demo || !baseConfigurada() ? [] : await tandasAbiertas().then(f => tandasPendientes(f)).catch(() => null)
   // Mini panel (25/10/2026): los números que ordenan el día de guiones. Los filtros finos siguen en la lista de abajo.
   const onboarding = filas.filter(f => f.prioridad === 5).length
   const sinGrabar = filas.filter(f => f.guionSinGrabar).length
@@ -93,6 +98,7 @@ export default async function GuionesPage({ searchParams }: Props) {
           <p>Estos clientes y fechas son ficticios y solo existen en desarrollo (?demo=1): sirven para revisar el diseño.</p>
         </div>
       )}
+      {!demo && <TandasPendientes tandas={tandas ?? []} error={tandas === null} />}
       {filas.length > 0 && <Resumen titulo="Resumen de guiones" datos={resumen} />}
       <TablaGuiones filas={filas} avisos={avisos} />
       {demo ? null : veResumen ? <GuionesDashboard clientesPermitidos={clientesPermitidos} /> : <div className="cj-aviso"><p>Para revisar una tanda de guiones entrá desde el link del aviso en el grupo de guiones de WhatsApp.</p></div>}

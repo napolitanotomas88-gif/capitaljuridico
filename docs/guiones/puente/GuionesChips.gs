@@ -10,6 +10,9 @@
  *   · tanda 0 = la elige el puente: la que ya cargó el bot con esta clave (una corrección vuelve a la misma) o, si no, la
  *     PRIMERA «TANDA N°» con todos sus chips vacíos (27/10: el Doc de CUENTA_QA CUENTA_QA ya tenía la TANDA 1° cargada a mano y la
  *     tanda 1 del bot es su segunda). Devuelve en «tanda» la que usó.
+ *   · tanda 0 y ninguna libre (5/11/2026): se AGREGA al final la tanda siguiente a la más alta con el mismo formato (copia
+ *     de su título «TANDA N°» y de su último chip «Video:», uno por guion) y se carga ahí; sus chips vuelven a «No iniciado»
+ *     por la Docs API (GuionesEstadoChips.gs). Devuelve creada: true y reiniciados (cuántos, o el error de ese paso).
  *   · El guion N va debajo del N-ésimo chip «Video:» de «TANDA <tanda>°». Si faltan chips (6.º guion), se agregan copiando el
  *     último de la tanda (con su renglón vacío).
  *   · Solo escribe debajo de un chip VACÍO o de uno que ya cargó el bot con esta clave (rango con nombre invisible
@@ -53,13 +56,18 @@ function cargarEnChips_(p) {
   try {
     var doc = DocumentApp.openById(p.docId);
     var body = doc.getBody();
-    var tanda = p.tanda || elegirTandaChips_(doc, body, p.clave);
-    if (!tanda) return { ok: false, error: 'el doc no tiene ninguna «TANDA N°» con todos los chips vacíos: agregá una tanda nueva en el Doc' };
+    var guiones = p.guiones.slice().sort(function (a, b) { return a.numero - b.numero; });
+    var maximo = guiones[guiones.length - 1].numero;
+    var tanda = p.tanda || elegirTandaChips_(doc, body, p.clave), creada = false;
+    if (!tanda && !p.tanda) {
+      // 5/11/2026 (Tomás: «que la pueda armar el bot de una»): sin tanda libre, se agrega la siguiente al final del Doc
+      tanda = crearTandaChips_(body, maximo);
+      creada = !!tanda;
+    }
+    if (!tanda) return { ok: false, error: 'el doc no tiene ninguna «TANDA N°» con chips «Video:» para copiar: agregá una tanda nueva en el Doc' };
     var plan = tandaChips_(body, tanda);
     if (!plan) return { ok: false, error: 'el doc no tiene el título «TANDA ' + tanda + '°»' };
     if (!plan.chips.length) return { ok: false, error: 'la TANDA ' + tanda + '° no tiene ningún chip «Video:»' };
-    var guiones = p.guiones.slice().sort(function (a, b) { return a.numero - b.numero; });
-    var maximo = guiones[guiones.length - 1].numero;
     // 1) Antes de tocar nada: cada chip que se va a usar tiene que estar vacío o ser del bot
     for (var k = 0; k < guiones.length; k++) {
       var n = guiones[k].numero;
@@ -82,7 +90,9 @@ function cargarEnChips_(p) {
       if (escribirBajoChip_(doc, body, tanda, guiones[m], p.clave)) reemplazados++;
     }
     doc.saveAndClose();
-    return { ok: true, id: f.getId(), url: f.getUrl(), yaExistia: false, tanda: tanda, cargados: guiones.length, agregados: agregados, reemplazados: reemplazados };
+    // Los chips de la tanda nueva son copias de otro (pueden venir en «Grabado completo»): vuelven a «No iniciado»
+    var reiniciados = creada ? reiniciarChipsTanda_(p.docId, tanda) : null;
+    return { ok: true, id: f.getId(), url: f.getUrl(), yaExistia: false, tanda: tanda, creada: creada, reiniciados: reiniciados, cargados: guiones.length, agregados: agregados, reemplazados: reemplazados };
   } finally {
     candado.releaseLock();
   }
@@ -123,6 +133,53 @@ function elegirTandaChips_(doc, body, clave) {
     if (!libre && estados.every(function (e) { return e === 'vacio'; })) libre = nums[k];
   }
   return libre;
+}
+
+// Agrega al final del doc la tanda siguiente a la más alta, con el mismo formato: copia del título «TANDA N°» de la última
+// tanda (con el número nuevo) y <cantidad> copias de su último chip «Video:», separados por un renglón vacío como en la
+// plantilla. Devuelve el número nuevo o 0 si el doc no tiene ninguna tanda con chips para copiar (no toca nada).
+function crearTandaChips_(body, cantidad) {
+  var esTanda = /^\s*TANDA\s+(\d+)\s*[°º:]?\s*$/i, mayor = 0, titulo = null, chip = null;
+  for (var i = 0; i < body.getNumChildren(); i++) {
+    var el = body.getChild(i);
+    if (el.getType() !== DocumentApp.ElementType.PARAGRAPH) continue;
+    var t = esTanda.exec(el.asParagraph().getText());
+    if (t && Number(t[1]) >= mayor) {
+      var plan = tandaChips_(body, Number(t[1]));
+      if (plan && plan.chips.length) { mayor = Number(t[1]); titulo = el.asParagraph(); chip = body.getChild(plan.chips[plan.chips.length - 1]).asListItem(); }
+    }
+  }
+  if (!titulo || !chip) return 0;
+  var nueva = mayor + 1;
+  body.appendParagraph('').setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  var nuevoTitulo = body.appendParagraph(titulo.copy());
+  nuevoTitulo.replaceText('\\d+', String(nueva));
+  for (var k = 0; k < Math.max(1, cantidad); k++) {
+    if (k > 0) body.appendParagraph('').setHeading(DocumentApp.ParagraphHeading.NORMAL);
+    body.appendListItem(chip.copy());
+  }
+  body.appendParagraph('').setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  return nueva;
+}
+
+// Pone en «No iniciado» los chips de la tanda (Docs API, como GuionesEstadoChips.gs). Solo para una tanda que acaba de crear
+// el bot. Devuelve cuántos cambió, o un texto con el error (la carga ya quedó hecha: el estado se corrige a mano).
+function reiniciarChipsTanda_(docId, tanda) {
+  try {
+    var d = Docs.Documents.get(docId, { includeTabsContent: true });
+    var tab = d.tabs && d.tabs[0];
+    if (!tab || !tab.documentTab) return 'el doc no tiene pestañas legibles';
+    var defs = tab.documentTab.dropdownDefinitions || {}, pedidos = [];
+    chipsDeTandaApi_(tab.documentTab.body.content || [], tanda).forEach(function (c) {
+      if (c.valor === CHIPS_ESTADO_DESDE) return;
+      var opcion = opcionChips_(defs[c.definicion], CHIPS_ESTADO_DESDE);
+      if (opcion) pedidos.push({ updateDropdownProperties: { dropdownId: c.id, tabId: tab.tabProperties.tabId, dropdownProperties: { selectedOptionId: opcion }, fields: 'selectedOptionId' } });
+    });
+    if (pedidos.length) Docs.Documents.batchUpdate({ requests: pedidos }, docId);
+    return pedidos.length;
+  } catch (err) {
+    return 'no se pudieron reiniciar los chips: ' + String(err && err.message || err).slice(0, 200);
+  }
 }
 
 // Lo que hay debajo del chip n (1 = el primero): de su renglón al próximo chip o al final de la tanda.
