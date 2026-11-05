@@ -17,7 +17,7 @@ import { PROMPT_REDACTOR, PROMPT_REVISOR } from './prompt'
 import { PREFERENCIAS_TOMAS } from './preferencias'
 import { CALLOUTS } from './ganchos'
 import { revisarGuion, revisarTanda, errores, hallazgosEnTexto } from './revisar'
-import { SECCIONES, TIPOS_GANCHO, type Catalogo, type Guion, type Hallazgo, type Seccion, type Tanda, type TipoGancho } from './tipos'
+import { bloqueCiudad, SECCIONES, TIPOS_GANCHO, type Catalogo, type Guion, type Hallazgo, type Seccion, type Tanda, type TipoGancho } from './tipos'
 
 export const VERSION_TANDA = 't1-2026-10-25'
 
@@ -96,7 +96,7 @@ const contextoComun = (e: EntradaTanda) => ['Datos del cliente y de la tanda (so
 function contexto(e: EntradaTanda): string[] {
   return [
     '<preferencias>', PREFERENCIAS_TOMAS, '</preferencias>',
-    `<ciudad>${e.ciudad}</ciudad>`,
+    bloqueCiudad(e.ciudad),
     '<ficha>', fichaParaIdeas(e.ficha), '</ficha>',
     '<ideas>', e.ideas.map((i, k) => `${k + 1}. ${i.titulo} — ${i.angulo}`).join('\n') || '(ninguna)', '</ideas>',
     '<mercado>', e.mercado ?? '(no hay análisis de mercado)', '</mercado>',

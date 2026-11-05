@@ -7,7 +7,8 @@ import { readFileSync, existsSync } from 'node:fs'
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const R = await import('../lib/bot/guiones/revisar.ts')
 const { CATALOGO } = await import('../lib/bot/guiones/formatos.ts')
-const { ciudadDeFicha, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
+const { ciudadDeFicha, zonasSeparadas, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
+const { bloqueCiudad } = await import('../lib/bot/guiones/tipos.ts')
 const { guionesParaChips, claveTanda, sinParentesis } = await import('../lib/bot/guiones/envio.ts')
 const { esAprobador, faltanVerificar } = await import('../lib/bot/guiones/aprobadores.ts')
 
@@ -39,6 +40,18 @@ test('revisor: recursos repetidos en la tanda es error', () => {
 test('provincia desde la ficha', () => {
   assert.equal(ciudadDeFicha({ zona: { descripcion: 'Provincia de San Juan: zona marcada…', presentarse_como: { texto: 'San Juan capital' }, lugares: [] } }), 'San Juan')
   assert.equal(ciudadDeFicha({ zona: { descripcion: '', presentarse_como: { texto: 'Mendoza capital' }, lugares: [] } }), 'Mendoza')
+})
+test('zonas muy separadas en la kickoff: sin ciudad en el gancho (5/11)', () => {
+  const z = (lugares, extra = {}) => ({ zona: { descripcion: 'Provincia de Córdoba: zona marcada', presentarse_como: { texto: 'Córdoba capital' }, lugares, radio_km: null, ...extra } })
+  assert.equal(ciudadDeFicha(z(['Córdoba capital', 'Río Cuarto', 'Villa María'])), 'Córdoba', 'misma provincia: se nombra')
+  assert.ok(!zonasSeparadas(z(['CABA', 'Conurbano', 'La Plata'])))
+  assert.equal(ciudadDeFicha(z(['Córdoba', 'Mendoza'])), '')
+  assert.equal(ciudadDeFicha(z(['Rosario', 'Neuquén', 'Tucumán'])), '')
+  assert.equal(ciudadDeFicha(z(['Paraná', 'Salta'])), '', 'con tildes')
+  assert.equal(ciudadDeFicha(z([], { radio_km: 500 })), '', 'radio grande')
+  assert.equal(ciudadDeFicha(z([], { descripcion: 'Córdoba y Mendoza' })), '', 'sin lugares, mira la descripción')
+  assert.equal(bloqueCiudad('San Juan'), '<ciudad>San Juan</ciudad>')
+  assert.match(bloqueCiudad(''), /SIN ZONA: .*NO nombres ninguna ciudad/)
 })
 test('aprobadores: Tomi o Faus por mail', () => {
   const env = { KICKOFF_REVISOR_TOMI: 'tomi@x.com', GUIONES_REVISOR_FAUS: 'faus@x.com, otro@x.com' }

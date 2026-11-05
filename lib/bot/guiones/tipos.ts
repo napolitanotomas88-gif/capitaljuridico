@@ -60,3 +60,9 @@ export interface Hallazgo {
   regla: string                   // clave corta: 'largo', 'ciudad', 'comillas'…
   detalle: string
 }
+
+/** El bloque <ciudad> de los prompts. Vacío = la kickoff junta zonas muy separadas (Tomás, 5/11/2026): ningún gancho nombra
+ *  ciudad ni provincia; el llamado va por la situación de la persona. Manda sobre «cada HOOK nombra la provincia». */
+export const bloqueCiudad = (ciudad: string): string => ciudad.trim()
+  ? `<ciudad>${ciudad.trim()}</ciudad>`
+  : '<ciudad>SIN ZONA: el cliente atiende lugares muy separados entre sí. NO nombres ninguna ciudad, provincia ni gentilicio en ningún gancho ni en el resto del guion (esto manda sobre la regla de nombrar <ciudad>): el llamado va por la situación de la persona («Si te despidieron…», «¿Tuviste un accidente…?»).</ciudad>'

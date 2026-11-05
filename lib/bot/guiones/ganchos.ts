@@ -9,7 +9,7 @@ import { acotar } from '@/lib/fathomAnuncios/tipos'
 import { llamarClaude, esfuerzoDe, TOPE_CLAUDE_MS, type Esfuerzo } from '../kickoff/claude'
 import { fichaParaIdeas } from '../kickoff/ideas'
 import type { ExtraccionKickoff, IdeaGuion, Uso } from '../kickoff/tipos'
-import { TIPOS_GANCHO, type Catalogo, type TipoGancho } from './tipos'
+import { bloqueCiudad, TIPOS_GANCHO, type Catalogo, type TipoGancho } from './tipos'
 import { normalizar } from './revisar'
 import { PREFERENCIAS_TOMAS } from './preferencias'
 
@@ -136,7 +136,7 @@ export function mensajeGanchos(e: EntradaGanchos): string {
     '<pedido>',
     `${total} ganchos: ${e.porIdea} por cada idea de <ideas>${e.ideasNuevas ? ` y ${e.porIdea} para cada una de ${e.ideasNuevas} idea${e.ideasNuevas > 1 ? 's' : ''} nueva${e.ideasNuevas > 1 ? 's' : ''} que propongas vos dentro de la ficha (en idea, «nueva: …» con el tema en pocas palabras)` : ''}. Los ganchos del kickoff son un punto de partida: mejoralos o cambialos.`,
     '</pedido>',
-    `<ciudad>${e.ciudad}</ciudad>`,
+    bloqueCiudad(e.ciudad),
     '<ficha>', fichaParaIdeas(e.ficha), '</ficha>',
     '<ideas>', ideas || '(ninguna)', '</ideas>',
     '<preferencias>', PREFERENCIAS_TOMAS, '</preferencias>',
@@ -187,7 +187,7 @@ export function mensajeGanchosIdea(e: EntradaGanchos, k: number, sugeridos: stri
     `Llamado geográfico asignado, uno por gancho y en este orden: ${llamados.join(', ')}.`,
     'Las otras ideas de la tanda (no repitas sus temas):', otras,
     '</pedido>',
-    `<ciudad>${e.ciudad}</ciudad>`,
+    bloqueCiudad(e.ciudad),
     '<ficha>', fichaParaIdeas(e.ficha), '</ficha>',
     '<ideas>', e.ideas.map((i, j) => `${j + 1}. ${i.titulo} — ${i.angulo}`).join('\n') || '(ninguna)', '</ideas>',
     '<preferencias>', PREFERENCIAS_TOMAS, '</preferencias>',
@@ -234,7 +234,7 @@ export async function generarGanchos(e: EntradaGanchos, catalogo: Catalogo, opci
   const v = validarGanchos(res.json, catalogo, e.ciudad)
   // Revisión con contexto limpio: otro pedido, otro prompt, sin el del redactor
   const usuario = [
-    `<ciudad>${e.ciudad}</ciudad>`,
+    bloqueCiudad(e.ciudad),
     '<ficha>', fichaParaIdeas(e.ficha), '</ficha>',
     '<preferencias>', PREFERENCIAS_TOMAS, '</preferencias>',
     '<mercado>', e.mercado ?? '(no hay)', '</mercado>',

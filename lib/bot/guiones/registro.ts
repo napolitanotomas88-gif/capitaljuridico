@@ -38,6 +38,9 @@ export interface GuionGuardado {
   editado?: { quien: string; cuando: string } | null
   /** «✓ Verificado» de una persona (27/10): se pierde si alguien lo edita o si el bot lo corrige con una nota del cliente */
   verificado?: { quien: string; email: string; cuando: string } | null
+  /** Lo que escribió el bot, guardado en la primera edición de una persona (5/11/2026: medir cuánto cambian los guiones
+   *  hasta el check final). null/ausente = nadie lo editó (o lo volvió a escribir el bot con las notas del cliente). */
+  original?: Guion | null
 }
 export interface NotaCliente { id: string; texto: string; guion: number | null; cuando: string; origen: 'whatsapp' | 'manual'; aplicada: string | null; guiones?: number[] }
 export interface FilaTanda {
@@ -196,7 +199,8 @@ export async function anotarAviso(id: number, mensaje: string): Promise<void> {
 export async function editarGuion(id: number, numero: number, guion: Guion, quien: string, previo: string): Promise<boolean> {
   if (!previoValido(previo)) return false
   return correr('editar guion', async q => (await q`UPDATE cj_guiones SET guiones = jsonb_set(guiones, ${[String(numero)]}::text[],
-        (guiones -> ${String(numero)}) || jsonb_build_object('guion', ${JSON.stringify(guion)}::jsonb, 'editado', jsonb_build_object('quien', ${quien}::text, 'cuando', now()), 'verificado', NULL), false),
+        (guiones -> ${String(numero)}) || jsonb_build_object('guion', ${JSON.stringify(guion)}::jsonb, 'editado', jsonb_build_object('quien', ${quien}::text, 'cuando', now()), 'verificado', NULL,
+          'original', COALESCE(guiones -> ${String(numero)} -> 'original', guiones -> ${String(numero)} -> 'guion')), false),
       actualizado = now()
     WHERE id = ${id} AND date_trunc('milliseconds', actualizado) = ${previo}::timestamptz AND estado = 'a_revisar' RETURNING id`).length > 0)
 }
@@ -255,7 +259,7 @@ export async function aplicarCorrecciones(id: number, guiones: Record<string, Gu
     const f = (await q`SELECT guiones FROM cj_guiones WHERE id = ${id} AND estado = 'corrigiendo'`)[0] as Record<string, unknown> | undefined
     if (!f) return false
     const actuales = { ...(f.guiones as Record<string, GuionGuardado>) }
-    for (const [n, guion] of Object.entries(guiones)) if (actuales[n]) actuales[n] = { ...actuales[n], guion, estado: 'listo', editado: null, verificado: null }
+    for (const [n, guion] of Object.entries(guiones)) if (actuales[n]) actuales[n] = { ...actuales[n], guion, original: null, estado: 'listo', editado: null, verificado: null }
     const mapa = JSON.stringify(Object.fromEntries(notas.map(x => [x.id, x.guiones])))
     const r = await q`UPDATE cj_guiones SET guiones = ${JSON.stringify(actuales)}::jsonb,
         notas = (SELECT COALESCE(jsonb_agg(CASE WHEN ${mapa}::jsonb ? (n ->> 'id')
