@@ -14,7 +14,7 @@ describe('Finanzas → bot de altas (5/11/2026)', () => {
     assert.equal(A.partesPrograma('Fee'), null)
   })
   test('alta nueva PP: el parser del bot entiende todos los campos', () => {
-    const p = { ...base, altaNueva: true, correo: 'ana@estudio.com', dni: '30123456', cuit: '20-30123456-7', direccion: 'Calle 1 123, Córdoba', inicio: '2026-11-06', cuotas: '06/11/2026 825\n06/12/2026 825\n06/01/2027 825\n06/02/2027 825', socios: 'No tiene' }
+    const p = { ...base, altaNueva: true, correo: 'ana@estudio.com', dni: '30123456', cuit: '20-30123456-7', direccion: 'Calle 1 123, Córdoba', inicio: '2026-11-06', cuotas: '06/12/2026 825\n06/01/2027 825\n06/02/2027 825', socios: 'No tiene', setter: 'Mai' }
     assert.deepEqual(A.faltanParaBot(p, 'Marcos', 1), [])
     const a = P.parsearAlta(A.textoAltaDesdePago(p, 'Marcos'))
     assert.equal(a.etiquetaAlta, true)
@@ -25,7 +25,9 @@ describe('Finanzas → bot de altas (5/11/2026)', () => {
     assert.equal(a.estePagoUsd, 825)
     assert.equal(a.correo, 'ana@estudio.com')
     assert.equal(a.inicio, '2026-11-06')
-    assert.equal(a.cuotas.length, 4)
+    assert.equal(a.cuotas.length, 3)
+    assert.ok(A.textoAltaDesdePago(p, 'Marcos').includes('Setter: Mai'))
+    assert.equal(a.avisos.filter((x) => /cronograma suma/.test(x)).length, 0)
     assert.equal(a.telefonos[0]?.numero.replace(/\D/g, '').slice(-8), '55550001')
   })
   test('PIF y pago en pesos', () => {
@@ -43,4 +45,9 @@ describe('Finanzas → bot de altas (5/11/2026)', () => {
 test('los closers del formulario son los mismos que acepta «Cargar alta»', async () => {
   const E = await import('../lib/bot/alta/despacho/evento.ts')
   assert.deepEqual([...A.CLOSERS_BOT], [...E.CLOSERS_DESPACHO])
+})
+
+test('las fuentes del formulario son las de la col K', async () => {
+  const F = await import('../lib/bot/alta/finanzas.ts')
+  assert.deepEqual([...A.FUENTES_BOT], [...F.OPCIONES_FUENTE])
 })
