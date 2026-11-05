@@ -36,7 +36,7 @@ describe('Finanzas → bot de altas (5/11/2026)', () => {
   })
   test('faltantes: sin comprobante, teléfono corto, alta nueva sin correo ni cuotas', () => {
     const f = A.faltanParaBot({ ...base, telefono: '123', altaNueva: true }, '', 0)
-    for (const x of ['Teléfono', 'Closer', 'Comprobante', 'Correo', 'Fecha de inicio', 'Cuotas']) assert.ok(f.some((y) => y.startsWith(x)), x)
+    for (const x of ['Teléfono', 'Closer', 'Comprobante', 'Correo', 'Fecha de inicio', 'Cuotas', 'DNI', 'CUIT', 'Dirección']) assert.ok(f.some((y) => y.startsWith(x)), x)
   })
 })
 
