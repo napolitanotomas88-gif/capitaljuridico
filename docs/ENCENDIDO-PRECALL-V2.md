@@ -23,12 +23,11 @@ Pedido de Tomás (5/11/2026): el pre-call se separa en dos partes.
 
 ### Flujo del pre-caller (tarjeta en el Despacho)
 
-1. **1ª llamada.** Botones: Atendió / No atendió.
-2. **2ª llamada.** Botones: Atendió / No atendió.
-3. **Pre-call por chat.** El pre-caller manda el texto del punto 3 de abajo y toca «Enviado por chat».
-4. **Confirmación.**
-   - Opciones: «Confirmó · decide solo», «Confirmó · vienen decisores» o «Reprogramó (ya en Calendly)».
-   - Si el pre-call fue por chat, también hay seguimientos (S1 y S2). Sin respuesta después del S2: 🔴, y queda Cancelar reunión o Reagendar.
+1. **1ª llamada.** Botones: Atendió / No atendió / Confirmó por chat (si respondió la confirmación automática).
+2. **2ª llamada**, 1 h después como mínimo. Botones: los mismos.
+3. **Escalera por chat** (textos del punto 3, abajo): «¿Pudiste leerme?» → decisores (2 h después) → seguimiento de decisores → ultimátum. Cada paso se marca con «Enviado (n de 4)».
+   - Sin respuesta al ultimátum: 🔴 y «Cancelar reunión».
+4. **Confirmación.** En cualquier paso: «Confirmó · decide solo», «Confirmó · vienen decisores», «Confirmó (falta decisores)» o «Reprogramó (ya en Calendly)». Si confirmó por chat sin decisores, la tarjeta pide la pregunta de decisores. Después, por chat, se mandan las 3 recomendaciones con el nombre del closer.
 5. **Pase.** El botón «Pre-call hecho → pasar al closer» abre un formulario:
    - facturación, situación del estudio y urgencia, precargadas con lo que el lead puso en el calendario;
    - notas para el closer.
@@ -73,15 +72,15 @@ Solo entran al flujo nuevo las reuniones desde `PRECALL_V2_DESDE` que nadie empe
 
 Las variables `{{n}}` las llena Make. Meta no deja que el texto **empiece** con una variable: por eso el «Hola» va antes del nombre.
 
-### 1. Pase al closer: una plantilla por closer, con el video de traspaso actual en el encabezado
+### 1. Pase al closer: una plantilla por closer, con el video de traspaso actual en el encabezado (OK de Tomás 5/11)
 
 Con nombre ({{1}} = nombre, {{2}} = «jueves 12 de noviembre a las 15:00», {{3}} = «Argentina»):
 
 > Hola {{1}}, cómo estás? Soy Marcos Carlomagno, consultor de estudios jurídicos del equipo de Gerónimo Actis.
 >
-> Nos vemos en la reunión el {{2}} (hora {{3}}), donde vamos a analizar tu estudio y ver qué te está frenando para sumar más clientes todos los meses.
+> Nos vemos en la reunión el {{2}} (hora {{3}}) para analizar qué frena a tu estudio a sumar más clientes cada mes.
 >
-> Para aprovecharla al máximo, mirá este video antes y mandame la palabra clave que te pido al final: https://capitaljuridico.com.ar/confirmarreunion
+> Para aprovecharla al máximo, mirá este video antes y mandame la palabra clave que pedimos al final del mismo: https://capitaljuridico.com.ar/confirmarreunion
 
 Sin nombre: igual, con «Hola, cómo estás?» al principio ({{1}} = fecha y hora, {{2}} = país).
 
@@ -95,7 +94,7 @@ Nombre y cargo de cada closer:
 | Nahuel | Nahuel Milena, consultor |
 | Brenda | Brenda Amado, consultora |
 
-### 2. Confirmación al agendar, desde el WhatsApp del pre-caller (el de Tomás)
+### 2. Confirmación al agendar, desde el WhatsApp del pre-caller (el de Tomás) (OK de Tomás 5/11)
 
 En el encabezado va un video de Tomás saludando, que falta grabar. {{1}} = nombre, {{2}} = fecha y hora, {{3}} = «argentino».
 
@@ -105,21 +104,39 @@ En el encabezado va un video de Tomás saludando, que falta grabar. {{1}} = nomb
 
 Sin nombre: «Hola, cómo estás?» y el mismo resto.
 
-### 3. Pre-call por chat: lo manda el pre-caller a mano, si no atendió las 2 llamadas
+### 3. Pre-caller por chat: los manda a mano desde el WhatsApp del pre-caller (orden de Tomás, 5/11)
 
-> NOMBRE, te llamé para dejar lista tu reunión del DÍA a las HORA (hora PAÍS) con CLOSER y no pude dar con vos.
+**Si atiende la 1ª o la 2ª llamada:** se hace todo en la llamada, con el guion del PASO 2, y el lead pasa directo al closer.
+
+**Si no atiende la 1ª llamada y tampoco responde la confirmación automática (mensaje 2):** 2ª llamada, como mínimo 1 h después. Si tampoco la atiende, arranca esta escalera:
+
+**a) Apenas no atiende la 2ª llamada:**
+> Hola NOMBRE, cómo estás? Pudiste leerme?
+
+**b) 2 h después, responda o no** (PASO 2 BIS del doc PROCESOS VENTAS):
+> NOMBRE, hay alguien más que tenga que estar presente en la reunión de consultoría que te pueda ayudar en decisiones de este aspecto?
 >
-> Para que te sea realmente útil:
+> Socios, pareja, familiar?
+
+**c) Seguimiento de decisores, si no responde** (regla general del SOP):
+> Esto es importante NOMBRE, así todos estamos alineados, podemos conocernos… y en el caso de que no decidas solo, todos puedan aprovechar para sacarse las dudas.
+>
+> Entonces, invitamos a alguien más a la reunión?
+
+**d) Ultimátum, si sigue sin responder:**
+> NOMBRE, confirmamos o liberamos el horario de la reunión?
+
+**e) Si no responde el ultimátum:** se cancela la reunión con el botón «Cancelar reunión» (Calendly le avisa al lead por mail).
+
+**Cuando confirma por chat** (respondiendo la confirmación automática o en cualquier paso de la escalera): si todavía no dijo nada de los decisores, se le manda la pregunta b). Cuando responde, va este mensaje y se pasa al closer, sin esperar respuesta:
+> Perfecto NOMBRE. Para que la reunión te sea realmente útil, te recomiendo:
 > 1) Conectate desde la compu, en un lugar tranquilo.
 > 2) Reservate los 60 minutos completos.
 > 3) No solemos reprogramar: si te surge algo, avisanos con 3 horas de anticipación.
 >
-> Confirmamos tu asistencia? Y hay alguien más que decida con vos en el estudio (socio, pareja, familiar) que pueda estar en la reunión?
+> Te va a estar contactando NOMBRE Y APELLIDO DEL CLOSER, consultor del equipo, para mandarte el link de la reunión y seguir con el proceso.
 
-### 4. Seguimientos del pre-caller por chat (los del SOP)
-
-- **S1** (solo si la reunión es en menos de 24 h): «NOMBRE?»
-- **S2:** «NOMBRE, confirmamos o liberamos el horario de la reunión?»
+En la tarjeta: cada mensaje de la escalera se marca con «Enviado (n de 4)». En cualquier paso el lead puede confirmar («Confirmó · decide solo», «Confirmó · vienen decisores», «Confirmó (falta decisores)») o reprogramar.
 
 ## Checklist de encendido (todo de una)
 
@@ -127,7 +144,7 @@ El orden importa: ninguna variable apunta a un escenario apagado, porque Make gu
 
 1. **Número del pre-caller.** Conectarlo en 2Chat por coexistencia y anotar su número.
 2. **Video de Tomás.** Grabarlo, pasarlo a 576x1024 H.264 y publicarlo en `/v/` (capitaljuridico-medios).
-3. **OK de Tomás.** Aprobar los textos 1 a 4 de arriba.
+3. **OK de Tomás.** Los textos de arriba ya están aprobados (5/11). Si cambian, actualizar este doc antes de crear las plantillas.
 4. **Plantillas de Meta.**
    - Crear 10 del pase: 2 por closer, con y sin nombre, con encabezado de video.
    - Crear 2 de confirmación en la WABA del número nuevo.

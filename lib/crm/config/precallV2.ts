@@ -55,8 +55,17 @@ export const CONFIRMACIONES_PRECALLER = [PRECALLER.confirmo, PRECALLER.reprogram
 export const DECISORES_PRECALLER = [PRECALLER.decideSolo, PRECALLER.vienenDecisores] as const;
 export const ESTADOS_PRECALLER = [PRECALLER.pendiente, PRECALLER.pasado, PRECALLER.liberado] as const;
 
-/** Máximo de seguimientos por chat del pre-caller antes de la 🔴 (regla general del SOP: 2 por paso). */
-export const MAX_SEGUIMIENTOS_PRECALLER = 2;
+/**
+ * La escalera por chat del pre-caller (Tomás, 5/11/2026), en AS como S1…S4: cada "Enviado" marca el paso mandado. Después del
+ * ultimátum sin respuesta, se cancela la reunión. Los textos están en docs/ENCENDIDO-PRECALL-V2.md.
+ */
+export const PASOS_CHAT_PRECALLER = [
+  "«¿Pudiste leerme?»",
+  "preguntar por los decisores (2 h después)",
+  "seguimiento de decisores",
+  "ultimátum (confirmamos o liberamos)",
+] as const;
+export const MAX_SEGUIMIENTOS_PRECALLER = PASOS_CHAT_PRECALLER.length;
 
 /**
  * Fases del closer en v2 (F): el pase deja F = "CONF + DECISORES" (lo hizo el pre-caller) y al closer le quedan el video con

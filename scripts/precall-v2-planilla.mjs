@@ -35,7 +35,7 @@ const COLUMNAS = [
   ['AP', 'Pre-caller · Facturación confirmada', null],
   ['AQ', 'Pre-caller · Situación del estudio', null],
   ['AR', 'Pre-caller · Urgencia confirmada', null],
-  ['AS', 'Pre-caller · Seguimientos', ['S1', 'S2']],
+  ['AS', 'Pre-caller · Seguimientos', ['S1', 'S2', 'S3', 'S4']],
   ['AT', 'Pre-caller · Estado', ['Pendiente', 'Pasado al closer', 'Liberado']],
   ['AU', 'Pre-caller · Pasado al closer', null],
   ['AV', 'Pre-caller · Notas para el closer', null],

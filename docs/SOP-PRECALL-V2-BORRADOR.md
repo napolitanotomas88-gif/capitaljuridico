@@ -15,13 +15,17 @@ Este borrador reemplaza los pasos 1 a 3 de la pestaña «PRE CALL (paso a paso)�
 
 ## Pre-caller (Despacho → Ventas → «Pre-caller · todos los closers»)
 
-1. **1ª llamada** con el guion del PASO 2 (dentro de los 10 minutos de la agenda).
-2. **Si no atiende:** 2ª llamada un rato después.
-3. **Si tampoco atiende:** pre-call por chat, corto. Confirma asistencia y decisores y da las indicaciones del guion (compu, lugar tranquilo, 60 minutos, no reprogramamos, avisar 3 h antes). Botón «Enviado por chat».
-4. **Si no responde:** S1 y S2. Después 🔴, y Cancelar reunión o Reagendar.
-5. **Si confirma:** marcar los decisores. Si cambió el horario, reagendar en Calendly y marcar «Reprogramó».
-6. **«Pre-call hecho → pasar al closer»:** corregir facturación, situación y urgencia si cambiaron, y dejar notas para el closer.
-7. **Si la reunión pasa sin pase:** reagendar o «Liberar».
+1. **1ª llamada** con el guion del PASO 2 (dentro de los 10 minutos de la agenda). Si atiende, se hace todo en la llamada y pasa al closer.
+2. **Si no atiende y no respondió la confirmación automática:** 2ª llamada, 1 h después como mínimo.
+3. **Si tampoco atiende:** escalera por chat.
+   - «Hola NOMBRE, cómo estás? Pudiste leerme?»
+   - 2 h después, responda o no: la pregunta de decisores (PASO 2 BIS).
+   - Seguimiento de decisores.
+   - Ultimátum: «confirmamos o liberamos el horario?».
+   - Sin respuesta: 🔴 y Cancelar reunión.
+4. **Si confirma por chat:** decisores (si faltan). Después, el mensaje con las 3 recomendaciones y el nombre del closer que lo va a contactar. No se espera respuesta: se pasa al closer.
+5. **«Pre-call hecho → pasar al closer»:** corregir facturación, situación y urgencia si cambiaron, y dejar notas para el closer.
+6. **Si la reunión pasa sin pase:** reagendar o «Liberar».
 
 ## Closer (Despacho → su hoja)
 
