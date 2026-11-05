@@ -15,7 +15,7 @@ import { encolarBeneficio, procesarBeneficio } from '@/lib/clientes/beneficiosPe
 import { createHash } from 'node:crypto'
 import { FALTANTE_CORREO_SOCIOS, esAvisoFee, esRenovacion, leerSocios, parsearAlta, type AltaParseada } from '../parsear'
 import { avisosParaRevisar, estadoAlta, respuestaAlCloser, type ExtrasAlta } from '../plan'
-import { ajustarFilaPagoCliente, completaPrimeraCuota, conceptoCuota, conceptoPagoCliente, fijarTipoPago, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
+import { ajustarFilaPagoCliente, completaPifTrasFee, completaPrimeraCuota, conceptoCuota, conceptoPagoCliente, fijarTipoPago, faltaMep, fechaDiaAnterior, filaRegistroPagos, usdDelPago, type FilaRegistroPagos } from '../finanzas'
 import { motivoNombreDudoso } from '../nombreCliente'
 import { telefonoDelCliente, CONTRATO_SIN_ENVIAR, entradaCrmDesdeAlta } from '../crm'
 import { CARPETA_CLIENTES_DRIVE, aprobarCarpetaExistente, nombresDriveCliente, plantillaGuionesDesdeEntorno, type GuardadoDrive, type IntentoCarpeta, type ResultadoDriveCliente } from '../driveCliente'
@@ -611,7 +611,13 @@ export async function pasoFinanzas(ctx: CtxPaso): Promise<SalidaPaso> {
         if (ctx.deps.historialCliente) {
           const r = await ctx.deps.historialCliente(quien)
           // «Completa 1er cuota» de un cliente que solo tiene Fee: es la 1ra cuota, no la 2da (D'Arcangelo, 4/11/2026)
-          concepto = typeof guardado === 'string' ? guardado : r.cuotas === 0 && completaPrimeraCuota(alta.textoVigente) ? conceptoCuota(1) : conceptoPagoCliente(r.cuotas)
+          // Programa PIF con solo Fee y este pago completa el PIF dentro del primer mes: es "PIF" (Upfront), no "2da Cuota"
+          // (Patricia Marimon, 5/11/2026)
+          const pagoUsd = typeof fila.celdas.E === 'number' ? fila.celdas.E : null
+          const fechaSerial = typeof fila.celdas.A === 'number' ? fila.celdas.A : null
+          concepto = typeof guardado === 'string' ? guardado
+            : completaPifTrasFee(r, pagoUsd, fechaSerial) ? 'PIF'
+            : r.cuotas === 0 && completaPrimeraCuota(alta.textoVigente) ? conceptoCuota(1) : conceptoPagoCliente(r.cuotas)
           historial = { programa: r.programa, tipoPago: r.tipoPago }
         } else concepto = conceptoPagoCliente(await ctx.deps.cuotasAnteriores!(quien))
         if (ctx.real) await ctx.guardarParcial({ ...(ctx.paso.parcial ?? {}), conceptoCuota: concepto, historialCliente: historial })

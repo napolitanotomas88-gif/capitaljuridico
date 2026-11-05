@@ -37,7 +37,11 @@ const sinAcentosMin = (s: unknown) => String(s ?? '').normalize('NFD').replace(/
  *  cuotas (o PIF) suyas hay y el programa y tipo de pago de su pago más NUEVO que los tenga (el Registro va del más nuevo, en la
  *  fila 2, al más viejo; las renovaciones no cuentan). Mismo cliente = los mismos últimos 8 dígitos del teléfono; el nombre (sin
  *  acentos) solo cuando a alguno de los dos le falta el teléfono (dos clientes homónimos no se mezclan). */
-export interface HistorialCliente { cuotas: number; programa: string | null; tipoPago: string | null }
+export interface HistorialCliente {
+  cuotas: number; programa: string | null; tipoPago: string | null
+  /** Serial de Sheets (col A) de su pago más viejo y USD ya pagados (col E), sin renovaciones: para «PIF tras Fee». */
+  primerPago?: number | null; pagadoUsd?: number
+}
 export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): HistorialCliente {
   const nom = sinAcentosMin(p.nombre)
   const tel = (p.telefono ?? '').replace(/\D/g, '').slice(-8)
@@ -54,7 +58,40 @@ export function historialClienteEn(filas: readonly (readonly unknown[])[], p: { 
     }
     return null
   }
-  return { cuotas: suyas.filter((f) => /cuota|pif/.test(sinAcentosMin(f[9]))).length, programa: primero(1), tipoPago: primero(14) }
+  const pagos = suyas.filter((f) => !/renovacion/.test(sinAcentosMin(f[9])))
+  const seriales = pagos.map((f) => f[0]).filter((v): v is number => typeof v === 'number' && v > 0)
+  const pagadoUsd = pagos.reduce((s, f) => s + (montoUsdCelda(f[4]) ?? 0), 0)
+  return {
+    cuotas: suyas.filter((f) => /cuota|pif/.test(sinAcentosMin(f[9]))).length, programa: primero(1), tipoPago: primero(14),
+    primerPago: seriales.length ? Math.min(...seriales) : null, pagadoUsd,
+  }
+}
+/** USD de la col E (número, o texto "$2.400" / "1,300.50"). null si no se entiende. Pura. */
+function montoUsdCelda(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  let s = String(v ?? '').replace(/[^\d.,]/g, '')
+  if (!s) return null
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '')
+  else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, '')
+  else s = s.replace(',', '.')
+  const n = Number(s)
+  return Number.isFinite(n) ? n : null
+}
+/** Total del programa PIF de la col B ("DFY | PIF | $2600" → 2600, "$6.000" → 6000). null si no es PIF. Pura. */
+export function totalPif(programa: unknown): number | null {
+  const b = String(programa ?? '')
+  if (!/\|\s*PIF\s*\|/.test(b)) return null
+  return montoUsdCelda(b.split('|').pop())
+}
+/** «PIF tras Fee» (Tomás, 5/11/2026, caso Patricia Marimon): un cliente con programa PIF que solo tiene Fee y cuyo pago nuevo
+ *  completa el total del PIF dentro del primer mes (31 días desde su primer pago) va como "PIF" / Upfront, no como "2da Cuota"
+ *  / Payment Plan. Tolerancia de USD 10 o 2 % por redondeos y comisiones. Pura. */
+export function completaPifTrasFee(h: HistorialCliente, pagoUsd: number | null, fechaSerial: number | null): boolean {
+  const total = totalPif(h.programa)
+  if (total === null || h.cuotas !== 0 || pagoUsd === null || !(pagoUsd > 0)) return false
+  if (!h.primerPago || fechaSerial === null || fechaSerial - h.primerPago > 31) return false
+  const suma = (h.pagadoUsd ?? 0) + pagoUsd
+  return suma >= total - Math.max(10, total * 0.02)
 }
 /** Cuántas cuotas (o PIF) de ese cliente ya hay en las filas del Registro (ver historialClienteEn). */
 export const cuotasAnterioresEn = (filas: readonly (readonly unknown[])[], p: { nombre: string | null; telefono: string | null }): number =>
