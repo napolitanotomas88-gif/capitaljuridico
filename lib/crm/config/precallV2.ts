@@ -9,6 +9,17 @@
 export const precallV2Activo = (): boolean => process.env.PRECALL_V2?.trim() === "1";
 
 /**
+ * Desde qué reunión entra un lead al flujo nuevo: `PRECALL_V2_DESDE` (ISO, p. ej. "2026-11-20T00:00:00-03:00", el momento del
+ * encendido). Las reuniones anteriores siguen con el closer como siempre. Sin la variable (o ilegible), ningún lead entra solo.
+ */
+export const precallV2Desde = (): Date | null => {
+  const texto = process.env.PRECALL_V2_DESDE?.trim();
+  if (!texto) return null;
+  const fecha = new Date(texto);
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+};
+
+/**
  * El WhatsApp del pase al closer sale de verdad solo con esta segunda bandera (además de `PRECALL_V2=1`) y el webhook del
  * closer cargado. Permite prender las tarjetas sin mandar nada a leads mientras se prueba con un número propio.
  */

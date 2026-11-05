@@ -11,7 +11,7 @@ Pedido de Tomás (5/11/2026): el pre-call se separa en dos partes.
 
 | Pieza | Dónde | Apagado = |
 |---|---|---|
-| Bandera general | `PRECALL_V2=1` (`lib/crm/config/precallV2.ts`) | El CRM de siempre |
+| Bandera general | `PRECALL_V2=1` + `PRECALL_V2_DESDE` (`lib/crm/config/precallV2.ts`) | El CRM de siempre |
 | Envío del pase | `PRECALL_V2_ENVIO=1` + `MAKE_WEBHOOK_PASE_<CLOSER>` (`lib/crm/pasePrecall.ts`) | El pase escribe en la planilla, pero el WhatsApp no sale y el aviso dice «mandalo a mano» |
 | Tarjeta del pre-caller | `accionPrecaller` en `lib/crm/motor/proxima-accion.ts` | No existe |
 | Vista «Pre-caller · todos los closers» | `/ventas/closer/pre-caller` (`datosPrecaller` en `lib/crm/mi-dia.ts`) | Da 404 |
@@ -50,23 +50,23 @@ Pedido de Tomás (5/11/2026): el pre-call se separa en dos partes.
    - El del pre-caller, para que el lead confirme (este flujo).
    - El del closer, cuando el lead ya pasó y no se presentó (la tarjeta de No-show de siempre).
 
-Los leads que al encender ya iban por el flujo viejo (F o AI con algo) lo terminan como estaban.
+Solo entran al flujo nuevo las reuniones desde `PRECALL_V2_DESDE` que nadie empezó por el flujo viejo (F y AI vacías). Las reuniones anteriores, con o sin «¿Se presentó?», siguen con el closer como siempre. Si alguien carga «¿Se presentó?» a mano sin pase, lo que sigue es del closer y «Liberar» no aparece: nunca se pisa una asistencia ya cargada.
 
-### Escenarios de Make (todos inactivos, equipo 1018145)
+### Escenarios de Make (todos inactivos)
 
-| Escenario | Id | Hook | Variable de Vercel |
-|---|---|---|---|
-| BORRADOR (NO ACTIVAR) - Pase al closer (Marcos) · pre-call v2 | 6916901 | 3027688 | `MAKE_WEBHOOK_PASE_MARCOS` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Carlos) · pre-call v2 | 6916905 | 3027689 | `MAKE_WEBHOOK_PASE_CARLOS` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Yamila) · pre-call v2 | 6916909 | 3027690 | `MAKE_WEBHOOK_PASE_YAMILA` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Nahuel) · pre-call v2 | 6916912 | 3027691 | `MAKE_WEBHOOK_PASE_NAHUEL` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Brenda) · pre-call v2 | 6916916 | 3027692 | `MAKE_WEBHOOK_PASE_BRENDA` |
-| BORRADOR (NO ACTIVAR) - Confirmación al agendar desde WhatsApp del pre-caller · pre-call v2 | 6916920 | 3027693 | `MAKE_WEBHOOK_CONFIRMACION_PRECALLER` |
+| Escenario | Variable de Vercel |
+|---|---|
+| BORRADOR (NO ACTIVAR) - Pase al closer (Marcos) · pre-call v2 | `MAKE_WEBHOOK_PASE_MARCOS` |
+| BORRADOR (NO ACTIVAR) - Pase al closer (Carlos) · pre-call v2 | `MAKE_WEBHOOK_PASE_CARLOS` |
+| BORRADOR (NO ACTIVAR) - Pase al closer (Yamila) · pre-call v2 | `MAKE_WEBHOOK_PASE_YAMILA` |
+| BORRADOR (NO ACTIVAR) - Pase al closer (Nahuel) · pre-call v2 | `MAKE_WEBHOOK_PASE_NAHUEL` |
+| BORRADOR (NO ACTIVAR) - Pase al closer (Brenda) · pre-call v2 | `MAKE_WEBHOOK_PASE_BRENDA` |
+| BORRADOR (NO ACTIVAR) - Confirmación al agendar desde WhatsApp del pre-caller · pre-call v2 | `MAKE_WEBHOOK_CONFIRMACION_PRECALLER` |
 
-- **Pase al closer.** Cada escenario sale del número del closer, con su video de traspaso actual y la conexión 2Chat 11150736. Ruta con nombre / sin nombre.
+- **Pase al closer.** Cada escenario sale del número del closer, con su video de traspaso actual y la misma conexión de 2Chat que los escenarios de confirmación. Ruta con nombre / sin nombre.
 - **Confirmación al agendar.** Su número y su video dicen `PENDIENTE`.
 - **Plantillas.** Todos los escenarios usan `template_uuid = PENDIENTE-…` hasta que Meta apruebe las plantillas.
-- **Webhooks.** Las URLs no van en este repo, que es público: están en la nota privada de Tomás (`~/dashboard-metricas-backups/precall-v2-webhooks-2026-11-05.txt`).
+- **Ids y webhooks.** Las URLs de los webhooks y los ids de Make no van en este repo, que es público: están en la nota privada de Tomás.
 - **Datos que manda el Despacho al pase:** `telefono`, `nombre` (primer nombre; vacío → plantilla sin nombre), `closer_completo`, `fecha_texto`, `hora_texto`, `pais_texto`, `inicio_iso`, `hoja` y `fila`. Hora y país salen de la reunión en Calendly; si Calendly no responde, se usa la hora de Argentina.
 
 ## Textos para el OK de Tomás
@@ -123,6 +123,8 @@ Sin nombre: «Hola, cómo estás?» y el mismo resto.
 
 ## Checklist de encendido (todo de una)
 
+El orden importa: ninguna variable apunta a un escenario apagado, porque Make guardaría en cola confirmaciones de leads reales y el Despacho las anotaría como «enviado a Make», lo que bloquea ese teléfono 30 días.
+
 1. **Número del pre-caller.** Conectarlo en 2Chat por coexistencia y anotar su número.
 2. **Video de Tomás.** Grabarlo, pasarlo a 576x1024 H.264 y publicarlo en `/v/` (capitaljuridico-medios).
 3. **OK de Tomás.** Aprobar los textos 1 a 4 de arriba.
@@ -134,20 +136,22 @@ Sin nombre: «Hola, cómo estás?» y el mismo resto.
 5. **Planilla.**
    - Correr `node scripts/precall-v2-planilla.mjs` (en seco) y revisar lo que va a hacer.
    - Después correrlo con `--aplicar`. Agrega AM–AV con sus desplegables en Closer 1–5 y crea la pestaña «Pre-caller».
-6. **Vercel (Production).**
-   - Cargar las 6 variables de la nota privada.
-   - Cargar `PRECALL_V2=1`. Todavía **sin** `PRECALL_V2_ENVIO`.
+6. **Activar los 6 escenarios de Make.** Antes de cargar ninguna variable, y con la cola vacía. Mientras las variables no estén en Vercel, no les llega nada.
+7. **Vercel (Production), primera tanda.**
+   - Cargar los 5 `MAKE_WEBHOOK_PASE_*`.
+   - Cargar `PRECALL_V2=1` y `PRECALL_V2_DESDE`, con la fecha y hora del encendido en ISO (por ejemplo `2026-11-20T00:00:00-03:00`). Solo las reuniones desde ese momento pasan por el pre-caller; las anteriores siguen con el closer como hoy.
+   - Todavía **sin** `PRECALL_V2_ENVIO` y **sin** `MAKE_WEBHOOK_CONFIRMACION_PRECALLER`.
    - Redeploy.
-7. **Prueba con un número propio.**
-   - Agendar una Reunión Consultiva de prueba → tiene que llegar la confirmación desde el número del pre-caller.
-   - Activar SOLO el escenario del closer de esa prueba.
+8. **Prueba con un número propio.**
+   - Mandar al escenario de confirmación del pre-caller, ya activo, un dato de prueba con el número propio → tiene que llegar la confirmación desde el número nuevo.
    - Cargar `PRECALL_V2_ENVIO=1` y redeploy.
-   - En el Despacho, llevar la tarjeta de punta a punta → tiene que llegar el pase desde el WhatsApp del closer.
-8. **Encender.**
-   - Activar los 6 escenarios con la cola vacía. Revisar antes que no haya ejecuciones viejas en cola.
-   - Con `PRECALL_V2=1` y el webhook del pre-caller cargado, la confirmación al agendar deja de salir de los escenarios de cada closer. No hace falta apagarlos: quedan como respaldo.
-9. **Equipo y documentación.**
-   - Avisar al pre-caller y a los closers.
-   - Actualizar el SOP (el borrador está en `docs/SOP-PRECALL-V2-BORRADOR.md`; el doc PROCESOS VENTAS se edita con OK de Tomás).
+   - En el Despacho, llevar la tarjeta de un lead de prueba de punta a punta → tiene que llegar el pase desde el WhatsApp del closer.
+9. **Encender la confirmación al agendar.**
+   - Cargar `MAKE_WEBHOOK_CONFIRMACION_PRECALLER` y redeploy.
+   - Desde ahí, la confirmación al agendar sale del número del pre-caller y deja de salir de los escenarios de cada closer. No hace falta apagarlos: quedan como respaldo.
+   - Agendar una Reunión Consultiva de prueba y verificar que llegue.
+10. **Equipo y documentación.**
+    - Avisar al pre-caller y a los closers.
+    - Actualizar el SOP (el borrador está en `docs/SOP-PRECALL-V2-BORRADOR.md`; el doc PROCESOS VENTAS se edita con OK de Tomás).
 
 **Para apagar:** sacar `PRECALL_V2` y hacer redeploy. Los datos de AM–AV quedan en la planilla. Los leads que ya pasaron al closer siguen con F, que el flujo de siempre entiende.

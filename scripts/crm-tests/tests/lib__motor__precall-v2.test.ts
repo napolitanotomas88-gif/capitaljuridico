@@ -14,7 +14,10 @@ function fila(valores: Partial<Record<Campo, string>>): FilaLead {
   const base = Object.fromEntries(Object.keys(COLUMNAS).map((c) => [c, ""])) as Record<Campo, string>;
   return { hoja: "Closer 1", numeroFila: 10, valores: { ...base, nombre: "Lead", telefono: "5491100000000", fechaCall: CALL, ...valores } };
 }
-const v2 = (valores: Partial<Record<Campo, string>>, ahora = AHORA): Accion[] => accionesDeFila(fila(valores), ahora, { precallV2: true });
+// El encendido (PRECALL_V2_DESDE): el martes 22/09/2026. La call del lead (26/09) es posterior.
+const DESDE = parsearFechaSheet("22/09/2026 00:00")!;
+const v2 = (valores: Partial<Record<Campo, string>>, ahora = AHORA): Accion[] =>
+  accionesDeFila(fila(valores), ahora, { precallV2: true, precallV2Desde: DESDE });
 const ids = (a: Accion) => a.botones.map((b) => b.id);
 
 describe("pre-call v2 (bandera)", () => {
@@ -24,9 +27,33 @@ describe("pre-call v2 (bandera)", () => {
     expect(a.titulo).toBe("Llamar al lead");
   });
   it("los leads que ya iban por el flujo viejo (F o AI con algo) lo terminan igual", () => {
-    expect(esLeadV2(fila({ precall: "VIDEOS CONF" }).valores)).toBe(false);
-    expect(esLeadV2(fila({ llamadaPrecall: "Efectiva" }).valores)).toBe(false);
+    expect(esLeadV2(fila({ precall: "VIDEOS CONF" }).valores, DESDE)).toBe(false);
+    expect(esLeadV2(fila({ llamadaPrecall: "Efectiva" }).valores, DESDE)).toBe(false);
     expect(v2({ precall: "VIDEOS CONF", llamadaPrecall: "No efectiva" })[0].tipo).toBe("PRE_CALL");
+  });
+});
+
+describe("encendido: solo reuniones desde PRECALL_V2_DESDE", () => {
+  // Reunión vieja (antes del encendido) con F y AI vacías y "¿Se presentó?" = Si: sigue con el closer (RESULTADO).
+  const vieja = { fechaCall: "21/09/2026 10:00", presentoAgenda1: "Si" };
+  it("una reunión anterior al encendido no es v2 y el closer conserva su resultado", () => {
+    expect(esLeadV2(fila(vieja).valores, DESDE)).toBe(false);
+    expect(v2(vieja).map((a) => a.tipo)).toEqual(["RESULTADO"]);
+  });
+  it("una reunión anterior sin asistencia cargada sigue con el pre-call de siempre (no con el pre-caller)", () => {
+    expect(v2({ fechaCall: "21/09/2026 10:00" }).map((a) => a.tipo)).not.toContain("PRE_CALLER");
+  });
+  it("sin PRECALL_V2_DESDE ningún lead entra solo (solo los que ya tienen estado del pre-caller)", () => {
+    expect(esLeadV2(fila({}).valores, null)).toBe(false);
+    expect(esLeadV2(fila({ estadoPrecaller: PRECALLER.pasado }).valores, null)).toBe(true);
+    expect(accionesDeFila(fila({}), AHORA, { precallV2: true })[0].tipo).toBe("PRE_CALL");
+  });
+  it("con ¿Se presentó? cargado a mano y sin pase, lo que sigue es del closer y no hay Liberar", () => {
+    const despues = parsearFechaSheet("26/09/2026 12:00")!;
+    const tipos = v2({ presentoAgenda1: "Si" }, despues).map((a) => a.tipo);
+    expect(tipos).toEqual(["RESULTADO"]);
+    const botones = v2({ presentoAgenda1: "No", estadoPrecaller: PRECALLER.pendiente }, despues).flatMap((a) => a.botones);
+    expect(botones.some((b) => b.id === "liberar")).toBe(false);
   });
 });
 

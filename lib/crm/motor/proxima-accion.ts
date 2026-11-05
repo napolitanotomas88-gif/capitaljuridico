@@ -402,11 +402,15 @@ function indiceFaseV2(valor: string): { indice: number; conocido: boolean } {
 }
 
 /**
- * El lead va por el flujo v2: ya lo tocó el pre-caller (estado en AT) o todavía nadie (F y AI vacíos). Los que al encender
- * ya iban por el flujo viejo (F o AI con algo) lo terminan como estaban: nadie queda trabado a mitad de camino.
+ * El lead va por el flujo v2: ya lo tocó el pre-caller (estado en AT), o es una reunión desde el encendido (`desde`, la variable
+ * PRECALL_V2_DESDE) que nadie empezó por el flujo viejo (F y AI vacías). Las reuniones anteriores al encendido (incluidas las
+ * que ya tienen "¿Se presentó?" y resultado) siguen con el closer como siempre; sin `desde`, ninguna entra sola.
  */
-export function esLeadV2(v: FilaLead["valores"]): boolean {
-  return v.estadoPrecaller.trim() !== "" || (v.precall.trim() === "" && v.llamadaPrecall.trim() === "");
+export function esLeadV2(v: FilaLead["valores"], desde: Date | null = null): boolean {
+  if (v.estadoPrecaller.trim() !== "") return true;
+  if (!desde || v.precall.trim() !== "" || v.llamadaPrecall.trim() !== "") return false;
+  const call = parsearFechaSheet(v.fechaCall);
+  return call !== null && call.getTime() >= desde.getTime();
 }
 
 const pasadoAlCloser = (v: FilaLead["valores"]) => es(v.estadoPrecaller, PRECALLER.pasado);
@@ -461,7 +465,11 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   });
 
   // Pasó la hora sin pase: el closer no la toma. Se reagenda en Calendly (y vuelve a confirmar) o se libera.
-  if (fecha <= ahora) return tarjeta("La reunión pasó sin pasar al closer: reagendar o liberar", [botonLiberar()], true);
+  // "Liberar" nunca pisa un "¿Se presentó?" ya cargado (con R cargada la tarjeta ni existe: `accionesDeFila`).
+  if (fecha <= ahora) {
+    const botones = v.presentoAgenda1.trim() ? [] : [botonLiberar()];
+    return tarjeta("La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
+  }
 
   if (confirmoConPrecaller(v)) {
     if (!v.decisoresPrecaller.trim()) {
@@ -814,6 +822,8 @@ export type ContextoDia = {
   precallHoy?: ReadonlySet<string>;
   /** Pre-call v2 prendido (`precallV2Activo()`): lo pasa el servidor, el motor no lee el entorno. */
   precallV2?: boolean;
+  /** Desde qué reunión entra un lead nuevo al v2 (`precallV2Desde()`, PRECALL_V2_DESDE). */
+  precallV2Desde?: Date | null;
 };
 
 /** Clave de un lead para `ContextoDia.precallHoy`: hoja + fila + nombre (por si se movieron filas). */
@@ -841,13 +851,17 @@ function faseEnviadaHoyDe(fila: FilaLead, dia: ContextoDia): boolean {
 export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {}): Accion[] {
   const faseHoy = faseEnviadaHoyDe(fila, dia);
   // Pre-call v2: hasta el pase el lead es solo del pre-caller (ni pre-call ni "¿Se presentó?" para el closer)
-  const v2 = dia.precallV2 === true && esLeadV2(fila.valores);
+  const v2 = dia.precallV2 === true && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
   const pasado = v2 && pasadoAlCloser(fila.valores);
+  // Sin pase pero con "¿Se presentó?" ya cargado (alguien lo cargó a mano): lo que sigue es del closer, como siempre
+  const conAsistencia = fila.valores.presentoAgenda1.trim() !== "";
   const candidatas = !v2
     ? [accionPrecall(fila, ahora, faseHoy), proximaAccion(fila, ahora)]
     : pasado
       ? [accionPrecall(fila, ahora, faseHoy, true), proximaAccion(fila, ahora)]
-      : [accionPrecaller(fila, ahora)];
+      : conAsistencia
+        ? [proximaAccion(fila, ahora)]
+        : [accionPrecaller(fila, ahora)];
   const acciones = candidatas.filter((a): a is Accion => a !== null);
   return acciones.sort(compararAcciones);
 }
