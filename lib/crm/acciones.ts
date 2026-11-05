@@ -26,6 +26,9 @@ import { filaVisible } from "@/lib/crm/config/crm";
 import { BOTON_CANCELAR_REUNION } from "@/lib/crm/pantalla";
 import { leerFila } from "@/lib/crm/sheets/leer";
 import { resolverMarcaManana } from "@/lib/crm/motor/proxima-accion";
+import { PRECALLER, precallV2Activo } from "@/lib/crm/config/precallV2";
+import { enviarPaseAlCloser } from "@/lib/crm/pasePrecall";
+import { formatearFechaSheet } from "@/lib/crm/fechas";
 
 const fallo = (codigo: CodigoError, error: string): Resultado<never> => ({ ok: false, error, codigo });
 
@@ -158,6 +161,44 @@ export async function cancelarReunion(entrada: EntradaAccion): Promise<Resultado
         "La reunión se canceló en Calendly, pero no se pudo guardar en el CRM. Cargalo a mano: Se presentó = No, Pre-call = Olvidar, Fups no-show = No hacer.",
       );
     }
+  } catch (e) {
+    return desdeError(e);
+  }
+}
+
+/**
+ * "Pre-call hecho → pasar al closer" (pre-call v2, pedido de Tomás del 5/11/2026): escribe lo que confirmó el pre-caller, el
+ * estado "Pasado al closer", F = CONF + DECISORES (el closer arranca en el video LISTO), AI y la fecha del pase (AU), y
+ * después dispara el WhatsApp del closer (`enviarPaseAlCloser`, apagado salvo PRECALL_V2_ENVIO=1). Sin Deshacer: el mensaje
+ * al lead no se puede retirar. Si el WhatsApp falla, el pase queda hecho y el aviso dice que hay que mandarlo a mano.
+ */
+export async function pasarAlCloser(entrada: EntradaAccion): Promise<Resultado<Operacion>> {
+  try {
+    if (!precallV2Activo()) return fallo("entrada_invalida", "El pre-call nuevo todavía no está encendido.");
+    const auth = await autorizar(entrada);
+    if (!auth.ok) return auth.error;
+    const { identidad, sesion } = auth;
+    const cambios = leerCambios(entrada?.cambios);
+    const esperado = leerCambios(entrada?.esperado);
+    if (!cambios || !esperado || !mismasClaves(cambios, esperado) || cambios.estadoPrecaller !== PRECALLER.pasado) {
+      return fallo("entrada_invalida", "Los cambios no tienen el formato esperado. Actualizá la página.");
+    }
+    if (!filaVisible(identidad.hoja, identidad.numeroFila)) return fallo("hoja_prohibida", "No podés escribir en esa fila.");
+    const motivo = motivoDelLog(entrada.motivo);
+    // AU vacía: si ya tiene fecha, otro lo pasó antes (la escritura segura lo rechaza como fila cambiada)
+    const datos = await aplicarCambios({
+      ...identidad,
+      closer: sesion.nombre,
+      cambios: { ...cambios, pasadoAlCloser: formatearFechaSheet(new Date()) },
+      esperado: { ...esperado, pasadoAlCloser: "" },
+      motivo,
+      modo: "accion",
+      tocar: false,
+    });
+    const fila = await leerFila(identidad.hoja, identidad.numeroFila);
+    const aviso = fila ? await enviarPaseAlCloser(fila) : "WhatsApp no enviado: no se pudo releer la fila";
+    revalidatePath("/ventas");
+    return { ok: true, datos: { ...datos, aviso } };
   } catch (e) {
     return desdeError(e);
   }

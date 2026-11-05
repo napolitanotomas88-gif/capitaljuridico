@@ -58,7 +58,8 @@ export type EntradaFicha = Identidad & {
  * Lo que devuelve cada escritura; `antes` es lo que usa Deshacer. `firma` (solo `ejecutarAccion`):
  * HMAC de hoja + fila + antes + despues + motivo, que exige `deshacerAccion`.
  */
-export type Operacion = { id: string; antes: Cambios; despues: Cambios; logFallo?: boolean; firma?: string };
+/** `aviso`: lo que pasó además de escribir (p. ej. el WhatsApp del pase al closer, pre-call v2). */
+export type Operacion = { id: string; antes: Cambios; despues: Cambios; logFallo?: boolean; firma?: string; aviso?: string };
 
 /** `Accion` con la fecha en ISO, para pasarla a componentes cliente. */
 export type AccionCliente = Omit<Accion, "fecha" | "fechaReunion"> & { fecha: string; fechaReunion?: string };
@@ -90,6 +91,10 @@ export type ItemCliente = {
   chat2Chat: boolean;
   /** Pre-call de una reunión que todavía no empezó: se puede cancelar en Calendly ("Cancelar reunión"). */
   cancelable: boolean;
+  /** Pre-call v2, tarjeta del pre-caller: lo que el lead puso en el calendario (arranca el formulario del pase). */
+  calendario?: { facturacion: string; situacion: string; urgencia: string };
+  /** Pre-call v2, vista del pre-caller (todas las hojas juntas): el closer de la reunión. */
+  closer?: string;
 };
 
 /** Una fila de la hoja "Log App". */

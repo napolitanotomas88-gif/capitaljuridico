@@ -2,7 +2,8 @@ import { spreadsheetId } from "@/lib/crm/config";
 import { sheets } from "./cliente";
 import { filaVisible } from "@/lib/crm/config/crm";
 import { textoDesdeSerialSheets } from "@/lib/crm/fechas";
-import { COLUMNAS, filaDesdeValores, indiceColumna, rango, ULTIMA_COLUMNA, type FilaLead } from "./columnas";
+import { COLUMNAS, filaDesdeValores, indiceColumna, rango, ultimaColumnaLectura, type FilaLead } from "./columnas";
+import { precallV2Activo } from "@/lib/crm/config/precallV2";
 
 const INDICES_FECHA = [COLUMNAS.fechaCall, COLUMNAS.fechaReagenda, COLUMNAS.ultimoToque, COLUMNAS.proximoSeguimiento].map(indiceColumna);
 // Rango de seriales que son fechas razonables (2000–2100). Otros números (como las claves
@@ -86,7 +87,7 @@ export async function leerHojas(hojas: string[]): Promise<Map<string, FilaLead[]
     const generacionInicial = generacion;
     const res = await sheets().spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId(),
-      ranges: faltan.map((h) => rango(h, "A2", ULTIMA_COLUMNA)),
+      ranges: faltan.map((h) => rango(h, "A2", ultimaColumnaLectura(precallV2Activo()))),
       ...OPCIONES_LECTURA,
     });
 
@@ -111,7 +112,7 @@ export async function leerHojas(hojas: string[]): Promise<Map<string, FilaLead[]
 export async function leerFila(hoja: string, numeroFila: number): Promise<FilaLead | null> {
   const res = await sheets().spreadsheets.values.get({
     spreadsheetId: spreadsheetId(),
-    range: rango(hoja, `A${numeroFila}`, `${ULTIMA_COLUMNA}${numeroFila}`),
+    range: rango(hoja, `A${numeroFila}`, `${ultimaColumnaLectura(precallV2Activo())}${numeroFila}`),
     ...OPCIONES_LECTURA,
   });
   const celdas = res.data.values?.[0] ?? [];

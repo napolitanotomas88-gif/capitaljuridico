@@ -49,8 +49,8 @@ describe("armarItem", () => {
       telefono: "+54 9 11 5555-1234",
       fechaCall: "26/09/2026 10:30",
     });
-    // Solo los campos escribibles, para armar `esperado` (sin U ni X, que la app no usa).
-    expect(Object.keys(item.valores)).toHaveLength(19);
+    // Solo los campos escribibles, para armar `esperado` (sin U ni X, que la app no usa). 19 + las 10 del pre-call v2 (AM–AV).
+    expect(Object.keys(item.valores)).toHaveLength(29);
     expect(item.valores.precall).toBe("");
     expect(item.valores).not.toHaveProperty("telefono");
     expect(item.valores).not.toHaveProperty("presentoCall2");

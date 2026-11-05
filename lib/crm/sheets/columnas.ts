@@ -53,6 +53,18 @@ export const COLUMNAS = {
   banderaRoja: "AJ",
   // Recordatorio manual del pre-call (Gero, 30/10/2026): vacío, 1, 2 o 3. No cambia la fase F.
   recordatorioPrecall: "AK",
+  // Pre-call v2 (pedido de Tomás, 5/11/2026; lib/crm/config/precallV2.ts): lo que confirma el pre-caller. Columnas nuevas al
+  // final de las pestañas de closers, sin correr ninguna (AL es "Cómo ejerce", que carga Make: no se toca). Con PRECALL_V2 apagado la app no las lee para decidir ni las escribe.
+  contactoPrecaller: "AM",
+  confirmoPrecaller: "AN",
+  decisoresPrecaller: "AO",
+  facturacionConfirmada: "AP",
+  situacionConfirmada: "AQ",
+  urgenciaConfirmada: "AR",
+  seguimientosPrecaller: "AS",
+  estadoPrecaller: "AT",
+  pasadoAlCloser: "AU",
+  notasCloser: "AV",
 } as const;
 
 export type Campo = keyof typeof COLUMNAS;
@@ -97,6 +109,16 @@ export const ENCABEZADOS_ESPERADOS: Record<Campo, string> = {
   llamadaPrecall: "Llamada pre-call",
   banderaRoja: "Bandera roja",
   recordatorioPrecall: "Recordatorio",
+  contactoPrecaller: "Pre-caller · Contacto",
+  confirmoPrecaller: "Pre-caller · ¿Confirmó?",
+  decisoresPrecaller: "Pre-caller · Decisores",
+  facturacionConfirmada: "Pre-caller · Facturación confirmada",
+  situacionConfirmada: "Pre-caller · Situación del estudio",
+  urgenciaConfirmada: "Pre-caller · Urgencia confirmada",
+  seguimientosPrecaller: "Pre-caller · Seguimientos",
+  estadoPrecaller: "Pre-caller · Estado",
+  pasadoAlCloser: "Pre-caller · Pasado al closer",
+  notasCloser: "Pre-caller · Notas para el closer",
 };
 
 /**
@@ -141,6 +163,16 @@ export const ETIQUETA_CAMPO: Record<Campo, string> = {
   llamadaPrecall: "Llamada pre-call",
   banderaRoja: "Bandera roja 🚩",
   recordatorioPrecall: "Recordatorio",
+  contactoPrecaller: "Contacto del pre-caller",
+  confirmoPrecaller: "¿Confirmó con el pre-caller?",
+  decisoresPrecaller: "Decisores",
+  facturacionConfirmada: "Facturación confirmada",
+  situacionConfirmada: "Situación del estudio (confirmada)",
+  urgenciaConfirmada: "Urgencia confirmada",
+  seguimientosPrecaller: "Seguimientos del pre-caller",
+  estadoPrecaller: "Estado del pre-call",
+  pasadoAlCloser: "Pasado al closer",
+  notasCloser: "Notas para el closer",
 };
 
 /** Etiqueta legible de un campo; si no es un campo conocido, el texto tal cual. */
@@ -174,6 +206,16 @@ export const CAMPOS_ESCRIBIBLES = [
   "llamadaPrecall",
   "banderaRoja",
   "recordatorioPrecall",
+  "contactoPrecaller",
+  "confirmoPrecaller",
+  "decisoresPrecaller",
+  "facturacionConfirmada",
+  "situacionConfirmada",
+  "urgenciaConfirmada",
+  "seguimientosPrecaller",
+  "estadoPrecaller",
+  "pasadoAlCloser",
+  "notasCloser",
 ] as const satisfies readonly Campo[];
 
 export type CampoEscribible = (typeof CAMPOS_ESCRIBIBLES)[number];
@@ -182,9 +224,40 @@ export type CampoEscribible = (typeof CAMPOS_ESCRIBIBLES)[number];
  * Texto libre (AB, AD, AE, AF): se escribe literal, para que el Sheet no convierta "12/03" en
  * fecha ni "1500" en número (docs/arquitectura.md §Escritura segura).
  */
-export const CAMPOS_TEXTO_LIBRE: readonly Campo[] = ["datosReagenda", "grabacion1", "grabacion2", "grabacion3"];
+export const CAMPOS_TEXTO_LIBRE: readonly Campo[] = [
+  "datosReagenda",
+  "grabacion1",
+  "grabacion2",
+  "grabacion3",
+  "facturacionConfirmada",
+  "situacionConfirmada",
+  "urgenciaConfirmada",
+  "pasadoAlCloser",
+  "notasCloser",
+];
+
+/** Las columnas del pre-call v2 (AM–AV): solo se escriben con la bandera prendida y con sus encabezados ya en la hoja. */
+export const CAMPOS_PRECALL_V2 = [
+  "contactoPrecaller",
+  "confirmoPrecaller",
+  "decisoresPrecaller",
+  "facturacionConfirmada",
+  "situacionConfirmada",
+  "urgenciaConfirmada",
+  "seguimientosPrecaller",
+  "estadoPrecaller",
+  "pasadoAlCloser",
+  "notasCloser",
+] as const satisfies readonly Campo[];
 
 export const ULTIMA_COLUMNA: Letra = COLUMNAS.recordatorioPrecall;
+
+/**
+ * Hasta dónde se lee cada fila. Con el pre-call v2 apagado, hasta AK como siempre: Closer 4 y 5 tienen 38 columnas (hasta AL)
+ * y leer más allá de la grilla es un error de Sheets. Con v2 prendido, hasta AV (scripts/precall-v2-planilla.mjs agrega las
+ * columnas antes de encender).
+ */
+export const ultimaColumnaLectura = (v2: boolean): Letra => (v2 ? COLUMNAS.notasCloser : ULTIMA_COLUMNA);
 
 /** "A" → 0, "Z" → 25, "AA" → 26. */
 export function indiceColumna(letra: string): number {

@@ -2,7 +2,8 @@ import { escrituraPermitida, hojasClosers, spreadsheetId } from "@/lib/crm/confi
 import type { Cambios, CodigoError, Identidad, Operacion } from "@/lib/crm/contratos";
 import { agruparOperaciones } from "@/lib/crm/hechas";
 import { sheets } from "./cliente";
-import { COLUMNAS, ENCABEZADOS_ESPERADOS, rango, etiquetaCampo, type Campo } from "./columnas";
+import { CAMPOS_PRECALL_V2, COLUMNAS, ENCABEZADOS_ESPERADOS, rango, etiquetaCampo, type Campo } from "./columnas";
+import { precallV2Activo } from "@/lib/crm/config/precallV2";
 import { actualizarFilaEnCache, invalidarCache, leerFila } from "./leer";
 import { agregarAlLog, invalidarCacheLog, leerLog } from "./log";
 import {
@@ -115,6 +116,19 @@ export async function aplicarCambios(entrada: EntradaEscritura): Promise<Operaci
     });
     if (encabezado.data.values?.[0]?.[0] !== ENCABEZADOS_ESPERADOS.recordatorioPrecall) {
       throw new ErrorEscritura("escritura_bloqueada", "Recordatorio todavía no está habilitado en esta hoja.");
+    }
+  }
+
+  // Pre-call v2 (AM–AV): solo con la bandera prendida y con los encabezados ya puestos por scripts/precall-v2-planilla.mjs.
+  // Así nunca se escribe sobre columnas ajenas ni con el flujo nuevo apagado.
+  if (CAMPOS_PRECALL_V2.some((c) => c in cambios)) {
+    if (!precallV2Activo()) throw new ErrorEscritura("escritura_bloqueada", "El pre-call nuevo todavía no está encendido.");
+    const primera = COLUMNAS[CAMPOS_PRECALL_V2[0]];
+    const ultima = COLUMNAS[CAMPOS_PRECALL_V2[CAMPOS_PRECALL_V2.length - 1]];
+    const encabezados = await sheets().spreadsheets.values.get({ spreadsheetId: spreadsheetId(), range: rango(hoja, `${primera}1`, `${ultima}1`) });
+    const fila1 = encabezados.data.values?.[0] ?? [];
+    if (CAMPOS_PRECALL_V2.some((c, i) => fila1[i] !== ENCABEZADOS_ESPERADOS[c])) {
+      throw new ErrorEscritura("escritura_bloqueada", "Las columnas del pre-call nuevo todavía no están en esta hoja.");
     }
   }
 

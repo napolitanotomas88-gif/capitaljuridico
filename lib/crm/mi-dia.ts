@@ -14,12 +14,13 @@ import { NOMBRE_ADMIN } from "@/lib/crm/auth";
 import { closers, nombreCloserDeHoja } from "@/lib/crm/config";
 import type { CallDelDia, FichaLead, ItemCliente, OperacionHecha, PanelFicha } from "@/lib/crm/contratos";
 import { hechasHoyPorHoja, operacionesDeHoy, precallEnviadoHoy, precallEnviadoHoyEnLog } from "@/lib/crm/hechas";
-import { accionesDeFila, accionesDelDia, type ContextoDia, type Grupo } from "@/lib/crm/motor/proxima-accion";
+import { accionesDeFila, accionesDelDia, compararAcciones, type ContextoDia, type Grupo } from "@/lib/crm/motor/proxima-accion";
 import { esDeTarjeta } from "@/lib/crm/pantalla";
 import { armarItem, callsDelDiaDe, identidadDe } from "@/lib/crm/presentacion";
 import type { FilaLead } from "@/lib/crm/sheets/columnas";
 import { leerDesplegables } from "@/lib/crm/sheets/desplegables";
 import { leerHojas } from "@/lib/crm/sheets/leer";
+import { precallV2Activo, precallV2Desde } from "@/lib/crm/config/precallV2";
 import { historialDeFila, leerLog } from "@/lib/crm/sheets/log";
 
 // Datos para las pantallas (docs/arquitectura.md §Datos para la pantalla). Todo serializable.
@@ -53,10 +54,34 @@ export async function datosMiDia(hoja: string, ahora: Date): Promise<DatosMiDia>
   const filas = hojas.get(hoja) ?? [];
   const hechas = operacionesDeHoy(log, hoja, ahora);
   // Del log: a quién ya se le mandó hoy una fase del pre-call (el Enviado del pre-call no escribe AG).
-  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(hechas) };
+  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(hechas), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde() };
   return {
-    items: itemsDelDia(filas, ahora, dia),
+    // Pre-call v2: las tarjetas del pre-caller van solo a su vista (`datosPrecaller`), nunca a la hoja del closer
+    items: itemsDelDia(filas, ahora, dia).filter((i) => i.accion.tipo !== "PRE_CALLER"),
     calls: callsDelDiaDe(filas, ahora, dia),
+    hechas,
+  };
+}
+
+/**
+ * Pre-call v2: la vista del pre-caller (`/ventas/closer/pre-caller`). Las tarjetas PRE_CALLER de todas las hojas que puede ver,
+ * juntas y en el orden del motor, cada una con el closer de la reunión al frente del estado. "Hechas hoy", de todas esas hojas.
+ */
+export async function datosPrecaller(hojas: string[], ahora: Date): Promise<DatosMiDia> {
+  const [leidas, log] = await Promise.all([leerHojas(hojas), leerLog()]);
+  const dia: ContextoDia = { precallV2: true, precallV2Desde: precallV2Desde() };
+  const items = hojas.flatMap((hoja) =>
+    accionesDelDia(leidas.get(hoja) ?? [], ahora, dia)
+      .filter(({ accion }) => accion.tipo === "PRE_CALLER")
+      .map(({ fila, accion }) => ({ fila, accion: { ...accion, estado: `${nombreCloserDeHoja(hoja)} · ${accion.estado}` } })),
+  );
+  items.sort((a, b) => compararAcciones(a.accion, b.accion));
+  const hechas = hojas
+    .flatMap((hoja) => operacionesDeHoy(log, hoja, ahora))
+    .filter((op) => /PRE_CALLER/.test(op.motivo ?? ""));
+  return {
+    items: items.map(({ fila, accion }) => ({ ...armarItem(fila, accion, ahora), closer: nombreCloserDeHoja(fila.hoja) })),
+    calls: [],
     hechas,
   };
 }
@@ -98,7 +123,7 @@ export async function tableroAdmin(ahora: Date, dias: Periodo): Promise<TableroA
   const lista = closers();
   const [datos, log] = await Promise.all([leerHojas(lista.map((c) => c.hoja)), leerLog()]);
   const hechas = hechasHoyPorHoja(log, ahora, NOMBRE_ADMIN, esDeTarjeta);
-  const dia: ContextoDia = { precallHoy: precallEnviadoHoyEnLog(log, ahora) };
+  const dia: ContextoDia = { precallHoy: precallEnviadoHoyEnLog(log, ahora), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde() };
 
   const equipo = lista.map((c): ResumenCloser => {
     const filas = datos.get(c.hoja) ?? [];

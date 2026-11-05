@@ -70,6 +70,9 @@ export function armarItem(fila: FilaLead, accion: Accion, ahora: Date): ItemClie
     chat2Chat: chat.es2Chat,
     // La reunión del pre-call (D o la reagenda) todavía no empezó
     cancelable: accion.grupo === "precall" && (accion.fechaReunion ?? accion.fecha).getTime() > ahora.getTime(),
+    ...(accion.tipo === "PRE_CALLER"
+      ? { calendario: { facturacion: fila.valores.mensual.trim(), situacion: fila.valores.contextoAgenda.trim(), urgencia: fila.valores.urgencia.trim() } }
+      : {}),
   };
 }
 

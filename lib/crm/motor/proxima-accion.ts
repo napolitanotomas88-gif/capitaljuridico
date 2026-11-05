@@ -28,6 +28,7 @@ import {
   VALORES,
   VENTANA_DIAS,
 } from "@/lib/crm/config/crm";
+import { FASES_CLOSER_V2, MAX_SEGUIMIENTOS_PRECALLER, PRECALLER } from "@/lib/crm/config/precallV2";
 import { diasDesde, formatearFechaSheet, mismoDia, parsearFechaReagenda, parsearFechaSheet, partesFecha } from "@/lib/crm/fechas";
 import type { Campo, FilaLead } from "@/lib/crm/sheets/columnas";
 
@@ -36,6 +37,7 @@ export type Grupo = "sePresento" | "resultado" | "precall" | "noShow" | "postCal
 /** Todos los tipos de tarjeta (también sirve para reconocerlos en el motivo del log: `tipoDelMotivo`). */
 export const TIPOS_ACCION = [
   "PRE_CALL",
+  "PRE_CALLER",
   "SE_PRESENTO",
   "SE_PRESENTO_REAGENDA",
   "RESULTADO",
@@ -56,7 +58,8 @@ export type Pedido =
   | "cierre" // cash día 1 (Y), cash trato cerrado (Z), valor del servicio (AA)
   | "reagenda" // fecha y hora (AC) y datos (AB)
   | "seguimiento" // fecha acordada para el próximo seguimiento (AH): "Coordinar fecha"
-  | "cancelacion"; // confirmar "Cancelar reunión" (Pre-call): cancela en Calendly y saca al lead de la lista
+  | "cancelacion" // confirmar "Cancelar reunión" (Pre-call): cancela en Calendly y saca al lead de la lista
+  | "pase"; // pre-call v2: "Pre-call hecho → pasar al closer" (datos confirmados y notas; manda el WhatsApp del closer)
 
 export type Boton = {
   id: string;
@@ -324,12 +327,14 @@ function botonesLlamada(v: FilaLead["valores"], indice: number): Boton[] {
   ];
 }
 
-export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = false): Accion | null {
+export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = false, v2 = false): Accion | null {
   const base = leerBase(fila, ahora);
   if (!base) return null;
   const { v } = base;
-  const { indice, conocido } = indiceFase(v.precall);
-  if (indice === FASE_FINAL) return null;
+  // Pre-call v2: al closer le quedan solo sus fases (`FASES_CLOSER_V2`); la llamada y la confirmación las hizo el pre-caller.
+  const fases: readonly string[] = v2 ? FASES_CLOSER_V2 : FASES_PRECALL;
+  const { indice, conocido } = v2 ? indiceFaseV2(v.precall) : indiceFase(v.precall);
+  if (indice === fases.length - 1) return null;
 
   const { fecha, avisoReagenda } = reunionDelPrecall(base, ahora);
   // Pedido de Tomás (26/10/2026): pasado el horario de la reunión, el pre-call ya no tiene sentido y la tarjeta se va (el lead
@@ -341,8 +346,8 @@ export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = fals
   if (!conocido) avisos.push(`Pre-call con un valor desconocido: "${v.precall.trim()}"`);
 
   const fase = v.precall.trim();
-  const siguiente = FASES_PRECALL[indice + 1];
-  const faltan = FASES_PRECALL.length - (indice + 1);
+  const siguiente = fases[indice + 1];
+  const faltan = fases.length - (indice + 1);
   // Días calendario de Buenos Aires desde hoy hasta el día de la call, los dos incluidos.
   const diasQuedan = 1 - diasDesde(fecha, ahora);
   const atrasado = faltan > diasQuedan;
@@ -351,7 +356,9 @@ export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = fals
   const puedeEsperar = faltan < diasQuedan;
   const enviadaHoy = faseEnviadaHoy && conocido && indice >= 0 && !atrasado;
 
-  const llamada = botonesLlamada(v, indice);
+  const llamada = v2 ? [] : botonesLlamada(v, indice);
+  // v2: el video con la palabra clave ya salió solo con el pase; el closer marca cuando el lead manda LISTO.
+  const esperaListo = v2 && siguiente === "VIDEOS CONF";
   // Pedido de Tomás (21/10/2026): el pre-call no ofrece ninguna fase hasta que el pre-caller registra la llamada. Efectiva →
   // solo queda "Hecho - link a call"; no efectiva → siguen las fases (desde la primera, o desde donde iba).
   const esperaLlamada = llamada.length > 0;
@@ -366,7 +373,7 @@ export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = fals
   return {
     tipo: "PRE_CALL",
     grupo: "precall",
-    titulo: esperaLlamada ? "Llamar al lead" : `Enviar fase: ${siguiente}`,
+    titulo: esperaLlamada ? "Llamar al lead" : esperaListo ? "Esperar LISTO del video de pre-llamada" : `Enviar fase: ${siguiente}`,
     estado,
     fecha,
     atrasado,
@@ -374,13 +381,157 @@ export function accionPrecall(fila: FilaLead, ahora: Date, faseEnviadaHoy = fals
     listoPorHoy: enviadaHoy && puedeEsperar,
     botones: [
       ...(esperaLlamada ? llamada.map((b) => (b.id === "llamadaEfectiva" ? { ...b, principal: true } : b)) : llamada),
-      ...(esperaLlamada ? [] : [{ id: "enviado", etiqueta: "Enviado", cambios: { precall: siguiente }, principal: true }]),
+      ...(esperaLlamada ? [] : [{ id: "enviado", etiqueta: esperaListo ? "Mandó LISTO" : "Enviado", cambios: { precall: siguiente }, principal: true }]),
       ...(es(v.presentoAgenda1, VALORES.no) && !es(v.presentoReagenda, VALORES.si) && es(v.fupsNoShow, VALORES.noHacer)
         ? [{ id: "olvidar", etiqueta: "Olvidar", cambios: { precall: VALORES.olvidar } }]
         : [])
     ],
     avisos,
   };
+}
+
+// ---------------------------------------------------------------------------------------
+// Pre-call v2 (lib/crm/config/precallV2.ts): la tarjeta del pre-caller y la regla dura
+
+/** Índice de F en `FASES_CLOSER_V2` (-1 vacío o desconocido). DOLORES (fase vieja) cuenta como VIDEOS CONF ya hecho. */
+function indiceFaseV2(valor: string): { indice: number; conocido: boolean } {
+  if (!valor.trim()) return { indice: -1, conocido: true };
+  const buscado = es(valor, "DOLORES") ? "VIDEOS CONF" : valor;
+  const indice = FASES_CLOSER_V2.findIndex((fase) => es(fase, buscado));
+  return { indice, conocido: indice >= 0 };
+}
+
+/**
+ * El lead va por el flujo v2: ya lo tocó el pre-caller (estado en AT), o es una reunión desde el encendido (`desde`, la variable
+ * PRECALL_V2_DESDE) que nadie empezó por el flujo viejo (F y AI vacías). Las reuniones anteriores al encendido (incluidas las
+ * que ya tienen "¿Se presentó?" y resultado) siguen con el closer como siempre; sin `desde`, ninguna entra sola.
+ */
+export function esLeadV2(v: FilaLead["valores"], desde: Date | null = null): boolean {
+  if (v.estadoPrecaller.trim() !== "") return true;
+  if (!desde || v.precall.trim() !== "" || v.llamadaPrecall.trim() !== "") return false;
+  const call = parsearFechaSheet(v.fechaCall);
+  return call !== null && call.getTime() >= desde.getTime();
+}
+
+const pasadoAlCloser = (v: FilaLead["valores"]) => es(v.estadoPrecaller, PRECALLER.pasado);
+const confirmoConPrecaller = (v: FilaLead["valores"]) => es(v.confirmoPrecaller, PRECALLER.confirmo) || es(v.confirmoPrecaller, PRECALLER.reprograma);
+
+/** "Liberar" de una reunión que pasó sin pase: como Cancelar reunión, sin Calendly (el horario ya pasó). */
+const botonLiberar = (): Boton => ({
+  id: "liberar",
+  etiqueta: "Liberar (no se pasa al closer)",
+  cambios: { estadoPrecaller: PRECALLER.liberado, presentoAgenda1: VALORES.no, precall: VALORES.olvidar, fupsNoShow: VALORES.noHacer },
+});
+
+/**
+ * "Reprogramó": el lead eligió otro horario con el pre-caller y queda confirmado. El horario se mueve con "Reagendar en
+ * Calendly" de la misma tarjeta (Calendly libera el viejo y el webhook actualiza la fila sola).
+ */
+const botonReprograma = (): Boton => ({
+  id: "reprograma",
+  etiqueta: "Reprogramó (ya en Calendly)",
+  cambios: { confirmoPrecaller: PRECALLER.reprograma },
+});
+
+/**
+ * La tarjeta del pre-caller (tipo PRE_CALLER), o null. Mientras el lead no se pasó al closer, el closer no lo ve (regla dura
+ * de Tomás, 5/11/2026): la confirmación y el seguimiento para que confirme son del pre-caller.
+ *
+ * 1ª llamada → 2ª llamada → pre-call por chat → seguimientos (S1, S2; después 🔴 y liberar o cancelar) → confirmó (con los
+ * decisores) → "Pre-call hecho → pasar al closer" (`pide: "pase"`: datos confirmados y notas, y sale solo el WhatsApp del
+ * closer). Si la reunión pasa sin pase, queda para reprogramar o liberar.
+ */
+export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
+  const base = leerBase(fila, ahora);
+  if (!base) return null;
+  const { v } = base;
+  if (pasadoAlCloser(v) || es(v.estadoPrecaller, PRECALLER.liberado)) return null;
+  const { fecha, avisoReagenda } = reunionDelPrecall(base, ahora);
+  const avisos = avisoReagenda ? [avisoReagendaIlegible(v)] : [];
+  const contacto = v.contactoPrecaller.trim();
+  const seguimientos = numeroSeguimiento(v.seguimientosPrecaller);
+  const partes = [contacto || "sin contacto", confirmoConPrecaller(v) ? `confirmó${es(v.confirmoPrecaller, PRECALLER.reprograma) ? " (reprogramó)" : ""}` : "", v.decisoresPrecaller.trim(), seguimientos ? `S${seguimientos}` : ""];
+  const estado = `Pre-caller: ${partes.filter(Boolean).join(" · ")}`;
+  const tarjeta = (titulo: string, botones: Boton[], atrasado = false): Accion => ({
+    tipo: "PRE_CALLER",
+    grupo: "precall",
+    titulo,
+    estado,
+    fecha,
+    atrasado,
+    listoPorHoy: false,
+    botones,
+    avisos,
+  });
+
+  // Pasó la hora sin pase: el closer no la toma. Se reagenda en Calendly (y vuelve a confirmar) o se libera.
+  // "Liberar" nunca pisa un "¿Se presentó?" ya cargado (con R cargada la tarjeta ni existe: `accionesDeFila`).
+  if (fecha <= ahora) {
+    const botones = v.presentoAgenda1.trim() ? [] : [botonLiberar()];
+    return tarjeta("La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
+  }
+
+  if (confirmoConPrecaller(v)) {
+    if (!v.decisoresPrecaller.trim()) {
+      return tarjeta("¿Vienen decisores?", [
+        { id: "decideSolo", etiqueta: "Decide solo", cambios: { decisoresPrecaller: PRECALLER.decideSolo }, principal: true },
+        { id: "vienenDecisores", etiqueta: "Vienen decisores", cambios: { decisoresPrecaller: PRECALLER.vienenDecisores } },
+        botonReprograma(),
+      ]);
+    }
+    return tarjeta("Pasar al closer", [
+      {
+        id: "pasarAlCloser",
+        etiqueta: "Pre-call hecho → pasar al closer",
+        pide: "pase",
+        principal: true,
+        // AI se sigue llenando (métrica de la llamada del pre-call): efectiva si atendió alguna llamada
+        cambios: {
+          estadoPrecaller: PRECALLER.pasado,
+          precall: FASES_CLOSER_V2[0],
+          llamadaPrecall: es(contacto, PRECALLER.llamadaEfectiva) ? VALORES.llamadaEfectiva : VALORES.llamadaNoEfectiva,
+        },
+      },
+    ]);
+  }
+
+  if (es(contacto, PRECALLER.llamadaEfectiva) || es(contacto, PRECALLER.porChat)) {
+    const confirmo = (id: string, etiqueta: string, decisores: string): Boton => ({
+      id,
+      etiqueta,
+      cambios: { confirmoPrecaller: PRECALLER.confirmo, decisoresPrecaller: decisores },
+    });
+    const botones: Boton[] = [
+      { ...confirmo("confirmoSolo", "Confirmó · decide solo", PRECALLER.decideSolo), principal: true },
+      confirmo("confirmoDecisores", "Confirmó · vienen decisores", PRECALLER.vienenDecisores),
+      botonReprograma(),
+    ];
+    if (es(contacto, PRECALLER.porChat)) {
+      if (seguimientos < MAX_SEGUIMIENTOS_PRECALLER) {
+        botones.push({ id: "seguimiento", etiqueta: `Enviado S${seguimientos + 1}`, cambios: { seguimientosPrecaller: `S${seguimientos + 1}` } });
+      } else if (!es(v.banderaRoja, VALORES.si)) {
+        botones.push({ id: "sinRespuesta", etiqueta: "Sin respuesta 🔴", cambios: { banderaRoja: VALORES.si } });
+      }
+    }
+    const titulo = es(contacto, PRECALLER.llamadaEfectiva)
+      ? "Cargar lo que confirmó en la llamada"
+      : seguimientos >= MAX_SEGUIMIENTOS_PRECALLER
+        ? "Sin confirmar: liberar o cancelar si no responde"
+        : "Esperar la confirmación por chat";
+    return tarjeta(titulo, botones, seguimientos >= MAX_SEGUIMIENTOS_PRECALLER);
+  }
+
+  const atendio: Boton = { id: "atendio", etiqueta: "Atendió", cambios: { contactoPrecaller: PRECALLER.llamadaEfectiva }, principal: true };
+  if (es(contacto, PRECALLER.noAtendio2)) {
+    return tarjeta("Pre-call por chat", [
+      { id: "chatEnviado", etiqueta: "Enviado por chat", cambios: { contactoPrecaller: PRECALLER.porChat }, principal: true },
+      { ...atendio, principal: false, etiqueta: "Atendió (devolvió la llamada)" },
+    ]);
+  }
+  if (es(contacto, PRECALLER.noAtendio1)) {
+    return tarjeta("2ª llamada", [atendio, { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } }]);
+  }
+  return tarjeta("1ª llamada", [atendio, { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio1 } }]);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -667,7 +818,13 @@ export function compararAcciones(a: ParaOrdenar, b: ParaOrdenar): number {
  * `precallHoy`: leads a los que hoy ya se les mandó una fase del pre-call, con las dos claves de
  * cada envío (`claveFaseHoy` y `claveFaseHoyPorF`).
  */
-export type ContextoDia = { precallHoy?: ReadonlySet<string> };
+export type ContextoDia = {
+  precallHoy?: ReadonlySet<string>;
+  /** Pre-call v2 prendido (`precallV2Activo()`): lo pasa el servidor, el motor no lee el entorno. */
+  precallV2?: boolean;
+  /** Desde qué reunión entra un lead nuevo al v2 (`precallV2Desde()`, PRECALL_V2_DESDE). */
+  precallV2Desde?: Date | null;
+};
 
 /** Clave de un lead para `ContextoDia.precallHoy`: hoja + fila + nombre (por si se movieron filas). */
 export const claveFaseHoy = (hoja: string, fila: number, nombre: string) => `${hoja}:${fila}:${normalizar(nombre)}`;
@@ -693,7 +850,19 @@ function faseEnviadaHoyDe(fila: FilaLead, dia: ContextoDia): boolean {
 /** Las acciones de hoy de un lead (hasta dos: pre-call y principal), en el orden del motor. */
 export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {}): Accion[] {
   const faseHoy = faseEnviadaHoyDe(fila, dia);
-  const acciones = [accionPrecall(fila, ahora, faseHoy), proximaAccion(fila, ahora)].filter((a): a is Accion => a !== null);
+  // Pre-call v2: hasta el pase el lead es solo del pre-caller (ni pre-call ni "¿Se presentó?" para el closer)
+  const v2 = dia.precallV2 === true && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
+  const pasado = v2 && pasadoAlCloser(fila.valores);
+  // Sin pase pero con "¿Se presentó?" ya cargado (alguien lo cargó a mano): lo que sigue es del closer, como siempre
+  const conAsistencia = fila.valores.presentoAgenda1.trim() !== "";
+  const candidatas = !v2
+    ? [accionPrecall(fila, ahora, faseHoy), proximaAccion(fila, ahora)]
+    : pasado
+      ? [accionPrecall(fila, ahora, faseHoy, true), proximaAccion(fila, ahora)]
+      : conAsistencia
+        ? [proximaAccion(fila, ahora)]
+        : [accionPrecaller(fila, ahora)];
+  const acciones = candidatas.filter((a): a is Accion => a !== null);
   return acciones.sort(compararAcciones);
 }
 
