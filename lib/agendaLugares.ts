@@ -35,9 +35,14 @@ export function nivelDeNombre(nombre: string): Nivel {
   return 0
 }
 
-/** Nivel de un evento a partir de su nota interna ("Leads A y B", "Leads C", "Leads D+E"); si no, por el nombre. */
+/**
+ * Nivel de un evento a partir de su nota interna ("Leads A y B", "Leads C", "Leads D+E"); si no, por el nombre.
+ * Nota con "sin doble reserva" (eventos orgánicos y Referidos, 5/11/2026: se llaman "Reunión Consultiva" igual que A y B)
+ * = 0: Calendly no les deja pisar ninguna reserva.
+ */
 export function nivelDeEvento(nota: string, nombre: string): Nivel {
   const n = normalizar(nota)
+  if (/sin doble reserva/.test(n)) return 0
   if (/leads? d\s*\+?\s*e/.test(n)) return 3
   if (/leads? a y b/.test(n)) return 1
   if (/leads? c\b/.test(n)) return 2
