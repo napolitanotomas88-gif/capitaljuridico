@@ -68,6 +68,9 @@ Script + una línea en el `switch` de `doPost` de Codigo.gs; lo publica CONSULTO
 CUENTA_QA CUENTA_QA, «Guiones - CUENTA_QA», ya tenía la TANDA 1° cargada a mano). Si falta el chip del 6.º, lo agrega copiando el último.
 Si no hay ninguna tanda libre (5/11/2026), agrega al final la siguiente con el mismo formato (título y chips copiados de la
 última, chips en «No iniciado» por la Docs API) y carga ahí: ya no se traba esperando que alguien la arme a mano.
+Sin ciudad (5/11/2026): si la zona de la kickoff junta lugares muy separados (más de una provincia, AMBA cuenta como una, o radio ≥300 km),
+`ciudadDeFicha` devuelve '' y ningún gancho nombra ciudad (`bloqueCiudad` en tipos.ts). Al editar un guion se guarda `original`
+(lo que escribió el bot) para medir cuánto cambia hasta el check final.
 Resumen diario a Gero M (cron de guiones, días hábiles, `lib/bot/guiones/resumen.ts`): solo lo que falta corregir/verificar,
 el check final y el check que no entró al Doc. El mismo listado, completo, está arriba en /guiones («Tandas pendientes»).
 La tanda usada se guarda en `doc.tanda` y la nombra el WhatsApp al cliente. Solo escribe bajo chips vacíos o ya cargados por el

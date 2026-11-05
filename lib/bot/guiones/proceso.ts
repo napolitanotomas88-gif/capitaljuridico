@@ -45,8 +45,34 @@ export interface DepsProceso {
   ahora(): number
 }
 
-/** La provincia que nombra cada gancho (preferencia 2 de Tomás: provincia, nunca ciudad chica). */
+// Provincias argentinas, sin tildes (y las ciudades grandes que se nombran solas) para saber si la zona de la kickoff junta lugares lejanos.
+// CABA y provincia de Buenos Aires cuentan como una sola zona (AMBA).
+const PROVINCIAS: [string, RegExp][] = [
+  ['Buenos Aires', /\b(buenos aires|caba|capital federal|amba|gba|conurbano|la plata|mar del plata|bahia blanca)\b/],
+  ['Córdoba', /\b(cordoba|rio cuarto|villa maria|carlos paz)\b/], ['Santa Fe', /\b(santa fe|rosario|rafaela)\b/],
+  ['Mendoza', /\b(mendoza|san rafael)\b/], ['Tucumán', /\btucuman\b/], ['Salta', /\bsalta\b/], ['Jujuy', /\bjujuy\b/],
+  ['Entre Ríos', /\b(entre rios|parana|concordia|gualeguaychu)\b/], ['Corrientes', /\bcorrientes\b/], ['Misiones', /\b(misiones|posadas)\b/],
+  ['Chaco', /\b(chaco|resistencia)\b/], ['Formosa', /\bformosa\b/], ['Santiago del Estero', /\bsantiago del estero\b/],
+  ['Catamarca', /\bcatamarca\b/], ['La Rioja', /\bla rioja\b/], ['San Juan', /\bsan juan\b/], ['San Luis', /\bsan luis\b/],
+  ['La Pampa', /\bla pampa\b/], ['Neuquén', /\bneuquen\b/], ['Río Negro', /\b(rio negro|bariloche|viedma)\b/],
+  ['Chubut', /\b(chubut|comodoro rivadavia|trelew|puerto madryn)\b/], ['Santa Cruz', /\b(santa cruz|rio gallegos)\b/],
+  ['Tierra del Fuego', /\b(tierra del fuego|ushuaia)\b/],
+]
+
+/** La zona de la kickoff junta lugares muy separados: más de una provincia (AMBA cuenta como una) o un radio de 300 km o más.
+ *  Ahí no se nombra ciudad (Tomás, 5/11/2026): nombrar una deja afuera a las demás. Puro. */
+export function zonasSeparadas(f: ExtraccionKickoff): boolean {
+  if ((f.zona.radio_km ?? 0) >= 300) return true
+  // Los lugares marcados; si no hay, la descripción (puede nombrar zonas que NO van, por eso es el respaldo)
+  const lugares = (f.zona.lugares ?? []).filter(Boolean)
+  const texto = (lugares.length ? lugares.join(' · ') : f.zona.descripcion ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return PROVINCIAS.filter(([, re]) => re.test(texto)).length > 1
+}
+
+/** La provincia que nombra cada gancho (preferencia 2 de Tomás: provincia, nunca ciudad chica). '' si la zona junta lugares
+ *  muy separados (zonasSeparadas): entonces ningún gancho nombra ciudad. */
 export function ciudadDeFicha(f: ExtraccionKickoff): string {
+  if (zonasSeparadas(f)) return ''
   const d = `${f.zona.descripcion ?? ''} ${f.zona.presentarse_como?.texto ?? ''}`
   const m = d.match(/provincia de ([A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?: (?:del |de )?[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+)*)/i)
   if (m) return m[1].trim()
