@@ -11,6 +11,8 @@ import { closers, hojasClosers, hojasDeMail, type Closer } from "@/lib/crm/confi
 
 export { NOMBRE_ADMIN, firmarOperacion, verificarOperacion } from "@/lib/crm/firma";
 import { NOMBRE_ADMIN } from "@/lib/crm/firma";
+import { ID_VISTA_PRECALLER, VISTA_PRECALLER, precallV2Activo, precallV2Hojas } from "@/lib/crm/config/precallV2";
+import { PESTANA_PRECALLER } from "@/lib/ventas/pendientes";
 
 export type Rol = "closer" | "admin";
 
@@ -26,6 +28,11 @@ export type Sesion = {
   email: string;
   /** Pestañas que puede abrir (todas para el admin). */
   hojas: string[];
+  /**
+   * Pre-call v2: es el pre-caller (pestaña «Pre-caller» en Accesos). Solo ve su vista con los leads de los closers con v2
+   * (`hojas` son esas pestañas, para poder escribir en ellas); ni las hojas de los closers ni cobros.
+   */
+  precaller?: boolean;
 };
 
 /** La sesión del CRM, o null si no hay sesión de Google, el rol no ve Ventas o el closer no tiene pestaña asignada. */
@@ -36,6 +43,13 @@ export async function sesionActual(seccion: "ventas" | "cuotas" = "ventas"): Pro
   if (s.admin) return { rol: "admin", nombre: NOMBRE_ADMIN, email: s.email, hojas: hojasClosers() };
   // Closer, setter o persona con Ventas marcada en Configuración: solo las pestañas que se le asignaron
   const hojas = hojasDeMail(s.email);
+  // Pre-caller (pre-call v2): con la v2 apagada no tiene CRM; nunca entra a Cobro de cuotas
+  if (hojas.includes(PESTANA_PRECALLER)) {
+    if (seccion === "cuotas" || !precallV2Activo()) return null;
+    const conV2 = precallV2Hojas();
+    const suyas = hojasClosers().filter((h) => !conV2 || conV2.has(h));
+    return { rol: "closer", closerId: ID_VISTA_PRECALLER, nombre: s.nombre, email: s.email, hojas: suyas, precaller: true };
+  }
   const closer = closers().find((c) => c.hoja === hojas[0]);
   if (!closer) {
     // Decisión de Tomás (10/10/2026): quien tiene Cobro de cuotas pero no Ventas (un acceso de Configuración, sin pestaña de
@@ -84,6 +98,7 @@ export async function requerirAdmin(): Promise<Sesion> {
 
 /** El closer de una sesión de rol "closer". Lanza si la sesión es de admin o la pestaña ya no existe. */
 export function closerDeSesion(sesion: Sesion): Closer {
+  if (sesion.precaller) return { ...VISTA_PRECALLER };
   const closer = sesion.rol === "closer" ? closers().find((c) => c.id === sesion.closerId) : undefined;
   if (!closer) throw new Error(`La sesión no corresponde a una pestaña de closer (${sesion.closerId ?? sesion.rol})`);
   // El nombre de la persona (no el de la pestaña) es el que se muestra y el que queda en el log

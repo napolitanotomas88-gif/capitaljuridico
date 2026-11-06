@@ -39,7 +39,8 @@ export default async function PaginaLead({ params }: PageProps<"/ventas/lead/[ho
   const closerDeLaHoja = closers().find((c) => c.hoja === hoja);
   // El socio y quien trabaja en varias hojas (pre-caller) vuelven a la hoja de este lead; un closer, a su día
   const variasHojas = sesion.rol === "admin" || sesion.hojas.length > 1;
-  const volver = variasHojas ? (closerDeLaHoja ? `/ventas/closer/${encodeURIComponent(closerDeLaHoja.id)}` : sesion.rol === "admin" ? "/ventas/admin" : "/ventas") : "/ventas";
+  // El pre-caller (pre-call v2) vuelve a su vista
+  const volver = sesion.precaller ? "/ventas/closer/pre-caller" : variasHojas ? (closerDeLaHoja ? `/ventas/closer/${encodeURIComponent(closerDeLaHoja.id)}` : sesion.rol === "admin" ? "/ventas/admin" : "/ventas") : "/ventas";
 
   return (
     <div className="flex flex-1 flex-col">

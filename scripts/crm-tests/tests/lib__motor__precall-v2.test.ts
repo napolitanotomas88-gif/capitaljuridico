@@ -103,20 +103,32 @@ describe("tarjeta del pre-caller", () => {
   });
 });
 
-describe("closer en v2", () => {
-  it("después del pase arranca esperando el LISTO y sigue con el link (sin DOLORES)", () => {
-    const [a] = v2({ estadoPrecaller: PRECALLER.pasado, precall: "CONF + DECISORES", llamadaPrecall: "Efectiva" });
-    expect(a.tipo).toBe("PRE_CALL");
-    expect(a.titulo).toBe("Esperar LISTO del video de pre-llamada");
-    expect(a.botones.map((b) => [b.etiqueta, b.cambios.precall])).toEqual([["Mandó LISTO", "VIDEOS CONF"]]);
-    const [link] = v2({ estadoPrecaller: PRECALLER.pasado, precall: "VIDEOS CONF", llamadaPrecall: "Efectiva" });
-    expect(link.titulo).toBe("Enviar fase: Hecho - link a call");
-    expect(v2({ estadoPrecaller: PRECALLER.pasado, precall: "Hecho - link a call", llamadaPrecall: "Efectiva" })).toEqual([]);
+describe("closer en v2: solo recordatorios", () => {
+  const pasado = { estadoPrecaller: PRECALLER.pasado, precall: "CONF + DECISORES", llamadaPrecall: "Efectiva" };
+  it("antes del día espera plegado; el día de la reunión: mañana → link 30 min → 10 min, y se va", () => {
+    const [manana] = v2(pasado);
+    expect(manana.tipo).toBe("RECORDATORIOS");
+    expect(manana.titulo).toBe("Recordatorio: mañana del día de la reunión");
+    expect(manana.listoPorHoy).toBe(true); // la reunión es el 26, hoy 24
+    const elDia = parsearFechaSheet("26/09/2026 08:00")!;
+    expect(v2(pasado, elDia)[0].listoPorHoy).toBe(false);
+    expect(manana.botones[0].cambios).toEqual({ recordatorioPrecall: "1" });
+    const [link] = v2({ ...pasado, recordatorioPrecall: "1" }, elDia);
+    expect(link.titulo).toBe("Recordatorio: link de la reunión (30 min antes)");
+    const [diez] = v2({ ...pasado, recordatorioPrecall: "2" }, elDia);
+    expect(diez.titulo).toBe("Recordatorio: aviso 10 min antes");
+    expect(diez.botones[0].cambios).toEqual({ recordatorioPrecall: "3", precall: "Hecho - link a call" });
+    expect(v2({ ...pasado, recordatorioPrecall: "3", precall: "Hecho - link a call" }, elDia)).toEqual([]);
+  });
+  it("sin llamada efectiva/no efectiva ni fases de confirmación; «Mandó LISTO» es una marca opcional", () => {
+    const [a] = v2(pasado);
+    expect(a.botones.map((b) => b.id)).toEqual(["recordatorio", "mandoListo"]);
+    expect(a.botones[1].cambios).toEqual({ precall: "VIDEOS CONF" });
+    expect(v2({ ...pasado, precall: "VIDEOS CONF" })[0].botones.map((b) => b.id)).toEqual(["recordatorio"]);
   });
   it("después de la call, ¿Se presentó? es del closer", () => {
     const despues = parsearFechaSheet("26/09/2026 12:00")!;
-    const tipos = v2({ estadoPrecaller: PRECALLER.pasado, precall: "Hecho - link a call", llamadaPrecall: "Efectiva" }, despues).map((a) => a.tipo);
-    expect(tipos).toEqual(["SE_PRESENTO"]);
+    expect(v2({ ...pasado, recordatorioPrecall: "3", precall: "Hecho - link a call" }, despues).map((a) => a.tipo)).toEqual(["SE_PRESENTO"]);
   });
 });
 

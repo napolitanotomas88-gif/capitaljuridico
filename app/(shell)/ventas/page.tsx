@@ -25,7 +25,9 @@ export default async function VentasPage() {
   }
   // Con varias pestañas (p. ej. el pre-caller, que trabaja en todas) no hay "su" hoja: arranca en la primera y cambia
   // con el selector del encabezado; cada hoja se ve con el nombre de su closer.
-  // Con el pre-call v2 prendido, el pre-caller arranca en su vista con los leads de todos los closers.
+  // Pre-call v2: el pre-caller (pestaña «Pre-caller» en Accesos) trabaja solo en su vista
+  if (sesion.precaller) redirect(`/ventas/closer/${ID_VISTA_PRECALLER}`)
+  // Con el pre-call v2 prendido, quien trabaja en varias pestañas arranca en la vista del pre-caller.
   if (sesion.hojas.length > 1) {
     if (precallV2Activo()) redirect(`/ventas/closer/${ID_VISTA_PRECALLER}`)
     const primera = closers().find((c) => sesion.hojas.includes(c.hoja))

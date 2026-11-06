@@ -27,8 +27,9 @@ export default async function PaginaCloser({ params }: Props) {
   const sesion = await requerirSesion();
   // El socio ve a cualquiera; un closer o setter, solo las pestañas que tiene asignadas (nunca la de otro)
   // La vista del pre-caller: el socio o quien trabaja en varias hojas
-  if (closer === VISTA_PRECALLER && sesion.rol !== "admin" && sesion.hojas.length < 2) redirect("/ventas");
-  if (closer && closer !== VISTA_PRECALLER && !puedeVerHoja(sesion, closer.hoja)) redirect("/ventas");
+  if (closer === VISTA_PRECALLER && sesion.rol !== "admin" && !sesion.precaller && sesion.hojas.length < 2) redirect("/ventas");
+  // El pre-caller no ve las hojas de los closers: solo su vista
+  if (closer && closer !== VISTA_PRECALLER && (sesion.precaller || !puedeVerHoja(sesion, closer.hoja))) redirect("/ventas");
   if (!closer) notFound();
 
   // Para un closer con una sola pestaña se muestra su nombre; para el socio y para quien trabaja en varias (pre-caller),

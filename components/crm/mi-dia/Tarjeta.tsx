@@ -227,7 +227,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
       <p className="mt-1 break-words text-sm text-gris-texto">{accion.estado}</p>
       <p className="mt-1 break-words text-base font-bold">{accion.titulo}</p>
 
-      {accion.grupo === "precall" && videosConfEnviados(item.valores.precall) && onRecordatorio && (
+      {accion.tipo === "PRE_CALL" && videosConfEnviados(item.valores.precall) && onRecordatorio && (
         <div className="mt-2 flex items-center gap-2">
           <label htmlFor={`${idNombre}-recordatorio`} className="text-xs font-semibold">Recordatorio</label>
           <select

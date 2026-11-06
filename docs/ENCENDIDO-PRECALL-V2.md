@@ -28,7 +28,8 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 | Sin confirmación al agendar | `confirmacionAgendaApagadaPorV2` (`lib/confirmacionAgenda.ts`) | Sale la confirmación de cada closer, como hoy |
 | Tarjeta del pre-caller | `accionPrecaller` en `lib/crm/motor/proxima-accion.ts` | No existe |
 | Vista «Pre-caller · todos los closers» | `/ventas/closer/pre-caller` | Da 404 |
-| Fases del closer v2 | `FASES_CLOSER_V2`: video LISTO → link | Las 4 fases de siempre |
+| Tarjeta del closer v2 | `accionRecordatoriosV2`: solo recordatorios (mañana → link 30 min → aviso 10 min), «Mandó LISTO» opcional | Las 4 fases de siempre |
+| Acceso del pre-caller | Configuración → Accesos: sección Ventas + pestaña «Pre-caller» (`sesion.precaller`) | Sin CRM |
 | Columnas AM–AV | Todas las pestañas de ventas (`scripts/precall-v2-planilla.mjs`) | No se leen ni se escriben (se lee hasta AK, como hoy) |
 | Pestaña «Pre-caller» | Solo lectura, con fórmula QUERY (mismo script) | No existe |
 | Escenarios de Make | Ver la tabla de abajo | Inactivos |
@@ -54,6 +55,7 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
    | AO | Decisores |
    | AU | Fecha y hora del pase |
 
+5b. **El closer (Marcos y Nahuel) después del pase:** su columna de pre-call arranca en los recordatorios: mañana del día, link 30 min antes y aviso 10 min antes (cada uno con «Enviado»; el último deja F = «Hecho - link a call»). No ve «Llamada efectiva / no efectiva» ni las fases de confirmación y decisores. «Mandó LISTO» queda como marca opcional. Después, «¿Se presentó?» y el resultado como siempre.
 6. **Regla dura.** Sin pase, el closer no ve al lead: ni el pre-call ni «¿Se presentó?».
    - Si la reunión pasa sin pase, la tarjeta pide reagendar en Calendly o «Liberar».
    - «Liberar» nunca pisa un «¿Se presentó?» ya cargado.
@@ -171,7 +173,8 @@ El orden importa: ninguna variable apunta a un escenario apagado, porque Make gu
    - En el Despacho, con un lead de prueba con el número propio:
      - «Llamada no efectiva» → tiene que llegar el texto 2 desde el número del pre-caller.
      - Otro lead de prueba: «Llamada efectiva» → a los 3 minutos tiene que llegar el pase desde el WhatsApp del closer.
-8. **Equipo y documentación.**
+8. **Acceso del pre-caller.** En Configuración → Accesos: su mail, sección **Ventas** (sin Cobro de cuotas) y pestaña **«Pre-caller»**. Entra directo a su vista; no ve las hojas de los closers ni cobros. Con la v2 apagada no tiene CRM.
+9. **Equipo y documentación.**
    - Avisar al pre-caller y a los closers.
    - Actualizar el SOP (el borrador está en `docs/SOP-PRECALL-V2-BORRADOR.md`; el doc PROCESOS VENTAS se edita con OK de Tomás).
 

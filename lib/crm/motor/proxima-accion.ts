@@ -38,6 +38,7 @@ export type Grupo = "sePresento" | "resultado" | "precall" | "noShow" | "postCal
 export const TIPOS_ACCION = [
   "PRE_CALL",
   "PRE_CALLER",
+  "RECORDATORIOS",
   "SE_PRESENTO",
   "SE_PRESENTO_REAGENDA",
   "RESULTADO",
@@ -538,6 +539,53 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   return tarjeta("Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
 }
 
+/** Los recordatorios del closer en v2 (AK: vacío → 1 → 2 → 3). Tomás, 6/11/2026: la columna del closer arranca acá. */
+const PASOS_RECORDATORIO = [
+  "Recordatorio: mañana del día de la reunión",
+  "Recordatorio: link de la reunión (30 min antes)",
+  "Recordatorio: aviso 10 min antes",
+] as const;
+
+/**
+ * La tarjeta del closer en v2 (tipo RECORDATORIOS), después del pase: solo los recordatorios previos (mañana del día, link 30 min
+ * antes, aviso 10 min antes). El video con la palabra clave ya salió solo con el pase; "Mandó LISTO" queda como marca opcional
+ * (F = VIDEOS CONF), sin frenar los recordatorios. El último escribe F = "Hecho - link a call" y la tarjeta se va; después de la
+ * hora, "¿Se presentó?" como siempre. Antes del día de la reunión espera plegada en "Listo por hoy".
+ */
+export function accionRecordatoriosV2(fila: FilaLead, ahora: Date): Accion | null {
+  const base = leerBase(fila, ahora);
+  if (!base) return null;
+  const { v } = base;
+  if (indiceFaseV2(v.precall).indice === FASES_CLOSER_V2.length - 1) return null;
+  const { fecha, avisoReagenda } = reunionDelPrecall(base, ahora);
+  if (fecha <= ahora) return null;
+  const paso = Math.min(Math.max(Number(v.recordatorioPrecall.trim()) || 0, 0), PASOS_RECORDATORIO.length);
+  if (paso >= PASOS_RECORDATORIO.length) return null;
+  const ultimo = paso === PASOS_RECORDATORIO.length - 1;
+  const listo = es(v.precall, "VIDEOS CONF");
+  const botones: Boton[] = [
+    {
+      id: "recordatorio",
+      etiqueta: "Enviado",
+      principal: true,
+      cambios: { recordatorioPrecall: String(paso + 1), ...(ultimo ? { precall: FASES_CLOSER_V2[FASES_CLOSER_V2.length - 1] } : {}) },
+    },
+    ...(listo ? [] : [{ id: "mandoListo", etiqueta: "Mandó LISTO", cambios: { precall: "VIDEOS CONF" } }]),
+  ];
+  return {
+    tipo: "RECORDATORIOS",
+    grupo: "precall",
+    titulo: PASOS_RECORDATORIO[paso],
+    estado: `Pasado al closer · video ${listo ? "visto (LISTO)" : "enviado, sin LISTO todavía"}`,
+    fecha,
+    // El de la mañana espera al día de la reunión
+    atrasado: false,
+    listoPorHoy: paso === 0 && !mismoDia(fecha, ahora),
+    botones,
+    avisos: avisoReagenda ? [avisoReagendaIlegible(v)] : [],
+  };
+}
+
 // ---------------------------------------------------------------------------------------
 // Acción principal (sin el pre-call)
 
@@ -865,7 +913,7 @@ export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {
   const candidatas = !v2
     ? [accionPrecall(fila, ahora, faseHoy), proximaAccion(fila, ahora)]
     : pasado
-      ? [accionPrecall(fila, ahora, faseHoy, true), proximaAccion(fila, ahora)]
+      ? [accionRecordatoriosV2(fila, ahora), proximaAccion(fila, ahora)]
       : conAsistencia
         ? [proximaAccion(fila, ahora)]
         : [accionPrecaller(fila, ahora)];

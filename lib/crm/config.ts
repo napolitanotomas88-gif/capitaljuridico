@@ -4,7 +4,7 @@
 // ni CLOSERS_JSON. Quién ve qué pestaña lo decide AUTH_USUARIOS (rol y nombre) + AUTH_VENTAS_PESTANAS (mail → pestañas).
 import { buscarUsuario, listarAccesos, normalizarEmail } from "@/lib/auth/usuarios";
 import { ErrorConfiguracion } from "@/lib/crm/errores";
-import { PESTANAS_VENTAS } from "@/lib/ventas/pendientes";
+import { PESTANA_PRECALLER, PESTANAS_VENTAS } from "@/lib/ventas/pendientes";
 
 export type Closer = {
   id: string;
@@ -73,6 +73,9 @@ export function idDeHoja(hoja: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/** Una pestaña de closer o la del pre-caller (pre-call v2), lo único que se puede asignar. */
+const asignable = (p: string) => HOJAS_CLOSERS_POR_DEFECTO.includes(p) || p === PESTANA_PRECALLER;
+
 /** Mail → pestañas, tal como lo cargó el socio en AUTH_VENTAS_PESTANAS (entradas inválidas se ignoran). */
 function asignaciones(): Map<string, string[]> {
   const mapa = new Map<string, string[]>();
@@ -82,7 +85,7 @@ function asignaciones(): Map<string, string[]> {
     for (const [mail, valor] of Object.entries(datos as Record<string, unknown>)) {
       const email = normalizarEmail(mail);
       if (!email || !Array.isArray(valor)) continue;
-      const hojas = valor.filter((p): p is string => typeof p === "string" && HOJAS_CLOSERS_POR_DEFECTO.includes(p));
+      const hojas = valor.filter((p): p is string => typeof p === "string" && asignable(p));
       if (hojas.length) mapa.set(email, [...new Set(hojas)]);
     }
   } catch {
@@ -91,7 +94,7 @@ function asignaciones(): Map<string, string[]> {
   // Las pestañas que se asignaron desde Configuración (planilla de Accesos) se suman a las de AUTH_VENTAS_PESTANAS
   for (const a of listarAccesos()) {
     if (!a.pestanas.length) continue;
-    mapa.set(a.email, [...new Set([...(mapa.get(a.email) ?? []), ...a.pestanas.filter((p) => HOJAS_CLOSERS_POR_DEFECTO.includes(p))])]);
+    mapa.set(a.email, [...new Set([...(mapa.get(a.email) ?? []), ...a.pestanas.filter(asignable)])]);
   }
   return mapa;
 }
