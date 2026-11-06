@@ -7,6 +7,7 @@
 // Por defecto NO escribe nada: muestra lo que haría. Con --aplicar lo hace (correr desde la raíz del repo, con .env.local).
 //   node scripts/precall-v2-planilla.mjs            → en seco
 //   node scripts/precall-v2-planilla.mjs --aplicar  → escribe
+//   --closers=Marcos,Nahuel (por defecto) → quiénes entran a la pestaña «Pre-caller» (igual que PRECALL_V2_CLOSERS)
 import { google } from 'googleapis'
 import { readFileSync } from 'fs'
 
@@ -24,12 +25,12 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: 'v4', auth })
 const ID = env.SHEET_ID_VENTAS
 
-// Pestaña → closer de las que entran a la vista «Pre-caller».
-const CLOSERS = { 'Closer 1': 'Carlos', 'Closer 2': 'Marcos', 'Closer 4': 'Nahuel' }
-// Closer 3 (Yamila) y Closer 5 (Brenda) ya no están en la empresa (Tomás, 6/11/2026) y Gero-Xavi Rejunte es histórica: no entran a
-// la pestaña «Pre-caller», pero igual llevan las columnas AM–AV, porque con PRECALL_V2=1 el CRM lee hasta AV en todas las pestañas de
-// ventas (PESTANAS_VENTAS) y una grilla más corta da error de Sheets.
-const SOLO_COLUMNAS = ['Closer 3', 'Closer 5', 'Gero-Xavi Rejunte']
+// Todas las pestañas de ventas (PESTANAS_VENTAS) llevan AM–AV: con PRECALL_V2=1 el CRM lee hasta AV en todas, y una grilla más
+// corta da error de Sheets. Solo las de los closers de --closers (PRECALL_V2_CLOSERS) entran a la pestaña «Pre-caller».
+const PESTANAS = { 'Closer 1': 'Carlos', 'Closer 2': 'Marcos', 'Closer 3': 'Yamila', 'Closer 4': 'Nahuel', 'Closer 5': 'Brenda', 'Gero-Xavi Rejunte': null }
+const pedidos_ = (process.argv.find(a => a.startsWith('--closers=')) ?? '--closers=Marcos,Nahuel').slice('--closers='.length).split(',').map(x => x.trim().toLowerCase()).filter(Boolean)
+const CLOSERS = Object.fromEntries(Object.entries(PESTANAS).filter(([, c]) => c && pedidos_.includes(c.toLowerCase())))
+console.log(`Vista «Pre-caller» con: ${Object.values(CLOSERS).join(', ') || '(ninguno)'}\n`)
 
 // AM–AV: tienen que coincidir con ENCABEZADOS_ESPERADOS de lib/crm/sheets/columnas.ts y los valores con lib/crm/config/precallV2.ts.
 const COLUMNAS = [
@@ -51,7 +52,7 @@ const meta = await sheets.spreadsheets.get({ spreadsheetId: ID, fields: 'sheets.
 const props = Object.fromEntries(meta.data.sheets.map(s => [s.properties.title, s.properties]))
 const pedidos = []
 
-for (const hoja of [...Object.keys(CLOSERS), ...SOLO_COLUMNAS]) {
+for (const hoja of Object.keys(PESTANAS)) {
   const p = props[hoja]
   if (!p) { console.log(`✗ no existe la pestaña ${hoja}`); continue }
   const actuales = (await sheets.spreadsheets.values.get({ spreadsheetId: ID, range: `'${hoja}'!AL1:AV1` }).catch(() => ({ data: {} }))).data.values?.[0] ?? []
@@ -92,13 +93,15 @@ const columnas = [c('D'), 'Col1', c('A'), c('B'), c('G'), c('L'), c('AP'), c('J'
 // o F y AI vacías, igual que `esLeadV2`) y no pasados, liberados ni olvidados.
 const consulta = [
   `select ${columnas.join(', ')}`,
-  `where Col1 <> '' and ${c('D')} is not null`,
+  // Solo reuniones desde hoy (las viejas nunca pasan por el pre-caller): la fecha se arma con NOW() en la planilla
+  `where Col1 <> '' and ${c('D')} >= datetime '"&TEXT(NOW()-TIME(2;0;0);"yyyy-mm-dd HH:mm:ss")&"'`,
   `and (${c('AT')} is not null or (${c('F')} is null and ${c('AI')} is null))`,
   `and (${c('AT')} is null or (${c('AT')} <> 'Pasado al closer' and ${c('AT')} <> 'Liberado'))`,
   `and (${c('F')} is null or ${c('F')} <> 'Olvidar')`,
-  `order by ${c('D')} desc`,
+  `order by ${c('D')}`,
 ].join(' ')
-const formula = `=QUERY({${bloques.join(';')}};"${consulta}";0)`
+// Sin leads, QUERY da #N/A («empty output»): se muestra un texto
+const formula = `=IFERROR(QUERY({${bloques.join(';')}};"${consulta}";0);"Sin leads para el pre-caller")`
 const encabezados = ['Llamada (día y hora)', 'Closer', 'Lead', 'WhatsApp', 'Origen', 'Facturación (calendario)', 'Facturación confirmada', 'Situación (calendario)', 'Situación confirmada', 'Decisores', 'Urgencia (calendario)', 'Urgencia confirmada', 'Contacto', '¿Confirmó?', 'Seguimientos', 'Estado', 'Pasado al closer', 'Notas para el closer']
 
 console.log(props['Pre-caller'] ? '· La pestaña «Pre-caller» ya existe: se reescriben encabezados y fórmula' : '· Crear la pestaña «Pre-caller» (solo lectura)')

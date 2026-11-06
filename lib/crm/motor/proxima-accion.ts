@@ -828,6 +828,8 @@ export type ContextoDia = {
   precallV2?: boolean;
   /** Desde qué reunión entra un lead nuevo al v2 (`precallV2Desde()`, PRECALL_V2_DESDE). */
   precallV2Desde?: Date | null;
+  /** Pestañas con el v2 encendido (`precallV2Hojas()`, PRECALL_V2_CLOSERS); sin esto, todas. */
+  precallV2Hojas?: ReadonlySet<string> | null;
 };
 
 /** Clave de un lead para `ContextoDia.precallHoy`: hoja + fila + nombre (por si se movieron filas). */
@@ -855,7 +857,8 @@ function faseEnviadaHoyDe(fila: FilaLead, dia: ContextoDia): boolean {
 export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {}): Accion[] {
   const faseHoy = faseEnviadaHoyDe(fila, dia);
   // Pre-call v2: hasta el pase el lead es solo del pre-caller (ni pre-call ni "¿Se presentó?" para el closer)
-  const v2 = dia.precallV2 === true && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
+  const hojaV2 = !dia.precallV2Hojas || dia.precallV2Hojas.has(fila.hoja);
+  const v2 = dia.precallV2 === true && hojaV2 && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
   const pasado = v2 && pasadoAlCloser(fila.valores);
   // Sin pase pero con "¿Se presentó?" ya cargado (alguien lo cargó a mano): lo que sigue es del closer, como siempre
   const conAsistencia = fila.valores.presentoAgenda1.trim() !== "";

@@ -19,6 +19,39 @@ export const precallV2Desde = (): Date | null => {
   return Number.isNaN(fecha.getTime()) ? null : fecha;
 };
 
+/** Pestaña de cada closer (primer nombre, minúsculas y sin tildes). Igual que CLOSER_DE_PESTANA de lib/crm/calendlyReagenda.ts. */
+export const HOJA_DE_CLOSER: Readonly<Record<string, string>> = {
+  carlos: "Closer 1",
+  marcos: "Closer 2",
+  yamila: "Closer 3",
+  nahuel: "Closer 4",
+  brenda: "Closer 5",
+};
+
+const primerNombre = (s: string) =>
+  (s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().split(/\s+/)[0] ?? "");
+
+/**
+ * Encendido por closer (Tomás, 6/11/2026: arranca con Marcos y Nahuel): `PRECALL_V2_CLOSERS="Marcos,Nahuel"`. Solo las reuniones
+ * de esos closers pasan por el pre-caller; el resto sigue como siempre (tarjeta, fases y confirmación al agendar). Vacía = todos.
+ */
+export const precallV2Closers = (): string[] | null => {
+  const lista = (process.env.PRECALL_V2_CLOSERS ?? "").split(",").map(primerNombre).filter(Boolean);
+  return lista.length ? lista : null;
+};
+
+/** Las pestañas con el v2 encendido (null = todas). */
+export const precallV2Hojas = (): ReadonlySet<string> | null => {
+  const lista = precallV2Closers();
+  return lista ? new Set(lista.map((c) => HOJA_DE_CLOSER[c]).filter(Boolean)) : null;
+};
+
+/** El closer de una reunión (nombre como viene de Calendly) tiene el v2 encendido. */
+export const closerConPrecallV2 = (nombre: string): boolean => {
+  const lista = precallV2Closers();
+  return !lista || lista.includes(primerNombre(nombre));
+};
+
 /**
  * El WhatsApp del pase al closer sale de verdad solo con esta segunda bandera (además de `PRECALL_V2=1`) y el webhook del
  * closer cargado. Permite prender las tarjetas sin mandar nada a leads mientras se prueba con un número propio.
