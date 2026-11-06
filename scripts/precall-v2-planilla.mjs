@@ -93,13 +93,15 @@ const columnas = [c('D'), 'Col1', c('A'), c('B'), c('G'), c('L'), c('AP'), c('J'
 // o F y AI vacías, igual que `esLeadV2`) y no pasados, liberados ni olvidados.
 const consulta = [
   `select ${columnas.join(', ')}`,
-  `where Col1 <> '' and ${c('D')} is not null`,
+  // Solo reuniones desde hoy (las viejas nunca pasan por el pre-caller): la fecha se arma con NOW() en la planilla
+  `where Col1 <> '' and ${c('D')} >= datetime '"&TEXT(NOW()-TIME(2;0;0);"yyyy-mm-dd HH:mm:ss")&"'`,
   `and (${c('AT')} is not null or (${c('F')} is null and ${c('AI')} is null))`,
   `and (${c('AT')} is null or (${c('AT')} <> 'Pasado al closer' and ${c('AT')} <> 'Liberado'))`,
   `and (${c('F')} is null or ${c('F')} <> 'Olvidar')`,
-  `order by ${c('D')} desc`,
+  `order by ${c('D')}`,
 ].join(' ')
-const formula = `=QUERY({${bloques.join(';')}};"${consulta}";0)`
+// Sin leads, QUERY da #N/A («empty output»): se muestra un texto
+const formula = `=IFERROR(QUERY({${bloques.join(';')}};"${consulta}";0);"Sin leads para el pre-caller")`
 const encabezados = ['Llamada (día y hora)', 'Closer', 'Lead', 'WhatsApp', 'Origen', 'Facturación (calendario)', 'Facturación confirmada', 'Situación (calendario)', 'Situación confirmada', 'Decisores', 'Urgencia (calendario)', 'Urgencia confirmada', 'Contacto', '¿Confirmó?', 'Seguimientos', 'Estado', 'Pasado al closer', 'Notas para el closer']
 
 console.log(props['Pre-caller'] ? '· La pestaña «Pre-caller» ya existe: se reescriben encabezados y fórmula' : '· Crear la pestaña «Pre-caller» (solo lectura)')
