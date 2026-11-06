@@ -33,17 +33,16 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 
 ### Flujo del pre-caller (tarjeta en el Despacho)
 
-1. **1ª llamada.** Botones: «Llamada efectiva» / «No atendió».
-2. **2ª llamada**, 1 h después como mínimo. Botones: «Llamada efectiva» / «Llamada no efectiva».
-3. **Si atiende alguna de las 2:**
+1. **Llamar (hasta 2 veces seguidas).** Las 2 llamadas van en el momento, sin esperar entre una y otra. Botones: «Llamada efectiva» / «Llamada no efectiva».
+2. **Si atiende alguna de las 2:**
    - Hace el guion del PASO 2 y le avisa que le va a escribir el consultor (Carlos, Marcos o el que corresponda). Corta.
    - Toca «Llamada efectiva». Se abre el formulario del pase: decisores, facturación, situación y urgencia (precargadas con lo del calendario) y notas para el closer.
    - El lead pasa al closer y a los 3 minutos sale el mensaje del closer.
-4. **Si no atiende ninguna:** toca «Llamada no efectiva» y sale solo el mensaje del pre-caller (texto 2). Sigue la escalera por chat, a mano: «¿Pudiste leerme?» → decisores (2 h después) → seguimiento de decisores → ultimátum. Cada paso se marca con «Enviado (n de 4)». Sin respuesta al ultimátum: 🔴 y «Cancelar reunión».
-5. **Si confirma por chat**, en cualquier paso: «Confirmó · decide solo», «Confirmó · vienen decisores», «Confirmó (falta decisores)» o «Reprogramó (ya en Calendly)».
+3. **Si no atiende ninguna:** toca «Llamada no efectiva» y sale solo el mensaje del pre-caller (texto 2). Sigue la escalera por chat, a mano: «¿Pudiste leerme?» → decisores (2 h después) → seguimiento de decisores → ultimátum. Cada paso se marca con «Enviado (n de 4)». Sin respuesta al ultimátum: 🔴 y «Cancelar reunión».
+4. **Si confirma por chat**, en cualquier paso: «Confirmó · decide solo», «Confirmó · vienen decisores», «Confirmó (falta decisores)» o «Reprogramó (ya en Calendly)».
    - Si faltan los decisores, la tarjeta pide la pregunta.
    - Después se manda el mensaje con las 3 recomendaciones (texto 3) y se toca «Pre-call hecho»: el mensaje del closer sale enseguida.
-6. **Lo que escribe el pase:**
+5. **Lo que escribe el pase:**
 
    | Columna | Valor |
    |---|---|
@@ -53,10 +52,10 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
    | AO | Decisores |
    | AU | Fecha y hora del pase |
 
-7. **Regla dura.** Sin pase, el closer no ve al lead: ni el pre-call ni «¿Se presentó?».
+6. **Regla dura.** Sin pase, el closer no ve al lead: ni el pre-call ni «¿Se presentó?».
    - Si la reunión pasa sin pase, la tarjeta pide reagendar en Calendly o «Liberar».
    - «Liberar» nunca pisa un «¿Se presentó?» ya cargado.
-8. **Dos seguimientos de show-up.**
+7. **Dos seguimientos de show-up.**
    - El del pre-caller, para que el lead confirme (este flujo).
    - El del closer, cuando el lead ya pasó y no se presentó (la tarjeta de No-show de siempre).
 

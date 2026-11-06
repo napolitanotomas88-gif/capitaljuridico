@@ -438,7 +438,7 @@ const botonReprograma = (): Boton => ({
  * La tarjeta del pre-caller (tipo PRE_CALLER), o null. Mientras el lead no se pasó al closer, el closer no lo ve (regla dura
  * de Tomás, 5/11/2026): la confirmación y el seguimiento para que confirme son del pre-caller.
  *
- * 1ª llamada → 2ª llamada. Si atiende alguna: guion y "Llamada efectiva" (pase; el WhatsApp del closer sale a los 3 minutos).
+ * Hasta 2 llamadas seguidas, en el momento. Si atiende: guion y "Llamada efectiva" (pase; el WhatsApp del closer sale a los 3 minutos).
  * Si no atiende ninguna: "Llamada no efectiva" (sale solo el WhatsApp del pre-caller: "Hace unos minutos te llamé… ¿Confirmamos
  * tu asistencia?") y sigue la escalera por chat: «¿Pudiste leerme?» → decisores (2 h después) → seguimiento de decisores →
  * ultimátum → cancelar. Si confirma por chat: decisores → recomendaciones → "Pre-call hecho" (pase, sin demora). Si la reunión
@@ -490,11 +490,9 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
     },
   });
 
-  if (contacto === "") {
-    return tarjeta("1ª llamada", [pase(true), { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio1 } }]);
-  }
-  if (es(contacto, PRECALLER.noAtendio1)) {
-    return tarjeta("2ª llamada (1 h después como mínimo)", [
+  // Las 2 llamadas van seguidas, en el momento (Tomás, 6/11/2026): un solo paso. "No atendió 1ª" quedó de una versión anterior.
+  if (contacto === "" || es(contacto, PRECALLER.noAtendio1)) {
+    return tarjeta("Llamar (hasta 2 veces seguidas)", [
       pase(true),
       // Dispara el WhatsApp automático desde el número del pre-caller ("Hace unos minutos te llamé… ¿Confirmamos?")
       { id: "llamadaNoEfectiva", etiqueta: "Llamada no efectiva", pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } },

@@ -1,5 +1,5 @@
 // Pre-call v2 (pedido de Tomás, 5/11/2026): el pre-call se parte en dos. El pre-caller confirma lo que el lead puso en el
-// calendario (llamada, 2ª llamada, chat y seguimiento) desde el WhatsApp de Tomás y lo pasa al closer; recién ahí el closer
+// calendario (hasta 2 llamadas seguidas, chat y seguimiento) desde el WhatsApp de Tomás y lo pasa al closer; recién ahí el closer
 // lo ve, y sale solo, desde el WhatsApp del closer, el video de traspaso con la cita y el video de pre-llamada (LISTO).
 //
 // TODO APAGADO hasta que exista el WhatsApp nuevo del pre-caller: `PRECALL_V2=1` lo prende (docs/ENCENDIDO-PRECALL-V2.md).
