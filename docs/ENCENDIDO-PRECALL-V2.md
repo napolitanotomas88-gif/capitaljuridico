@@ -7,6 +7,8 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 
 **Al agendar no sale ningún mensaje.** Lo primero que pasa es la llamada del pre-caller. Con el pre-call nuevo encendido, tampoco salen las confirmaciones automáticas de cada closer.
 
+**Arranque (Tomás, 6/11): solo Marcos y Nahuel** (`PRECALL_V2_CLOSERS=Marcos,Nahuel`). Carlos sigue con el flujo de siempre: tarjeta, fases y confirmación al agendar.
+
 **Estado: todo construido y APAGADO.** Falta el número de WhatsApp nuevo del pre-caller. Con `PRECALL_V2` sin cargar, el Despacho, la planilla y la confirmación al agendar funcionan igual que hoy.
 
 ## Los 2 mensajes automáticos
@@ -21,7 +23,7 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 
 | Pieza | Dónde | Apagado = |
 |---|---|---|
-| Bandera general | `PRECALL_V2=1` + `PRECALL_V2_DESDE` (`lib/crm/config/precallV2.ts`) | El CRM de siempre |
+| Bandera general | `PRECALL_V2=1` + `PRECALL_V2_DESDE` + `PRECALL_V2_CLOSERS` (`lib/crm/config/precallV2.ts`) | El CRM de siempre |
 | Envío de los 2 mensajes | `PRECALL_V2_ENVIO=1` + los webhooks (`lib/crm/pasePrecall.ts`) | El botón escribe en la planilla, pero el WhatsApp no sale y el aviso dice «mandalo a mano» |
 | Sin confirmación al agendar | `confirmacionAgendaApagadaPorV2` (`lib/confirmacionAgenda.ts`) | Sale la confirmación de cada closer, como hoy |
 | Tarjeta del pre-caller | `accionPrecaller` en `lib/crm/motor/proxima-accion.ts` | No existe |
@@ -149,16 +151,17 @@ El orden importa: ninguna variable apunta a un escenario apagado, porque Make gu
 1. **Número del pre-caller.** Conectarlo en 2Chat por coexistencia y anotar su número.
 2. **Textos.** Ya tienen el OK de Tomás (6/11). Si cambia alguno, actualizar este doc antes de crear las plantillas.
 3. **Plantillas de Meta.**
-   - Crear 6 del pase: 2 por closer (Marcos, Carlos y Nahuel), con y sin nombre, con encabezado de video.
+   - Crear las del pase: 2 por closer con v2 (con y sin nombre, encabezado de video). Arranque: Marcos y Nahuel = 4.
    - Crear 2 de «Llamada no efectiva» (con y sin nombre, sin video) en la WABA del número nuevo.
    - Esperar que Meta las apruebe.
    - Cargar cada `TMP…` en su escenario, en lugar de `PENDIENTE-…`. En el de «Llamada no efectiva», cargar también el número.
 4. **Planilla.**
    - Correr `node scripts/precall-v2-planilla.mjs` (en seco) y revisar lo que va a hacer.
-   - Después correrlo con `--aplicar`. Agrega AM–AV con sus desplegables en todas las pestañas de ventas (el CRM las lee todas) y crea la pestaña «Pre-caller» con Closer 1, 2 y 4.
-5. **Activar los 4 escenarios de Make** (los 3 pases y «Llamada no efectiva»; los OBSOLETO no se tocan). Antes de cargar ninguna variable, y con la cola vacía. Mientras las variables no estén en Vercel, no les llega nada.
+   - Después correrlo con `--aplicar --closers=Marcos,Nahuel`. Agrega AM–AV con sus desplegables en todas las pestañas de ventas (el CRM las lee todas) y crea la pestaña «Pre-caller» con los closers de `--closers`.
+5. **Activar los escenarios de Make** de «Llamada no efectiva» y del pase de cada closer con v2 (arranque: Marcos y Nahuel). Los OBSOLETO y el de Carlos no se tocan. Antes de cargar ninguna variable, y con la cola vacía. Mientras las variables no estén en Vercel, no les llega nada.
 6. **Vercel (Production).**
-   - Cargar `MAKE_WEBHOOK_PASE_MARCOS`, `MAKE_WEBHOOK_PASE_CARLOS`, `MAKE_WEBHOOK_PASE_NAHUEL` y `MAKE_WEBHOOK_NO_EFECTIVA`.
+   - Cargar `MAKE_WEBHOOK_NO_EFECTIVA` y el `MAKE_WEBHOOK_PASE_*` de cada closer con v2 (arranque: MARCOS y NAHUEL).
+   - Cargar `PRECALL_V2_CLOSERS` (arranque: `Marcos,Nahuel`).
    - Cargar `PRECALL_V2=1` y `PRECALL_V2_DESDE`, con la fecha y hora del encendido en ISO (por ejemplo `2026-11-20T00:00:00-03:00`). Solo las reuniones desde ese momento pasan por el pre-caller.
    - Desde este redeploy, al agendar no sale ningún WhatsApp.
    - Todavía **sin** `PRECALL_V2_ENVIO`.

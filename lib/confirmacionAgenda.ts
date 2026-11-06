@@ -5,6 +5,7 @@
 // acá se resuelve lo que en Make es frágil: de dónde sale el teléfono, su formato y la fecha.
 // La API key de 2Chat vive SOLO en la conexión de Make; este código nunca la ve.
 import { google } from 'googleapis'
+import { closerConPrecallV2 } from '@/lib/crm/config/precallV2'
 
 const TZ_AR = 'America/Argentina/Buenos_Aires'
 const PESTANA = 'Confirmaciones WhatsApp'
@@ -261,10 +262,12 @@ export interface ResultadoConfirmacion { ok: boolean; accion: 'enviado a Make' |
 
 // Pre-call v2 (Tomás, 6/11/2026): al agendar NO sale ningún WhatsApp; lo primero es la llamada del pre-caller. Con PRECALL_V2=1
 // tampoco salen las confirmaciones de los escenarios de cada closer (lib/crm/pasePrecall.ts manda los mensajes del flujo nuevo).
-export const confirmacionAgendaApagadaPorV2 = (): boolean => process.env.PRECALL_V2?.trim() === '1'
+// Por closer (PRECALL_V2_CLOSERS): los closers sin v2 siguen con su confirmación de siempre.
+export const confirmacionAgendaApagadaPorV2 = (closerDeLaReunion: string): boolean =>
+  process.env.PRECALL_V2?.trim() === '1' && closerConPrecallV2(closerDeLaReunion)
 
 export async function enviarConfirmacionAgenda(p: InviteePayload): Promise<ResultadoConfirmacion> {
-  if (confirmacionAgendaApagadaPorV2()) return { ok: true, accion: 'apagado', motivo: 'pre-call v2: el primer contacto es la llamada del pre-caller' }
+  if (confirmacionAgendaApagadaPorV2(p.scheduled_event?.event_memberships?.[0]?.user_name ?? '')) return { ok: true, accion: 'apagado', motivo: 'pre-call v2: el primer contacto es la llamada del pre-caller' }
   // Cada closer manda desde SU escenario de Make (su número y sus plantillas)
   const variable = variableWebhookDe(p.scheduled_event?.event_memberships?.[0]?.user_name ?? '')
   const url = process.env[variable]

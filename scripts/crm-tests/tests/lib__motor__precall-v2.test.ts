@@ -3,7 +3,7 @@ import type { Campo, FilaLead } from "@/lib/crm/sheets/columnas";
 import { COLUMNAS } from "@/lib/crm/sheets/columnas";
 import { parsearFechaSheet } from "@/lib/crm/fechas";
 import { accionesDeFila, esLeadV2, type Accion } from "@/lib/crm/motor/proxima-accion";
-import { PRECALLER } from "@/lib/crm/config/precallV2";
+import { PRECALLER, closerConPrecallV2, precallV2Hojas } from "@/lib/crm/config/precallV2";
 import { formularioPase } from "@/lib/crm/pantalla";
 
 // "Hoy": jueves 24/09/2026, 15:00 en Buenos Aires. La call del lead, el sábado 26 a las 10:30.
@@ -136,5 +136,31 @@ describe("formulario del pase", () => {
   });
   it("no deja fórmulas", () => {
     expect(formularioPase(boton, { facturacion: "=1+1", situacion: "x", urgencia: "x", decisores: "Decide solo", notas: "" }).ok).toBe(false);
+  });
+});
+
+describe("encendido por closer (PRECALL_V2_CLOSERS)", () => {
+  it("solo las pestañas de los closers elegidos pasan por el pre-caller; el resto sigue como siempre", () => {
+    // fila() es de Closer 1 (Carlos)
+    const soloMarcosNahuel = new Set(["Closer 2", "Closer 4"]);
+    const carlos = accionesDeFila(fila({}), AHORA, { precallV2: true, precallV2Desde: DESDE, precallV2Hojas: soloMarcosNahuel });
+    expect(carlos[0].tipo).toBe("PRE_CALL");
+    const marcos = accionesDeFila({ ...fila({}), hoja: "Closer 2" }, AHORA, { precallV2: true, precallV2Desde: DESDE, precallV2Hojas: soloMarcosNahuel });
+    expect(marcos[0].tipo).toBe("PRE_CALLER");
+  });
+  it("lee PRECALL_V2_CLOSERS sin importar mayúsculas, tildes ni apellido; vacía = todos", () => {
+    const antes = process.env.PRECALL_V2_CLOSERS;
+    try {
+      process.env.PRECALL_V2_CLOSERS = " marcos , Nahuel ";
+      expect([...(precallV2Hojas() ?? [])]).toEqual(["Closer 2", "Closer 4"]);
+      expect(closerConPrecallV2("Marcos Carlomagno")).toBe(true);
+      expect(closerConPrecallV2("Carlos Roletto")).toBe(false);
+      delete process.env.PRECALL_V2_CLOSERS;
+      expect(precallV2Hojas()).toBeNull();
+      expect(closerConPrecallV2("Carlos Roletto")).toBe(true);
+    } finally {
+      if (antes === undefined) delete process.env.PRECALL_V2_CLOSERS;
+      else process.env.PRECALL_V2_CLOSERS = antes;
+    }
   });
 });
