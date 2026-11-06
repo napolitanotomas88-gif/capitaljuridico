@@ -27,7 +27,8 @@ export async function PantallaMiDia({ closer, sesion }: { closer: Closer; sesion
       leerDesplegables(hojaDesplegables),
     ]),
   );
-  const opciones = [...(precallV2Activo() && (esAdmin || hojasElegibles.length > 1) ? [VISTA_PRECALLER] : []), ...hojasElegibles];
+  // El pre-caller no tiene selector: solo su vista
+  const opciones = sesion.precaller ? [] : [...(precallV2Activo() && (esAdmin || hojasElegibles.length > 1) ? [VISTA_PRECALLER] : []), ...hojasElegibles];
 
   return (
     <MiDia
@@ -41,7 +42,7 @@ export async function PantallaMiDia({ closer, sesion }: { closer: Closer; sesion
       closer={{ id: closer.id, nombre: closer.nombre, hoja: closer.hoja }}
       situaciones={desplegables.situacion}
       esAdmin={esAdmin}
-      closers={esAdmin || hojasElegibles.length > 1 ? opciones.map((c) => ({ id: c.id, nombre: c.nombre })) : []}
+      closers={esAdmin || (!sesion.precaller && hojasElegibles.length > 1) ? opciones.map((c) => ({ id: c.id, nombre: c.nombre })) : []}
       excluirDelProgreso={NOMBRE_ADMIN}
     />
   );

@@ -5,7 +5,7 @@
 // Se borra "quitando" (Activo = no): queda el rastro. La hoja "Historial" registra cada alta, cambio y baja.
 import { normalizarEmail } from './usuarios'
 import { SECCIONES_ASIGNABLES, type Seccion } from './roles'
-import { PESTANAS_VENTAS } from '../ventas/pendientes'
+import { PESTANAS_ACCESO } from '../ventas/pendientes'
 
 export const ENCABEZADOS = ['Email', 'Nombre', 'Tipo', 'Secciones', 'Pestañas CRM', 'Activo', 'Agregó', 'Fecha'] as const
 export const ENCABEZADOS_HISTORIAL = ['Fecha', 'Quién', 'Acción', 'Mail', 'Detalle'] as const
@@ -31,7 +31,7 @@ export function leerFila(celdas: readonly unknown[]): FilaAcceso | null {
   const tipo = String(celdas[2] ?? '').trim().toLowerCase()
   if (!email || !nombre || nombre.length > 80 || (tipo !== 'admin' && tipo !== 'acceso')) return null
   const secciones = lista(celdas[3]).filter((s): s is Seccion => (SECCIONES_ASIGNABLES as readonly string[]).includes(s))
-  const pestanas = lista(celdas[4]).filter((p) => (PESTANAS_VENTAS as readonly string[]).includes(p))
+  const pestanas = lista(celdas[4]).filter((p) => PESTANAS_ACCESO.includes(p))
   const activo = String(celdas[5] ?? '').trim().toLowerCase() === 'sí' || String(celdas[5] ?? '').trim().toLowerCase() === 'si'
   return { email, nombre, tipo, secciones, pestanas, activo, agrego: String(celdas[6] ?? ''), fecha: String(celdas[7] ?? '') }
 }
@@ -77,6 +77,6 @@ export function validarEntrada(e: EntradaAcceso): { ok: true; datos: Pick<FilaAc
   const secciones = SECCIONES_ASIGNABLES.filter((s) => pedidas.includes(s))
   if (!secciones.length) return { ok: false, error: 'Marcá al menos una sección para que pueda ver.' }
   const pestanasPedidas = Array.isArray(e.pestanas) ? e.pestanas.map(String) : []
-  const pestanas = secciones.includes('ventas') ? (PESTANAS_VENTAS as readonly string[]).filter((p) => pestanasPedidas.includes(p)) : []
+  const pestanas = secciones.includes('ventas') ? PESTANAS_ACCESO.filter((p) => pestanasPedidas.includes(p)) : []
   return { ok: true, datos: { email, nombre, tipo: 'acceso', secciones, pestanas } }
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { filasDeLaPlanilla, planillaConfigurada } from '@/lib/auth/accesos'
-import { PESTANAS_VENTAS } from '@/lib/ventas/pendientes'
+import { PESTANAS_ACCESO } from '@/lib/ventas/pendientes'
 import { SECCIONES_ASIGNABLES, ETIQUETA_ROL } from '@/lib/auth/roles'
 import { exigirAcceso } from '@/lib/auth/sesion'
 import { listarAccesos } from '@/lib/auth/usuarios'
@@ -56,7 +56,7 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
           <h2 className="cj-etiqueta cj-etiqueta--laton">{edicion ? `Editar a ${edicion.nombre}` : 'Agregar persona'}</h2>
           <FormularioAcceso
             secciones={SECCIONES_ASIGNABLES.map((s) => ({ clave: s, etiqueta: ETIQUETA_ACCESO[s] }))}
-            pestanas={[...PESTANAS_VENTAS]}
+            pestanas={[...PESTANAS_ACCESO]}
             edicion={edicion}
           />
         </section>

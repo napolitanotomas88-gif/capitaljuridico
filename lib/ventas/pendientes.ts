@@ -3,6 +3,10 @@ import { fechaDeCelda, hoyArgentina, diasEntre } from '../clientes/fechas'
 // Closer 4 y Closer 5: pestañas nuevas del 18/10/2026 (copias vacías de Closer 2), para dos closers más
 export const PESTANAS_VENTAS = ['Closer 1', 'Closer 2', 'Closer 3', 'Closer 4', 'Closer 5', 'Gero-Xavi Rejunte'] as const
 export type PestanaVentas = typeof PESTANAS_VENTAS[number]
+/** Pre-call v2 (Tomás, 6/11/2026): «pestaña» de Accesos que da la vista del pre-caller en el CRM (no es una hoja de la planilla). */
+export const PESTANA_PRECALLER = 'Pre-caller'
+/** Lo que se puede asignar en Configuración → Accesos: las pestañas de closers y la del pre-caller. */
+export const PESTANAS_ACCESO: readonly string[] = [...PESTANAS_VENTAS, PESTANA_PRECALLER]
 export type PendienteVenta = { id: string; pestana: string; fila: number; nombre: string; telefono: string; fecha: string; accion: string; atrasado: boolean; revision: boolean }
 const texto = (v: unknown) => String(v ?? '').trim()
 const normal = (v: unknown) => texto(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
