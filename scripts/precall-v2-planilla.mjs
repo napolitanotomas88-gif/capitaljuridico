@@ -24,8 +24,12 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: 'v4', auth })
 const ID = env.SHEET_ID_VENTAS
 
-// Pestaña → closer (igual que CLOSER_DE_PESTANA de lib/crm/calendlyReagenda.ts). Gero-Xavi Rejunte no entra: es histórica.
-const CLOSERS = { 'Closer 1': 'Carlos', 'Closer 2': 'Marcos', 'Closer 3': 'Yamila', 'Closer 4': 'Nahuel', 'Closer 5': 'Brenda' }
+// Pestaña → closer de las que entran a la vista «Pre-caller».
+const CLOSERS = { 'Closer 1': 'Carlos', 'Closer 2': 'Marcos', 'Closer 4': 'Nahuel' }
+// Closer 3 (Yamila) y Closer 5 (Brenda) ya no están en la empresa (Tomás, 6/11/2026) y Gero-Xavi Rejunte es histórica: no entran a
+// la pestaña «Pre-caller», pero igual llevan las columnas AM–AV, porque con PRECALL_V2=1 el CRM lee hasta AV en todas las pestañas de
+// ventas (PESTANAS_VENTAS) y una grilla más corta da error de Sheets.
+const SOLO_COLUMNAS = ['Closer 3', 'Closer 5', 'Gero-Xavi Rejunte']
 
 // AM–AV: tienen que coincidir con ENCABEZADOS_ESPERADOS de lib/crm/sheets/columnas.ts y los valores con lib/crm/config/precallV2.ts.
 const COLUMNAS = [
@@ -47,7 +51,7 @@ const meta = await sheets.spreadsheets.get({ spreadsheetId: ID, fields: 'sheets.
 const props = Object.fromEntries(meta.data.sheets.map(s => [s.properties.title, s.properties]))
 const pedidos = []
 
-for (const hoja of Object.keys(CLOSERS)) {
+for (const hoja of [...Object.keys(CLOSERS), ...SOLO_COLUMNAS]) {
   const p = props[hoja]
   if (!p) { console.log(`✗ no existe la pestaña ${hoja}`); continue }
   const actuales = (await sheets.spreadsheets.values.get({ spreadsheetId: ID, range: `'${hoja}'!AL1:AV1` }).catch(() => ({ data: {} }))).data.values?.[0] ?? []

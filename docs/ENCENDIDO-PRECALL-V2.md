@@ -27,7 +27,7 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 | Tarjeta del pre-caller | `accionPrecaller` en `lib/crm/motor/proxima-accion.ts` | No existe |
 | Vista «Pre-caller · todos los closers» | `/ventas/closer/pre-caller` | Da 404 |
 | Fases del closer v2 | `FASES_CLOSER_V2`: video LISTO → link | Las 4 fases de siempre |
-| Columnas AM–AV | Pestañas Closer 1–5 (`scripts/precall-v2-planilla.mjs`) | No se leen ni se escriben (se lee hasta AK, como hoy) |
+| Columnas AM–AV | Todas las pestañas de ventas (`scripts/precall-v2-planilla.mjs`) | No se leen ni se escriben (se lee hasta AK, como hoy) |
 | Pestaña «Pre-caller» | Solo lectura, con fórmula QUERY (mismo script) | No existe |
 | Escenarios de Make | Ver la tabla de abajo | Inactivos |
 
@@ -63,13 +63,13 @@ Solo entran al flujo nuevo las reuniones desde `PRECALL_V2_DESDE` que nadie empe
 
 ### Escenarios de Make (todos inactivos)
 
+Yamila y Brenda ya no están en la empresa (6/11): sus borradores quedaron renombrados como OBSOLETO, apagados, y no se usan. Quedan los pases de Marcos, Carlos y Nahuel.
+
 | Escenario | Variable de Vercel |
 |---|---|
 | BORRADOR (NO ACTIVAR) - Pase al closer (Marcos) · pre-call v2 | `MAKE_WEBHOOK_PASE_MARCOS` |
 | BORRADOR (NO ACTIVAR) - Pase al closer (Carlos) · pre-call v2 | `MAKE_WEBHOOK_PASE_CARLOS` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Yamila) · pre-call v2 | `MAKE_WEBHOOK_PASE_YAMILA` |
 | BORRADOR (NO ACTIVAR) - Pase al closer (Nahuel) · pre-call v2 | `MAKE_WEBHOOK_PASE_NAHUEL` |
-| BORRADOR (NO ACTIVAR) - Pase al closer (Brenda) · pre-call v2 | `MAKE_WEBHOOK_PASE_BRENDA` |
 | BORRADOR (NO ACTIVAR) - Llamada no efectiva desde WhatsApp del pre-caller · pre-call v2 | `MAKE_WEBHOOK_NO_EFECTIVA` |
 
 - **Pase al closer.** Cada escenario sale del número del closer, con su video de traspaso actual. Primero espera `espera_segundos`: 180 desde la llamada, 1 desde el chat. Ruta con nombre / sin nombre.
@@ -78,11 +78,11 @@ Solo entran al flujo nuevo las reuniones desde `PRECALL_V2_DESDE` que nadie empe
 - **Ids y webhooks.** Las URLs de los webhooks y los ids de Make no van en este repo, que es público: están en la nota privada de Tomás.
 - **Datos que manda el Despacho:** `telefono`, `nombre` (primer nombre; vacío → plantilla sin nombre), `closer_completo`, `fecha_texto`, `hora_texto`, `pais_texto`, `inicio_iso`, `hoja`, `fila` y `espera_segundos`. Hora y país salen de la reunión en Calendly; si Calendly no responde, se usa la hora de Argentina.
 
-## Textos
+## Textos (todos con el OK de Tomás, 6/11)
 
 Las variables `{{n}}` las llena Make. Meta no deja que el texto **empiece** con una variable: por eso el «Hola» va antes del nombre.
 
-### 1. Pase al closer: una plantilla por closer, con el video de traspaso actual en el encabezado (OK de Tomás 5/11)
+### 1. Pase al closer: una plantilla por closer, con el video de traspaso actual en el encabezado (OK de Tomás 5 y 6/11)
 
 Con nombre ({{1}} = nombre, {{2}} = «jueves 12 de noviembre a las 15:00», {{3}} = «Argentina»):
 
@@ -100,23 +100,21 @@ Nombre y cargo de cada closer:
 |---|---|
 | Marcos | Marcos Carlomagno, consultor |
 | Carlos | Carlos Roletto, consultor |
-| Yamila | Yamila Coutoune, consultora |
 | Nahuel | Nahuel Milena, consultor |
-| Brenda | Brenda Amado, consultora |
 
-### 2. Llamada no efectiva: desde el WhatsApp del pre-caller, sin video (pedido de Tomás 6/11, falta su OK del texto final)
+### 2. Llamada no efectiva: desde el WhatsApp del pre-caller, sin video (OK de Tomás 6/11)
 
 Con nombre ({{1}} = nombre, {{2}} = fecha y hora, {{3}} = país):
 
 > Hola {{1}}, cómo estás? Soy Gerónimo Actis.
 >
-> Hace unos minutos te llamé para corroborar tu asistencia a la reunión de consultoría sobre tu estudio jurídico del {{2}} (hora {{3}}).
+> Hace unos minutos te llamé por la reunión de consultoría sobre tu estudio jurídico del {{2}} (hora {{3}}), para analizar cómo podemos hacerlo crecer comercialmente.
 >
 > Confirmamos tu asistencia?
 
-Sin nombre: «Hola, cómo estás? Soy Gerónimo Actis.» y el mismo resto.
+Sin nombre: «Hola, cómo estás? Soy Gerónimo Actis.» y el mismo resto ({{1}} = fecha y hora, {{2}} = país).
 
-### 3. Pre-caller por chat: los manda a mano desde el WhatsApp del pre-caller, después del texto 2 (orden de Tomás, 5/11)
+### 3. Pre-caller por chat: los manda a mano desde el WhatsApp del pre-caller, después del texto 2 (OK de Tomás 5 y 6/11)
 
 **a) Si no responde el texto 2:**
 > Hola NOMBRE, cómo estás? Pudiste leerme?
@@ -149,18 +147,18 @@ Sin nombre: «Hola, cómo estás? Soy Gerónimo Actis.» y el mismo resto.
 El orden importa: ninguna variable apunta a un escenario apagado, porque Make guardaría en cola mensajes para leads reales.
 
 1. **Número del pre-caller.** Conectarlo en 2Chat por coexistencia y anotar su número.
-2. **OK de Tomás del texto 2.** Los textos 1 y 3 ya están aprobados. Si cambia alguno, actualizar este doc antes de crear las plantillas.
+2. **Textos.** Ya tienen el OK de Tomás (6/11). Si cambia alguno, actualizar este doc antes de crear las plantillas.
 3. **Plantillas de Meta.**
-   - Crear 10 del pase: 2 por closer, con y sin nombre, con encabezado de video.
+   - Crear 6 del pase: 2 por closer (Marcos, Carlos y Nahuel), con y sin nombre, con encabezado de video.
    - Crear 2 de «Llamada no efectiva» (con y sin nombre, sin video) en la WABA del número nuevo.
    - Esperar que Meta las apruebe.
    - Cargar cada `TMP…` en su escenario, en lugar de `PENDIENTE-…`. En el de «Llamada no efectiva», cargar también el número.
 4. **Planilla.**
    - Correr `node scripts/precall-v2-planilla.mjs` (en seco) y revisar lo que va a hacer.
-   - Después correrlo con `--aplicar`. Agrega AM–AV con sus desplegables en Closer 1–5 y crea la pestaña «Pre-caller».
-5. **Activar los 6 escenarios de Make.** Antes de cargar ninguna variable, y con la cola vacía. Mientras las variables no estén en Vercel, no les llega nada.
+   - Después correrlo con `--aplicar`. Agrega AM–AV con sus desplegables en todas las pestañas de ventas (el CRM las lee todas) y crea la pestaña «Pre-caller» con Closer 1, 2 y 4.
+5. **Activar los 4 escenarios de Make** (los 3 pases y «Llamada no efectiva»; los OBSOLETO no se tocan). Antes de cargar ninguna variable, y con la cola vacía. Mientras las variables no estén en Vercel, no les llega nada.
 6. **Vercel (Production).**
-   - Cargar los 5 `MAKE_WEBHOOK_PASE_*` y `MAKE_WEBHOOK_NO_EFECTIVA`.
+   - Cargar `MAKE_WEBHOOK_PASE_MARCOS`, `MAKE_WEBHOOK_PASE_CARLOS`, `MAKE_WEBHOOK_PASE_NAHUEL` y `MAKE_WEBHOOK_NO_EFECTIVA`.
    - Cargar `PRECALL_V2=1` y `PRECALL_V2_DESDE`, con la fecha y hora del encendido en ISO (por ejemplo `2026-11-20T00:00:00-03:00`). Solo las reuniones desde ese momento pasan por el pre-caller.
    - Desde este redeploy, al agendar no sale ningún WhatsApp.
    - Todavía **sin** `PRECALL_V2_ENVIO`.

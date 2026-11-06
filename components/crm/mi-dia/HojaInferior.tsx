@@ -440,8 +440,8 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
                 <p>Sale solo, desde el WhatsApp del pre-caller, este mensaje (sin video):</p>
                 <blockquote className="rounded-lg bg-gris-fondo px-3 py-2">
                   Hola {item.identidad.nombre.trim().split(/\s+/)[0] || ""}, cómo estás? Soy Gerónimo Actis. Hace unos minutos te llamé
-                  para corroborar tu asistencia a la reunión de consultoría sobre tu estudio jurídico del {item.horaCall}. Confirmamos tu
-                  asistencia?
+                  por la reunión de consultoría sobre tu estudio jurídico del {item.horaCall}, para analizar cómo podemos hacerlo crecer
+                  comercialmente. Confirmamos tu asistencia?
                 </blockquote>
                 <p>Después sigue la escalera por chat desde la tarjeta.</p>
               </div>
