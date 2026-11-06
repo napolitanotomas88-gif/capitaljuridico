@@ -16,17 +16,16 @@ Este borrador reemplaza los pasos 1 a 3 de la pestaña «PRE CALL (paso a paso)�
 
 ## Pre-caller (Despacho → Ventas → «Pre-caller · todos los closers»)
 
-1. **1ª llamada** con el guion del PASO 2 (dentro de los 10 minutos de la agenda).
-2. **Si no atiende:** 2ª llamada, 1 h después como mínimo.
-3. **Si atiende alguna:** guion completo y le avisa que le va a escribir el consultor (Carlos, Marcos o el que corresponda). Corta y toca «Llamada efectiva»: carga decisores, facturación, situación y urgencia, y notas para el closer. A los 3 minutos le escribe el closer.
-4. **Si no atiende ninguna:** toca «Llamada no efectiva» (sale solo el mensaje). Después, la escalera por chat:
+1. **Llamar** con el guion del PASO 2, dentro de los 10 minutos de la agenda. Si no atiende, volver a llamar en el momento: hasta 2 llamadas seguidas, sin esperar entre una y otra.
+2. **Si atiende alguna:** guion completo y le avisa que le va a escribir el consultor (Carlos, Marcos o el que corresponda). Corta y toca «Llamada efectiva»: carga decisores, facturación, situación y urgencia, y notas para el closer. A los 3 minutos le escribe el closer.
+3. **Si no atiende ninguna:** toca «Llamada no efectiva» (sale solo el mensaje). Después, la escalera por chat:
    - «Hola NOMBRE, cómo estás? Pudiste leerme?»
    - 2 h después, responda o no: la pregunta de decisores (PASO 2 BIS).
    - Seguimiento de decisores.
    - Ultimátum: «confirmamos o liberamos el horario?».
    - Sin respuesta: 🔴 y Cancelar reunión.
-5. **Si confirma por chat:** decisores (si faltan). Después, el mensaje con las 3 recomendaciones y el nombre del closer, y «Pre-call hecho»: le escribe el closer enseguida.
-6. **Si la reunión pasa sin pase:** reagendar o «Liberar».
+4. **Si confirma por chat:** decisores (si faltan). Después, el mensaje con las 3 recomendaciones y el nombre del closer, y «Pre-call hecho»: le escribe el closer enseguida.
+5. **Si la reunión pasa sin pase:** reagendar o «Liberar».
 
 ## Closer (Despacho → su hoja)
 

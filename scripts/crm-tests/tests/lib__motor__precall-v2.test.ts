@@ -58,20 +58,18 @@ describe("encendido: solo reuniones desde PRECALL_V2_DESDE", () => {
 });
 
 describe("tarjeta del pre-caller", () => {
-  it("1ª llamada → 2ª llamada; atiende = Llamada efectiva (pase); no atiende ninguna = Llamada no efectiva", () => {
+  it("un solo paso de llamada (hasta 2 seguidas): Llamada efectiva = pase; Llamada no efectiva = WhatsApp del pre-caller", () => {
     const [a] = v2({});
     expect(a.tipo).toBe("PRE_CALLER");
-    expect(a.titulo).toBe("1ª llamada");
-    expect(ids(a)).toEqual(["llamadaEfectiva", "noAtendio"]);
+    expect(a.titulo).toBe("Llamar (hasta 2 veces seguidas)");
+    expect(ids(a)).toEqual(["llamadaEfectiva", "llamadaNoEfectiva"]);
     expect(a.botones[0]).toMatchObject({
       pide: "pase",
       cambios: { contactoPrecaller: PRECALLER.llamadaEfectiva, confirmoPrecaller: "Si", estadoPrecaller: PRECALLER.pasado, precall: "CONF + DECISORES", llamadaPrecall: "Efectiva" },
     });
-    expect(a.botones[1].cambios).toEqual({ contactoPrecaller: PRECALLER.noAtendio1 });
-    const [segunda] = v2({ contactoPrecaller: PRECALLER.noAtendio1 });
-    expect(segunda.titulo).toMatch(/^2ª llamada/);
-    expect(ids(segunda)).toEqual(["llamadaEfectiva", "llamadaNoEfectiva"]);
-    expect(segunda.botones[1]).toMatchObject({ pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } });
+    expect(a.botones[1]).toMatchObject({ pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } });
+    // Un "No atendió 1ª" de la versión anterior cae en el mismo paso
+    expect(v2({ contactoPrecaller: PRECALLER.noAtendio1 })[0].titulo).toBe("Llamar (hasta 2 veces seguidas)");
   });
   it("escalera: ¿Pudiste leerme? → decisores → seguimiento de decisores → ultimátum → cancelar", () => {
     const titulos = ["", "S1", "S2", "S3"].map((s) => v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: s })[0]);
