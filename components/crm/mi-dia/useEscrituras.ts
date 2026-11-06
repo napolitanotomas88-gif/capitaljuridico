@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cancelarReunion, deshacerAccion, deshacerOperacion, ejecutarAccion, pasarAlCloser } from "@/lib/crm/acciones";
+import { cancelarReunion, deshacerAccion, deshacerOperacion, ejecutarAccion, llamadaNoEfectiva, pasarAlCloser } from "@/lib/crm/acciones";
 import type { Cambios, ItemCliente, OperacionHecha, Resultado } from "@/lib/crm/contratos";
 import type { Boton, Pedido } from "@/lib/crm/motor/proxima-accion";
 import { VALORES } from "@/lib/crm/config/crm";
@@ -155,7 +155,9 @@ export function useEscrituras(items?: readonly ItemCliente[]): Escrituras {
       const cancela = boton.pide === "cancelacion";
       // "Pasar al closer" (pre-call v2) escribe y además dispara el WhatsApp del closer (otra server action)
       const pase = boton.pide === "pase";
-      const accion = cancela ? cancelarReunion : pase ? pasarAlCloser : ejecutarAccion;
+      // "Llamada no efectiva" (pre-call v2) escribe y manda el WhatsApp automático del pre-caller
+      const noEfectiva = boton.pide === "noEfectiva";
+      const accion = cancela ? cancelarReunion : pase ? pasarAlCloser : noEfectiva ? llamadaNoEfectiva : ejecutarAccion;
       const resultado = await llamar(() => accion({ ...item.identidad, cambios, esperado, motivo }));
       ocupar(clave, false);
 
@@ -168,8 +170,9 @@ export function useEscrituras(items?: readonly ItemCliente[]): Escrituras {
       }
 
       // Sin Deshacer: volver la fila atrás no devolvería la reunión en Calendly ni el WhatsApp que ya le llegó al lead.
-      if (cancela || pase) {
-        const texto = cancela ? `Reunión cancelada · ${nombre}` : ["Pasado al closer", nombre, resultado.datos.aviso].filter(Boolean).join(" · ");
+      if (cancela || pase || noEfectiva) {
+        const titulo = cancela ? "Reunión cancelada" : pase ? "Pasado al closer" : "Llamada no efectiva";
+        const texto = [titulo, nombre, cancela ? "" : resultado.datos.aviso].filter(Boolean).join(" · ");
         setToast({ tipo: "info", texto });
         router.refresh();
         return;

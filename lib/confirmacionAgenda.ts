@@ -259,16 +259,14 @@ export async function registrar(fila: (string | number)[]) {
 
 export interface ResultadoConfirmacion { ok: boolean; accion: 'enviado a Make' | 'omitido' | 'sin teléfono' | 'apagado' | 'error'; motivo?: string }
 
-// Pre-call v2 (5/11/2026): el primer contacto al agendar sale del WhatsApp del pre-caller (el de Tomás: video de Tomás + "¿Confirmamos
-// tu asistencia…?"), para todos los closers; el video de traspaso del closer sale recién con el pase (lib/crm/pasePrecall.ts).
-// Solo con PRECALL_V2=1 y el webhook cargado; si no, cada closer como siempre.
-const VARIABLE_PRECALLER = 'MAKE_WEBHOOK_CONFIRMACION_PRECALLER'
-export const variableWebhookAgenda = (closerDeLaReunion: string): string =>
-  process.env.PRECALL_V2?.trim() === '1' && process.env[VARIABLE_PRECALLER] ? VARIABLE_PRECALLER : variableWebhookDe(closerDeLaReunion)
+// Pre-call v2 (Tomás, 6/11/2026): al agendar NO sale ningún WhatsApp; lo primero es la llamada del pre-caller. Con PRECALL_V2=1
+// tampoco salen las confirmaciones de los escenarios de cada closer (lib/crm/pasePrecall.ts manda los mensajes del flujo nuevo).
+export const confirmacionAgendaApagadaPorV2 = (): boolean => process.env.PRECALL_V2?.trim() === '1'
 
 export async function enviarConfirmacionAgenda(p: InviteePayload): Promise<ResultadoConfirmacion> {
-  // Cada closer manda desde SU escenario de Make (su número y sus plantillas); con el pre-call v2, el del pre-caller
-  const variable = variableWebhookAgenda(p.scheduled_event?.event_memberships?.[0]?.user_name ?? '')
+  if (confirmacionAgendaApagadaPorV2()) return { ok: true, accion: 'apagado', motivo: 'pre-call v2: el primer contacto es la llamada del pre-caller' }
+  // Cada closer manda desde SU escenario de Make (su número y sus plantillas)
+  const variable = variableWebhookDe(p.scheduled_event?.event_memberships?.[0]?.user_name ?? '')
   const url = process.env[variable]
   if (!url) return { ok: true, accion: 'apagado', motivo: `falta ${variable}` }
   const { datos, omitir, sinTelefono } = await datosConfirmacion(p)

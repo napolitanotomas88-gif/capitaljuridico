@@ -1,4 +1,6 @@
-// Pre-call v2 (pedido de Tomás, 5/11/2026): al tocar "Pre-call hecho → pasar al closer" sale solo, desde el WhatsApp del
+// Pre-call v2 (pedidos de Tomás del 5 y 6/11/2026). Dos mensajes automáticos:
+//   - "Llamada no efectiva" → desde el WhatsApp del pre-caller, sin video: "Hace unos minutos te llamé… ¿Confirmamos?".
+//   - "Llamada efectiva" (a los 3 minutos) o "Pre-call hecho" (enseguida) → el pase: desde el WhatsApp del
 // closer, UN mensaje: el video de traspaso de autoridad del closer + la bienvenida, la cita afirmada (sin pedir confirmación)
 // y el video de pre-llamada con la palabra LISTO. El texto y el video viven en la plantilla de Meta del escenario de Make de
 // cada closer (copias del de la confirmación al agendar); acá solo se arman los datos y se llama al webhook.
@@ -98,25 +100,30 @@ export async function datosPase(fila: FilaLead): Promise<{ datos: DatosPase; avi
   };
 }
 
-/**
- * Manda el pase al webhook de Make del closer de la pestaña. Nunca tira: devuelve lo que pasó en una línea para el toast
- * ("WhatsApp del closer enviado", "WhatsApp apagado", o el error para mandarlo a mano). Cada intento queda en la pestaña
- * "Confirmaciones WhatsApp".
- */
-export async function enviarPaseAlCloser(fila: FilaLead): Promise<string> {
-  if (!envioPaseActivo()) return "WhatsApp del pase apagado (mandalo a mano)";
-  const variable = WEBHOOK_PASE_POR_HOJA[fila.hoja];
+/** La espera del pase cuando viene de la llamada (Tomás, 6/11/2026): el lead corta y a los 3 minutos le escribe el closer. */
+export const ESPERA_PASE_LLAMADA_S = 180;
+
+/** Webhook del mensaje automático de "Llamada no efectiva" (desde el WhatsApp del pre-caller, sin video). */
+export const WEBHOOK_NO_EFECTIVA = "MAKE_WEBHOOK_NO_EFECTIVA";
+
+type Envio = { variable: string | undefined; quien: string; etiqueta: string; espera: number };
+
+/** Arma los datos, llama al webhook y deja el intento en "Confirmaciones WhatsApp". Nunca tira: devuelve una línea para el toast. */
+async function enviar(fila: FilaLead, { variable, quien, etiqueta, espera }: Envio): Promise<string> {
+  if (!envioPaseActivo()) return `WhatsApp ${quien} apagado (mandalo a mano)`;
   const url = variable ? process.env[variable] : undefined;
-  if (!url) return `sin WhatsApp automático para ${nombreCloserDeHoja(fila.hoja)} (falta ${variable ?? "el escenario"}): mandalo a mano`;
+  if (!url) return `sin WhatsApp automático ${quien} (falta ${variable ?? "el escenario"}): mandalo a mano`;
   const armado = await datosPase(fila);
   const ahora = new Date().toLocaleString("es-AR", { timeZone: TZ_AR });
   const nombre = soloNombre(fila.valores.nombre);
   const closer = nombreCloserDeHoja(fila.hoja);
+  const id = `${etiqueta}:${fila.hoja}:${fila.numeroFila}`;
   if ("error" in armado) {
-    await registrar([ahora, nombre, "", closer, "", "PASE NO enviado — escribirle a mano", armado.error, `pase:${fila.hoja}:${fila.numeroFila}`]).catch(() => {});
+    await registrar([ahora, nombre, "", closer, "", `${etiqueta.toUpperCase()} NO enviado — escribirle a mano`, armado.error, id]).catch(() => {});
     return `WhatsApp no enviado: ${armado.error}`;
   }
-  const { datos } = armado;
+  // `espera_segundos`: el escenario de Make espera eso antes de mandar (mínimo 1)
+  const datos = { ...armado.datos, espera_segundos: Math.max(1, espera) };
   const base = [ahora, nombre, datos.telefono, closer, `${datos.fecha_texto} ${datos.hora_texto} (hora ${datos.pais_texto})`];
   let falla = "";
   try {
@@ -131,6 +138,26 @@ export async function enviarPaseAlCloser(fila: FilaLead): Promise<string> {
   } catch (e) {
     falla = (e as Error).name === "TimeoutError" ? "Make no respondió en 15 s (verificar si salió)" : `no se pudo llamar a Make (${(e as Error).message})`;
   }
-  await registrar([...base, falla ? "PASE ERROR — verificar y escribirle a mano" : "pase enviado a Make", [falla, armado.aviso].filter(Boolean).join(" · "), `pase:${fila.hoja}:${fila.numeroFila}`]).catch(() => {});
-  return falla ? `WhatsApp no enviado: ${falla}` : "WhatsApp del closer enviado";
+  const estado = falla ? `${etiqueta.toUpperCase()} ERROR — verificar y escribirle a mano` : `${etiqueta} enviado a Make`;
+  await registrar([...base, estado, [falla, armado.aviso].filter(Boolean).join(" · "), id]).catch(() => {});
+  if (falla) return `WhatsApp no enviado: ${falla}`;
+  return espera > 1 ? `WhatsApp ${quien} en ${Math.round(espera / 60)} min` : `WhatsApp ${quien} enviado`;
+}
+
+/**
+ * El pase: desde el WhatsApp del closer de la pestaña, el video de traspaso con la cita y el video LISTO. `porLlamada`: sale a los
+ * 3 minutos ("Llamada efectiva"); por chat ("Pre-call hecho"), enseguida.
+ */
+export function enviarPaseAlCloser(fila: FilaLead, porLlamada = false): Promise<string> {
+  return enviar(fila, {
+    variable: WEBHOOK_PASE_POR_HOJA[fila.hoja],
+    quien: "del closer",
+    etiqueta: "pase",
+    espera: porLlamada ? ESPERA_PASE_LLAMADA_S : 0,
+  });
+}
+
+/** "Llamada no efectiva": desde el WhatsApp del pre-caller, sin video, "Hace unos minutos te llamé… ¿Confirmamos tu asistencia?". */
+export function enviarNoEfectiva(fila: FilaLead): Promise<string> {
+  return enviar(fila, { variable: WEBHOOK_NO_EFECTIVA, quien: "del pre-caller", etiqueta: "no efectiva", espera: 0 });
 }

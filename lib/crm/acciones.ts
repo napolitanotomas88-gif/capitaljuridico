@@ -22,12 +22,12 @@ import { panelFicha } from "@/lib/crm/mi-dia";
 import { aplicarCambios, deshacer, deshacerOperacion as deshacerOperacionDelLog, ErrorEscritura } from "@/lib/crm/sheets/escribir";
 import { camposDistintos, mismaIdentidad, mismasClaves, tocaUltimoToque } from "@/lib/crm/sheets/verificacion";
 import { cancelarEnCalendly, notaCancelacion } from "@/lib/crm/calendlyReagenda";
-import { filaVisible } from "@/lib/crm/config/crm";
+import { VALORES, filaVisible } from "@/lib/crm/config/crm";
 import { BOTON_CANCELAR_REUNION } from "@/lib/crm/pantalla";
 import { leerFila } from "@/lib/crm/sheets/leer";
 import { resolverMarcaManana } from "@/lib/crm/motor/proxima-accion";
 import { PRECALLER, precallV2Activo } from "@/lib/crm/config/precallV2";
-import { enviarPaseAlCloser } from "@/lib/crm/pasePrecall";
+import { enviarNoEfectiva, enviarPaseAlCloser } from "@/lib/crm/pasePrecall";
 import { formatearFechaSheet } from "@/lib/crm/fechas";
 
 const fallo = (codigo: CodigoError, error: string): Resultado<never> => ({ ok: false, error, codigo });
@@ -196,7 +196,44 @@ export async function pasarAlCloser(entrada: EntradaAccion): Promise<Resultado<O
       tocar: false,
     });
     const fila = await leerFila(identidad.hoja, identidad.numeroFila);
-    const aviso = fila ? await enviarPaseAlCloser(fila) : "WhatsApp no enviado: no se pudo releer la fila";
+    // Desde la llamada ("Llamada efectiva") el WhatsApp del closer sale a los 3 minutos; desde el chat, enseguida
+    const porLlamada = cambios.llamadaPrecall === VALORES.llamadaEfectiva;
+    const aviso = fila ? await enviarPaseAlCloser(fila, porLlamada) : "WhatsApp no enviado: no se pudo releer la fila";
+    revalidatePath("/ventas");
+    return { ok: true, datos: { ...datos, aviso } };
+  } catch (e) {
+    return desdeError(e);
+  }
+}
+
+/**
+ * "Llamada no efectiva" (pre-call v2, Tomás 6/11/2026): no atendió las 2 llamadas. Escribe AM = "No atendió 2ª" y manda solo, desde
+ * el WhatsApp del pre-caller, el mensaje sin video ("Hace unos minutos te llamé… ¿Confirmamos tu asistencia?"). Sin Deshacer: el
+ * mensaje no se puede retirar.
+ */
+export async function llamadaNoEfectiva(entrada: EntradaAccion): Promise<Resultado<Operacion>> {
+  try {
+    if (!precallV2Activo()) return fallo("entrada_invalida", "El pre-call nuevo todavía no está encendido.");
+    const auth = await autorizar(entrada);
+    if (!auth.ok) return auth.error;
+    const { identidad, sesion } = auth;
+    const cambios = leerCambios(entrada?.cambios);
+    const esperado = leerCambios(entrada?.esperado);
+    if (!cambios || !esperado || !mismasClaves(cambios, esperado) || Object.keys(cambios).join() !== "contactoPrecaller" || cambios.contactoPrecaller !== PRECALLER.noAtendio2) {
+      return fallo("entrada_invalida", "Los cambios no tienen el formato esperado. Actualizá la página.");
+    }
+    if (!filaVisible(identidad.hoja, identidad.numeroFila)) return fallo("hoja_prohibida", "No podés escribir en esa fila.");
+    const datos = await aplicarCambios({
+      ...identidad,
+      closer: sesion.nombre,
+      cambios,
+      esperado,
+      motivo: motivoDelLog(entrada.motivo),
+      modo: "accion",
+      tocar: false,
+    });
+    const fila = await leerFila(identidad.hoja, identidad.numeroFila);
+    const aviso = fila ? await enviarNoEfectiva(fila) : "WhatsApp no enviado: no se pudo releer la fila";
     revalidatePath("/ventas");
     return { ok: true, datos: { ...datos, aviso } };
   } catch (e) {
