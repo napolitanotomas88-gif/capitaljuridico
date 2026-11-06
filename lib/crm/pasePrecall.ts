@@ -17,11 +17,10 @@ const TZ_AR = "America/Argentina/Buenos_Aires";
 
 /** Pestaña → variable con el webhook de Make del pase de ese closer (escenarios copiados, ver el doc de encendido). */
 export const WEBHOOK_PASE_POR_HOJA: Readonly<Record<string, string>> = {
+  // Yamila (Closer 3) y Brenda (Closer 5) ya no están en la empresa (Tomás, 6/11/2026): sin pase automático.
   "Closer 1": "MAKE_WEBHOOK_PASE_CARLOS",
   "Closer 2": "MAKE_WEBHOOK_PASE_MARCOS",
-  "Closer 3": "MAKE_WEBHOOK_PASE_YAMILA",
   "Closer 4": "MAKE_WEBHOOK_PASE_NAHUEL",
-  "Closer 5": "MAKE_WEBHOOK_PASE_BRENDA",
 };
 
 /** "(hora Argentina)": el país, no el gentilicio (texto de Tomás del 5/11/2026). Sin match, la ciudad de la zona. */
