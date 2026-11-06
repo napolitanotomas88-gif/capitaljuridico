@@ -4,6 +4,7 @@
 // inferior arma el objeto `cambios` que va a `ejecutarAccion`.
 
 import { SITUACIONES_CERRADAS, VALORES } from "@/lib/crm/config/crm";
+import { DECISORES_PRECALLER } from "@/lib/crm/config/precallV2";
 import type {
   AccionCliente,
   CallDelDia,
@@ -523,7 +524,9 @@ export function tituloFormulario(pide: Pedido, reagendada = false): string {
     case "cancelacion":
       return "¿Cancelar la reunión?";
     case "pase":
-      return "Pre-call hecho: pasar al closer";
+      return "Pasar al closer";
+    case "noEfectiva":
+      return "Llamada no efectiva: mensaje automático";
   }
 }
 
@@ -720,7 +723,7 @@ export function formularioReagenda(boton: Boton, datos: DatosReagenda, abActual 
 }
 
 /** Lo que confirmó el pre-caller (pre-call v2): arranca con lo que el lead puso en el calendario. */
-export type DatosPase = { facturacion: string; situacion: string; urgencia: string; notas: string };
+export type DatosPase = { facturacion: string; situacion: string; urgencia: string; decisores: string; notas: string };
 
 /** Largo máximo de cada dato del pase (las notas, como los datos de la reagenda). */
 const MAX_DATO_PASE = 300;
@@ -730,13 +733,16 @@ const MAX_DATO_PASE = 300;
  * el closer (opcional). La fecha y hora del pase (AU) la pone el servidor (`pasarAlCloser`).
  */
 export function formularioPase(boton: Boton, datos: DatosPase): ResultadoFormulario {
-  const campos: [keyof DatosPase, Campo, string, boolean][] = [
+  const campos: [Exclude<keyof DatosPase, "decisores">, Campo, string, boolean][] = [
     ["facturacion", "facturacionConfirmada", "la facturación", true],
     ["situacion", "situacionConfirmada", "la situación del estudio", true],
     ["urgencia", "urgenciaConfirmada", "la urgencia", true],
     ["notas", "notasCloser", "las notas para el closer", false],
   ];
   const cambios: Cambios = { ...boton.cambios };
+  // Decisores: por chat ya vienen de la tarjeta; en la llamada se eligen acá (obligatorio)
+  if (!DECISORES_PRECALLER.some((d) => d === datos.decisores)) return fallo("Elegí si decide solo o vienen decisores.");
+  cambios.decisoresPrecaller = datos.decisores;
   for (const [clave, campo, nombre, obligatorio] of campos) {
     const valor = datos[clave].replace(/\s+/g, " ").trim();
     if (!valor) {

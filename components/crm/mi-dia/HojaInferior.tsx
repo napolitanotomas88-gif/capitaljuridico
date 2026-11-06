@@ -94,6 +94,7 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
     facturacion: item.calendario?.facturacion ?? "",
     situacion: item.calendario?.situacion ?? "",
     urgencia: item.calendario?.urgencia ?? "",
+    decisores: item.valores.decisoresPrecaller.trim(),
     notas: "",
   };
   const [pase, setPase] = useState<DatosPase>(pase0);
@@ -179,6 +180,9 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
         break;
       case "pase":
         resultado = formularioPase(boton, pase);
+        break;
+      case "noEfectiva":
+        resultado = { ok: true, cambios: boton.cambios, detalle: "Mensaje automático del pre-caller" };
         break;
     }
     if (!resultado.ok) {
@@ -385,6 +389,23 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
                 <legend className="text-sm">
                   Lo que confirmó el lead. Arranca con lo que puso en el calendario: corregí lo que cambió.
                 </legend>
+                <div>
+                  <span className="mb-1 block text-sm font-semibold">Decisores</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["Decide solo", "Vienen decisores"] as const).map((d) => (
+                      <Opcion
+                        key={d}
+                        elegida={pase.decisores === d}
+                        onClick={() => {
+                          setPase((p) => ({ ...p, decisores: d }));
+                          setError(null);
+                        }}
+                      >
+                        {d}
+                      </Opcion>
+                    ))}
+                  </div>
+                </div>
                 {(
                   [
                     ["facturacion", "Facturación"],
@@ -409,9 +430,21 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
                 ))}
                 <p className="text-sm text-gris-texto">
                   Al confirmar, el lead pasa al closer y sale solo, desde el WhatsApp del closer, el video de traspaso con la cita y
-                  el video de pre-llamada (palabra LISTO).
+                  el video de pre-llamada (palabra LISTO){boton.id === "llamadaEfectiva" ? ", a los 3 minutos" : ""}.
                 </p>
               </fieldset>
+            )}
+
+            {boton.pide === "noEfectiva" && (
+              <div className="space-y-3 text-sm">
+                <p>Sale solo, desde el WhatsApp del pre-caller, este mensaje (sin video):</p>
+                <blockquote className="rounded-lg bg-gris-fondo px-3 py-2">
+                  Hola {item.identidad.nombre.trim().split(/\s+/)[0] || ""}, cómo estás? Soy Gerónimo Actis. Hace unos minutos te llamé
+                  para corroborar tu asistencia a la reunión de consultoría sobre tu estudio jurídico del {item.horaCall}. Confirmamos tu
+                  asistencia?
+                </blockquote>
+                <p>Después sigue la escalera por chat desde la tarjeta.</p>
+              </div>
             )}
 
             {boton.pide === "reagenda" && (

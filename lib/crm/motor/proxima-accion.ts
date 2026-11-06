@@ -59,7 +59,8 @@ export type Pedido =
   | "reagenda" // fecha y hora (AC) y datos (AB)
   | "seguimiento" // fecha acordada para el próximo seguimiento (AH): "Coordinar fecha"
   | "cancelacion" // confirmar "Cancelar reunión" (Pre-call): cancela en Calendly y saca al lead de la lista
-  | "pase"; // pre-call v2: "Pre-call hecho → pasar al closer" (datos confirmados y notas; manda el WhatsApp del closer)
+  | "pase" // pre-call v2: "Llamada efectiva" / "Pre-call hecho" (datos confirmados y notas; manda el WhatsApp del closer)
+  | "noEfectiva"; // pre-call v2: "Llamada no efectiva" (manda el WhatsApp automático desde el número del pre-caller)
 
 export type Boton = {
   id: string;
@@ -437,10 +438,11 @@ const botonReprograma = (): Boton => ({
  * La tarjeta del pre-caller (tipo PRE_CALLER), o null. Mientras el lead no se pasó al closer, el closer no lo ve (regla dura
  * de Tomás, 5/11/2026): la confirmación y el seguimiento para que confirme son del pre-caller.
  *
- * 1ª llamada → 2ª llamada (si tampoco respondió la confirmación automática) → escalera por chat: «¿Pudiste leerme?» →
- * decisores (2 h después) → seguimiento de decisores → ultimátum → cancelar. Si confirma (en la llamada, respondiendo la
- * confirmación automática o en cualquier paso del chat): decisores → "Pre-call hecho → pasar al closer" (`pide: "pase"`; por
- * chat, antes va el mensaje con las 3 recomendaciones). Si la reunión pasa sin pase, queda para reagendar o liberar.
+ * 1ª llamada → 2ª llamada. Si atiende alguna: guion y "Llamada efectiva" (pase; el WhatsApp del closer sale a los 3 minutos).
+ * Si no atiende ninguna: "Llamada no efectiva" (sale solo el WhatsApp del pre-caller: "Hace unos minutos te llamé… ¿Confirmamos
+ * tu asistencia?") y sigue la escalera por chat: «¿Pudiste leerme?» → decisores (2 h después) → seguimiento de decisores →
+ * ultimátum → cancelar. Si confirma por chat: decisores → recomendaciones → "Pre-call hecho" (pase, sin demora). Si la reunión
+ * pasa sin pase, queda para reagendar o liberar. Pedidos de Tomás del 5 y 6/11/2026.
  */
 export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   const base = leerBase(fila, ahora);
@@ -472,31 +474,45 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
     return tarjeta("La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
   }
 
-  const porLlamada = es(contacto, PRECALLER.llamadaEfectiva);
+  // El pase al closer (Tomás, 6/11/2026): "Llamada efectiva" (atendió y se hizo el guion; el WhatsApp del closer sale a los
+  // 3 minutos) o "Pre-call hecho" (terminó por chat; sale enseguida). Los dos abren el formulario del pase (`pide: "pase"`).
+  const pase = (porLlamada: boolean): Boton => ({
+    id: porLlamada ? "llamadaEfectiva" : "pasarAlCloser",
+    etiqueta: porLlamada ? "Llamada efectiva" : "Pre-call hecho",
+    pide: "pase",
+    principal: true,
+    // AI se sigue llenando (métrica de la llamada del pre-call)
+    cambios: {
+      ...(porLlamada ? { contactoPrecaller: PRECALLER.llamadaEfectiva, confirmoPrecaller: PRECALLER.confirmo } : {}),
+      estadoPrecaller: PRECALLER.pasado,
+      precall: FASES_CLOSER_V2[0],
+      llamadaPrecall: porLlamada ? VALORES.llamadaEfectiva : VALORES.llamadaNoEfectiva,
+    },
+  });
+
+  if (contacto === "") {
+    return tarjeta("1ª llamada", [pase(true), { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio1 } }]);
+  }
+  if (es(contacto, PRECALLER.noAtendio1)) {
+    return tarjeta("2ª llamada (1 h después como mínimo)", [
+      pase(true),
+      // Dispara el WhatsApp automático desde el número del pre-caller ("Hace unos minutos te llamé… ¿Confirmamos?")
+      { id: "llamadaNoEfectiva", etiqueta: "Llamada no efectiva", pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } },
+    ]);
+  }
+  if (es(contacto, PRECALLER.llamadaEfectiva)) return tarjeta("Pasar al closer", [pase(true)]);
+
+  // Por chat (no atendió las 2 llamadas y ya le salió el mensaje automático)
   if (confirmoConPrecaller(v)) {
     if (!v.decisoresPrecaller.trim()) {
-      // Por chat se manda la pregunta de decisores del PASO 2 BIS; en la llamada ya se preguntó
-      return tarjeta(porLlamada ? "¿Vienen decisores?" : "Chat: preguntar por los decisores", [
+      return tarjeta("Chat: preguntar por los decisores", [
         { id: "decideSolo", etiqueta: "Decide solo", cambios: { decisoresPrecaller: PRECALLER.decideSolo }, principal: true },
         { id: "vienenDecisores", etiqueta: "Vienen decisores", cambios: { decisoresPrecaller: PRECALLER.vienenDecisores } },
         botonReprograma(),
       ]);
     }
-    // Por chat, antes del pase va el mensaje con las 3 recomendaciones y quién lo va a contactar (sin esperar respuesta)
-    return tarjeta(porLlamada ? "Pasar al closer" : "Chat: mandar las recomendaciones y pasar al closer", [
-      {
-        id: "pasarAlCloser",
-        etiqueta: "Pre-call hecho → pasar al closer",
-        pide: "pase",
-        principal: true,
-        // AI se sigue llenando (métrica de la llamada del pre-call): efectiva si atendió alguna llamada
-        cambios: {
-          estadoPrecaller: PRECALLER.pasado,
-          precall: FASES_CLOSER_V2[0],
-          llamadaPrecall: porLlamada ? VALORES.llamadaEfectiva : VALORES.llamadaNoEfectiva,
-        },
-      },
-    ]);
+    // Antes del pase va el mensaje con las 3 recomendaciones y quién lo va a contactar (sin esperar respuesta)
+    return tarjeta("Chat: mandar las recomendaciones y tocar Pre-call hecho", [pase(false)]);
   }
 
   const confirmo = (id: string, etiqueta: string, decisores: string): Boton => ({
@@ -504,46 +520,24 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
     etiqueta,
     cambios: { confirmoPrecaller: PRECALLER.confirmo, ...(decisores ? { decisoresPrecaller: decisores } : {}) },
   });
-  const solo = confirmo("confirmoSolo", "Confirmó · decide solo", PRECALLER.decideSolo);
-  const conDecisores = confirmo("confirmoDecisores", "Confirmó · vienen decisores", PRECALLER.vienenDecisores);
-  if (porLlamada) return tarjeta("Cargar lo que confirmó en la llamada", [{ ...solo, principal: true }, conDecisores, botonReprograma()]);
-
-  // Escalera por chat (Tomás, 5/11/2026): no atendió las 2 llamadas ni respondió la confirmación automática. Cada paso tiene
-  // su texto en docs/ENCENDIDO-PRECALL-V2.md; en cualquier momento el lead puede confirmar (o reprogramar).
-  const respondio: Boton[] = [solo, conDecisores, confirmo("confirmo", "Confirmó (falta decisores)", ""), botonReprograma()];
-  if (es(contacto, PRECALLER.noAtendio2) || es(contacto, PRECALLER.porChat)) {
-    if (seguimientos < MAX_SEGUIMIENTOS_PRECALLER) {
-      const enviado: Boton = {
-        id: "seguimiento",
-        etiqueta: `Enviado (${seguimientos + 1} de ${MAX_SEGUIMIENTOS_PRECALLER})`,
-        cambios: { seguimientosPrecaller: `S${seguimientos + 1}` },
-        principal: true,
-      };
-      return tarjeta(`Chat: ${PASOS_CHAT_PRECALLER[seguimientos]}`, [enviado, ...respondio]);
-    }
-    const roja: Boton[] = es(v.banderaRoja, VALORES.si) ? [] : [{ id: "sinRespuesta", etiqueta: "Sin respuesta 🔴", cambios: { banderaRoja: VALORES.si } }];
-    return tarjeta("Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
+  // Escalera por chat (Tomás, 5/11/2026), en AS como S1…S4. En cualquier paso el lead puede confirmar (o reprogramar).
+  const respondio: Boton[] = [
+    confirmo("confirmoSolo", "Confirmó · decide solo", PRECALLER.decideSolo),
+    confirmo("confirmoDecisores", "Confirmó · vienen decisores", PRECALLER.vienenDecisores),
+    confirmo("confirmo", "Confirmó (falta decisores)", ""),
+    botonReprograma(),
+  ];
+  if (seguimientos < MAX_SEGUIMIENTOS_PRECALLER) {
+    const enviado: Boton = {
+      id: "seguimiento",
+      etiqueta: `Enviado (${seguimientos + 1} de ${MAX_SEGUIMIENTOS_PRECALLER})`,
+      cambios: { seguimientosPrecaller: `S${seguimientos + 1}` },
+      principal: true,
+    };
+    return tarjeta(`Chat: ${PASOS_CHAT_PRECALLER[seguimientos]}`, [enviado, ...respondio]);
   }
-
-  const atendio: Boton = { id: "atendio", etiqueta: "Atendió", cambios: { contactoPrecaller: PRECALLER.llamadaEfectiva }, principal: true };
-  // Respondió la confirmación automática del WhatsApp del pre-caller: confirmado; sigue por chat con los decisores
-  const respondioAuto: Boton = {
-    id: "respondioChat",
-    etiqueta: "Confirmó por chat",
-    cambios: { contactoPrecaller: PRECALLER.porChat, confirmoPrecaller: PRECALLER.confirmo },
-  };
-  if (es(contacto, PRECALLER.noAtendio1)) {
-    return tarjeta("2ª llamada (1 h después como mínimo)", [
-      atendio,
-      { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } },
-      respondioAuto,
-    ]);
-  }
-  return tarjeta("1ª llamada", [
-    atendio,
-    { id: "noAtendio", etiqueta: "No atendió", cambios: { contactoPrecaller: PRECALLER.noAtendio1 } },
-    respondioAuto,
-  ]);
+  const roja: Boton[] = es(v.banderaRoja, VALORES.si) ? [] : [{ id: "sinRespuesta", etiqueta: "Sin respuesta 🔴", cambios: { banderaRoja: VALORES.si } }];
+  return tarjeta("Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
 }
 
 // ---------------------------------------------------------------------------------------
