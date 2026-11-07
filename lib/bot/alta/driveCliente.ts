@@ -52,6 +52,7 @@
 // tiene su tope (TOPE_LLAMADA_MS), pero el paso entero no.
 import { googleConfigurado, googleJson } from '../../auth/googleRest'
 import { armarBienvenida } from './bienvenida'
+import { carpetasParecidas } from './carpetasParecidas'
 import { nombreCarpetaMarca } from '../../edicion/marca'
 import { motivoNombreDudoso, nombreCliente, nombreDocBienvenida, sufijoCliente } from './nombreCliente'
 import {
@@ -294,6 +295,8 @@ export const MOTIVO_CARPETA_DE_INTENTO_DUDOSO = 'la creó el bot en un intento q
 const MOTIVO_ESPERA_CARPETA = 'esperando el OK por la carpeta que ya existía'
 const MOTIVO_ESPERA_NOMBRE = 'esperando que se confirme el nombre del cliente'
 const RESPONDER_OK = 'Si es la de este cliente, responder OK y el bot sigue en esa carpeta; si es de otro, responder con el nombre que tiene que llevar la carpeta nueva.'
+const RESPONDER_OK_PARECIDA = 'Si es la de este cliente, responder OK y el bot sigue en esa carpeta (le agrega lo que falte); si no, responder con el nombre que tiene que llevar la carpeta nueva.'
+export const MOTIVO_CARPETA_PARECIDA = 'hay una carpeta con parte del nombre en Clientes: espera el OK en Verificaciones C.J'
 
 // ── Intento dudoso de la carpeta principal ─────────────────────────────────────────────────────────────────────
 /** Tolerancia entre el reloj del servidor y el de Drive (createdTime lo pone Google). */
@@ -512,6 +515,28 @@ export async function prepararDriveCliente(a: AltaParseada, opciones: OpcionesDr
     // Reintento: el id guardado manda; no se busca por nombre en Clientes (podría devolver la de un homónimo)
     carpeta = deGuardado(nombres.carpeta, previo.carpeta)
   } else {
+    // Antes de crear: si en Clientes hay una carpeta que comparte una palabra del nombre (la que armó Aylu con otro nombre,
+    // como «Ruben & Ariel - C.J» para Ariel Ojeda Aguilera), no se crea otra: espera el OK en Verificaciones como una carpeta
+    // que ya existía (OK = sigue en la parecida; "OK Nombre Apellido" = crea una nueva con ese nombre, y ahí ya no se revisa).
+    // Sin lectura de la cuenta de servicio (null: Google sin configurar) sigue como antes; si la lectura falla, se reintenta.
+    if (!nombreConfirmado) {
+      let parecidas: HijoDrive[] = []
+      try {
+        const hijos = await (opciones.deps?.listarHijos ?? listarHijosDriveReal)(carpetaClientesId)
+        const carpetas = (hijos ?? []).filter((h) => h.mimeType === MIME_CARPETA_DRIVE).map((h) => ({ ...h, nombre: h.name }))
+        parecidas = carpetasParecidas(alta.nombre ?? '', carpetas)
+      } catch (e) {
+        errores.push(`No se pudo revisar si ya hay una carpeta parecida en Clientes: ${mensajeError(e)}`)
+        return todosPendientes('sin revisar Clientes', elemento(nombres.carpeta, 'error', mensajeError(e)))
+      }
+      if (parecidas.length) {
+        const [la] = parecidas
+        esperaOk = 'carpeta_existente'
+        const lista = parecidas.slice(0, 3).map((x) => `"${x.name}" (${urlCarpetaDrive(x.id)})`).join(', ')
+        pendientes.push(`No hay una carpeta "${nombres.carpeta}" en Clientes, pero hay ${parecidas.length === 1 ? 'una' : 'carpetas'} con parte del nombre: ${lista}. Puede ser la que armó Aylu con otro nombre, así que no se creó otra. ${RESPONDER_OK_PARECIDA}`)
+        return todosPendientes(MOTIVO_ESPERA_CARPETA, elemento(la.name, 'pendiente', MOTIVO_CARPETA_PARECIDA, { id: la.id, url: urlCarpetaDrive(la.id) }))
+      }
+    }
     // La marca de las corridas anteriores solo vale para esta misma carpeta (con otro nombre confirmado, no)
     const previas = marcaPrevia && marcaPrevia.nombre === nombres.carpeta && marcaPrevia.padreId === carpetaClientesId ? marcaPrevia.ventanas : []
     // Cada ventana por separado (nunca unidas) y solo las más nuevas

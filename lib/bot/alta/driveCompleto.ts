@@ -25,6 +25,7 @@
 // Modos (BOT_DRIVE_COMPLETO_MODO): 'ensayo' (por defecto: lee todo, no escribe nada en Drive ni en la base y no avisa;
 // devuelve el plan), 'real', 'apagado'. ?dry=1 fuerza el ensayo.
 import { claveNombre, crearCruceCarpetas } from '../../clientes/prioridad'
+import { carpetasParecidas, sinSufijo } from './carpetasParecidas'
 import {
   CLAVES_ADENTRO, clasificarHijos, nombresDriveCliente, urlCarpetaDrive, type ClaveAdentro, type GuardadoDrive, type HijoDrive, type IdGuardado,
   type OpcionesDrive, type ResultadoDriveCliente,
@@ -59,11 +60,7 @@ export const MAX_AVISOS_POR_CORRIDA = 8
 export const ESENCIALES: readonly ClaveAdentro[] = ['crudos', 'editados', 'marca', 'guiones']
 export const NOMBRE_ELEMENTO: Record<ClaveAdentro, string> = { crudos: 'Crudos', editados: 'Editados', marca: 'Marca', guiones: 'Guiones', bienvenida: 'Bienvenida' }
 
-const GENERICAS = new Set(['estudio', 'juridico', 'juridica', 'abogado', 'abogada', 'abogados', 'asociados', 'legal', 'skwd'])
-/** Palabras con peso de un nombre (4 letras o más, sin las genéricas). */
-const palabrasDe = (s: string) => claveNombre(s).split(' ').filter((w) => w.length >= 4 && !GENERICAS.has(w))
-const SUFIJO = /\s*-\s*(skwd|c\.?\s*j\.?|capital jur[ií]dico)\s*$/i
-export const sinSufijo = (s: string) => s.replace(SUFIJO, '').trim()
+export { sinSufijo }
 export const esPrueba = (nombre: string) => /^\s*PRUEBA\b/i.test(nombre)
 
 // ── Entradas ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -154,11 +151,7 @@ export function decidir(e: EntradaPlan): Decision[] {
     const parecida = cruce(c.nombre)
     // Antes de crear una carpeta: ninguna carpeta de Clientes puede compartir una palabra del nombre (solo el primer nombre,
     // "Nombre - SKWD", o una dupla "Nombre y Socio - SKWD"): ante la duda, se avisa y no se crea
-    const ws = new Set(palabrasDe(c.nombre))
-    const primero = palabrasDe(c.nombre)[0]
-    const ultimo = palabrasDe(c.nombre).at(-1)
-    const peso = (x: CarpetaRaiz) => palabrasDe(sinSufijo(x.nombre)).reduce((n, w) => n + (ws.has(w) ? (w === ultimo ? 3 : w === primero ? 1 : 2) : 0), 0)
-    const comparten = e.carpetas.filter((x) => peso(x) > 0).sort((a, b) => peso(b) - peso(a))
+    const comparten = carpetasParecidas(c.nombre, e.carpetas)
     if (!parecida && comparten.length) { ambiguo('parecida', 'no tiene carpeta con su nombre exacto, pero hay carpetas que comparten parte del nombre: si alguna es suya, vincularla en /clientes/edicion o renombrarla', comparten.slice(0, 3)); continue }
     if (parecida) { ambiguo('parecida', 'no tiene carpeta con su nombre exacto, pero hay una con un nombre parecido: vincularla en /clientes/edicion o renombrarla', [parecida]); continue }
     const d = dias(c.dia1, e.hoy)
