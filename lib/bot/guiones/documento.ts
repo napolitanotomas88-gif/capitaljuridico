@@ -3,7 +3,8 @@ import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { googleJson, sheetsBase } from '@/lib/auth/googleRest'
 import { columnasDeClientes } from '@/lib/clientes/parsear'
 import type { Fila } from '@/lib/clientes/tipos'
-import { nombresDriveCliente, plantillaGuionesDesdeEntorno, CARPETA_CLIENTES_DRIVE } from '../alta/driveCliente'
+import { listarHijosDriveReal, nombresDriveCliente, plantillaGuionesDesdeEntorno, CARPETA_CLIENTES_DRIVE } from '../alta/driveCliente'
+import { carpetasParecidas } from '../alta/carpetasParecidas'
 import { puenteDriveReal, ErrorPuente } from '../alta/puenteDrive'
 import type { FilaTanda } from './registro'
 const ID = /^[A-Za-z0-9_-]{20,100}$/
@@ -23,6 +24,8 @@ export interface DepsDocumento {
   guardarCarpeta(idCrm: string, carpeta: string): Promise<void>
   dudoso(idCrm: string, seguro?: boolean): Promise<void>
   crearCarpeta(nombre: string): Promise<{ id: string }>
+  /** Carpetas de Clientes con parte del nombre (carpetasParecidas): si hay alguna, no se crea otra (caso Ariel, 5/11/2026). */
+  parecidas?(nombre: string): Promise<{ id: string; name: string }[]>
   copiar(plantilla: string, carpeta: string, nombre: string): Promise<DocAutomatico>
   plantilla(): string | null
 }
@@ -62,6 +65,10 @@ export async function resolverDocumento(fila: Pick<FilaTanda, 'id_crm' | 'client
   if (!(await deps.reservar(idCrm))) throw new Error('La creación de este Doc está en curso o quedó por confirmar. No se crea una segunda copia.')
   try {
     if (!carpeta) {
+      // Antes de crear: una carpeta armada a mano con otro nombre («Ruben & Ariel - C.J» para Ariel Ojeda Aguilera) no se
+      // duplica. Se frena y se vincula a mano en /clientes/edicion.
+      const parecidas = (await deps.parecidas?.(nombres.cliente)) ?? []
+      if (parecidas.length) throw new Error(`No se crea la carpeta "${nombres.carpeta}": en Clientes hay ${parecidas.length === 1 ? 'una carpeta parecida' : 'carpetas parecidas'} (${parecidas.slice(0, 3).map(x => `"${x.name}"`).join(', ')}). Si es la del cliente, vincularla en /clientes/edicion; si no, renombrarla.`)
       carpeta = (await deps.crearCarpeta(nombres.carpeta)).id
       if (!ID.test(carpeta)) throw new Error('Drive no confirmó el ID de la carpeta creada.')
       await deps.guardarCarpeta(idCrm, carpeta)
@@ -182,6 +189,11 @@ export function depsDocumentoReales(hasta: number, consultaParaPruebas?: () => N
     async guardarCarpeta(idCrm, carpeta) { await q()`UPDATE cj_guiones_documentos SET carpeta_id = ${carpeta}, actualizado = now() WHERE id_crm = ${idCrm} AND estado = 'creando'` },
     async dudoso(idCrm, seguro) { await q()`UPDATE cj_guiones_documentos SET estado = ${seguro ? 'error' : 'dudoso'}, actualizado = now() WHERE id_crm = ${idCrm} AND estado = 'creando'` },
     crearCarpeta: nombre => puente().crearCarpeta({ padreId: raiz, nombre }),
+    parecidas: async nombre => {
+      const hijos = await listarHijosDriveReal(raiz)
+      if (!hijos) throw new Error('Falta la cuenta de servicio para revisar Clientes antes de crear la carpeta.')
+      return carpetasParecidas(nombre, hijos.filter(h => h.mimeType === MIME_FOLDER).map(h => ({ ...h, nombre: h.name })))
+    },
     copiar: (plantilla, carpeta, nombre) => puente().copiarArchivo({ archivoId: plantilla, carpetaId: carpeta, nombre }),
     plantilla: plantillaGuionesDesdeEntorno,
   }
