@@ -98,7 +98,15 @@ export type Accion = {
   botones: Boton[];
   /** Datos raros de la fila que el closer debería ver (p. ej. reagenda ilegible). */
   avisos: string[];
+  /** Solo PRE_CALLER: la columna del tablero del pre-caller (Llamar / Chat / Pasar al closer / Reagendar o cancelar). */
+  etapaPrecaller?: EtapaPrecaller;
 };
+
+/**
+ * Las etapas del pipeline del pre-caller (Gero, 7/11/2026: su tablero muestra solo sus tareas, no las columnas del closer).
+ * llamar → (no atendió) chat → (confirmó) pasar → pase al closer; vencida = la reunión pasó sin pase o no respondió el ultimátum.
+ */
+export type EtapaPrecaller = "llamar" | "chat" | "pasar" | "vencida";
 
 // ---------------------------------------------------------------------------------------
 
@@ -456,9 +464,10 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   const seguimientos = numeroSeguimiento(v.seguimientosPrecaller);
   const partes = [contacto || "sin contacto", confirmoConPrecaller(v) ? `confirmó${es(v.confirmoPrecaller, PRECALLER.reprograma) ? " (reprogramó)" : ""}` : "", v.decisoresPrecaller.trim(), seguimientos ? `S${seguimientos}` : ""];
   const estado = `Pre-caller: ${partes.filter(Boolean).join(" · ")}`;
-  const tarjeta = (titulo: string, botones: Boton[], atrasado = false): Accion => ({
+  const tarjeta = (etapaPrecaller: EtapaPrecaller, titulo: string, botones: Boton[], atrasado = false): Accion => ({
     tipo: "PRE_CALLER",
     grupo: "precall",
+    etapaPrecaller,
     titulo,
     estado,
     fecha,
@@ -472,7 +481,7 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   // "Liberar" nunca pisa un "¿Se presentó?" ya cargado (con R cargada la tarjeta ni existe: `accionesDeFila`).
   if (fecha <= ahora) {
     const botones = v.presentoAgenda1.trim() ? [] : [botonLiberar()];
-    return tarjeta("La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
+    return tarjeta("vencida", "La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
   }
 
   // El pase al closer (Tomás, 6/11/2026): "Llamada efectiva" (atendió y se hizo el guion; el WhatsApp del closer sale a los
@@ -493,25 +502,25 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
 
   // Las 2 llamadas van seguidas, en el momento (Tomás, 6/11/2026): un solo paso. "No atendió 1ª" quedó de una versión anterior.
   if (contacto === "" || es(contacto, PRECALLER.noAtendio1)) {
-    return tarjeta("Llamar (hasta 2 veces seguidas)", [
+    return tarjeta("llamar", "Llamar (hasta 2 veces seguidas)", [
       pase(true),
       // Dispara el WhatsApp automático desde el número del pre-caller ("Hace unos minutos te llamé… ¿Confirmamos?")
       { id: "llamadaNoEfectiva", etiqueta: "Llamada no efectiva", pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } },
     ]);
   }
-  if (es(contacto, PRECALLER.llamadaEfectiva)) return tarjeta("Pasar al closer", [pase(true)]);
+  if (es(contacto, PRECALLER.llamadaEfectiva)) return tarjeta("pasar", "Pasar al closer", [pase(true)]);
 
   // Por chat (no atendió las 2 llamadas y ya le salió el mensaje automático)
   if (confirmoConPrecaller(v)) {
     if (!v.decisoresPrecaller.trim()) {
-      return tarjeta("Chat: preguntar por los decisores", [
+      return tarjeta("pasar", "Chat: preguntar por los decisores", [
         { id: "decideSolo", etiqueta: "Decide solo", cambios: { decisoresPrecaller: PRECALLER.decideSolo }, principal: true },
         { id: "vienenDecisores", etiqueta: "Vienen decisores", cambios: { decisoresPrecaller: PRECALLER.vienenDecisores } },
         botonReprograma(),
       ]);
     }
     // Antes del pase va el mensaje con las 3 recomendaciones y quién lo va a contactar (sin esperar respuesta)
-    return tarjeta("Chat: mandar las recomendaciones y tocar Pre-call hecho", [pase(false)]);
+    return tarjeta("pasar", "Chat: mandar las recomendaciones y tocar Pre-call hecho", [pase(false)]);
   }
 
   const confirmo = (id: string, etiqueta: string, decisores: string): Boton => ({
@@ -533,10 +542,10 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
       cambios: { seguimientosPrecaller: `S${seguimientos + 1}` },
       principal: true,
     };
-    return tarjeta(`Chat: ${PASOS_CHAT_PRECALLER[seguimientos]}`, [enviado, ...respondio]);
+    return tarjeta("chat", `Chat: ${PASOS_CHAT_PRECALLER[seguimientos]}`, [enviado, ...respondio]);
   }
   const roja: Boton[] = es(v.banderaRoja, VALORES.si) ? [] : [{ id: "sinRespuesta", etiqueta: "Sin respuesta 🔴", cambios: { banderaRoja: VALORES.si } }];
-  return tarjeta("Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
+  return tarjeta("vencida", "Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
 }
 
 /** Los recordatorios del closer en v2 (AK: vacío → 1 → 2 → 3). Tomás, 6/11/2026: la columna del closer arranca acá. */

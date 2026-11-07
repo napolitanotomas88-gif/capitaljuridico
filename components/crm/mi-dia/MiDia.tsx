@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import type { CallDelDia, Identidad, ItemCliente, OperacionHecha } from "@/lib/crm/contratos";
 import { formatearFechaLarga } from "@/lib/crm/fechas";
-import type { Grupo } from "@/lib/crm/motor/proxima-accion";
+import { ID_VISTA_PRECALLER } from "@/lib/crm/config/precallV2";
 import {
-  COLUMNAS_TABLERO,
-  ETIQUETA_GRUPO,
-  GRUPOS_CHIPS,
   claveDia,
+  columnasDeVista,
   claveOculta,
   progresoDelDia,
   seccionListosAbierta,
@@ -76,7 +74,12 @@ type LeadAbierto = Pick<Identidad, "hoja" | "numeroFila">;
 export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esAdmin, closers, excluirDelProgreso }: Props) {
   const escritorio = useEsEscritorio();
   const [ahora, setAhora] = useState(() => new Date(ahoraISO));
-  const [grupo, setGrupo] = useState<Grupo | "todo">("todo");
+  // Columna elegida en el celular ("todo" o la clave de una columna: grupo del closer o etapa del pre-caller).
+  const [grupo, setGrupo] = useState<string>("todo");
+  // Pre-call v2: el pre-caller tiene su propio pipeline (Llamar / Chat / Pasar al closer / Reagendar o cancelar).
+  const esPrecaller = closer.id === ID_VISTA_PRECALLER;
+  const columnas = useMemo(() => columnasDeVista(esPrecaller), [esPrecaller]);
+  const columnaElegida = columnas.find((c) => c.clave === grupo);
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroFecha>("todo");
   const [rango, setRango] = useState<Rango>({ desde: "", hasta: "" });
@@ -135,11 +138,11 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
     () => vistaDelDia(visibles, { filtro, rango, busqueda, ahora, orden: escritorio === true ? "prioridad" : orden, diaDeLaLista }),
     [visibles, filtro, rango, busqueda, ahora, orden, escritorio, diaDeLaLista],
   );
-  const { pendientes, conteo, listos } = vista;
-  const lista = grupo === "todo" ? vista.lista : vista.lista.filter((i) => i.accion.grupo === grupo);
+  const { pendientes, listos } = vista;
+  const lista = columnaElegida ? vista.lista.filter(columnaElegida.incluye) : vista.lista;
   // Celular: la sección "Listo por hoy" va al pie con el chip "Todo" y con el de su grupo (pre-calls listos por hoy y
   // No-show / Post-call con el seguimiento acordado para otro día).
-  const listosDelChip = grupo === "todo" ? listos : listos.filter((i) => i.accion.grupo === grupo);
+  const listosDelChip = columnaElegida ? listos.filter(columnaElegida.incluye) : listos;
   const progreso = progresoDelDia(pendientes.length, hechas, excluirDelProgreso, items.length - visibles.length);
   // El chip cuenta lo que despliega: todas las vigentes de la lista, también los guardados de la
   // ficha (se deshacen desde ahí) y lo que hizo el admin. La barra no los suma (`sumaEnProgreso`): la
@@ -248,8 +251,14 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
               aria-label="Grupo"
             >
               <Chip ref={refChipTodo} activo={grupo === "todo"} onClick={() => setGrupo("todo")} etiqueta="Todo" cantidad={vista.totalFiltrado} />
-              {GRUPOS_CHIPS.map((g) => (
-                <Chip key={g} activo={grupo === g} onClick={() => setGrupo(g)} etiqueta={ETIQUETA_GRUPO[g]} cantidad={conteo[g]} />
+              {columnas.map((c) => (
+                <Chip
+                  key={c.clave}
+                  activo={grupo === c.clave}
+                  onClick={() => setGrupo(c.clave)}
+                  etiqueta={c.titulo}
+                  cantidad={vista.lista.filter(c.incluye).length}
+                />
               ))}
             </div>
           </div>
@@ -280,15 +289,18 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
               {listos.length > 0 && <div className="mx-auto w-full max-w-md px-4">{seccionListos(listos, true)}</div>}
             </div>
           ) : (
-            <div className="grid min-h-0 flex-1 grid-cols-[repeat(5,minmax(264px,1fr))] grid-rows-[minmax(0,1fr)] gap-3 overflow-x-auto px-4 pt-3">
-              {COLUMNAS_TABLERO.map((col) => {
-                const deLaColumna = vista.lista.filter((i) => col.grupos.includes(i.accion.grupo));
-                const listosDeLaColumna = listos.filter((i) => col.grupos.includes(i.accion.grupo));
+            <div
+              className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 overflow-x-auto px-4 pt-3"
+              style={{ gridTemplateColumns: `repeat(${columnas.length},minmax(264px,1fr))` }}
+            >
+              {columnas.map((col) => {
+                const deLaColumna = vista.lista.filter(col.incluye);
+                const listosDeLaColumna = listos.filter(col.incluye);
                 // Solo las pendientes: las listas por hoy no suman en el contador de la columna.
-                const cantidad = col.grupos.reduce((n, g) => n + conteo[g], 0);
+                const cantidad = deLaColumna.length;
                 return (
-                  <section key={col.titulo} className="flex min-h-0 flex-col" aria-label={col.titulo}>
-                    <h2 data-grupo={col.grupos[0]} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-negro px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-blanco">
+                  <section key={col.clave} className="flex min-h-0 flex-col" aria-label={col.titulo}>
+                    <h2 data-grupo={col.grupo} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-negro px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-blanco">
                       <span>{col.titulo}</span>
                       <span className="tabular rounded-full bg-dorado px-2 py-0.5 text-negro">{cantidad}</span>
                     </h2>
