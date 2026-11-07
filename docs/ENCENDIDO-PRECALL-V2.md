@@ -84,6 +84,8 @@ Yamila y Brenda ya no están en la empresa (6/11): sus borradores quedaron renom
 
 ## Textos (todos con el OK de Tomás, 6/11)
 
+**Los mensajes automáticos salen fraccionados: un WhatsApp por párrafo** (Tomás, 7/11). En Meta hay una plantilla por párrafo (con nombre / sin nombre solo en el primero). Make las encadena: en el pase, video + saludo, 15 s, la cita, 5 s, el link; en «Llamada no efectiva», saludo, cita y «Confirmamos tu asistencia?», con unos segundos entre cada uno. Las plantillas de un solo mensaje (`*_pase`, `*_pase_nombre`, `precaller_no_efectiva*`) quedan aprobadas pero sin usar.
+
 Las variables `{{n}}` las llena Make. Meta no deja que el texto **empiece** con una variable: por eso el «Hola» va antes del nombre.
 
 ### 1. Pase al closer: una plantilla por closer, con el video de traspaso actual en el encabezado (OK de Tomás 5 y 6/11)
@@ -153,8 +155,8 @@ El orden importa: ninguna variable apunta a un escenario apagado, porque Make gu
 1. **Número del pre-caller.** Conectarlo en 2Chat por coexistencia y anotar su número.
 2. **Textos.** Ya tienen el OK de Tomás (6/11). Si cambia alguno, actualizar este doc antes de crear las plantillas.
 3. **Plantillas de Meta.**
-   - Crear las del pase: 2 por closer con v2 (con y sin nombre, encabezado de video). Arranque: Marcos y Nahuel = 4.
-   - Crear 2 de «Llamada no efectiva» (con y sin nombre, sin video) en la WABA del número nuevo.
+   - Crear las del pase: 4 por closer con v2 (`pase1_nombre` y `pase1` con encabezado de video, `pase2` con la cita, `pase3` con el link). Arranque: Marcos y Nahuel = 8.
+   - Crear 4 de «Llamada no efectiva» en la WABA del número nuevo, sin video: `precaller_ne1_nombre`, `precaller_ne1`, `precaller_ne2` y `precaller_ne3`.
    - Esperar que Meta las apruebe.
    - Cargar cada `TMP…` en su escenario, en lugar de `PENDIENTE-…`. En el de «Llamada no efectiva», cargar también el número.
 4. **Planilla.**
