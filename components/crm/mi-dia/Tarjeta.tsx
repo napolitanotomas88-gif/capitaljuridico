@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useState, type MouseEvent } from "react";
 import type { Identidad, ItemCliente } from "@/lib/crm/contratos";
 import type { Boton } from "@/lib/crm/motor/proxima-accion";
-import { BOTON_CANCELAR_REUNION, ETIQUETA_GRUPO, hrefFicha, urgencia, type Urgencia } from "@/lib/crm/pantalla";
+import { BOTON_CANCELAR_REUNION, ETIQUETA_ETAPA_PRECALLER, ETIQUETA_GRUPO, hrefFicha, urgencia, type Urgencia } from "@/lib/crm/pantalla";
 import { partesFecha } from "@/lib/crm/fechas";
 import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
 import { recordatorioParaGuardar, recordatorioVisual, videosConfEnviados } from "@/lib/crm/recordatorio";
@@ -185,7 +185,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
       {(mostrarGrupo || accion.atrasado || marcaListo) && (
         <div className="flex items-start justify-between gap-2">
           {mostrarGrupo && (
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-gris-texto">{ETIQUETA_GRUPO[accion.grupo]}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-gris-texto">{accion.etapaPrecaller ? ETIQUETA_ETAPA_PRECALLER[accion.etapaPrecaller] : ETIQUETA_GRUPO[accion.grupo]}</p>
           )}
           {accion.atrasado && (
             <span className="ml-auto rounded-full bg-dorado px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-negro">

@@ -23,6 +23,7 @@ import {
   type Boton,
   type ClaveOrden,
   type Grupo,
+  type EtapaPrecaller,
   type Pedido,
   type TipoAccion,
 } from "@/lib/crm/motor/proxima-accion";
@@ -71,6 +72,39 @@ export function claveIdentidad(identidad: Identidad): string {
  * Gero): los seguimientos atrasados siguen en No-show y Post-call.
  */
 export const GRUPOS_CHIPS: readonly Grupo[] = ["precall", "sePresento", "resultado", "noShow", "postCall"];
+
+/** Columnas del tablero del pre-caller (pre-call v2): su pipeline, sin las columnas del closer (Gero, 7/11/2026). */
+export const COLUMNAS_PRECALLER: readonly { etapa: EtapaPrecaller; titulo: string }[] = [
+  { etapa: "llamar", titulo: "Llamar" },
+  { etapa: "chat", titulo: "Seguimiento por chat" },
+  { etapa: "pasar", titulo: "Confirmó: pasar al closer" },
+  { etapa: "vencida", titulo: "Reagendar o cancelar" },
+];
+
+export const ETIQUETA_ETAPA_PRECALLER: Record<EtapaPrecaller, string> = Object.fromEntries(
+  COLUMNAS_PRECALLER.map((c) => [c.etapa, c.titulo]),
+) as Record<EtapaPrecaller, string>;
+
+/** Una columna del tablero (y un chip del celular): la del closer agrupa por grupo; la del pre-caller, por etapa. */
+export type ColumnaVista = { clave: string; titulo: string; grupo: Grupo; incluye: (item: Pick<ItemCliente, "accion">) => boolean };
+
+/** Las columnas de "Mi día": las cinco del closer o las cuatro del pre-caller. */
+export function columnasDeVista(precaller: boolean): ColumnaVista[] {
+  if (precaller) {
+    return COLUMNAS_PRECALLER.map((c) => ({
+      clave: c.etapa,
+      titulo: c.titulo,
+      grupo: "precall",
+      incluye: (i) => i.accion.etapaPrecaller === c.etapa,
+    }));
+  }
+  return COLUMNAS_TABLERO.map((c) => ({
+    clave: c.grupos[0],
+    titulo: c.titulo,
+    grupo: c.grupos[0],
+    incluye: (i) => c.grupos.includes(i.accion.grupo),
+  }));
+}
 
 /** Columnas del tablero en la computadora (docs/diseno.md): cinco, una por grupo. */
 export const COLUMNAS_TABLERO: readonly { titulo: string; grupos: readonly Grupo[] }[] = [

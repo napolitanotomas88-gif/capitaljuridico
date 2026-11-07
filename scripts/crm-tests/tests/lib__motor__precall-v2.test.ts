@@ -93,6 +93,15 @@ describe("tarjeta del pre-caller", () => {
     expect(pase.titulo).toBe("Chat: mandar las recomendaciones y tocar Pre-call hecho");
     expect(pase.botones[0]).toMatchObject({ id: "pasarAlCloser", etiqueta: "Pre-call hecho", pide: "pase", cambios: { llamadaPrecall: "No efectiva" } });
   });
+  it("cada tarjeta cae en su columna del tablero del pre-caller (Gero, 7/11/2026)", () => {
+    const etapa = (v: Parameters<typeof v2>[0], ahora?: Date) => v2(v, ahora)[0].etapaPrecaller;
+    expect(etapa({})).toBe("llamar");
+    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S2" })).toBe("chat");
+    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si" })).toBe("pasar");
+    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.decideSolo })).toBe("pasar");
+    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S4" })).toBe("vencida");
+    expect(etapa({ contactoPrecaller: PRECALLER.porChat }, parsearFechaSheet("26/09/2026 12:00")!)).toBe("vencida");
+  });
   it("regla dura: sin pase, el closer no tiene nada (tampoco ¿Se presentó? cuando pasa la hora)", () => {
     const despues = parsearFechaSheet("26/09/2026 12:00")!;
     const acciones = v2({ contactoPrecaller: PRECALLER.porChat }, despues);
