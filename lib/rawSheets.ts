@@ -313,7 +313,7 @@ export interface RawData {
   monthlyFeccuCacBlended: (number | null)[]  // FECCU / (ads + Ventas + Marketing)
   // Leads crudos
   monthlyLeadsVSL: (number | null)[]  // Visitantes del sitio (GA4); null = sin datos ese mes
-  monthlyAgendasWeb: (number | null)[]  // Agendas desde la landing (GA4 /graciasporagendar, funnel de Framer)
+  monthlyAgendasWeb: (number | null)[]  // Agendas desde la landing (GA4 /typ, funnel de Framer)
   monthlyClicksAgendar: (number | null)[]  // Clicks en "Agendar" (GA4 click_agendar; null hasta instalar el snippet)
   monthlyLeadsIG: number[]            // Leads de IG (pestaña "Leads IG", alimentada por ManyChat)
   // Setter (Maite): asignados por ManyChat (etiqueta ASIGNADO → pestaña "Setter IG") y agendas
@@ -742,7 +742,10 @@ async function fetchGA4MonthlyUsers(): Promise<(number | null)[]> {
   }
 }
 
-// ── GA4: agendas desde la landing (thank-you /graciasporagendar de Framer) ──
+// ── GA4: agendas desde la landing (thank-you /typ de Framer) ──
+// Desde el 24/10/2026 Calendly redirige directo a /typ (antes pasaba por /graciasporagendar,
+// que además perdía visitas por el redireccionamiento). /typ ≈ reservas de Calendly.
+// Meses viejos: solo existía /graciasporagendar.
 let gaAgendasCache: { ts: number; data: (number | null)[] } | null = null
 async function fetchGA4MonthlyAgendasWeb(): Promise<(number | null)[]> {
   const empty = Array.from({ length: 12 }, () => null as number | null)
@@ -758,16 +761,20 @@ async function fetchGA4MonthlyAgendasWeb(): Promise<(number | null)[]> {
       property: `properties/${property}`,
       requestBody: {
         dateRanges: [{ startDate: '2026-01-01', endDate: 'today' }],
-        dimensions: [{ name: 'yearMonth' }],
+        dimensions: [{ name: 'yearMonth' }, { name: 'pagePath' }],
         metrics: [{ name: 'totalUsers' }],
-        dimensionFilter: { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/graciasporagendar' } } },
+        dimensionFilter: { orGroup: { expressions: [
+          { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'EXACT', value: '/typ' } } },
+          { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/graciasporagendar' } } },
+        ] } },
       },
     })
     const out = empty.slice()
     for (const row of res.data.rows ?? []) {
       const ym = row.dimensionValues?.[0]?.value ?? ''
       const m = parseInt(ym.slice(4)) - 1
-      if (m >= 0 && m < 12) out[m] = parseInt(row.metricValues?.[0]?.value ?? '0') || 0
+      // Las dos páginas se pisan en octubre (una redirigía a la otra): por mes, la mayor
+      if (m >= 0 && m < 12) out[m] = Math.max(out[m] ?? 0, parseInt(row.metricValues?.[0]?.value ?? '0') || 0)
     }
     gaAgendasCache = { ts: Date.now(), data: out }
     return out
@@ -1173,7 +1180,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
   const [hojas, gaUsers, gaAgendasWeb, gaClicksAgendar, metaAds, clickup, metaClientes] = await Promise.all([
     hojasP,
     fetchGA4MonthlyUsers(),          // Visitantes del sitio (GA4) — leads VSL
-    fetchGA4MonthlyAgendasWeb(),     // Agendas desde la web (GA4: /graciasporagendar)
+    fetchGA4MonthlyAgendasWeb(),     // Agendas desde la web (GA4: /typ)
     fetchGA4MonthlyClicksAgendar(),  // Clicks en el botón Agendar (GA4: evento click_agendar)
     fetchMetaAdsMonthly(),           // Gasto publicitario por embudo (Meta Marketing API)
     fetchClickUpSemaforo(),          // Semáforo de clientes (ClickUp)
