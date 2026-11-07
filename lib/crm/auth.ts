@@ -42,14 +42,16 @@ export async function sesionActual(seccion: "ventas" | "cuotas" = "ventas"): Pro
   // Administrador (socio de Vercel o "admin" de Configuración): ve todas las pestañas y el tablero
   if (s.admin) return { rol: "admin", nombre: NOMBRE_ADMIN, email: s.email, hojas: hojasClosers() };
   // Closer, setter o persona con Ventas marcada en Configuración: solo las pestañas que se le asignaron
-  const hojas = hojasDeMail(s.email);
-  // Pre-caller (pre-call v2): con la v2 apagada no tiene CRM; nunca entra a Cobro de cuotas
-  if (hojas.includes(PESTANA_PRECALLER)) {
-    if (seccion === "cuotas" || !precallV2Activo()) return null;
+  const asignadas = hojasDeMail(s.email);
+  // Pre-caller (pre-call v2): con la v2 prendida trabaja solo en su vista y nunca entra a Cobro de cuotas. Con la v2 apagada
+  // sigue como hoy con las pestañas de closers que tenga asignadas (así se le puede cargar «Pre-caller» antes de encender).
+  if (asignadas.includes(PESTANA_PRECALLER) && precallV2Activo()) {
+    if (seccion === "cuotas") return null;
     const conV2 = precallV2Hojas();
     const suyas = hojasClosers().filter((h) => !conV2 || conV2.has(h));
     return { rol: "closer", closerId: ID_VISTA_PRECALLER, nombre: s.nombre, email: s.email, hojas: suyas, precaller: true };
   }
+  const hojas = asignadas.filter((h) => h !== PESTANA_PRECALLER);
   const closer = closers().find((c) => c.hoja === hojas[0]);
   if (!closer) {
     // Decisión de Tomás (10/10/2026): quien tiene Cobro de cuotas pero no Ventas (un acceso de Configuración, sin pestaña de

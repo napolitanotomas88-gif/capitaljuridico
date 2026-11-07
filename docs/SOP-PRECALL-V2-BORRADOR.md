@@ -10,7 +10,7 @@ Este borrador reemplaza los pasos 1 a 3 de la pestaña «PRE CALL (paso a paso)�
 | **Pre-caller** | El del pre-caller (el de Tomás) | Llama, confirma día y hora, facturación, situación del estudio, decisores y urgencia. Hace el seguimiento hasta que el lead confirme. Lo pasa al closer. |
 | **Automático «Llamada no efectiva»** | El del pre-caller | «Hace unos minutos te llamé… Confirmamos tu asistencia?», sin video |
 | **Automático del pase** | El del closer | Video de traspaso + «Nos vemos en la reunión el DÍA a las HORA (hora PAÍS)» + video de pre-llamada (LISTO). A los 3 minutos si vino de la llamada; enseguida si vino del chat. |
-| **Closer** | El suyo | Espera el LISTO, manda recordatorios y el link, carga «¿Se presentó?» y el resultado. Si el lead no se presenta, hace el seguimiento de no-show. |
+| **Closer** | El suyo | Hasta 2 seguimientos del LISTO a mano (sin registro), recordatorios y link, «¿Se presentó?» y resultado. Si el lead no se presenta, hace el seguimiento de no-show. |
 
 **Regla dura:** si el lead no pasó por el pre-caller, no va al closer.
 
@@ -29,6 +29,6 @@ Este borrador reemplaza los pasos 1 a 3 de la pestaña «PRE CALL (paso a paso)�
 
 ## Closer (Despacho → su hoja)
 
-1. El lead le aparece con «Esperar LISTO del video de pre-llamada»: el video ya le salió solo. Cuando el lead manda LISTO, tocar «Mandó LISTO».
-2. El día de la reunión: recordatorio a la mañana, link 30 minutos antes (fase «Hecho - link a call») y aviso 10 minutos antes.
+1. El video con la palabra clave (LISTO) ya le salió solo al lead con el pase. Si no manda LISTO, el closer hace hasta 2 seguimientos por WhatsApp, a mano y **sin registrarlos en el CRM**.
+2. La tarjeta arranca directo en los recordatorios, cada uno con «Enviado»: a la mañana del día de la reunión, link 30 minutos antes y aviso 10 minutos antes.
 3. Después de la reunión: «¿Se presentó?» y el resultado. Si no vino, los seguimientos de no-show de siempre.
