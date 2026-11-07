@@ -34,48 +34,80 @@ export function elegirGuion(doc: DocGuiones, tanda: number | null, nombre: strin
   return tanda && !conTexto.some(g => g.tanda === tanda) ? null : orden[n - 1] ?? null
 }
 
-const SISTEMA = `Escribís los textos de UN anuncio de Meta para un abogado argentino. El anuncio muestra 3 videos de la misma idea
-y Meta combina 2 textos principales con 2 títulos (método 3:2:2). Te paso los guiones de esos videos.
+// Estructura de cada texto (Tomás, 4/11/2026; reclamada de nuevo el 5/11 con A124): hook (avatar + problema) que termina en
+// ⚠️⬇️ o 🚨⬇️ · línea en blanco · cuerpo (2–3 frases cortas, el dolor como pensamiento cotidiano) · línea en blanco · CTA con 💬.
+// Texto 1 = amplio; texto 2 = directo de 180 caracteres o menos (saltos incluidos), mismo hook y mismas palabras, acortado.
+// Títulos de hasta 40 caracteres que no repiten el hook. Solo los emojis ⬇️ 💬 ⚠️ 🚨.
+const SISTEMA = `Escribís los textos de UN anuncio de Meta para un abogado. El anuncio muestra videos de la misma idea y Meta combina
+2 textos principales con 2 títulos (método 3:2:2). Te paso los guiones (o el copy) de esos videos.
+
+ESTRUCTURA DE CADA TEXTO (obligatoria, con los saltos de línea exactos):
+1) HOOK: una sola línea que le habla a una persona concreta y marca un problema o una situación concreta. Termina en " ⚠️⬇️" o " 🚨⬇️".
+2) Una línea en blanco.
+3) CUERPO: el dolor planteado como un pensamiento cotidiano de la persona, en 2 o 3 frases cortas, en un solo párrafo. No expliques cómo se resuelve el caso.
+4) Una línea en blanco.
+5) CTA: cierre con urgencia suave y pedido de mensaje con 💬, en una sola línea: "Enviame un mensaje 💬 y te ayudo a ...".
+
 Devolvés:
-· "directo": el texto principal corto, formato EXACTO en tres párrafos separados por un salto de línea:
-  1) El gancho en una línea, con la pregunta o la frase fuerte de un HOOK, terminado en " ⬇️" (podés sumar ⚠️ o 🚨 antes de la flecha si es una alerta).
-  2) Una o dos frases con el problema concreto y lo que la persona puede perder si no actúa.
-  3) "Enviame un mensaje 💬 y te ayudo a <qué> antes de que <qué se pierde o se complica>."
-  Entre 250 y 450 caracteres.
-· "amplio": el texto principal largo y entretenido: arranca con una escena o situación cotidiana que la persona reconoce,
-  cuenta el problema como una historia breve (3 a 5 párrafos cortos, uno por línea) y cierra con la misma llamada
-  "Enviame un mensaje 💬 …". Entre 450 y 900 caracteres. Que no repita el gancho del directo.
-· "titulo1" y "titulo2": dos títulos distintos de hasta 40 caracteres, invitando a escribir (ej.: "Escribime y vemos tu caso").
-REGLAS DE VARIACIÓN (Tomás, 3/11): son variaciones, no textos nuevos.
-· No cambies la estructura de siempre (la de arriba) ni el orden de las ideas.
-· Usá las MISMAS palabras y frases de los guiones: el gancho del directo sale literal (o casi) de un HOOK; el problema, con las palabras del PROBLEMA.
-· Nada de palabras raras, rebuscadas o que no estén en los guiones o no tengan que ver con el caso (ni sinónimos "de marketing").
-· Lo que cambia entre el amplio y el directo es el largo y el arranque, no el vocabulario.
-Reglas para todo: voseo rioplatense, primera persona del abogado ("te ayudo"), sin promesas de resultado, sin precios, sin hashtags, sin mencionar el video.
+· "amplio" (TEXTO 1): hook + cuerpo + CTA completo. Entre 200 y 450 caracteres.
+· "directo" (TEXTO 2): 180 caracteres o menos CONTANDO los saltos de línea. El MISMO hook (idéntico al del amplio) + una sola línea con la idea clave + un CTA corto. Mismas palabras y mismos emojis que el amplio, solo que acortado.
+· "titulo1" y "titulo2": dos títulos distintos de 40 caracteres o menos cada uno (contalos). Concretos, con las palabras del problema, sin repetir el hook textual.
+
+REGLAS:
+· Frases cortas y lenguaje de todos los días. Sin jerga legal.
+· Hablale a una persona concreta, no a "todos".
+· Usá solo estos emojis: ⬇️ 💬 ⚠️ 🚨.
+· Español rioplatense con "vos" (enviame, podés, mandame, revisá). Si el guion está en "tú" (Chile, Colombia), usá "tú" neutro (puedes, escríbeme, envíame).
+· Prohibido: "no estás solo", "tenemos la solución", "contactanos hoy", "asesoramiento personalizado" y frases genéricas así.
+· No prometas resultados ni montos. No menciones ciudades ni provincias. Sin precios, sin hashtags, sin mencionar el video.
+· Son variaciones, no textos nuevos (Tomás, 3/11): usá las MISMAS palabras de los guiones; el hook sale literal (o casi) de un HOOK y el cuerpo, con las palabras del PROBLEMA. Nada de palabras raras ni sinónimos "de marketing".
+· Si el CTA del guion pide otra acción (por ejemplo, seguir en Instagram), usá esa en lugar de "enviame un mensaje", con 💬.
+Ejemplo de amplio:
+¿Te despidieron y no sabés si te pagaron todo? ⚠️⬇️
+
+Firmaste la liquidación y algo no te cierra. Pensás que ya está, que no hay nada para hacer.
+
+Enviame un mensaje 💬 y te ayudo a revisar tu caso antes de que se te pase el plazo.
 Ejemplo de directo:
-¿Te despidieron y no sabés si te pagan todo? ⬇️
-Muchas liquidaciones tienen errores en la antigüedad, el preaviso o el sueldo, y si firmás sin revisar, podés perder plata que te corresponde.
-Enviame un mensaje 💬 y te ayudo a revisar tu caso antes de que firmes algo que después no puedas reclamar.`
+¿Te despidieron y no sabés si te pagaron todo? ⚠️⬇️
+
+Firmaste y algo no te cierra.
+
+Enviame un mensaje 💬 y te ayudo a revisar tu caso.`
 const SCHEMA = { type: 'object', additionalProperties: false, required: ['amplio', 'directo', 'titulo1', 'titulo2'], properties: { amplio: { type: 'string' }, directo: { type: 'string' }, titulo1: { type: 'string' }, titulo2: { type: 'string' } } }
 
-const limpio = (x: unknown) => String(x ?? '').replace(/\r\n?/g, '\n').replace(/\n{2,}/g, '\n').trim()
+const limpio = (x: unknown) => String(x ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+const largo = (t: string) => [...t].length
+const EMOJIS_OK = new Set(['⬇', '💬', '⚠', '🚨'])
 
-/** Valida el directo (el molde): tres párrafos, gancho con ⬇️, llamada con 💬. null si no lo cumple. */
-export function copyValido(x: unknown): string | null {
-  const t = limpio(x)
-  const ps = t.split('\n').filter(Boolean)
-  return ps.length >= 3 && ps.length <= 4 && ps[0].includes('⬇️') && t.includes('💬') && t.length >= 150 && t.length <= 700 ? t : null
+/** La estructura del 4/11: hook terminado en ⚠️⬇️/🚨⬇️ · línea en blanco · cuerpo · línea en blanco · CTA con 💬; solo ⬇️ 💬 ⚠️ 🚨. */
+export function estructuraOk(t: string): boolean {
+  const ps = t.split('\n\n')
+  if (ps.length !== 3 || ps.some(p => !p.trim())) return false
+  const [hook, cuerpo, cta] = ps
+  if (hook.includes('\n') || cta.includes('\n') || cuerpo.split('\n').length > 3) return false
+  if (!/(⚠️|🚨)\s*⬇️$/u.test(hook)) return false
+  if (!cta.includes('💬')) return false
+  return [...t.matchAll(/\p{Extended_Pictographic}/gu)].every(m => EMOJIS_OK.has(m[0]))
 }
 
-/** Valida los 2 textos y los 2 títulos del 3:2:2. null si algo no cumple (va el copy del ganador, con aviso). */
+/** Valida el directo (texto 2): la estructura y 180 caracteres o menos con los saltos. null si no lo cumple. */
+export function copyValido(x: unknown): string | null {
+  const t = limpio(x)
+  return estructuraOk(t) && largo(t) <= 180 ? t : null
+}
+
+/** Valida los 2 textos y los 2 títulos del 3:2:2. null si algo no cumple (va el copy del ganador o del Doc, con aviso). */
 export function textosValidos(x: unknown): { textos: string[]; titulos: string[] } | null {
   const r = (x ?? {}) as Record<string, unknown>
   const directo = copyValido(r.directo)
   const amplio = limpio(r.amplio)
-  const pa = amplio.split('\n').filter(Boolean).length
   const titulos = [limpio(r.titulo1), limpio(r.titulo2)].map(t => t.replace(/\n/g, ' '))
-  if (!directo || pa < 3 || pa > 7 || !amplio.includes('💬') || amplio.length < 300 || amplio.length > 1_100 || amplio === directo) return null
-  if (titulos.some(t => t.length < 5 || t.length > 45) || titulos[0].toLowerCase() === titulos[1].toLowerCase()) return null
+  if (!directo || !estructuraOk(amplio) || largo(amplio) < 150 || largo(amplio) > 700 || amplio === directo) return null
+  const hook = amplio.split('\n')[0]
+  if (directo.split('\n')[0] !== hook) return null
+  const sinEmoji = (t: string) => t.replace(/[\s⬇️⚠️🚨?¿!¡.]+/gu, ' ').trim().toLowerCase()
+  if (titulos.some(t => largo(t) < 5 || largo(t) > 40 || sinEmoji(t) === sinEmoji(hook)) || titulos[0].toLowerCase() === titulos[1].toLowerCase()) return null
   return { textos: [amplio, directo], titulos }
 }
 

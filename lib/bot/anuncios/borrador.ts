@@ -220,12 +220,14 @@ export async function crearEnPausa(cuenta: string, x: {
         n++
         const th = await g.get(`${v.id}/thumbnails`, { fields: 'uri,is_preferred' })
         const uri = ((th.data ?? []) as Json[]).find(z => z.is_preferred)?.uri ?? th.data?.[0]?.uri
-        // Con el Doc de ADS (3/11), el copy de ESTE video es el texto principal (texto 1); la variación amplia, el 2
-        const principal = gr.copyPorVideo?.[v.drive] ?? directo
+        // Con el Doc de ADS (3/11), el copy de ESTE video es el texto principal (texto 1); la variación amplia, el 2.
+        // Desde el 5/11, si hay 2 textos con la estructura del 4/11 (copys.ts), van esos: amplio = texto 1, directo = texto 2.
+        const estructura = !!gr.copyPorVideo && gr.textos.length >= 2
+        const principal = estructura ? gr.textos[0] : gr.copyPorVideo?.[v.drive] ?? directo
         const vd: Json = { ...x.anuncio.video_data, video_id: v.id, image_url: uri, ...(principal ? { message: principal } : {}), ...(gr.titulos[0] ? { title: gr.titulos[0] } : {}) }
         delete vd.image_hash
         delete vd.link_description   // 3:2:2: sin descripciones
-        const resto = gr.copyPorVideo?.[v.drive] ? gr.textos : gr.textos.filter(z => z !== directo)
+        const resto = estructura || gr.copyPorVideo?.[v.drive] ? gr.textos : gr.textos.filter(z => z !== directo)
         const textos = principal ? [principal, ...resto.filter(z => z !== principal)].slice(0, 2) : []
         const variantes = textos.length > 1 || gr.titulos.length > 1
         const nombreAd = principal ? `${nombreAnuncio(principal, n)} · V${numeroOVideo(v.nombre)}` : v.nombre
