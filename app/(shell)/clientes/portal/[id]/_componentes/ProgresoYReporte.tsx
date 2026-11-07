@@ -1,6 +1,7 @@
-import { Bloque, Estado, Resumen, Tabla, VacioGuiado, type Columna, type DatoResumen } from '@/components/ui'
+import { Bloque, Estado, Tabla, VacioGuiado, type Columna } from '@/components/ui'
 import { barraCasos, fechaLarga, type ProgresoCasos } from '@/lib/clientes/portal/modelo'
 import { nombreMes, numero, usd, type MesReporte, type Reporte } from '@/lib/clientes/portal/reporte'
+import { ReportePorPeriodo } from './ReportePorPeriodo'
 import './portal.css'
 
 // Portal del cliente (2/11/2026, pedido de Tomás para un estudio cliente): la barra de casos conseguidos (con la marca intermedia) y el
@@ -64,21 +65,7 @@ const veces = (n: number | null) => (n === null ? '—' : `${n.toLocaleString('e
 
 /** Reporte de anuncios del cliente. `reporte` ya viene armado del servidor y solo con SUS cuentas. */
 export function ReporteAnunciosVista({ reporte, leido }: { reporte: Reporte; leido: string }) {
-  const a = reporte.acumulado, m = reporte.mesActual
-  const desde = reporte.desde ? nombreMes(reporte.desde) : null
-  const valor = usd(reporte.valorCaso)
-  const acumulado: DatoResumen[] = [
-    { etiqueta: 'Inversión en anuncios', icono: 'anuncios', valor: usd(a.inversion), contexto: desde ? `Desde ${desde}` : 'Todavía sin inversión' },
-    { etiqueta: 'Mensajes recibidos', icono: 'guiones', valor: numero(a.mensajes), contexto: `Cada uno te costó ${usd2(a.costoMensaje)}` },
-    { etiqueta: 'Costo por caso', icono: 'tarea', valor: usd(a.costoCaso), contexto: a.casos !== null ? `${numero(a.casos)} casos conseguidos` : 'Falta cargar los casos' },
-    { etiqueta: 'Ingresos estimados', icono: 'dinero', valor: usd(a.ingresos), contexto: a.casos !== null ? `${numero(a.casos)} casos × ${valor}` : 'Falta cargar los casos' },
-    { etiqueta: 'Profit estimado', icono: 'ok', destacado: true, valor: usd(a.profit), contexto: a.retorno !== null ? `Retorno: ${veces(a.retorno)} lo invertido` : 'Ingresos estimados menos inversión' },
-  ]
-  const esteMes: DatoResumen[] = [
-    { etiqueta: 'Inversión del mes', icono: 'anuncios', valor: usd(m.inversion), contexto: nombreMes(m.mes) },
-    { etiqueta: 'Mensajes del mes', icono: 'guiones', valor: numero(m.mensajes), contexto: `Costo por mensaje: ${usd2(m.costoMensaje)}` },
-    { etiqueta: 'Casos del mes', icono: 'tarea', valor: numero(m.casos), contexto: m.casos !== null ? `Costo por caso: ${usd(m.costoCaso)}` : 'Se calcula con el próximo conteo de casos' },
-  ]
+  const a = reporte.acumulado
   const columnas: Columna<MesReporte>[] = [
     { clave: 'mes', titulo: 'Mes', celda: f => nombreMes(f.mes) },
     { clave: 'inversion', titulo: 'Inversión', numerica: true, celda: f => usd(f.inversion) },
@@ -86,33 +73,24 @@ export function ReporteAnunciosVista({ reporte, leido }: { reporte: Reporte; lei
     { clave: 'costoMensaje', titulo: 'Costo por mensaje', numerica: true, celda: f => usd2(f.costoMensaje) },
     { clave: 'casos', titulo: 'Casos', numerica: true, celda: f => numero(f.casos) },
     { clave: 'costoCaso', titulo: 'Costo por caso', numerica: true, celda: f => usd(f.costoCaso) },
+    { clave: 'ingresos', titulo: 'Ingresos estimados', numerica: true, celda: f => usd(f.ingresos) },
     { clave: 'profit', titulo: 'Profit estimado', numerica: true, celda: f => usd(f.profit) },
+    { clave: 'retorno', titulo: 'Retorno', numerica: true, celda: f => veces(f.retorno) },
   ]
   const fm = reporte.porcentajeSeguidores
   return (
     <div className="cj-pila">
-      <div className="cj-pila cj-pila--chica">
-        <h3 className="pc-subtitulo">Desde que arrancamos{desde ? ` (${desde})` : ''}</h3>
-        <Resumen titulo="Reporte acumulado de anuncios" datos={acumulado} />
-        <p className="cj-parrafo cj-texto-2 pc-nota">
-          Los ingresos y el profit son <strong>estimados</strong>: casos
-          conseguidos × {valor}, el valor promedio de un caso. El costo por mensaje toma solo las campañas de mensajes.
-        </p>
-      </div>
-      <div className="cj-pila cj-pila--chica">
-        <h3 className="pc-subtitulo">Este mes ({nombreMes(m.mes)})</h3>
-        <Resumen titulo="Reporte de anuncios del mes" datos={esteMes} />
-      </div>
+      <ReportePorPeriodo reporte={reporte} />
       <p className="cj-parrafo pc-nota">
         {fm === null || fm === 0
           ? <>Follow Me Ads (campañas para sumar seguidores): <strong>todavía sin inversión</strong>. El plan es destinarle entre el 20 y el 25 % del presupuesto.</>
           : <>Follow Me Ads (campañas para sumar seguidores): <strong className="cj-num">{fm} %</strong> de la inversión ({usd(a.inversionSeguidores)}). El plan es entre el 20 y el 25 %.</>}
       </p>
       {reporte.porMes.length > 0 && (
-        <details className="cj-detalles">
-          <summary><strong>Mes por mes</strong><span className="cj-texto-2">&nbsp;· {reporte.porMes.length} {reporte.porMes.length === 1 ? 'mes' : 'meses'}</span></summary>
+        <details className="cj-detalles" open>
+          <summary><strong>Histórico mes por mes</strong><span className="cj-texto-2">&nbsp;· {reporte.porMes.length} {reporte.porMes.length === 1 ? 'mes' : 'meses'}</span></summary>
           <div style={{ marginTop: 16 }}>
-            <Tabla descripcion="Inversión, mensajes, casos y profit estimado de cada mes" columnas={columnas} filas={reporte.porMes} claveFila={f => f.mes} />
+            <Tabla descripcion="Inversión, mensajes, casos, ingresos, profit y retorno estimados de cada mes" columnas={columnas} filas={reporte.porMes} claveFila={f => f.mes} />
             <p className="cj-parrafo cj-texto-2 pc-nota" style={{ marginTop: 12 }}>Los casos de cada mes salen de los conteos que vamos registrando; si falta el conteo de un cierre, ese mes queda «—».</p>
           </div>
         </details>
