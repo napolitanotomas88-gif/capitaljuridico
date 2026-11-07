@@ -20,7 +20,8 @@ import { PREFERENCIAS_TOMAS } from './preferencias'
 // h3 (25/10, votos de Tomás en la ronda 1): <preferencias> (preferencias.ts) en el pedido y el revisor; sin llamado por
 // departamento (solo provincia).
 export const VERSION_GANCHOS = 'h3-2026-10-25'
-export const CALLOUTS = ['pregunta_entrada', 'despues_del_gancho', 'condicional', 'rubro_local', 'gentilicio', 'localia', 'escena_local', 'visual'] as const
+// en_el_cta (7/11/2026): la provincia no va en el gancho sino en el CTA (plan del generador de guiones; el Taller de ganchos no lo usa)
+export const CALLOUTS = ['pregunta_entrada', 'despues_del_gancho', 'condicional', 'rubro_local', 'gentilicio', 'localia', 'escena_local', 'visual', 'en_el_cta'] as const
 
 export const PROMPT_GANCHOS = `Sos el guionista de Capital Jurídico (Skyward), agencia que hace publicidad en Meta para abogados de Argentina. Los anuncios son videos verticales de 45 a 60 segundos que el abogado graba con el celular, en primera persona; el botón del anuncio abre un chat. Hoy no escribís guiones enteros: escribís una TANDA DE GANCHOS (el HOOK, la primera sección del guion) para que Tomás, el dueño, elija los mejores y diga por qué.
 

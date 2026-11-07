@@ -29,9 +29,55 @@ test('revisor: jerga de cámara en la indicación es error (preferencia 6)', () 
   const g = guion(1); g.secciones[0].indicacion = 'Corte a plano medio, decilo firme'
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'indicacion'))
 })
-test('revisor: sin la provincia en el HOOK es error', () => {
+test('revisor: la provincia en el HOOK o en el CTA; en ninguno de los dos es error (7/11)', () => {
   const g = guion(1); g.secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'), 'en el CTA alcanza')
+  assert.equal(R.donde(g, 'San Juan'), 'cta')
+  g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'))
+})
+test('revisor: largo hasta 1.100 caracteres hablados (7/11)', () => {
+  const g = guion(1); g.secciones[1].texto = (relleno.repeat(6)).trim()
+  assert.ok(R.largoHablado(g) > 800 && R.largoHablado(g) <= 1100, String(R.largoHablado(g)))
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
+  g.secciones[1].texto = relleno.repeat(10).trim()
+  assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
+})
+test('revisor: sin fundamento legal ni cifras legales (7/11)', () => {
+  for (const frase of ['El Código del Trabajo dice que no.', 'Según el artículo 245, te corresponde.', 'La Ley de Contrato de Trabajo te protege.', 'Si estabas en la ANSES, cambia.', 'Te pueden pagar la mitad o menos de lo que te corresponde.']) {
+    const g = guion(1); g.secciones[2].texto = frase
+    const e = R.errores(R.revisarGuion(g, 'San Juan', CATALOGO))
+    assert.ok(e.some(x => x.regla === 'fundamento_legal' || x.regla === 'cifra_legal'), frase)
+  }
+  const g = guion(1); g.secciones[2].texto = 'Tenés derechos como trabajador que no se pierden por firmar un papel.'
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'fundamento_legal' || x.regla === 'cifra_legal'))
+})
+test('revisor: ortografía de las finales de Faus (asi, minúscula, punto después del gesto) (7/11)', () => {
+  const casos = [
+    [3, 'Si sos de San Juan, escribime acá abajo (gesto con el dedo hacia abajo), asi podemos analizar si hay diferencias.'],
+    [3, 'Si sos de San Juan, escribime acá abajo (gesto con el dedo hacia abajo). para evaluar si la propuesta es correcta.'],
+    [2, 'el sobre también es sueldo. Y se puede probar.'],
+    [1, 'Te ofrecen una cuenta.. Y no es todo lo que trabajaste en el año.'],
+  ]
+  for (const [i, texto] of casos) {
+    const g = guion(1); g.secciones[i].texto = texto
+    assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ortografia'), texto)
+  }
+})
+test('revisor: tipo de CTA y la tanda combina cierres y reparte la ciudad (7/11)', () => {
+  assert.equal(R.tipoCta('Escribime acá abajo (gesto con el dedo hacia abajo) para evaluar si la propuesta es correcta.'), 'prudente')
+  assert.equal(R.tipoCta('Escribime acá abajo (gesto con el dedo hacia abajo) así podemos analizar si hay diferencias.'), 'prudente')
+  assert.equal(R.tipoCta('Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'), 'directo')
+  const tanda = (gs) => ({ cliente: 'x', ciudad: 'San Juan', notas: '', guiones: gs })
+  const fs = ['objeto_simbolo', 'pizarra', 'documento']
+  const iguales = tanda(fs.map((f, i) => guion(i + 1, f)))
+  const avisos = R.revisarTanda(iguales, CATALOGO, 3).filter(x => x.gravedad === 'aviso').map(x => x.regla)
+  assert.ok(avisos.includes('ciudad') && avisos.includes('cta'), avisos.join(','))
+  const mezcla = tanda(fs.map((f, i) => guion(i + 1, f)))
+  mezcla.guiones[1].secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'
+  mezcla.guiones[2].secciones[3].texto = 'Si sos de San Juan, no aceptes la liquidación sin revisar las cuentas. Escribime acá abajo (gesto con el dedo hacia abajo) para evaluar si hay diferencias.'
+  const av2 = R.revisarTanda(mezcla, CATALOGO, 3).filter(x => x.gravedad === 'aviso').map(x => x.regla)
+  assert.ok(!av2.includes('ciudad') && !av2.includes('cta'), av2.join(','))
 })
 test('revisor: recursos repetidos en la tanda es error', () => {
   const t = { cliente: 'x', ciudad: 'San Juan', notas: '', guiones: [guion(1), guion(2)] }

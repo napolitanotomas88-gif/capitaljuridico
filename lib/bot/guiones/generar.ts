@@ -19,13 +19,13 @@ import { CALLOUTS } from './ganchos'
 import { revisarGuion, revisarTanda, errores, hallazgosEnTexto } from './revisar'
 import { bloqueCiudad, SECCIONES, TIPOS_GANCHO, type Catalogo, type Guion, type Hallazgo, type Seccion, type Tanda, type TipoGancho } from './tipos'
 
-export const VERSION_TANDA = 't1-2026-10-25'
+export const VERSION_TANDA = 't2-2026-11-07'
 
 export interface EntradaTanda {
   ficha: ExtraccionKickoff
   ideas: IdeaGuion[]              // las aprobadas (sin las que las preferencias descartan)
   cantidad: number                // guiones de la tanda (~6)
-  ciudad: string                  // la provincia que nombra cada gancho
+  ciudad: string                  // la provincia que nombra cada guion (en el gancho o en el CTA)
   catalogo: string                // catalogoEnTexto()
   mercado: string | null
   kb: string | null
@@ -108,17 +108,17 @@ function contexto(e: EntradaTanda): string[] {
 const PROMPT_PLAN = `${PROMPT_REDACTOR}
 
 ## Ahora solo planificás
-Antes de escribir, armá el PLAN de la tanda: una fila por guion con la idea (el título de <ideas> o «nueva: …»), el recurso creativo (clave de <catalogo>, ninguno repetido, respetando la mezcla mínima y las dificultades), el llamado geográfico (callout, todos distintos), el tipo de gancho (ninguno más de 2 veces), el insight de <mercado> que usa y el ángulo en una frase. Repartí las ideas: una idea puede tener dos guiones solo si faltan ideas, y entonces con ángulos distintos. Si se piden más guiones que ideas, proponé las nuevas con lo más filoso de <mercado>.`
+Antes de escribir, armá el PLAN de la tanda: una fila por guion con la idea (el título de <ideas> o «nueva: …»), el recurso creativo (clave de <catalogo>, ninguno repetido, respetando la mezcla mínima y las dificultades), el llamado geográfico (callout, todos distintos; en_el_cta = la provincia recién en el CTA: usalo en un tercio de los guiones, más o menos), el tipo de gancho (ninguno más de 2 veces), el insight de <mercado> que usa y el ángulo en una frase, que termina con el cierre del CTA de ese guion: «cierre: directo» o «cierre: prudente» (preferencia 8), mitad y mitad en la tanda. Repartí las ideas: una idea puede tener dos guiones solo si faltan ideas, y entonces con ángulos distintos. Si se piden más guiones que ideas, proponé las nuevas con lo más filoso de <mercado>.`
 
 const PROMPT_UNO = `${PROMPT_REDACTOR}
 
 ## Ahora escribís UN guion de la tanda
-En <asignado> está la fila del plan que te toca (idea, recurso creativo, llamado geográfico, tipo de gancho, insight, ángulo): respetala. En <plan> están las otras filas, que escriben otros en paralelo: no repitas su tema ni su recurso. Devolvé solo tu guion.`
+En <asignado> está la fila del plan que te toca (idea, recurso creativo, llamado geográfico, tipo de gancho, insight, ángulo): respetala. El ángulo termina con el cierre del CTA (preferencia 8) y es obligatorio: con «cierre: prudente» el CTA da un consejo concreto y termina en «para evaluar si…» o «así podemos analizar si…», SIN «así resolvemos juntos», sin «así te pagan lo que realmente te corresponde» y sin «antes de que»; con «cierre: directo», el directo completo con la urgencia al final. En <plan> están las otras filas, que escriben otros en paralelo: no repitas su tema ni su recurso. Devolvé solo tu guion.`
 
 const PROMPT_CORREGIR = `${PROMPT_REDACTOR}
 
 ## Ahora corregís UN guion
-En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 800 caracteres de texto hablado).`
+En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 1.100 caracteres de texto hablado).`
 
 export { tandaDe }
 export function guionEnTexto(g: Guion): string {
@@ -158,6 +158,11 @@ type Opciones = { esfuerzo?: Esfuerzo; topeMs?: number }
 const tandaDe = (e: EntradaTanda, gs: Guion[]): Tanda => ({ cliente: e.ficha.cliente.cliente_crm ?? e.ficha.cliente.nombre_escuchado ?? '', ciudad: e.ciudad, guiones: gs, notas: '' })
 const planEnTexto = (plan: FilaPlan[], excepto?: number) => plan.filter(f => f.numero !== excepto).map(f => `${f.numero}. idea: ${f.idea} · recurso: ${f.formato} · llamado: ${f.callout} · gancho: ${f.tipo_gancho} · ángulo: ${f.angulo}`).join('\n')
 
+/** El cierre del CTA lo fija el código (7/11/2026): en la prueba en seco el modelo copiaba el directo en 5 de 6. Alterna
+ *  directo (impares) y prudente (pares) y lo deja al final del ángulo, que es lo que lee quien escribe cada guion. Puro. */
+export const cierreDe = (k: number): 'directo' | 'prudente' => (k % 2 === 0 ? 'directo' : 'prudente')
+export const conCierre = (angulo: string, k: number) => `${angulo.replace(/\s*cierre:\s*(directo|prudente)\.?\s*$/i, '').trim()} · cierre: ${cierreDe(k)}`
+
 /** Paso 1: el plan de la tanda (una llamada corta). El código saca los recursos repetidos o fuera del catálogo. */
 export async function planificar(e: EntradaTanda, catalogo: Catalogo, op: Opciones = {}): Promise<{ plan: FilaPlan[]; ajustes: string[]; usage: Uso; modelo: string }> {
   const p = await llamarConCache({ que: 'el plan de la tanda', contexto: contextoComun(e), sistema: PROMPT_PLAN, usuario: `<pedido>${e.cantidad} guiones.</pedido>`, schema: SCHEMA_PLAN, esfuerzo: esfuerzoDe(op.esfuerzo ?? 'high'), topeMs: op.topeMs ?? TOPE_CLAUDE_MS })
@@ -165,7 +170,7 @@ export async function planificar(e: EntradaTanda, catalogo: Catalogo, op: Opcion
   const plan: FilaPlan[] = filas.map((x, k) => ({
     numero: k + 1, idea: limpio(x.idea, 160), formato: limpio(x.formato, 60), callout: limpio(x.callout, 40),
     tipo_gancho: (TIPOS_GANCHO as readonly string[]).includes(String(x.tipo_gancho)) ? (x.tipo_gancho as TipoGancho) : 'si_condicional',
-    insight: limpio(x.insight, 300), angulo: limpio(x.angulo, 400),
+    insight: limpio(x.insight, 300), angulo: conCierre(limpio(x.angulo, 400), k),
   }))
   const ajustes: string[] = []
   const usados = new Set<string>()
