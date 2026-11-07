@@ -20,8 +20,9 @@ import {
   nombreCliente, sufijoCliente, nombresDriveCliente, prepararDriveCliente, motivoNombreDudoso, aprobarCarpetaExistente,
   plantillaGuionesDesdeEntorno, CARPETA_CLIENTES_DRIVE, PENDIENTE_COPIAR, PENDIENTE_PLANTILLA, PENDIENTE_NO_ES_PLANTILLA,
   MOTIVO_CARPETA_EXISTENTE, VARIABLE_PLANTILLA_GUIONES, MOTIVO_CARPETA_DE_INTENTO_DUDOSO, TOLERANCIA_RELOJ_MS, carpetaDeIntentoDudoso,
-  MAXIMO_VENTANAS,
+  MAXIMO_VENTANAS, MOTIVO_CARPETA_PARECIDA,
 } from '../lib/bot/alta/driveCliente.ts'
+import { carpetasParecidas } from '../lib/bot/alta/carpetasParecidas.ts'
 import { sondearPuente, verificarPruebaDrive, limpiarPruebaDrive, ID_INEXISTENTE } from '../lib/bot/alta/drivePrueba.ts'
 
 // La lectura de la fecha de creación usa la cuenta de servicio solo si está configurada: acá nunca (ni por descuido)
@@ -285,6 +286,53 @@ test('real: crea todo adentro de la carpeta del cliente; la segunda vez reutiliz
   assert.deepEqual(r2.guardar, r1.guardar)
   assert.equal(r2.completo, true)
   assert.equal(p.items.size, 6 + 2, 'no duplicó nada (6 del cliente + la plantilla y el doc de otro cliente)')
+})
+
+test('primera corrida con una carpeta PARECIDA en Clientes (caso «Ruben & Ariel»): no crea otra y espera el OK', async () => {
+  const p = puenteDeJuguete()
+  const parecida = p.crear(CLIENTES, 'Claudia & Ruben - C.J', 'carpeta')
+  p.crear(CLIENTES, 'Mauro Lyonnet - C.J', 'carpeta')
+  const cuantos = p.items.size
+  const r = await prepararDriveCliente(ALTA, real(p, { deps: { puente: () => p, listarHijos: lectorDe(p) } }))
+  assert.equal(r.esperaOk, 'carpeta_existente')
+  assert.equal(r.carpeta.id, parecida.id)
+  assert.equal(r.carpeta.nombre, 'Claudia & Ruben - C.J')
+  assert.equal(r.carpeta.motivo, MOTIVO_CARPETA_PARECIDA)
+  assert.equal(p.items.size, cuantos, 'no se creó nada')
+  assert.ok(!p.llamadas.some((l) => l[0] === 'crearCarpeta'))
+  assert.match(r.pendientes[0], /Claudia & Ruben - C\.J/)
+  // Con el OK sigue en la parecida y le agrega lo que falta adentro
+  const guardado = aprobarCarpetaExistente(r)
+  assert.equal(guardado.carpeta.id, parecida.id)
+  const r2 = await prepararDriveCliente(ALTA, real(p, { guardado, deps: { puente: () => p, listarHijos: lectorDe(p) } }))
+  assert.equal(r2.esperaOk, null)
+  assert.equal(r2.crudos.estado, 'creado')
+  assert.ok([...p.items.values()].filter((x) => x.padre === CLIENTES && x.tipo === 'carpeta').length === 2, 'sigue habiendo 2 carpetas en Clientes')
+  // "OK Nombre Apellido" (nombre confirmado): crea la nueva sin volver a frenar
+  const p3 = puenteDeJuguete()
+  p3.crear(CLIENTES, 'Claudia & Ruben - C.J', 'carpeta')
+  const r3 = await prepararDriveCliente(ALTA, real(p3, { nombreConfirmado: 'Claudia Roldan', deps: { puente: () => p3, listarHijos: lectorDe(p3) } }))
+  assert.equal(r3.esperaOk, null)
+  assert.equal(r3.carpeta.estado, 'creado')
+})
+
+test('carpeta parecida: sin palabras en común crea normal; si la lectura de Clientes falla, no crea y reintenta', async () => {
+  const p = puenteDeJuguete()
+  p.crear(CLIENTES, 'Mauro Lyonnet - C.J', 'carpeta')
+  p.crear(CLIENTES, 'Estudio Jurídico Legal - C.J', 'carpeta')   // solo palabras genéricas: no cuenta
+  const r = await prepararDriveCliente(ALTA, real(p, { deps: { puente: () => p, listarHijos: lectorDe(p) } }))
+  assert.equal(r.esperaOk, null)
+  assert.equal(r.carpeta.estado, 'creado')
+  const p2 = puenteDeJuguete()
+  const r2 = await prepararDriveCliente(ALTA, real(p2, { deps: { puente: () => p2, listarHijos: async () => { throw new Error('403') } } }))
+  assert.equal(r2.ok, false)
+  assert.equal(r2.carpeta.estado, 'error')
+  assert.ok(!p2.llamadas.some((l) => l[0] === 'crearCarpeta'))
+})
+
+test('carpetasParecidas: Ariel Ojeda Aguilera encuentra «Ruben & Ariel - C.J» y no la de nombre exacto', () => {
+  const cs = [{ nombre: 'Ruben & Ariel - C.J' }, { nombre: 'Ariel Ojeda Aguilera - C.J' }, { nombre: 'Mauro Lyonnet - C.J' }, { nombre: 'Carla Aguilera - SKWD' }]
+  assert.deepEqual(carpetasParecidas('Ariel Ojeda Aguilera', cs).map((x) => x.nombre), ['Carla Aguilera - SKWD', 'Ruben & Ariel - C.J'])
 })
 
 test('primera corrida y la carpeta YA EXISTÍA (homónimo o la armó Aylu): no crea nada adentro y espera el OK', async () => {

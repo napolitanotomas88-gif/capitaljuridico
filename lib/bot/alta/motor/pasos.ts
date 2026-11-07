@@ -919,7 +919,9 @@ export function interpretarDrive(r: ResumenDrive, c: { real: boolean; nombre: st
       estado: 'espera', resultado: r, parcial,
       esperas: [{
         paso: 'drive', motivo: 'carpeta', tipos: ['ok_carpeta'], grupo: 'verificaciones', quien: 'equipo', requiere: ['nombre'], pedido: r.pendientes.slice(0, 1),
-        texto: textoPedidoEquipo({ nombre: c.nombre, titulo: `ya había una carpeta "${r.nombres?.carpeta ?? ''}" en Clientes (${r.carpeta.url ?? ''}).`, detalle: r.pendientes.slice(0, 1), ok: 'es la de este cliente, seguí en esa ("OK Nombre Apellido" si es de otro: se crea una nueva con ese nombre)', no: 'frenar Drive' }),
+        texto: textoPedidoEquipo({ nombre: c.nombre, titulo: r.carpeta.nombre && r.nombres?.carpeta && r.carpeta.nombre !== r.nombres.carpeta
+          ? `no hay una carpeta "${r.nombres.carpeta}" en Clientes, pero hay una parecida: "${r.carpeta.nombre}" (${r.carpeta.url ?? ''}).`
+          : `ya había una carpeta "${r.nombres?.carpeta ?? ''}" en Clientes (${r.carpeta.url ?? ''}).`, detalle: r.pendientes.slice(0, 1), ok: 'es la de este cliente, seguí en esa ("OK Nombre Apellido" si es de otro: se crea una nueva con ese nombre)', no: 'frenar Drive' }),
       }],
     }
   }
