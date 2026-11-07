@@ -646,9 +646,9 @@ export default function Dashboard() {
                   // Clicks en "Agendar" (lead real BECC): evento click_agendar de GA4 (snippet en Framer)
                   { label: 'Clicks en Agendar', value: raw?.monthlyClicksAgendar[activeMonthIdx] ?? null, format: 'number',
                     sub: (raw?.monthlyClicksAgendar[activeMonthIdx] != null ? 'botón #agendarpr (GA4)' : 'falta el snippet en Framer') + sufEmpresa },
-                  // Agendas medidas en la landing de Framer (thank-you /graciasporagendar vía GA4)
+                  // Agendas medidas en la landing de Framer (thank-you /typ vía GA4)
                   { label: 'Agendas — Web', value: raw?.monthlyAgendasWeb[activeMonthIdx] ?? null, format: 'number',
-                    sub: ((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) && leadsVSL ? `${(((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) / leadsVSL) * 100).toFixed(1)}% de visitas · /graciasporagendar` : '/graciasporagendar (GA4)') + sufEmpresa },
+                    sub: ((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) && leadsVSL ? `${(((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) / leadsVSL) * 100).toFixed(1)}% de visitas · /typ` : '/typ (GA4)') + sufEmpresa },
                   { label: 'Llamadas Agendadas', value: llamadasAg, format: 'number' },
                   { label: 'Llamadas Canceladas', value: null, format: 'number', sub: 'no se registra en el CRM' },
                   { label: 'No Shows', value: noShows, format: 'number', sub: `ocurridas sin presentarse${subSinRegistro}` },
