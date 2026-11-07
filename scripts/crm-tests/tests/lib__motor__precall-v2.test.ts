@@ -120,11 +120,8 @@ describe("closer en v2: solo recordatorios", () => {
     expect(diez.botones[0].cambios).toEqual({ recordatorioPrecall: "3", precall: "Hecho - link a call" });
     expect(v2({ ...pasado, recordatorioPrecall: "3", precall: "Hecho - link a call" }, elDia)).toEqual([]);
   });
-  it("sin llamada efectiva/no efectiva ni fases de confirmación; «Mandó LISTO» es una marca opcional", () => {
-    const [a] = v2(pasado);
-    expect(a.botones.map((b) => b.id)).toEqual(["recordatorio", "mandoListo"]);
-    expect(a.botones[1].cambios).toEqual({ precall: "VIDEOS CONF" });
-    expect(v2({ ...pasado, precall: "VIDEOS CONF" })[0].botones.map((b) => b.id)).toEqual(["recordatorio"]);
+  it("solo «Enviado»: sin llamada efectiva/no efectiva, fases de confirmación ni «Mandó LISTO»", () => {
+    expect(v2(pasado)[0].botones.map((b) => b.id)).toEqual(["recordatorio"]);
   });
   it("después de la call, ¿Se presentó? es del closer", () => {
     const despues = parsearFechaSheet("26/09/2026 12:00")!;

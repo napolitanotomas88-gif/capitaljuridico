@@ -547,10 +547,11 @@ const PASOS_RECORDATORIO = [
 ] as const;
 
 /**
- * La tarjeta del closer en v2 (tipo RECORDATORIOS), después del pase: solo los recordatorios previos (mañana del día, link 30 min
- * antes, aviso 10 min antes). El video con la palabra clave ya salió solo con el pase; "Mandó LISTO" queda como marca opcional
- * (F = VIDEOS CONF), sin frenar los recordatorios. El último escribe F = "Hecho - link a call" y la tarjeta se va; después de la
- * hora, "¿Se presentó?" como siempre. Antes del día de la reunión espera plegada en "Listo por hoy".
+ * La tarjeta del closer en v2 (tipo RECORDATORIOS), después del pase: arranca directo en los recordatorios previos (mañana del
+ * día, link 30 min antes, aviso 10 min antes). El video con la palabra clave ya salió solo con el pase; los hasta 2 seguimientos
+ * del LISTO los hace el closer por WhatsApp sin registrarlos en el CRM (Tomás, 6/11/2026). El último recordatorio escribe
+ * F = "Hecho - link a call" y la tarjeta se va; después de la hora, "¿Se presentó?" como siempre. Antes del día de la reunión
+ * espera plegada en "Listo por hoy".
  */
 export function accionRecordatoriosV2(fila: FilaLead, ahora: Date): Accion | null {
   const base = leerBase(fila, ahora);
@@ -562,7 +563,6 @@ export function accionRecordatoriosV2(fila: FilaLead, ahora: Date): Accion | nul
   const paso = Math.min(Math.max(Number(v.recordatorioPrecall.trim()) || 0, 0), PASOS_RECORDATORIO.length);
   if (paso >= PASOS_RECORDATORIO.length) return null;
   const ultimo = paso === PASOS_RECORDATORIO.length - 1;
-  const listo = es(v.precall, "VIDEOS CONF");
   const botones: Boton[] = [
     {
       id: "recordatorio",
@@ -570,13 +570,12 @@ export function accionRecordatoriosV2(fila: FilaLead, ahora: Date): Accion | nul
       principal: true,
       cambios: { recordatorioPrecall: String(paso + 1), ...(ultimo ? { precall: FASES_CLOSER_V2[FASES_CLOSER_V2.length - 1] } : {}) },
     },
-    ...(listo ? [] : [{ id: "mandoListo", etiqueta: "Mandó LISTO", cambios: { precall: "VIDEOS CONF" } }]),
   ];
   return {
     tipo: "RECORDATORIOS",
     grupo: "precall",
     titulo: PASOS_RECORDATORIO[paso],
-    estado: `Pasado al closer · video ${listo ? "visto (LISTO)" : "enviado, sin LISTO todavía"}`,
+    estado: "Pasado al closer · video de pre-llamada enviado",
     fecha,
     // El de la mañana espera al día de la reunión
     atrasado: false,
