@@ -15,6 +15,7 @@ import {
   type Metricas,
 } from "@/lib/crm/admin";
 import { requerirAdmin } from "@/lib/crm/auth";
+import { ID_VISTA_PRECALLER, precallV2Activo } from "@/lib/crm/config/precallV2";
 import { spreadsheetId } from "@/lib/crm/config";
 import { conDiagnostico } from "@/lib/crm/errores";
 import { formatearFechaLarga } from "@/lib/crm/fechas";
@@ -62,6 +63,12 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
             <p className="text-sm leading-snug text-white/80 first-letter:uppercase">{formatearFechaLarga(ahora)}</p>
           </div>
           <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2 self-end sm:self-auto">
+            {/* Pre-call v2 encendido: acceso directo a la vista del pre-caller, sin pasar por el día de un closer. */}
+            {precallV2Activo() && (
+              <Link href={`/ventas/closer/${ID_VISTA_PRECALLER}`} className={BOTON_VER_DIA}>
+                Pre-caller
+              </Link>
+            )}
             <BotonActualizar generado={ahora.toISOString()} />
             <a href={urlPlanilla} target="_blank" rel="noopener noreferrer" className={BOTON_BARRA}>
               <span className="lg:hidden">Planilla</span>
