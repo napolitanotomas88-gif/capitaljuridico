@@ -3,20 +3,22 @@
 // Sale del prompt maestro de Tomás («PROMPT PARA HACER GUIONES CON CLAUDE») y de sus decisiones del 24/10/2026.
 // Errores (la tanda no pasa):
 //   · por guion: las 4 secciones en orden; velocidad entera de 1 a 5; indicación de grabación en cada sección; texto hablado
-//     de 500 a 800 caracteres (sin indicaciones ni el gesto); la ciudad en el HOOK; sin comillas en el texto; sin WhatsApp;
+//     de 500 a 1.100 caracteres (sin indicaciones ni el gesto; 7/11: hasta lo que hace Faus); la ciudad en el HOOK o en el CTA;
+//     sin comillas en el texto; sin WhatsApp; sin fundamento legal ni cifras legales (7/11: artículos, leyes, códigos,
+//     organismos, porcentajes, plazos, montos); ortografía («así», mayúscula al empezar cada oración, sin dobles puntos);
 //     el CTA con «escribime acá abajo (gesto con el dedo hacia abajo)»; si el HOOK va con cámara frontal, la sección
 //     siguiente vuelve a la trasera; un formato que exista en el catálogo.
 //   · de la tanda: la cantidad pedida; un recurso creativo distinto por guion (ninguno se repite); ningún tipo de gancho
 //     más de 2 veces.
 // Avisos (los mira quien revisa): velocidad fuera de la guía (HOOK y CTA 4–5, PROBLEMA y SOLUCIÓN 3–4); una sección sin
 // una acción concreta, con la misma indicación que la anterior o con «cambiá levemente el ángulo» («nunca quieto»); CTA
-// sin «antes de que»; cifras o plazos legales; comillas en las indicaciones; más de una actuación; mezcla de dificultad
+// sin «antes de que» ni «para evaluar/analizar»; comillas en las indicaciones; más de una actuación; mezcla de dificultad
 // (dos tercios, como mínimo, en el escritorio o el estudio, y como mucho uno con ayudante o locación); ganchos que arrancan
-// con las mismas palabras.
+// con las mismas palabras; la ciudad siempre arriba o siempre abajo; todos los CTA con el mismo cierre.
 import { SECCIONES, NOMBRE_SECCION, type Catalogo, type Guion, type Hallazgo, type Tanda } from './tipos'
 
 export const LARGO_MIN = 500
-export const LARGO_MAX = 800
+export const LARGO_MAX = 1100   // 7/11/2026: Faus los deja en ~1.050 (mediana); Tomás: puede pasar de 800, no de lo que hace Faus
 export const GESTO = '(gesto con el dedo hacia abajo)'
 const GUIA_VELOCIDAD = { HOOK: [4, 5], PROBLEMA: [3, 4], SOLUCION: [3, 4], CTA: [4, 5] } as const
 
@@ -48,7 +50,15 @@ const CIFRAS_LEGALES: [RegExp, string][] = [
   [/\b(\d+|un|una|dos|tres|cuatro|cinco|seis|diez|treinta|sesenta|noventa|cuarenta y ocho|veinticuatro)\s+(horas|d[ií]as|meses|a[nñ]os)\s+(para|de plazo|h[aá]biles)/i, 'un plazo'],
   [/\b(el doble|el triple|duplic|triplic|multas?)\b/i, 'un monto o una multa'],
   [/\$\s?\d|\b\d[\d.]*\s*(pesos|d[oó]lares|millones)/i, 'un monto'],
-  [/\bart[ií]culo\s+\d|\bley\s+(n[°º.]?\s*)?\d/i, 'un artículo o una ley'],
+  [/\bla mitad o menos\b|\b(la|una) (mitad|tercera parte|cuarta parte) de lo que\b/i, 'una fracción de lo que le corresponde'],
+]
+// Sin fundamento legal por ahora (Tomás, 7/11/2026): ni artículos, ni leyes o códigos por su nombre, ni organismos. IPS no
+// entra: en Paraguay «sin IPS» es como se dice «en negro» (lenguaje de la persona, no fundamento)
+const FUNDAMENTO_LEGAL: [RegExp, string][] = [
+  [/\bart[ií]culo\b|\bart\.\s*\d/i, 'un artículo'],
+  [/\bley(es)?\s+(n[°º.]?\s*)?\d|\bley de\s+[A-ZÁÉÍÓÚ]|\bley\s+(nacional|provincial|laboral)\b/i, 'una ley'],
+  [/\bc[oó]digo\s+(del?|civil|penal|laboral|procesal)\b/i, 'un código'],
+  [/\b(LCT|ANSES|AFIP|ARCA|SRT|Superintendencia|Ministerio de Trabajo|Corte Suprema|jurisprudencia)\b/, 'un organismo o un fallo'],
 ]
 // «Nunca quieto»: cada indicación tiene que pedir algo concreto (moverse, mostrar, cambiar el plano…)
 const ACCIONES = /\b(camin|acerc|alej|par[aá]te|levant|sent[aá]|gir|mostr|se[nñ]al|agarr|sac[aá]|dej[aá]|apoy|cambi|dibuj|anot|escrib[ií]|tach|subray|cont[aá]|le[eé]|abr[ií]|golpe|romp|dobl|tom[aá]|pon[eé]|march|entr[aá]|sal[ií]|frontal|trasera|plano|[aá]ngulo|toma|detalle|cenital|zoom|pizarra|papel|hoja|telegrama|carta|recibo|celular|calculadora|cron[oó]metro)/i
@@ -87,18 +97,30 @@ export function revisarGuion(g: Guion, ciudad: string, catalogo: Catalogo): Hall
     if (WHATSAPP.test(s.texto)) err('whatsapp', `${n}: el texto nombra WhatsApp (el CTA es «escribime acá abajo»)`)
   }
 
+  for (const s of g.secciones) {
+    const n = NOMBRE_SECCION[s.seccion] ?? s.seccion
+    const sinGesto = s.texto.replace(/\(gesto con el dedo hacia abajo\)\.?/gi, ' ')
+    if (/\basi\b/i.test(s.texto)) err('ortografia', `${n}: «asi» va con tilde («así»)`)
+    if (/\.\.(?!\.)/.test(s.texto.replace(/\.{3}/g, '…'))) err('ortografia', `${n}: doble punto`)
+    if (/^\s*[a-zñáéíóú]/.test(s.texto)) err('ortografia', `${n}: el texto arranca en minúscula`)
+    const m = sinGesto.match(/[.!?…]\s+([a-zñáéíóú]\w*)/)
+    if (m) err('ortografia', `${n}: una oración arranca en minúscula («${m[1]}…»)`)
+    if (/\(gesto con el dedo hacia abajo\)\.\s*[a-zñáéíóú]/i.test(s.texto)) err('ortografia', `${n}: punto y minúscula después del gesto (sacá el punto o poné mayúscula)`)
+  }
+
   const largo = largoHablado(g)
   if (largo < LARGO_MIN || largo > LARGO_MAX) err('largo', `el texto hablado tiene ${largo} caracteres (tiene que estar entre ${LARGO_MIN} y ${LARGO_MAX})`)
 
   const hook = g.secciones.find(s => s.seccion === 'HOOK')
-  if (hook && ciudad && !normalizar(hook.texto).includes(normalizar(ciudad))) err('ciudad', `el HOOK no nombra «${ciudad}»`)
-
   const cta = g.secciones.find(s => s.seccion === 'CTA')
+  // 7/11/2026: la provincia va en el HOOK o en el CTA (repartido en la tanda: revisarTanda)
+  if (ciudad && !donde(g, ciudad)) err('ciudad', `ni el HOOK ni el CTA nombran «${ciudad}»`)
+
   if (cta) {
     const t = normalizar(cta.texto)
     // «escribime ahora acá abajo (gesto…)» también vale: así lo escribe Tomás
     if (!/escribime (ahora |ya )?aca abajo \(gesto con el dedo hacia abajo\)/.test(t)) err('cta', `el CTA tiene que decir «escribime acá abajo ${GESTO}», con el gesto pegado`)
-    if (!t.includes('antes de que')) aviso('cta', 'el CTA no cierra con urgencia («antes de que…»)')
+    if (tipoCta(cta.texto) === 'otro') aviso('cta', 'el CTA no cierra ni con urgencia («antes de que…») ni con el prudente («para evaluar/analizar si…»)')
   }
 
   // Si el HOOK se graba con la frontal, la sección siguiente vuelve a la trasera (prompt maestro)
@@ -111,9 +133,28 @@ export function revisarGuion(g: Guion, ciudad: string, catalogo: Catalogo): Hall
   const todo = g.secciones.map(s => s.texto).join(' ')
   for (const [re, que] of CIFRAS_LEGALES) {
     const m = todo.match(re)
-    if (m) aviso('cifra_legal', `menciona ${que} («${m[0]}»): que lo verifique Tomás`)
+    if (m) err('cifra_legal', `menciona ${que} («${m[0]}»): sin cifras legales por ahora`)
+  }
+  for (const [re, que] of FUNDAMENTO_LEGAL) {
+    const m = todo.match(re)
+    if (m) err('fundamento_legal', `menciona ${que} («${m[0]}»): sin fundamento legal por ahora (decilo en palabras de la persona)`)
   }
   return h
+}
+
+/** Dónde nombra la provincia el guion: 'hook', 'cta' (solo abajo) o null (en ninguno de los dos). */
+export function donde(g: Guion, ciudad: string): 'hook' | 'cta' | null {
+  const en = (sec: string) => normalizar(g.secciones.find(s => s.seccion === sec)?.texto ?? '').includes(normalizar(ciudad))
+  return en('HOOK') ? 'hook' : en('CTA') ? 'cta' : null
+}
+
+/** El cierre del CTA (preferencia 8): 'directo' (urgencia «antes de que…» o «así te pagan…»), 'prudente' («para evaluar /
+ *  analizar si…») u 'otro'. */
+export function tipoCta(texto: string): 'directo' | 'prudente' | 'otro' {
+  const t = normalizar(texto)
+  if (/\b(para|asi podemos|asi) (evaluar|analizar|revisar|ver) (si|que|como|cuanto|las|los|tu)\b/.test(t) && !t.includes('antes de que')) return 'prudente'
+  if (t.includes('antes de que') || t.includes('resolvemos juntos') || t.includes('lo que realmente te corresponde')) return 'directo'
+  return /\b(evaluar|analizar)\b/.test(t) ? 'prudente' : 'otro'
 }
 
 export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Hallazgo[] {
@@ -137,6 +178,15 @@ export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Ha
   }
   for (const g of t.guiones) {
     if (g.secciones.some(s => /levemente (el )?[aá]ngulo/i.test(s.indicacion))) aviso('quieto', `Guion ${g.numero}: «cambiá levemente el ángulo» no cuenta como cambio; decí qué cambia`)
+  }
+
+  // 7/11/2026: la provincia repartida (unos arriba, otros en el CTA) y los dos cierres de CTA combinados
+  if (t.ciudad && n >= 3) {
+    const lugares = t.guiones.map(g => donde(g, t.ciudad)).filter(Boolean)
+    if (lugares.length === n && lugares.every(l => l === lugares[0])) aviso('ciudad', `la provincia va siempre ${lugares[0] === 'hook' ? 'en el gancho' : 'en el CTA'}: repartila (unos arriba, otros abajo)`)
+    const ctas = t.guiones.map(g => tipoCta(g.secciones.find(s => s.seccion === 'CTA')?.texto ?? ''))
+    const dir = ctas.filter(c => c === 'directo').length, pru = ctas.filter(c => c === 'prudente').length
+    if (Math.min(dir, pru) < Math.floor(n / 3)) aviso('cta', `los cierres del CTA no están combinados (${dir} directos, ${pru} prudentes): más o menos la mitad de cada uno`)
   }
 
   const aperturas = contar(t.guiones.map(g => {
