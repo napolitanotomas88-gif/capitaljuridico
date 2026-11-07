@@ -201,3 +201,11 @@ test('cliente archivado: no inicia, no corre un paso y no reanuda trabajo', asyn
   await assert.rejects(reanudar(7, deps), /archivado/)
   assert.deepEqual(log, [])
 })
+test('sin carpeta propia y con una PARECIDA en Clientes (caso «Ruben & Ariel»): no crea carpeta ni Doc', async () => {
+  const a = base({ carpetas: async () => [], parecidas: async () => [{ id: FOLDER, name: 'Ruben & Ana - C.J' }] })
+  await assert.rejects(resolverDocumento(fila, a.deps), /parecida.*Ruben & Ana - C\.J/)
+  assert.ok(!a.log.includes('carpeta') && !a.log.includes('copia'))
+  const b = base({ carpetas: async () => [], parecidas: async () => [] })
+  assert.equal((await resolverDocumento(fila, b.deps)).id, ID)
+  assert.ok(b.log.includes('carpeta'))
+})
