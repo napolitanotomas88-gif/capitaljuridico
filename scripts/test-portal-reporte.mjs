@@ -50,6 +50,21 @@ describe('barra de casos', () => {
     assert.equal(barraCasos({ casos: null, meta: 500, actualizado: null, hito: null, historial: [] }), null)
     assert.equal(barraCasos({ casos: 3, meta: null, actualizado: null, hito: null, historial: [] }), null)
   })
+  test('modo mensual: casos del mes en curso contra la meta por mes; sin dos conteos del mes, null', () => {
+    const h = [{ fecha: '2026-10-31', casos: 70 }, { fecha: '2026-11-20', casos: 190 }]
+    const b = barraCasos({ modo: 'mensual', casos: 190, meta: 500, actualizado: '2026-11-20', hito: { casos: 200, fecha: '2026-11-30' }, historial: h }, '2026-11-25')
+    assert.equal(b.mes, '2026-11')
+    assert.equal(b.casos, 120)
+    assert.equal(b.faltan, 380)
+    assert.equal(b.hito.faltan, 80)
+    assert.equal(barraCasos({ modo: 'mensual', casos: 70, meta: 500, actualizado: '2026-10-31', hito: null, historial: [h[0]] }, '2026-11-05'), null)
+    assert.equal(barraCasos({ modo: 'acumulado', casos: 190, meta: 500, actualizado: null, hito: null, historial: h }, '2026-11-25').mes, null)
+  })
+  test('modo: por defecto acumulado; inválido, rechazado', () => {
+    assert.equal(validarDatosPortal({ progreso: { casos: 1, meta: 5 } }).datos.progreso.modo, 'acumulado')
+    assert.equal(validarDatosPortal({ progreso: { modo: 'mensual', casos: 1, meta: 5 } }).datos.progreso.modo, 'mensual')
+    assert.equal(validarDatosPortal({ progreso: { modo: 'anual', casos: 1, meta: 5 } }).ok, false)
+  })
   test('casos del mes: cierre del mes menos el conteo anterior; sin conteo previo, null', () => {
     const h = [{ fecha: '2026-09-30', casos: 30 }, { fecha: '2026-10-15', casos: 45 }, { fecha: '2026-10-31', casos: 55 }, { fecha: '2026-11-02', casos: 70 }]
     assert.equal(casosDelMes(h, '2026-10'), 25)
