@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from 'node:fs'
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const R = await import('../lib/bot/guiones/revisar.ts')
 const { CATALOGO } = await import('../lib/bot/guiones/formatos.ts')
-const { ciudadDeFicha, zonasSeparadas, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
+const { ciudadDeFicha, zonasSeparadas, zonaMetropolitana, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
 const { bloqueCiudad } = await import('../lib/bot/guiones/tipos.ts')
 const { guionesParaChips, claveTanda, sinParentesis } = await import('../lib/bot/guiones/envio.ts')
 const { esAprobador, faltanVerificar } = await import('../lib/bot/guiones/aprobadores.ts')
@@ -34,7 +34,24 @@ test('revisor: la provincia en el HOOK o en el CTA; en ninguno de los dos es err
   assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'), 'en el CTA alcanza')
   assert.equal(R.donde(g, 'San Juan'), 'cta')
   g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
-  assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'))
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'), 'p8: un guion sin zona no es error (va en algunos)')
+})
+test('zona metropolitana «Gran X» es una sola zona y la tanda la nombra en algunos, no en todos (p8, 8/11)', () => {
+  const ficha = { zona: { descripcion: 'Gran Resistencia (Chaco, Argentina) y pueblos cercanos', lugares: ['Resistencia', 'Barranqueras', 'Fontana', 'Puerto Vilelas'], radio_km: null, presentarse_como: null } }
+  assert.equal(ciudadDeFicha(ficha), 'Gran Resistencia')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Córdoba y alrededores', lugares: ['Córdoba', 'Villa Allende'], radio_km: null } }), 'Gran Córdoba')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran La Plata', lugares: [], radio_km: null } }), 'Gran La Plata')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Buenos Aires', lugares: [], radio_km: null } }), null, 'GBA sigue en AMBA')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Rosario y también Mendoza', lugares: ['Rosario', 'Mendoza'], radio_km: null } }), null, 'con otra provincia no es una zona')
+  const fs = ['objeto_simbolo', 'pizarra', 'documento', 'leer_celular']
+  const tanda = { cliente: 'x', ciudad: 'Gran Resistencia', notas: '', guiones: fs.map((f, i) => guion(i + 1, f)) }
+  for (const g of tanda.guiones) { g.secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'; g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.' }
+  assert.ok(R.revisarTanda(tanda, CATALOGO, 4).some(x => x.regla === 'ciudad' && /aparece en 0 de 4/.test(x.detalle)))
+  tanda.guiones[0].secciones[0].texto = 'Si sos de Gran Resistencia y te despidieron, esperá.'
+  tanda.guiones[1].secciones[3].texto = 'Si sos de Gran Resistencia y alrededores, escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
+  assert.ok(!R.revisarTanda(tanda, CATALOGO, 4).some(x => x.regla === 'ciudad'))
+  for (const g of tanda.guiones) g.secciones[0].texto = 'Si sos de Gran Resistencia y te despidieron, esperá.'
+  assert.ok(R.revisarTanda(tanda, CATALOGO, 4).some(x => x.regla === 'ciudad' && /no en todos/.test(x.detalle)))
 })
 test('revisor: largo de 500 a 1.000 y la tanda mezcla cortos, medianos y largos (p7, 8/11)', () => {
   const g = guion(1); g.secciones[1].texto = relleno.repeat(5).trim()
@@ -92,6 +109,8 @@ test('revisor: tipo de CTA y la tanda combina cierres y reparte la ciudad (7/11)
   assert.ok(avisos.includes('ciudad') && avisos.includes('cta'), avisos.join(','))
   const mezcla = tanda(fs.map((f, i) => guion(i + 1, f)))
   mezcla.guiones[1].secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'
+  mezcla.guiones[1].secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
+  mezcla.guiones[2].secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'
   mezcla.guiones[2].secciones[3].texto = 'Si sos de San Juan, no aceptes la liquidación sin revisar las cuentas. Escribime acá abajo (gesto con el dedo hacia abajo) para evaluar si hay diferencias.'
   const av2 = R.revisarTanda(mezcla, CATALOGO, 3).filter(x => x.gravedad === 'aviso').map(x => x.regla)
   assert.ok(!av2.includes('ciudad') && !av2.includes('cta'), av2.join(','))

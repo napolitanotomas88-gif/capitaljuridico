@@ -3,7 +3,7 @@
 // Sale del prompt maestro de Tomás («PROMPT PARA HACER GUIONES CON CLAUDE») y de sus decisiones del 24/10/2026.
 // Errores (la tanda no pasa):
 //   · por guion: las 4 secciones en orden; velocidad entera de 1 a 5; indicación de grabación en cada sección; texto hablado
-//     de 500 a 1.000 caracteres (sin indicaciones ni el gesto; la tanda mezcla cortos, medianos y largos); la ciudad en el HOOK o en el CTA (solo si la campaña tiene una zona);
+//     de 500 a 1.000 caracteres (sin indicaciones ni el gesto; la tanda mezcla cortos, medianos y largos); la ciudad en algunos guiones de la tanda (solo si la campaña tiene una zona);
 //     sin comillas en el texto; sin WhatsApp; sin fundamento legal ni cifras legales (7/11: artículos, leyes, códigos,
 //     organismos, porcentajes, plazos, montos); ortografía («así», mayúscula al empezar cada oración, sin dobles puntos);
 //     el CTA con «escribime acá abajo (gesto con el dedo hacia abajo)»; si el HOOK va con cámara frontal, la sección
@@ -118,7 +118,7 @@ export function revisarGuion(g: Guion, ciudad: string, catalogo: Catalogo): Hall
   const hook = g.secciones.find(s => s.seccion === 'HOOK')
   const cta = g.secciones.find(s => s.seccion === 'CTA')
   // 7/11/2026: la provincia va en el HOOK o en el CTA (repartido en la tanda: revisarTanda)
-  if (ciudad && !donde(g, ciudad)) err('ciudad', `ni el HOOK ni el CTA nombran «${ciudad}»`)
+  // p8 (8/11/2026): la zona va en algunos guiones, no en todos: se controla en la tanda (revisarTanda)
 
   if (cta) {
     const t = normalizar(cta.texto)
@@ -191,8 +191,11 @@ export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Ha
 
   // 7/11/2026: la provincia repartida (unos arriba, otros en el CTA) y los dos cierres de CTA combinados
   if (t.ciudad && n >= 3) {
-    const lugares = t.guiones.map(g => donde(g, t.ciudad)).filter(Boolean)
-    if (lugares.length === n && lugares.every(l => l === lugares[0])) aviso('ciudad', `la provincia va siempre ${lugares[0] === 'hook' ? 'en el gancho' : 'en el CTA'}: repartila (unos arriba, otros abajo)`)
+    const lugares = t.guiones.map(g => donde(g, t.ciudad))
+    const con = lugares.filter(Boolean)
+    if (con.length < Math.ceil(n / 3)) aviso('ciudad', `«${t.ciudad}» aparece en ${con.length} de ${n}: nombrala en más o menos la mitad (en el gancho o en el cierre)`)
+    else if (con.length === n) aviso('ciudad', `«${t.ciudad}» aparece en los ${n}: dejala en más o menos la mitad, no en todos`)
+    else if (con.every(l => l === con[0])) aviso('ciudad', `«${t.ciudad}» va siempre ${con[0] === 'hook' ? 'en el gancho' : 'en el cierre'}: repartila (unos arriba, otros abajo)`)
     const ctas = t.guiones.map(g => tipoCta(g.secciones.find(s => s.seccion === 'CTA')?.texto ?? ''))
     const dir = ctas.filter(c => c === 'directo').length, pru = ctas.filter(c => c === 'prudente').length
     if (Math.min(dir, pru) < Math.floor(n / 3)) aviso('cta', `los cierres del CTA no están combinados (${dir} directos, ${pru} prudentes): más o menos la mitad de cada uno`)

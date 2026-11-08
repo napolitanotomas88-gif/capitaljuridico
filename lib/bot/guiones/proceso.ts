@@ -59,6 +59,19 @@ const PROVINCIAS: [string, RegExp][] = [
   ['Tierra del Fuego', /\b(tierra del fuego|ushuaia)\b/],
 ]
 
+/** «Gran X» (Gran Resistencia, Gran Córdoba, Gran Rosario, Gran Mendoza, Gran La Plata…) es UNA zona, como AMBA, aunque la
+ *  ficha liste sus localidades (Tomás, 8/11/2026). Devuelve «Gran X» si la ficha la nombra y no hay otra provincia; si no, null.
+ *  Gran Buenos Aires queda en AMBA. Puro. */
+export function zonaMetropolitana(f: ExtraccionKickoff): string | null {
+  const texto = [f.zona.descripcion, f.zona.presentarse_como?.texto, ...(f.zona.lugares ?? [])].filter(Boolean).join(' · ')
+  const m = texto.match(/\bGran\s+((?:La\s+|San\s+|Santa\s+|Mar\s+del\s+|Bah[ií]a\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/)
+  if (!m || /^buenos$/i.test(m[1].split(/\s+/)[0])) return null
+  if ((f.zona.radio_km ?? 0) >= 300) return null
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const provincias = PROVINCIAS.filter(([, re]) => re.test(norm(texto.replace(m[0], '')))).length
+  return provincias > 1 ? null : `Gran ${m[1].replace(/\s+/g, ' ')}`
+}
+
 const AMBA = /\b(caba|capital federal|amba|gba|gran buenos aires|conurbano|buenos aires)\b/
 
 /** La zona de la kickoff no es UNA sola: más de una provincia, un radio de 300 km o más, o varios lugares marcados (aunque sean
@@ -78,6 +91,8 @@ export function zonasSeparadas(f: ExtraccionKickoff): boolean {
 /** La provincia que nombra cada gancho (preferencia 2 de Tomás: provincia, nunca ciudad chica). '' si la zona junta lugares
  *  muy separados (zonasSeparadas): entonces ningún gancho nombra ciudad. */
 export function ciudadDeFicha(f: ExtraccionKickoff): string {
+  const metro = zonaMetropolitana(f)
+  if (metro) return metro
   if (zonasSeparadas(f)) return ''
   const d = `${f.zona.descripcion ?? ''} ${f.zona.presentarse_como?.texto ?? ''}`
   const m = d.match(/provincia de ([A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?: (?:del |de )?[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+)*)/i)
