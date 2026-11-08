@@ -19,7 +19,7 @@ import { CALLOUTS } from './ganchos'
 import { revisarGuion, revisarTanda, errores, hallazgosEnTexto } from './revisar'
 import { bloqueCiudad, SECCIONES, TIPOS_GANCHO, type Catalogo, type Guion, type Hallazgo, type Seccion, type Tanda, type TipoGancho } from './tipos'
 
-export const VERSION_TANDA = 't2-2026-11-07'
+export const VERSION_TANDA = 't3-2026-11-08'
 
 export interface EntradaTanda {
   ficha: ExtraccionKickoff
@@ -118,7 +118,7 @@ En <asignado> está la fila del plan que te toca (idea, recurso creativo, llamad
 const PROMPT_CORREGIR = `${PROMPT_REDACTOR}
 
 ## Ahora corregís UN guion
-En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 1.100 caracteres de texto hablado).`
+En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 800 caracteres de texto hablado).`
 
 export { tandaDe }
 export function guionEnTexto(g: Guion): string {

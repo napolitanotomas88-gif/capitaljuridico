@@ -3,7 +3,7 @@
 // Sale del prompt maestro de Tomás («PROMPT PARA HACER GUIONES CON CLAUDE») y de sus decisiones del 24/10/2026.
 // Errores (la tanda no pasa):
 //   · por guion: las 4 secciones en orden; velocidad entera de 1 a 5; indicación de grabación en cada sección; texto hablado
-//     de 500 a 1.100 caracteres (sin indicaciones ni el gesto; 7/11: hasta lo que hace Faus); la ciudad en el HOOK o en el CTA;
+//     de 500 a 800 caracteres (sin indicaciones ni el gesto); la ciudad en el HOOK o en el CTA (solo si la campaña tiene una zona);
 //     sin comillas en el texto; sin WhatsApp; sin fundamento legal ni cifras legales (7/11: artículos, leyes, códigos,
 //     organismos, porcentajes, plazos, montos); ortografía («así», mayúscula al empezar cada oración, sin dobles puntos);
 //     el CTA con «escribime acá abajo (gesto con el dedo hacia abajo)»; si el HOOK va con cámara frontal, la sección
@@ -18,7 +18,7 @@
 import { SECCIONES, NOMBRE_SECCION, type Catalogo, type Guion, type Hallazgo, type Tanda } from './tipos'
 
 export const LARGO_MIN = 500
-export const LARGO_MAX = 1100   // 7/11/2026: Faus los deja en ~1.050 (mediana); Tomás: puede pasar de 800, no de lo que hace Faus
+export const LARGO_MAX = 800   // 8/11/2026: Tomás vuelve a 800 (el largo de Faus era explicar qué se revisa: «a la persona no le interesa»)
 export const GESTO = '(gesto con el dedo hacia abajo)'
 const GUIA_VELOCIDAD = { HOOK: [4, 5], PROBLEMA: [3, 4], SOLUCION: [3, 4], CTA: [4, 5] } as const
 
@@ -48,10 +48,14 @@ const WHATSAPP = /\b(whats?app|wpp|wsp|whatsa)\b/i
 const CIFRAS_LEGALES: [RegExp, string][] = [
   [/\b\d+\s*(%|por ciento)/i, 'un porcentaje'],
   [/\b(\d+|un|una|dos|tres|cuatro|cinco|seis|diez|treinta|sesenta|noventa|cuarenta y ocho|veinticuatro)\s+(horas|d[ií]as|meses|a[nñ]os)\s+(para|de plazo|h[aá]biles)/i, 'un plazo'],
-  [/\b(el doble|el triple|duplic|triplic|multas?)\b/i, 'un monto o una multa'],
+  [/\bmultas?\b/i, 'una multa'],
   [/\$\s?\d|\b\d[\d.]*\s*(pesos|d[oó]lares|millones)/i, 'un monto'],
-  [/\bla mitad o menos\b|\b(la|una) (mitad|tercera parte|cuarta parte) de lo que\b/i, 'una fracción de lo que le corresponde'],
+
 ]
+// Cuánto más (o menos) puede ser (Tomás, 8/11/2026): «puede ser el doble, el triple…» SÍ, pero siempre con «puede»/«podría»/
+// «hasta»/«incluso» en la misma frase; dicho como certeza es error.
+const MULTIPLICA = /\b(el doble|el triple|el cu[aá]druple|duplic\w*|triplic\w*|cuadruplic\w*|la mitad o menos)\b/i
+const CONDICIONAL = /\b(puede|pueden|podr[ií]a|podr[ií]an|hasta|incluso)\b/i
 // Sin fundamento legal por ahora (Tomás, 7/11/2026): ni artículos, ni leyes o códigos por su nombre, ni organismos. IPS no
 // entra: en Paraguay «sin IPS» es como se dice «en negro» (lenguaje de la persona, no fundamento)
 const FUNDAMENTO_LEGAL: [RegExp, string][] = [
@@ -120,6 +124,7 @@ export function revisarGuion(g: Guion, ciudad: string, catalogo: Catalogo): Hall
     const t = normalizar(cta.texto)
     // «escribime ahora acá abajo (gesto…)» también vale: así lo escribe Tomás
     if (!/escribime (ahora |ya )?aca abajo \(gesto con el dedo hacia abajo\)/.test(t)) err('cta', `el CTA tiene que decir «escribime acá abajo ${GESTO}», con el gesto pegado`)
+    if (/\b(contame|cont[aá]nos|decime|dec[ií]nos|mandame|mand[aá]nos)\b/i.test(cta.texto)) aviso('cta', 'el CTA le pide un dato a la persona: no va (Tomás, 8/11)')
     if (tipoCta(cta.texto) === 'otro') aviso('cta', 'el CTA no cierra ni con urgencia («antes de que…») ni con el prudente («para evaluar/analizar si…»)')
   }
 
@@ -134,6 +139,10 @@ export function revisarGuion(g: Guion, ciudad: string, catalogo: Catalogo): Hall
   for (const [re, que] of CIFRAS_LEGALES) {
     const m = todo.match(re)
     if (m) err('cifra_legal', `menciona ${que} («${m[0]}»): sin cifras legales por ahora`)
+  }
+  for (const frase of todo.split(/(?<=[.!?…])\s+/)) {
+    const m = frase.match(MULTIPLICA)
+    if (m && !CONDICIONAL.test(frase)) err('cifra_legal', `«${m[0]}» dicho como seguro: va con «puede» o «podría» («puede ser ${m[0]}»)`)
   }
   for (const [re, que] of FUNDAMENTO_LEGAL) {
     const m = todo.match(re)
@@ -188,6 +197,10 @@ export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Ha
     const dir = ctas.filter(c => c === 'directo').length, pru = ctas.filter(c => c === 'prudente').length
     if (Math.min(dir, pru) < Math.floor(n / 3)) aviso('cta', `los cierres del CTA no están combinados (${dir} directos, ${pru} prudentes): más o menos la mitad de cada uno`)
   }
+
+  // 8/11/2026: el «puede ser el doble o el triple» en más o menos la mitad de la tanda, no en todos
+  const conMultiplo = t.guiones.filter(g => MULTIPLICA.test(g.secciones.map(s => s.texto).join(' '))).length
+  if (n >= 3 && conMultiplo > Math.ceil((2 * n) / 3)) aviso('ambicion', `${conMultiplo} de ${n} guiones dicen «el doble / el triple»: dejalo en la mitad y en los otros decilo en palabras`)
 
   const aperturas = contar(t.guiones.map(g => {
     const hook = g.secciones.find(s => s.seccion === 'HOOK')?.texto ?? ''
