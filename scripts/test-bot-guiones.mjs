@@ -36,15 +36,27 @@ test('revisor: la provincia en el HOOK o en el CTA; en ninguno de los dos es err
   g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'))
 })
-test('revisor: largo hasta 1.100 caracteres hablados (7/11)', () => {
-  const g = guion(1); g.secciones[1].texto = (relleno.repeat(6)).trim()
-  assert.ok(R.largoHablado(g) > 800 && R.largoHablado(g) <= 1100, String(R.largoHablado(g)))
-  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
-  g.secciones[1].texto = relleno.repeat(10).trim()
+test('revisor: largo de 500 a 800 caracteres hablados (8/11: vuelve a 800)', () => {
+  const g = guion(1)
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'), String(R.largoHablado(g)))
+  g.secciones[1].texto = relleno.repeat(6).trim()
+  assert.ok(R.largoHablado(g) > 800)
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
 })
+test('revisor: cuánto más puede ser, solo con «puede» (8/11); el CTA no pide datos', () => {
+  for (const frase of ['Tu indemnización puede ser el doble o el triple de lo que te ofrecen.', 'Tu caso podría valer hasta el cuádruple.', 'Te pueden pagar la mitad o menos de lo que te corresponde.']) {
+    const g = guion(1); g.secciones[2].texto = frase
+    assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'cifra_legal'), frase)
+  }
+  for (const frase of ['Te van a pagar el doble.', 'Cobrás el triple seguro.']) {
+    const g = guion(1); g.secciones[2].texto = frase
+    assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'cifra_legal'), frase)
+  }
+  const g = guion(1); g.secciones[3].texto = 'Si sos de San Juan, escribime acá abajo (gesto con el dedo hacia abajo) y contame cuánto cobrabas, antes de que firmes.'
+  assert.ok(R.revisarGuion(g, 'San Juan', CATALOGO).some(x => x.regla === 'cta' && /dato/.test(x.detalle)))
+})
 test('revisor: sin fundamento legal ni cifras legales (7/11)', () => {
-  for (const frase of ['El Código del Trabajo dice que no.', 'Según el artículo 245, te corresponde.', 'La Ley de Contrato de Trabajo te protege.', 'Si estabas en la ANSES, cambia.', 'Te pueden pagar la mitad o menos de lo que te corresponde.']) {
+  for (const frase of ['El Código del Trabajo dice que no.', 'Según el artículo 245, te corresponde.', 'La Ley de Contrato de Trabajo te protege.', 'Si estabas en la ANSES, cambia.', 'Te pagan la mitad o menos de lo que te corresponde.']) {
     const g = guion(1); g.secciones[2].texto = frase
     const e = R.errores(R.revisarGuion(g, 'San Juan', CATALOGO))
     assert.ok(e.some(x => x.regla === 'fundamento_legal' || x.regla === 'cifra_legal'), frase)
@@ -89,8 +101,11 @@ test('provincia desde la ficha', () => {
 })
 test('zonas muy separadas en la kickoff: sin ciudad en el gancho (5/11)', () => {
   const z = (lugares, extra = {}) => ({ zona: { descripcion: 'Provincia de Córdoba: zona marcada', presentarse_como: { texto: 'Córdoba capital' }, lugares, radio_km: null, ...extra } })
-  assert.equal(ciudadDeFicha(z(['Córdoba capital', 'Río Cuarto', 'Villa María'])), 'Córdoba', 'misma provincia: se nombra')
-  assert.ok(!zonasSeparadas(z(['CABA', 'Conurbano', 'La Plata'])))
+  assert.equal(ciudadDeFicha(z(['Córdoba capital'])), 'Córdoba', 'una sola zona: se nombra')
+  assert.equal(ciudadDeFicha(z(['Córdoba capital', 'Río Cuarto', 'Villa María'])), '', 'varias zonas, aunque sean de la misma provincia: no (8/11)')
+  assert.equal(ciudadDeFicha(z(['Pilar', 'Moreno', 'Luján'])), '', 'tres zonas de GBA: no')
+  assert.ok(!zonasSeparadas(z(['CABA', 'Gran Buenos Aires', 'Conurbano'])), 'AMBA es una sola zona')
+  assert.ok(zonasSeparadas(z(['CABA', 'Conurbano', 'La Plata'])), 'La Plata es otra zona')
   assert.equal(ciudadDeFicha(z(['Córdoba', 'Mendoza'])), '')
   assert.equal(ciudadDeFicha(z(['Rosario', 'Neuquén', 'Tucumán'])), '')
   assert.equal(ciudadDeFicha(z(['Paraná', 'Salta'])), '', 'con tildes')

@@ -59,12 +59,18 @@ const PROVINCIAS: [string, RegExp][] = [
   ['Tierra del Fuego', /\b(tierra del fuego|ushuaia)\b/],
 ]
 
-/** La zona de la kickoff junta lugares muy separados: más de una provincia (AMBA cuenta como una) o un radio de 300 km o más.
- *  Ahí no se nombra ciudad (Tomás, 5/11/2026): nombrar una deja afuera a las demás. Puro. */
+const AMBA = /\b(caba|capital federal|amba|gba|gran buenos aires|conurbano|buenos aires)\b/
+
+/** La zona de la kickoff no es UNA sola: más de una provincia, un radio de 300 km o más, o varios lugares marcados (aunque sean
+ *  de la misma provincia; CABA y Gran Buenos Aires cuentan como una). Ahí no se nombra ciudad (Tomás, 5/11 y 8/11/2026: «solo
+ *  cuando es una zona»; nombrar una deja afuera a las demás). Puro. */
 export function zonasSeparadas(f: ExtraccionKickoff): boolean {
   if ((f.zona.radio_km ?? 0) >= 300) return true
   // Los lugares marcados; si no hay, la descripción (puede nombrar zonas que NO van, por eso es el respaldo)
   const lugares = (f.zona.lugares ?? []).filter(Boolean)
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  const zonas = new Set(lugares.map(norm).map(l => (AMBA.test(l) ? 'amba' : l)))
+  if (zonas.size > 1) return true
   const texto = (lugares.length ? lugares.join(' · ') : f.zona.descripcion ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   return PROVINCIAS.filter(([, re]) => re.test(texto)).length > 1
 }
