@@ -63,7 +63,7 @@ const ZONAS: Record<string, string> = {
 }
 const zonaTexto = (tz: string) => {
   const k = Object.keys(ZONAS).find(z => tz === z || tz.startsWith(`${z}/`))
-  return `horario ${k ? ZONAS[k] : `de ${(tz.split('/').pop() ?? tz).replace(/_/g, ' ')}`}`
+  return `horario ${k ? ZONAS[k] : 'de tu zona'}`  // sin match, no la ciudad: "horario de Phoenix" confunde (Gero 8/11/2026)
 }
 
 const tzValida = (tz?: string | null): string => {

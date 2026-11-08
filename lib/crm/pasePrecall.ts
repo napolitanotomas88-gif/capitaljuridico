@@ -25,7 +25,8 @@ export const WEBHOOK_PASE_POR_HOJA: Readonly<Record<string, string>> = {
   "Closer 4": "MAKE_WEBHOOK_PASE_NAHUEL",
 };
 
-/** "(hora Argentina)": el país, no el gentilicio (texto de Tomás del 5/11/2026). Sin match, la ciudad de la zona. */
+/** "(hora Argentina)": el país, no el gentilicio (texto de Tomás del 5/11/2026). Sin match, "de tu zona": la ciudad de la
+ * zona confunde (un lead del noroeste de México salía "hora Phoenix", Gero 8/11/2026). */
 const PAISES: Record<string, string> = {
   "America/Argentina": "Argentina", "America/Buenos_Aires": "Argentina", "America/Montevideo": "Uruguay",
   "America/Santiago": "Chile", "America/Asuncion": "Paraguay", "America/La_Paz": "Bolivia", "America/Lima": "Perú",
@@ -37,7 +38,7 @@ const PAISES: Record<string, string> = {
 };
 export const paisDeZona = (tz: string) => {
   const k = Object.keys(PAISES).find((z) => tz === z || tz.startsWith(`${z}/`));
-  return k ? PAISES[k] : (tz.split("/").pop() ?? tz).replace(/_/g, " ");
+  return k ? PAISES[k] : "de tu zona";
 };
 
 const zonaValida = (tz: string | null): string => {
