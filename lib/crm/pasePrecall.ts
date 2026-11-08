@@ -93,7 +93,9 @@ export async function datosPase(fila: FilaLead): Promise<{ datos: DatosPase; avi
       closer_completo: soloNombre(("error" in enCalendly ? "" : enCalendly.closer) || nombreCloserDeHoja(fila.hoja)),
       fecha_texto: fecha,
       hora_texto: hora,
-      pais_texto: paisDeZona(tz),
+      // "(hora de tu zona)" siempre que la hora esté en la zona del lead (Gero, 8/11/2026: el país o la ciudad confunden);
+      // si Calendly no dio la zona, la hora es de Argentina y se dice.
+      pais_texto: !("error" in enCalendly) && enCalendly.zona && tz === enCalendly.zona ? "de tu zona" : paisDeZona(tz),
       inicio_iso: inicio.toISOString(),
       hoja: fila.hoja,
       fila: fila.numeroFila,
