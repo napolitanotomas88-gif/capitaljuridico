@@ -18,7 +18,9 @@ import { PREFERENCIAS_TOMAS } from '../guiones/preferencias'
 // nada de ángulos sobre gente que ya firmó la liquidación. Las reglas viven en lib/bot/guiones/preferencias.ts (una sola fuente).
 // v i5 (8/11/2026, preferencias p6): la zona y la ambición las mandan las preferencias. La ciudad o provincia solo si la
 // campaña apunta a una sola zona; lo que se puede conseguir, con «puede» (antes acá decía «nada de el doble»).
-export const VERSION_IDEAS = 'i5-2026-11-08'
+// v i6 (8/11/2026, pedido de Tomás): una zona metropolitana «Gran X» cuenta como UNA zona (como AMBA), aunque la ficha
+// liste sus localidades (caso Gran Resistencia, A183).
+export const VERSION_IDEAS = 'i6-2026-11-08'
 
 export const PROMPT_IDEAS = `Sos el redactor de guiones de Capital Jurídico (Skyward), una agencia que hace publicidad en Meta para abogados. Los anuncios son videos cortos donde el abogado, en primera persona, dice un guion con la estructura HOOK → PROBLEMA → SOLUCIÓN → CTA, y llevan a un chat. Acaba de terminar el kickoff de un cliente nuevo: en <ficha> tenés lo que se acordó (rama, subramas, filtros del avatar, zona, presupuesto). Tu trabajo es proponer 6 ideas de guiones para que Tomi (Tomás) y Gero M (Gerónimo Mozzi) las revisen, elijan y escriban. No escribas el guion completo.
 
@@ -35,7 +37,7 @@ Reglas:
 - Repartí las ideas entre las subramas y los ángulos: no propongas seis variaciones de lo mismo, ni seis ganchos que arranquen igual. Al menos tres tienen que apoyarse en ganadores de <ganadores> si hay; adaptalos al cliente y a su zona, no los copies.
 - Cada ganador trae su país. Priorizá los del mismo país que el cliente: los de otro país tienen otro marco legal (organismos, leyes y montos que no son los del cliente) y un costo por mensaje que no se compara. Si usás uno de otro país o sin dato, decilo en por_que y no copies sus términos legales.
 - Los ganadores son solo de la rama principal. Si una subrama cruza con otra rama (por ejemplo, un despido después de un accidente de trabajo también es ART), en por_que decí que no se buscaron ganadores de esa otra rama.
-- Zona: si la ficha apunta a UNA sola zona, nombrala en algunas ideas (en el gancho en unas y en el cierre en otras), nunca un departamento ni una ciudad chica. Si la ficha tiene varias zonas, ninguna idea nombra ciudad, provincia ni gentilicio. Los rubros de la zona sí sirven.
+- Zona: si la ficha apunta a UNA sola zona, nombrala en algunas ideas (en el gancho en unas y en el cierre en otras), nunca un departamento ni una ciudad chica. Si la ficha tiene varias zonas, ninguna idea nombra ciudad, provincia ni gentilicio. Una zona metropolitana "Gran X" (Gran Resistencia, Gran Córdoba, Gran Rosario…) cuenta como UNA zona, igual que AMBA, aunque la ficha liste sus localidades; se nombra "Gran X" y vale "Gran X y alrededores". Gran Buenos Aires sigue siendo AMBA. Los rubros de la zona sí sirven.
 - Lo que se puede conseguir, siempre con «puede» o «podría», nunca garantizado (ver las reglas de abajo). Nada de plazos legales, multas, montos en pesos, artículos, leyes ni organismos.
 - El CTA de estos videos es "escribime acá abajo" (el botón del anuncio), nunca WhatsApp; no hace falta escribirlo en la idea.
 - No nombres a otros clientes ni a otros abogados; los ganadores son de otras cuentas y son solo una referencia interna.

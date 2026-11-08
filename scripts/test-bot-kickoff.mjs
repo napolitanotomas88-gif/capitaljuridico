@@ -307,7 +307,7 @@ describe('schema y mensaje de usuario', () => {
   })
   test('prompts: texto fijo con versión y las reglas de la kickoff real', () => {
     assert.equal(VERSION_PROMPT, 'k3-2026-10-24')
-    assert.equal(VERSION_IDEAS, 'i5-2026-11-08')
+    assert.equal(VERSION_IDEAS, 'i6-2026-11-08')
     // k3: la kickoff la hacen Tomás o Gero M (quién grabó va en <reunion>); los pendientes no repiten el portfolio
     assert.match(PROMPT_SISTEMA, /la hace Tomás Napolitano o Gerónimo Mozzi \(Gero M\)/)
     assert.ok(!/Tomás Napolitano hace con el cliente/.test(PROMPT_SISTEMA))
@@ -321,6 +321,10 @@ describe('schema y mensaje de usuario', () => {
     assert.match(PROMPT_IDEAS, /ya firmó la liquidación/)
     assert.match(PROMPT_IDEAS, /UNA sola zona/)
     assert.match(PROMPT_IDEAS, /ninguna idea nombra ciudad, provincia ni gentilicio/)
+    // i6: «Gran X» es UNA zona, como AMBA; Gran Buenos Aires sigue siendo AMBA
+    assert.match(PROMPT_IDEAS, /"Gran X" \(Gran Resistencia, Gran Córdoba, Gran Rosario…\) cuenta como UNA zona, igual que AMBA/)
+    assert.match(PROMPT_IDEAS, /vale "Gran X y alrededores"/)
+    assert.match(PROMPT_IDEAS, /Gran Buenos Aires sigue siendo AMBA/)
     assert.match(PROMPT_IDEAS, /con «puede» o «podría», nunca garantizado/)
     assert.ok(!/el doble", "48 horas/.test(PROMPT_IDEAS), 'ya no prohíbe «el doble»: lo pide p6 con «puede»')
     assert.match(PROMPT_IDEAS, /firmar en blanco/)
