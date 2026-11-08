@@ -19,7 +19,7 @@ import { CALLOUTS } from './ganchos'
 import { revisarGuion, revisarTanda, errores, hallazgosEnTexto } from './revisar'
 import { bloqueCiudad, SECCIONES, TIPOS_GANCHO, type Catalogo, type Guion, type Hallazgo, type Seccion, type Tanda, type TipoGancho } from './tipos'
 
-export const VERSION_TANDA = 't3-2026-11-08'
+export const VERSION_TANDA = 't4-2026-11-08'
 
 export interface EntradaTanda {
   ficha: ExtraccionKickoff
@@ -118,7 +118,7 @@ En <asignado> está la fila del plan que te toca (idea, recurso creativo, llamad
 const PROMPT_CORREGIR = `${PROMPT_REDACTOR}
 
 ## Ahora corregís UN guion
-En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 800 caracteres de texto hablado).`
+En <guion> está el guion y en <hallazgos> lo que encontraron el revisor automático y el jefe creativo. Devolvelo completo y corregido, con el mismo recurso y la misma idea: aplicá todas las correcciones (podés mejorar el reemplazo si respetás lo que pide), no toques lo que está bien, y volvé a contar el largo (500 a 1.000 caracteres de texto hablado, con el largo que pide el ángulo).`
 
 export { tandaDe }
 export function guionEnTexto(g: Guion): string {
@@ -161,7 +161,9 @@ const planEnTexto = (plan: FilaPlan[], excepto?: number) => plan.filter(f => f.n
 /** El cierre del CTA lo fija el código (7/11/2026): en la prueba en seco el modelo copiaba el directo en 5 de 6. Alterna
  *  directo (impares) y prudente (pares) y lo deja al final del ángulo, que es lo que lee quien escribe cada guion. Puro. */
 export const cierreDe = (k: number): 'directo' | 'prudente' => (k % 2 === 0 ? 'directo' : 'prudente')
-export const conCierre = (angulo: string, k: number) => `${angulo.replace(/\s*cierre:\s*(directo|prudente)\.?\s*$/i, '').trim()} · cierre: ${cierreDe(k)}`
+/** El largo también lo reparte el código (p7, 8/11/2026): corto, mediano y largo rotando, para que la tanda los mezcle. */
+export const largoDe = (k: number): 'corto' | 'mediano' | 'largo' => (['corto', 'mediano', 'largo'] as const)[k % 3]
+export const conCierre = (angulo: string, k: number) => `${angulo.replace(/\s*·?\s*(cierre|largo):\s*\w+\.?/gi, '').trim()} · cierre: ${cierreDe(k)} · largo: ${largoDe(k)}`
 
 /** Paso 1: el plan de la tanda (una llamada corta). El código saca los recursos repetidos o fuera del catálogo. */
 export async function planificar(e: EntradaTanda, catalogo: Catalogo, op: Opciones = {}): Promise<{ plan: FilaPlan[]; ajustes: string[]; usage: Uso; modelo: string }> {
