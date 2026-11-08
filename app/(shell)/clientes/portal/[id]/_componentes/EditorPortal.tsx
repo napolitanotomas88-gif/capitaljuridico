@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useId, useState } from 'react'
 import { Boton } from '@/components/ui'
-import { ESTADOS_ETAPA, fechaLarga, NOMBRE_ESTADO_ETAPA, NOMBRE_SECCION_PORTAL, SECCIONES_PORTAL, TOPES, type DatosPortal, type EstadoEtapa, type ProgresoCasos } from '@/lib/clientes/portal/modelo'
+import { ESTADOS_ETAPA, fechaLarga, NOMBRE_ESTADO_ETAPA, NOMBRE_SECCION_PORTAL, SECCIONES_PORTAL, TOPES, type DatosPortal, type EstadoEtapa, type ModoCasos, type ProgresoCasos } from '@/lib/clientes/portal/modelo'
 
 // Panel del EQUIPO para armar el portal del cliente (2/11/2026). Guarda todo junto con la versión que leyó: si otra persona
 // guardó en el medio, avisa y no pisa. Solo lo ve el equipo (la página no lo dibuja para el cliente y la API le da 403).
@@ -96,8 +96,15 @@ export function EditorPortal({ id, inicial, version: versionInicial, nombreCRM }
 
       <fieldset className="cj-formulario" style={{ border: 0, padding: 0, margin: 0, maxWidth: 'none' }}>
         <legend className="cj-etiqueta cj-etiqueta--laton">Casos conseguidos (barra de progreso)</legend>
-        <span className="cj-formulario__ayuda">Casos conseguidos ACUMULADOS desde que arrancamos. Al guardar, el conteo queda en el historial con su fecha (uno por día): de ahí salen los casos de cada mes del reporte.</span>
+        <span className="cj-formulario__ayuda">Casos conseguidos ACUMULADOS desde que arrancamos. Al guardar, el conteo queda en el historial con su fecha (uno por día): de ahí salen los casos de cada mes del reporte. «Por mes»: la barra muestra los casos del mes en curso contra el objetivo, que pasa a ser por mes.</span>
         <div className="cj-fila" style={{ gap: 24, flexWrap: 'wrap' }}>
+          <div className="cj-formulario__campo" style={{ flex: '1 1 160px' }}>
+            <label htmlFor={campo('modo')} className="cj-etiqueta">Cómo se mide</label>
+            <select id={campo('modo')} className="cj-campo__entrada" value={d.progreso.modo} onChange={e => prog({ modo: e.target.value as ModoCasos })}>
+              <option value="acumulado">Acumulado</option>
+              <option value="mensual">Por mes</option>
+            </select>
+          </div>
           <div className="cj-formulario__campo" style={{ flex: '1 1 140px' }}>
             <label htmlFor={campo('casos')} className="cj-etiqueta">Casos conseguidos hoy</label>
             <input id={campo('casos')} type="number" inputMode="numeric" min={0} step={1} className="cj-campo__entrada" value={d.progreso.casos ?? ''} onChange={e => prog({ casos: ent(e.target.value), actualizado: d.progreso.actualizado ?? hoy })} />

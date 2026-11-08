@@ -8,18 +8,20 @@ import './portal.css'
 // un medidor de una sola serie con su marca, el número escrito al lado (nunca solo color), cifras como tarjetas y una tabla por
 // mes como vista de datos. Colores: solo tokens del Despacho (oro mate para el avance; sin brillos).
 
-/** Barra de progreso de casos: avance hasta el objetivo final, con la marca intermedia (ej.: 200 para noviembre). */
+/** Barra de progreso de casos: avance hasta el objetivo final, con la marca intermedia (ej.: 200 para noviembre). En modo mensual
+ *  (5/11/2026), los casos del mes en curso contra la meta por mes. */
 export function ProgresoCasosVista({ progreso }: { progreso: ProgresoCasos }) {
   const b = barraCasos(progreso)
-  if (!b) return <VacioGuiado titulo="Lo estamos contando" texto="Cuando carguemos los casos conseguidos, vas a ver acá cuánto falta para el objetivo." />
-  const texto = `${numero(b.casos)} de ${numero(b.meta)} casos conseguidos (${Math.floor(b.porcentaje)} %)${b.hito ? `. Meta intermedia: ${numero(b.hito.casos)}${b.hito.fecha ? ` para el ${fechaLarga(b.hito.fecha)}` : ''}${b.hito.logrado ? ', lograda' : `, faltan ${numero(b.hito.faltan)}`}` : ''}.`
+  if (!b) return <VacioGuiado titulo="Lo estamos contando" texto={progreso.modo === 'mensual' ? 'Con el próximo conteo de casos vas a ver acá cuántos llevamos este mes y cuánto falta para la meta.' : 'Cuando carguemos los casos conseguidos, vas a ver acá cuánto falta para el objetivo.'} />
+  const conseguidos = b.mes ? `casos en ${nombreMes(b.mes)}` : 'casos conseguidos'
+  const texto = `${numero(b.casos)} de ${numero(b.meta)} ${conseguidos} (${Math.floor(b.porcentaje)} %)${b.hito ? `. Meta intermedia: ${numero(b.hito.casos)}${b.hito.fecha ? ` para el ${fechaLarga(b.hito.fecha)}` : ''}${b.hito.logrado ? ', lograda' : `, faltan ${numero(b.hito.faltan)}`}` : ''}.`
   return (
     <div className="pc-progreso">
       <p className="pc-progreso__cifra">
         <span className="pc-progreso__n cj-num">{numero(b.casos)}</span>
-        <span className="pc-progreso__de">de {numero(b.meta)} casos conseguidos</span>
+        <span className="pc-progreso__de">de {numero(b.meta)} {conseguidos}</span>
       </p>
-      <div className="pc-barra" role="progressbar" aria-label="Casos conseguidos" aria-valuemin={0} aria-valuemax={b.meta} aria-valuenow={b.casos} aria-valuetext={texto}>
+      <div className="pc-barra" role="progressbar" aria-label={b.mes ? 'Casos del mes' : 'Casos conseguidos'} aria-valuemin={0} aria-valuemax={b.meta} aria-valuenow={b.casos} aria-valuetext={texto}>
         <div className="pc-barra__pista">
           <div className="pc-barra__relleno" style={{ width: `${b.porcentaje}%` }} />
           {b.hito && <div className="pc-barra__marca" data-logrado={b.hito.logrado} style={{ left: `${b.hito.porcentaje}%` }} aria-hidden="true" />}
@@ -36,7 +38,7 @@ export function ProgresoCasosVista({ progreso }: { progreso: ProgresoCasos }) {
       <dl className="pc-progreso__datos">
         {b.hito && (
           <div>
-            <dt className="cj-etiqueta">Próxima meta</dt>
+            <dt className="cj-etiqueta">{b.mes ? 'Meta del mes' : 'Próxima meta'}</dt>
             <dd>
               {numero(b.hito.casos)} casos{b.hito.fecha ? ` al ${fechaLarga(b.hito.fecha)}` : ''}{' '}
               {b.hito.logrado ? <Estado tono="ok">Lograda</Estado> : <span className="cj-texto-2">· faltan {numero(b.hito.faltan)}</span>}
@@ -45,7 +47,7 @@ export function ProgresoCasosVista({ progreso }: { progreso: ProgresoCasos }) {
         )}
         <div>
           <dt className="cj-etiqueta">Objetivo final</dt>
-          <dd>{numero(b.meta)} casos <span className="cj-texto-2">· faltan {numero(b.faltan)}</span></dd>
+          <dd>{numero(b.meta)} casos{b.mes ? ' por mes' : ''} <span className="cj-texto-2">· faltan {numero(b.faltan)}</span></dd>
         </div>
         {progreso.actualizado && (
           <div>
