@@ -36,12 +36,17 @@ test('revisor: la provincia en el HOOK o en el CTA; en ninguno de los dos es err
   g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'))
 })
-test('revisor: largo de 500 a 800 caracteres hablados (8/11: vuelve a 800)', () => {
-  const g = guion(1)
-  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'), String(R.largoHablado(g)))
-  g.secciones[1].texto = relleno.repeat(6).trim()
-  assert.ok(R.largoHablado(g) > 800)
+test('revisor: largo de 500 a 1.000 y la tanda mezcla cortos, medianos y largos (p7, 8/11)', () => {
+  const g = guion(1); g.secciones[1].texto = relleno.repeat(5).trim()
+  assert.ok(R.largoHablado(g) > 800 && R.largoHablado(g) <= 1000, String(R.largoHablado(g)))
+  assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
+  g.secciones[1].texto = relleno.repeat(8).trim()
   assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'largo'))
+  const fs = ['objeto_simbolo', 'pizarra', 'documento']
+  const iguales = { cliente: 'x', ciudad: 'San Juan', notas: '', guiones: fs.map((f, i) => guion(i + 1, f)) }
+  assert.ok(R.revisarTanda(iguales, CATALOGO, 3).some(x => x.regla === 'largo' && x.gravedad === 'aviso'))
+  iguales.guiones[2].secciones[1].texto = relleno.repeat(5).trim()
+  assert.ok(!R.revisarTanda(iguales, CATALOGO, 3).some(x => x.regla === 'largo' && x.guion === null))
 })
 test('revisor: cuánto más puede ser, solo con «puede» (8/11); el CTA no pide datos', () => {
   for (const frase of ['Tu indemnización puede ser el doble o el triple de lo que te ofrecen.', 'Tu caso podría valer hasta el cuádruple.', 'Te pueden pagar la mitad o menos de lo que te corresponde.']) {

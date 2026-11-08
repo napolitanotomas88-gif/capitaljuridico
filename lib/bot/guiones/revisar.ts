@@ -3,7 +3,7 @@
 // Sale del prompt maestro de Tomás («PROMPT PARA HACER GUIONES CON CLAUDE») y de sus decisiones del 24/10/2026.
 // Errores (la tanda no pasa):
 //   · por guion: las 4 secciones en orden; velocidad entera de 1 a 5; indicación de grabación en cada sección; texto hablado
-//     de 500 a 800 caracteres (sin indicaciones ni el gesto); la ciudad en el HOOK o en el CTA (solo si la campaña tiene una zona);
+//     de 500 a 1.000 caracteres (sin indicaciones ni el gesto; la tanda mezcla cortos, medianos y largos); la ciudad en el HOOK o en el CTA (solo si la campaña tiene una zona);
 //     sin comillas en el texto; sin WhatsApp; sin fundamento legal ni cifras legales (7/11: artículos, leyes, códigos,
 //     organismos, porcentajes, plazos, montos); ortografía («así», mayúscula al empezar cada oración, sin dobles puntos);
 //     el CTA con «escribime acá abajo (gesto con el dedo hacia abajo)»; si el HOOK va con cámara frontal, la sección
@@ -18,7 +18,7 @@
 import { SECCIONES, NOMBRE_SECCION, type Catalogo, type Guion, type Hallazgo, type Tanda } from './tipos'
 
 export const LARGO_MIN = 500
-export const LARGO_MAX = 800   // 8/11/2026: Tomás vuelve a 800 (el largo de Faus era explicar qué se revisa: «a la persona no le interesa»)
+export const LARGO_MAX = 1000   // 8/11/2026 (p7): de 500 a 1.000, mezclando cortos, medianos y largos en la tanda
 export const GESTO = '(gesto con el dedo hacia abajo)'
 const GUIA_VELOCIDAD = { HOOK: [4, 5], PROBLEMA: [3, 4], SOLUCION: [3, 4], CTA: [4, 5] } as const
 
@@ -198,6 +198,12 @@ export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Ha
     if (Math.min(dir, pru) < Math.floor(n / 3)) aviso('cta', `los cierres del CTA no están combinados (${dir} directos, ${pru} prudentes): más o menos la mitad de cada uno`)
   }
 
+  // p7 (8/11/2026): la tanda mezcla largos (corto ≤650, mediano ≤850, largo hasta 1.000)
+  if (n >= 3) {
+    const banda = (l: number) => (l <= 650 ? 'corto' : l <= 850 ? 'mediano' : 'largo')
+    const bandas = new Set(t.guiones.map(g => banda(largoHablado(g))))
+    if (bandas.size === 1) aviso('largo', `todos los guiones son ${[...bandas][0]}s: mezclá cortos, medianos y largos`)
+  }
   // 8/11/2026: el «puede ser el doble o el triple» en más o menos la mitad de la tanda, no en todos
   const conMultiplo = t.guiones.filter(g => MULTIPLICA.test(g.secciones.map(s => s.texto).join(' '))).length
   if (n >= 3 && conMultiplo > Math.ceil((2 * n) / 3)) aviso('ambicion', `${conMultiplo} de ${n} guiones dicen «el doble / el triple»: dejalo en la mitad y en los otros decilo en palabras`)
