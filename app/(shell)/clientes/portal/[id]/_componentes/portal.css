@@ -40,3 +40,4 @@
   .pc-portal .cj-dato__valor { text-align: left; font-size: 30px; }
   .pc-portal .cj-dato__contexto { padding-left: 0; }
 }
+.pc-periodos { display: flex; flex-wrap: wrap; gap: 8px; }
