@@ -98,15 +98,15 @@ export type Accion = {
   botones: Boton[];
   /** Datos raros de la fila que el closer debería ver (p. ej. reagenda ilegible). */
   avisos: string[];
-  /** Solo PRE_CALLER: la columna del tablero del pre-caller (Llamar / Chat / Pasar al closer / Reagendar o cancelar). */
+  /** Solo PRE_CALLER: la columna del tablero del pre-caller (Llamar / Pre-call por chat / Reagendar o cancelar). */
   etapaPrecaller?: EtapaPrecaller;
 };
 
 /**
  * Las etapas del pipeline del pre-caller (Gero, 7/11/2026: su tablero muestra solo sus tareas, no las columnas del closer).
- * llamar → (no atendió) chat → (confirmó) pasar → pase al closer; vencida = la reunión pasó sin pase o no respondió el ultimátum.
+ * llamar → (no atendió) chat → pase al closer; vencida = la reunión pasó sin pase o no respondió el ultimátum (Gero, 7/11/2026).
  */
-export type EtapaPrecaller = "llamar" | "chat" | "pasar" | "vencida";
+export type EtapaPrecaller = "llamar" | "chat" | "vencida";
 
 // ---------------------------------------------------------------------------------------
 
@@ -434,16 +434,6 @@ const botonLiberar = (): Boton => ({
 });
 
 /**
- * "Reprogramó": el lead eligió otro horario con el pre-caller y queda confirmado. El horario se mueve con "Reagendar en
- * Calendly" de la misma tarjeta (Calendly libera el viejo y el webhook actualiza la fila sola).
- */
-const botonReprograma = (): Boton => ({
-  id: "reprograma",
-  etiqueta: "Reprogramó (ya en Calendly)",
-  cambios: { confirmoPrecaller: PRECALLER.reprograma },
-});
-
-/**
  * La tarjeta del pre-caller (tipo PRE_CALLER), o null. Mientras el lead no se pasó al closer, el closer no lo ve (regla dura
  * de Tomás, 5/11/2026): la confirmación y el seguimiento para que confirme son del pre-caller.
  *
@@ -462,7 +452,12 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   const avisos = avisoReagenda ? [avisoReagendaIlegible(v)] : [];
   const contacto = v.contactoPrecaller.trim();
   const seguimientos = numeroSeguimiento(v.seguimientosPrecaller);
-  const partes = [contacto || "sin contacto", confirmoConPrecaller(v) ? `confirmó${es(v.confirmoPrecaller, PRECALLER.reprograma) ? " (reprogramó)" : ""}` : "", v.decisoresPrecaller.trim(), seguimientos ? `S${seguimientos}` : ""];
+  const partes = [
+    contacto || "sin contacto",
+    confirmoConPrecaller(v) ? (es(v.confirmoPrecaller, PRECALLER.reprograma) ? "reprogramó" : "decisores preguntados") : "",
+    v.decisoresPrecaller.trim(),
+    seguimientos ? PASOS_CHAT_PRECALLER[Math.min(seguimientos, MAX_SEGUIMIENTOS_PRECALLER) - 1] : "",
+  ];
   const estado = `Pre-caller: ${partes.filter(Boolean).join(" · ")}`;
   const tarjeta = (etapaPrecaller: EtapaPrecaller, titulo: string, botones: Boton[], atrasado = false): Accion => ({
     tipo: "PRE_CALLER",
@@ -508,44 +503,21 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
       { id: "llamadaNoEfectiva", etiqueta: "Llamada no efectiva", pide: "noEfectiva", cambios: { contactoPrecaller: PRECALLER.noAtendio2 } },
     ]);
   }
-  if (es(contacto, PRECALLER.llamadaEfectiva)) return tarjeta("pasar", "Pasar al closer", [pase(true)]);
+  // Atendió pero el pase no quedó hecho (p. ej. se cerró el formulario): sigue en Llamar, con el pase a mano
+  if (es(contacto, PRECALLER.llamadaEfectiva)) return tarjeta("llamar", "Pasar al closer", [pase(true)]);
 
-  // Por chat (no atendió las 2 llamadas y ya le salió el mensaje automático)
-  if (confirmoConPrecaller(v)) {
-    if (!v.decisoresPrecaller.trim()) {
-      return tarjeta("pasar", "Chat: preguntar por los decisores", [
-        { id: "decideSolo", etiqueta: "Decide solo", cambios: { decisoresPrecaller: PRECALLER.decideSolo }, principal: true },
-        { id: "vienenDecisores", etiqueta: "Vienen decisores", cambios: { decisoresPrecaller: PRECALLER.vienenDecisores } },
-        botonReprograma(),
-      ]);
-    }
-    // Antes del pase va el mensaje con las 3 recomendaciones y quién lo va a contactar (sin esperar respuesta)
-    return tarjeta("pasar", "Chat: mandar las recomendaciones y tocar Pre-call hecho", [pase(false)]);
-  }
-
-  const confirmo = (id: string, etiqueta: string, decisores: string): Boton => ({
-    id,
-    etiqueta,
-    cambios: { confirmoPrecaller: PRECALLER.confirmo, ...(decisores ? { decisoresPrecaller: decisores } : {}) },
-  });
-  // Escalera por chat (Tomás, 5/11/2026), en AS como S1…S4. En cualquier paso el lead puede confirmar (o reprogramar).
-  const respondio: Boton[] = [
-    confirmo("confirmoSolo", "Confirmó · decide solo", PRECALLER.decideSolo),
-    confirmo("confirmoDecisores", "Confirmó · vienen decisores", PRECALLER.vienenDecisores),
-    confirmo("confirmo", "Confirmó (falta decisores)", ""),
-    botonReprograma(),
-  ];
-  if (seguimientos < MAX_SEGUIMIENTOS_PRECALLER) {
-    const enviado: Boton = {
-      id: "seguimiento",
-      etiqueta: `Enviado (${seguimientos + 1} de ${MAX_SEGUIMIENTOS_PRECALLER})`,
-      cambios: { seguimientosPrecaller: `S${seguimientos + 1}` },
-      principal: true,
-    };
-    return tarjeta("chat", `Chat: ${PASOS_CHAT_PRECALLER[seguimientos]}`, [enviado, ...respondio]);
-  }
+  // Pre-call por chat (Gero, 7/11/2026): ya le salió el mensaje automático de confirmación, así que quedan 2 botones:
+  // "Decisores" (marca que le preguntó por los decisores; AN = Si) y "Pre-call hecho" (el pase: desde el WhatsApp del pre-caller
+  // salen las recomendaciones y después el WhatsApp del closer). Los follow-ups van en un desplegable fijo de la tarjeta (AS:
+  // S1–S3 = Follow-up 1–3, S4 = Ultimátum). Con el ultimátum marcado, la tarjeta pasa a "Reagendar o cancelar".
   const roja: Boton[] = es(v.banderaRoja, VALORES.si) ? [] : [{ id: "sinRespuesta", etiqueta: "Sin respuesta 🔴", cambios: { banderaRoja: VALORES.si } }];
-  return tarjeta("vencida", "Sin respuesta al ultimátum: cancelar la reunión", [...respondio, ...roja], true);
+  if (seguimientos >= MAX_SEGUIMIENTOS_PRECALLER) {
+    return tarjeta("vencida", "Sin respuesta al ultimátum: cancelar la reunión", [pase(false), ...roja], true);
+  }
+  const decisores: Boton[] = confirmoConPrecaller(v)
+    ? []
+    : [{ id: "decisores", etiqueta: "Decisores", cambios: { confirmoPrecaller: PRECALLER.confirmo } }];
+  return tarjeta("chat", "Pre-call por chat", [...decisores, { ...pase(false), principal: decisores.length === 0 }]);
 }
 
 /** Los recordatorios del closer en v2 (AK: vacío → 1 → 2 → 3). Tomás, 6/11/2026: la columna del closer arranca acá. */

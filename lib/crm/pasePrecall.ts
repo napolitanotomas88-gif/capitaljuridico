@@ -1,6 +1,8 @@
 // Pre-call v2 (pedidos de Tomás del 5 y 6/11/2026). Dos mensajes automáticos:
 //   - "Llamada no efectiva" → desde el WhatsApp del pre-caller, sin video: "Hace unos minutos te llamé… ¿Confirmamos?".
-//   - "Llamada efectiva" (a los 3 minutos) o "Pre-call hecho" (enseguida) → el pase: desde el WhatsApp del
+//   - "Pre-call hecho" (por chat, Gero 7/11/2026) → primero, desde el WhatsApp del pre-caller, las recomendaciones
+// (`MAKE_WEBHOOK_RECOMENDACIONES`; sin la variable, a mano) y al minuto el pase.
+//   - "Llamada efectiva" (a los 3 minutos) o "Pre-call hecho" → el pase: desde el WhatsApp del
 // closer, UN mensaje: el video de traspaso de autoridad del closer + la bienvenida, la cita afirmada (sin pedir confirmación)
 // y el video de pre-llamada con la palabra LISTO. El texto y el video viven en la plantilla de Meta del escenario de Make de
 // cada closer (copias del de la confirmación al agendar); acá solo se arman los datos y se llama al webhook.
@@ -105,6 +107,15 @@ export const ESPERA_PASE_LLAMADA_S = 180;
 /** Webhook del mensaje automático de "Llamada no efectiva" (desde el WhatsApp del pre-caller, sin video). */
 export const WEBHOOK_NO_EFECTIVA = "MAKE_WEBHOOK_NO_EFECTIVA";
 
+/**
+ * Webhook de las recomendaciones de "Pre-call hecho" (Gero, 7/11/2026): desde el WhatsApp del pre-caller, el mensaje con las 3
+ * recomendaciones y quién lo va a contactar (`closer_completo`). Sin la variable, la app avisa que se manda a mano.
+ */
+export const WEBHOOK_RECOMENDACIONES = "MAKE_WEBHOOK_RECOMENDACIONES";
+
+/** Por chat, el WhatsApp del closer sale después de las recomendaciones del pre-caller (que primero lea quién le va a escribir). */
+export const ESPERA_PASE_CHAT_S = 60;
+
 type Envio = { variable: string | undefined; quien: string; etiqueta: string; espera: number };
 
 /** Arma los datos, llama al webhook y deja el intento en "Confirmaciones WhatsApp". Nunca tira: devuelve una línea para el toast. */
@@ -152,9 +163,17 @@ export function enviarPaseAlCloser(fila: FilaLead, porLlamada = false): Promise<
     variable: WEBHOOK_PASE_POR_HOJA[fila.hoja],
     quien: "del closer",
     etiqueta: "pase",
-    espera: porLlamada ? ESPERA_PASE_LLAMADA_S : 0,
+    espera: porLlamada ? ESPERA_PASE_LLAMADA_S : recomendacionesAutomaticas() ? ESPERA_PASE_CHAT_S : 0,
   });
 }
+
+/** "Pre-call hecho" por chat: desde el WhatsApp del pre-caller, las 3 recomendaciones y quién lo va a contactar. */
+export function enviarRecomendaciones(fila: FilaLead): Promise<string> {
+  return enviar(fila, { variable: WEBHOOK_RECOMENDACIONES, quien: "de recomendaciones", etiqueta: "recomendaciones", espera: 0 });
+}
+
+/** Hay escenario de recomendaciones cargado (y el envío prendido): el pase por chat espera `ESPERA_PASE_CHAT_S`. */
+export const recomendacionesAutomaticas = (): boolean => envioPaseActivo() && Boolean(process.env[WEBHOOK_RECOMENDACIONES]);
 
 /** "Llamada no efectiva": desde el WhatsApp del pre-caller, sin video, "Hace unos minutos te llamé… ¿Confirmamos tu asistencia?". */
 export function enviarNoEfectiva(fila: FilaLead): Promise<string> {

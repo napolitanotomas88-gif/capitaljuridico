@@ -89,15 +89,10 @@ export const DECISORES_PRECALLER = [PRECALLER.decideSolo, PRECALLER.vienenDeciso
 export const ESTADOS_PRECALLER = [PRECALLER.pendiente, PRECALLER.pasado, PRECALLER.liberado] as const;
 
 /**
- * La escalera por chat del pre-caller (Tomás, 5/11/2026), en AS como S1…S4: cada "Enviado" marca el paso mandado. Después del
- * ultimátum sin respuesta, se cancela la reunión. Los textos están en docs/ENCENDIDO-PRECALL-V2.md.
+ * Los follow-ups del pre-caller por chat (Gero, 7/11/2026): un desplegable fijo en la tarjeta de "Pre-call por chat", guardado en AS
+ * como S1…S4 (los valores del desplegable de la planilla). S4 = Ultimátum: sin respuesta, la tarjeta pasa a "Reagendar o cancelar".
  */
-export const PASOS_CHAT_PRECALLER = [
-  "«¿Pudiste leerme?»",
-  "preguntar por los decisores (2 h después)",
-  "seguimiento de decisores",
-  "ultimátum (confirmamos o liberamos)",
-] as const;
+export const PASOS_CHAT_PRECALLER = ["Follow-up 1", "Follow-up 2", "Follow-up 3", "Ultimátum"] as const;
 export const MAX_SEGUIMIENTOS_PRECALLER = PASOS_CHAT_PRECALLER.length;
 
 /**
