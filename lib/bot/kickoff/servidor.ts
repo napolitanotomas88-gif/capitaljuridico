@@ -113,3 +113,22 @@ export function depsReales(inicio: number = Date.now()): DepsKickoff {
     ...(guionesEncendido() ? { dispararGuiones: (id: number) => dispararGuionesReal(id) } : {}),
   }
 }
+
+/**
+ * El relevo (8/11/2026): si el webhook terminó en un error pasajero (típico: Claude en la Mac tardó más que el plazo y
+ * siguió trabajando), el mismo POST manual que se usa a mano (?recording_id=, payload guardado) corre en OTRA invocación con
+ * 300 s nuevos y retoma el pedido a la Mac por su huella. Se espera poco: si el corte es por tiempo, el proceso sigue del
+ * otro lado (como el reintento de kickoffPerdida.ts); un rechazo inmediato (4xx/5xx) sí se informa. El modo manual no
+ * vuelve a relevar: como mucho hay un segundo intento.
+ */
+export async function dispararRelevoReal(id: number): Promise<void> {
+  const secreto = process.env.CRON_SECRET?.trim() || ''
+  if (!secreto) throw new Error('falta CRON_SECRET')
+  try {
+    const r = await fetch(`${urlDespacho()}/api/bot/kickoff?recording_id=${id}`, { method: 'POST', headers: { authorization: `Bearer ${secreto}` }, signal: AbortSignal.timeout(8_000), cache: 'no-store' })
+    if (r.status >= 400 && r.status !== 504) throw new Error(`el relevo respondió ${r.status}`)
+  } catch (e) {
+    const n = (e as Error)?.name
+    if (n !== 'TimeoutError' && n !== 'AbortError') throw e
+  }
+}

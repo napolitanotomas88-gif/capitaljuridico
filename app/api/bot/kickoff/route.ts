@@ -5,7 +5,7 @@ import { idDiscord } from '@/lib/fathomAnuncios/discord'
 import { PLAZO_MS, motivoDe, procesarKickoff, trasWebhook } from '@/lib/bot/kickoff/procesar'
 import { ESTADOS_FINALES, baseConfigurada, leerKickoff, leerPayload, purgarPayloadsViejos, ultimas } from '@/lib/bot/kickoff/registro'
 import { claveClaude } from '@/lib/bot/kickoff/claude'
-import { FIN_INVOCACION_MS, depsReales, webhookKickoff } from '@/lib/bot/kickoff/servidor'
+import { FIN_INVOCACION_MS, depsReales, dispararRelevoReal, webhookKickoff } from '@/lib/bot/kickoff/servidor'
 import { avisoAdsManual, barrerAvisosAds, comprobarCanalAds, configAvisoAds, depsAvisoAdsReales, revisarAvisosAds, type ResultadoAvisoAds } from '@/lib/bot/kickoff/aviso-ads'
 import { avisoAdsEncendido, idValentino, varCanalAds, webhookKickoffAds } from '@/lib/bot/kickoff/entorno'
 import { MIN_BYTES_SECRETO, estadoGrabadores, quienDe, secretosWebhook, variablesIgnoradas, verificarFirmaVarios, type Quien } from '@/lib/bot/kickoff/grabadores'
@@ -107,7 +107,9 @@ async function webhookFathom(req: Request): Promise<NextResponse> {
   console.log(`bot-kickoff: grabación ${id} recibida, firmada con ${firmo}`)
   // Procesar, purgar los payloads viejos y barrer los avisos a Valentino pendientes (trasWebhook de procesar.ts: nunca lanza)
   after(() => trasWebhook(id, firmo, {
-    procesar: () => procesarKickoff(p.datos, depsReales(t0), { deadline: t0 + PLAZO_MS, grabador: firma.quien }),
+    // relevo: un error pasajero (Claude en la Mac más lento que el plazo) no avisa; lo retoma un POST manual en otra invocación
+    procesar: () => procesarKickoff(p.datos, depsReales(t0), { deadline: t0 + PLAZO_MS, grabador: firma.quien, relevo: true }),
+    relevo: id => dispararRelevoReal(id),
     purgar: () => purgarPayloadsViejos(),
     ads: depsAvisoAdsReales(),
     deadline: t0 + FIN_INVOCACION_MS - 2_000,
