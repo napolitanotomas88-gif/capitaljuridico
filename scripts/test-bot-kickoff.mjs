@@ -20,7 +20,7 @@ const { validarIdeas, mensajeIdeas, SCHEMA_IDEAS, CANTIDAD_IDEAS } = await impor
 const { armarFicha, calcularFaltantes, fichaMarkdown, normalizarRama, normalizarPresupuesto, textoPresupuesto, quienGrabo, portfolioFinalDe, faltantesPortfolio, notaCorteGrabacion, renglonLanzamiento, claveFaltante, ETIQUETA_FALTANTE } = await import('../lib/bot/kickoff/ficha.ts')
 const { agruparAnuncios, elegirGanadores, esDeLaRama, limpiarNombreAnuncio, ramaProbable, paisDeCuenta, paisDeTexto, anonimizar, batchConTokens, todasLasPaginas } = await import('../lib/bot/kickoff/ganadores.ts')
 const { armarAviso, linkFicha, usuariosMencionados, textoErrorKickoff, textoAvisoSinAnotar, corto, subramaCorta, ganadoresCitados, resumenPortfolio, MAX_DISCORD } = await import('../lib/bot/kickoff/mensaje.ts')
-const { procesarKickoff, fichaGuardada, extraccionDeFicha, chequeoPortfolio, MIN_CLAUDE_MS, MARGEN_ENVIO_MS, RESERVA_IDEAS_MS, TOPE_GANADORES_MS, TOPE_PORTFOLIO_MS, PLAZO_MS, PREFIJO_AVISO_ENVIADO, PREFIJO_AJUSTE_PORTFOLIO, avisoDeErrorPrevio, motivoDe } = await import('../lib/bot/kickoff/procesar.ts')
+const { procesarKickoff, fichaGuardada, extraccionDeFicha, chequeoPortfolio, MIN_CLAUDE_MS, MARGEN_ENVIO_MS, RESERVA_IDEAS_MS, TOPE_GANADORES_MS, TOPE_PORTFOLIO_MS, PLAZO_MS, PREFIJO_AVISO_ENVIADO, PREFIJO_AJUSTE_PORTFOLIO, avisoDeErrorPrevio, motivoDe, trasWebhook } = await import('../lib/bot/kickoff/procesar.ts')
 const { paraFicha, portfolioSinLectura } = await import('../lib/bot/kickoff/portfolio.ts')
 const { pantallaFicha, urlDespacho, depsLectura, URL_DESPACHO } = await import('../lib/bot/kickoff/servidor.ts')
 const registro = await import('../lib/bot/kickoff/registro.ts')
@@ -681,6 +681,41 @@ describe('procesarKickoff', () => {
     assert.equal(n, 2)
     assert.ok(log.esperas.includes(6000))
     assert.equal(log.contexto, 1, 'el CRM no se vuelve a leer')
+  })
+  test('la Mac tarda más que el tope (Elías López, 8/11): no reintenta sin tiempo, guarda el error real y, con relevo, no avisa', async () => {
+    let n = 0
+    const mk = relevo => {
+      const f = fakes({ extraer: async (e, tope) => { n++; f.reloj.t += tope; throw new ErrorTransitorio(`La Mac no respondió en ${Math.round(tope / 1000)} s`) } })
+      return f
+    }
+    let f = mk(false)
+    let r = await procesarKickoff(reunion(), f.deps)
+    assert.equal(r.estado, 'error')
+    assert.equal(n, 1, 'una sola lectura: no alcanza para otra completa')
+    assert.match(r.motivo, /La Mac no respondió/)
+    assert.ok(!/0 s/.test(r.motivo), 'nunca más «no queda tiempo… (0 s)»')
+    assert.equal(r.transitorio, true)
+    assert.equal(f.log.avisar.length, 1, 'sin relevo, avisa como siempre')
+    n = 0
+    f = mk(true)
+    r = await procesarKickoff(reunion(), f.deps, { relevo: true })
+    assert.equal(r.estado, 'error')
+    assert.equal(f.log.marcar.at(-1).estado, 'error')
+    assert.equal(f.log.avisar.length, 0, 'con relevo no avisa: lo retoma el segundo intento')
+    // Un error definitivo con relevo sí avisa
+    const g = fakes({ extraer: async () => { throw new Error('Claude respondió 400 (invalid_request_error)') } })
+    r = await procesarKickoff(reunion(), g.deps, { relevo: true })
+    assert.equal(r.transitorio, false)
+    assert.equal(g.log.avisar.length, 1)
+  })
+  test('trasWebhook dispara el relevo solo después de un error pasajero', async () => {
+    const relevos = []
+    const base = { purgar: async () => 0, ads: null, deadline: AHORA + 290_000, relevo: async id => { relevos.push(id) } }
+    await trasWebhook(7, 'X (tomas)', { ...base, procesar: async () => ({ estado: 'error', transitorio: true }) })
+    await trasWebhook(8, 'X (tomas)', { ...base, procesar: async () => ({ estado: 'error', transitorio: false }) })
+    await trasWebhook(9, 'X (tomas)', { ...base, procesar: async () => ({ estado: 'lista' }) })
+    await trasWebhook(10, 'X (tomas)', { ...base, procesar: async () => ({ estado: 'error', transitorio: true }), relevo: async () => { throw new Error('falta CRON_SECRET') } })
+    assert.deepEqual(relevos, [7])
   })
   test('las ideas fallan → error, pero la ficha ya quedó guardada (un reintento la reusa)', async () => {
     const { deps, log } = fakes({ ideas: async () => { throw new Error('Claude rechazó las ideas (categoría x)') } })

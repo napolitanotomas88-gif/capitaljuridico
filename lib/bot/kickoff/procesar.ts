@@ -61,6 +61,11 @@
 // publicado igual (un segundo POST duplicaría el aviso); ese caso se le avisa a Tomás como dudoso.
 // Ante un error: "error" en el registro con el motivo (lo que ya salió queda guardado) y UN aviso corto a Tomás en el mismo
 // canal. Los motivos se limpian (sin URLs ni claves) antes de guardarlos o mandarlos.
+// Relevo (8/11/2026, kickoff de Elías López): con CLAUDE_VIA=mac la lectura de una llamada larga puede tardar más que lo que
+// le deja el plazo (165 s contra 134 s). La Mac sigue y deja la respuesta en la cola (huella, 24 h). Con `relevo`, un error
+// pasajero no se avisa a Discord: trasWebhook dispara el reproceso manual en OTRA invocación (300 s nuevos), que retoma el
+// mismo pedido a la Mac. Si el relevo también falla, ese sí avisa. El reintento de la extracción dentro de la misma
+// invocación solo corre si alcanza para OTRA lectura completa (antes se reintentaba sin tiempo y el error decía «0 s»).
 import type { Rama } from '@/lib/anuncios/ramas'
 import { validarReunion } from '@/lib/fathomAnuncios/tipos'
 import { LARGO_AVISO, duracionGrabacionS, formatearTranscripcion } from '@/lib/fathomAnuncios/transcripcion'
@@ -210,6 +215,7 @@ export interface ResultadoKickoff {
   reutilizado?: { ficha: boolean; ideas: boolean }
   intentos?: number
   duracion_ms?: number
+  transitorio?: boolean         // con error: pasajero (se puede reintentar); con relevo, sin aviso a Discord
 }
 
 export interface OpcionesProceso {
@@ -219,6 +225,8 @@ export interface OpcionesProceso {
   deadline?: number
   /** La cuenta de Fathom que firmó el webhook (o la del modo manual con ?quien=). Si no viene, la que ya tenía la fila. */
   grabador?: Quien | null
+  /** Un error pasajero no se avisa a Discord: quien llama dispara un segundo intento en otra invocación (trasWebhook). */
+  relevo?: boolean
 }
 
 // ── Zona desde el video: qué hacer en esta pasada ──
@@ -391,12 +399,14 @@ export async function procesarKickoff(payload: unknown, deps: DepsKickoff, op: O
   const usage: { extraccion: Uso | null; ideas: Uso | null } = { extraccion: null, ideas: null }
   let modelo: string | null = null
 
-  /** Corre un paso; si falla con un error transitorio y queda tiempo, espera y lo reintenta UNA vez. */
-  const paso = async <T>(que: keyof typeof MIN_RESTANTE, fn: () => Promise<T>): Promise<T> => {
+  /** Corre un paso; si falla con un error transitorio y queda tiempo, espera y lo reintenta UNA vez. `alcanza`: lo que
+   *  ese paso necesita para el reintento (por defecto, MIN_RESTANTE[que] antes del deadline). */
+  const paso = async <T>(que: keyof typeof MIN_RESTANTE, fn: () => Promise<T>, alcanza?: (espera: number) => boolean): Promise<T> => {
     try {
       return await fn()
     } catch (e) {
-      if (!esTransitorio(e) || deadline - deps.ahora() - ESPERA_REINTENTO_MS < MIN_RESTANTE[que]) throw e
+      const hayTiempo = alcanza ? alcanza(ESPERA_REINTENTO_MS) : deadline - deps.ahora() - ESPERA_REINTENTO_MS >= MIN_RESTANTE[que]
+      if (!esTransitorio(e) || !hayTiempo) throw e
       console.warn(`bot-kickoff: grabación ${id}, ${que}: ${motivoDe(e)} — reintento en ${ESPERA_REINTENTO_MS / 1000} s`)
       await deps.esperar(ESPERA_REINTENTO_MS)
       return await fn()
@@ -473,13 +483,14 @@ export async function procesarKickoff(payload: unknown, deps: DepsKickoff, op: O
     }
     if (!guardada) {
       const ctx: ContextoKickoff = await deps.contexto().catch(e => ({ clientes: [], estado: 'sin_crm' as const, aviso: motivoDe(e) }))
+      // Después de la extracción se espera a Meta (ganadores y portfolio, en paralelo): se reserva el mayor de los topes
+      const esperaMeta = Math.max(deps.topeGanadoresMs ?? TOPE_GANADORES_MS, deps.topePortfolioMs ?? TOPE_PORTFOLIO_MS)
+      const topeExtraccion = () => deadline - deps.ahora() - MARGEN_ENVIO_MS - RESERVA_IDEAS_MS - esperaMeta
       const ex = await paso('claude', () => {
-        // Después de la extracción se espera a Meta (ganadores y portfolio, en paralelo): se reserva el mayor de los topes
-        const esperaMeta = Math.max(deps.topeGanadoresMs ?? TOPE_GANADORES_MS, deps.topePortfolioMs ?? TOPE_PORTFOLIO_MS)
-        const tope = deadline - deps.ahora() - MARGEN_ENVIO_MS - RESERVA_IDEAS_MS - esperaMeta
+        const tope = topeExtraccion()
         if (tope < MIN_CLAUDE_MS) throw new ErrorTransitorio(`no queda tiempo para leer la llamada con Claude (${Math.max(0, Math.round(tope / 1000))} s)`)
         return deps.extraer({ reunion: r, transcripcion: tr, clientes: ctx.clientes }, tope)
-      })
+      }, espera => topeExtraccion() - espera >= MIN_CLAUDE_MS)
       usage.extraccion = ex.usage
       modelo = ex.modelo
       guardada = { extraccion: ex.extraccion, ajustes: [...ex.ajustes, ...(ctx.estado === 'sin_crm' ? [`sin lista del CRM (${ctx.aviso ?? 'sin detalle'}): el cliente queda sin verificar`] : [])] }
@@ -681,6 +692,9 @@ export async function procesarKickoff(payload: unknown, deps: DepsKickoff, op: O
   } catch (e) {
     const sinTranscripcion = e instanceof ErrorSinTranscripcion
     const motivo = motivoDe(e)
+    const transitorio = esTransitorio(e)
+    // Con relevo, un pasajero no se avisa: lo retoma el segundo intento (y ese avisa si vuelve a fallar)
+    const callar = !!op.relevo && transitorio && reclamo !== null && !(e instanceof ErrorAvisoSinAnotar) && !(e instanceof ErrorAvisoDudoso)
     console.error(`bot-kickoff: grabación ${id} con error —`, motivo)
     if (dry) return { estado: 'error', recording_id: id, motivo, usage, duracion_ms: duracion() }
     if (reclamo) {
@@ -691,13 +705,14 @@ export async function procesarKickoff(payload: unknown, deps: DepsKickoff, op: O
       }
     }
     try {
-      if (e instanceof ErrorAvisoSinAnotar) await deps.avisar(textoAvisoSinAnotar(r.title, id, e.causa, deps.tomas))
+      if (callar) console.warn(`bot-kickoff: grabación ${id}, error pasajero sin aviso: sigue en el relevo`)
+      else if (e instanceof ErrorAvisoSinAnotar) await deps.avisar(textoAvisoSinAnotar(r.title, id, e.causa, deps.tomas))
       else if (!sinTranscripcion) await deps.avisar(textoErrorKickoff(r.title, id, motivo, deps.tomas, { registrada: reclamo !== null, avisoDudoso: e instanceof ErrorAvisoDudoso }))
       else if (!reclamo?.error_previo?.startsWith(PREFIJO_SIN_TRANSCRIPCION)) await deps.avisar(textoSinTranscripcionKickoff(r.title, id, deps.tomas))
     } catch (e3) {
       console.error(`bot-kickoff: tampoco salió el aviso de la grabación ${id} —`, motivoDe(e3))
     }
-    return { estado: 'error', recording_id: id, motivo, usage, ...(reclamo ? { intentos: reclamo.intentos } : {}), duracion_ms: duracion() }
+    return { estado: 'error', recording_id: id, motivo, usage, ...(reclamo ? { intentos: reclamo.intentos } : {}), duracion_ms: duracion(), transitorio }
   }
 }
 
@@ -713,6 +728,8 @@ export interface TareasTrasWebhook {
   deadline: number
   /** Chequeo temprano de la cuenta de Meta apenas la ficha queda lista (cuentaTempranaServidor.ts, 3/11). */
   cuentaTemprana?: (id: number) => Promise<unknown>
+  /** El segundo intento en otra invocación, si el proceso terminó en un error pasajero (procesar con `relevo`). */
+  relevo?: (id: number) => Promise<unknown>
 }
 
 /**
@@ -727,6 +744,12 @@ export async function trasWebhook(id: number, firmo: string, t: TareasTrasWebhoo
     const ads = r.ads ? ` · aviso a Valentino: ${r.ads.estado}` : ''
     console.log(`bot-kickoff: grabación ${id} [${firmo}] → ${r.estado}${r.duplicada_de ? ` de ${r.duplicada_de}` : ''}${r.motivo ? ` (${r.motivo})` : ''}${mapa}${ads}`)
     if (r.estado === 'lista' && t.cuentaTemprana) await t.cuentaTemprana(id).catch(e => console.error('bot-kickoff: chequeo temprano de la cuenta —', motivoDe(e)))
+    if (r.estado === 'error' && r.transitorio && t.relevo) {
+      await t.relevo(id).then(
+        () => console.log(`bot-kickoff: grabación ${id} → segundo intento disparado (relevo)`),
+        e => console.error(`bot-kickoff: grabación ${id}, no salió el relevo —`, motivoDe(e)),
+      )
+    }
   } catch (e) {
     console.error(`bot-kickoff: grabación ${id} [${firmo}] — falla inesperada:`, motivoDe(e))
   }
