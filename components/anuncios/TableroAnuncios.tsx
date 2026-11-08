@@ -12,6 +12,7 @@ import { nombreDia } from '@/lib/anuncios/feriados'
 import { RecuentoMeta } from './Recuento'
 import { PanelPorLanzar } from './PorLanzar'
 import { NotasCliente } from './NotasCliente'
+import { PanelRevisiones } from './Revisiones'
 import { filasDelPeriodo, ordenarCPL, type PeriodoCPL, type OrdenCPL } from '@/lib/anuncios/vista'
 
 type FiltroEstado = 'sin_gasto' | 'todos' | 'error' | 'rojo' | 'amarillo' | 'verde'
@@ -204,6 +205,9 @@ export function TableroAnuncios() {
         </div>
       </header>
       <div style={{ height: 1, background: 'var(--laton)', width: 56, margin: '26px 0 30px', opacity: 0.7 }} />
+
+      {/* ── A revisar (8/11/2026): pruebas y cambios en curso, con los días que van y los que faltan ── */}
+      <PanelRevisiones />
 
       {/* ── Resumen en una línea ── */}
       {/* Resumen en tarjetas (25/10/2026): cada número es un botón que filtra la lista; el estado va con su cuadradito Y su texto */}
