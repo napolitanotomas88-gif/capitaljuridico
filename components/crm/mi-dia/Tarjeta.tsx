@@ -51,6 +51,11 @@ type Props = {
    * "Listo por hoy", que ya está en el título de la sección.
    */
   tenue?: boolean;
+  /**
+   * Tablero de práctica (`/ventas/demo-precaller`): leads de mentira. Sin links a la ficha, a WhatsApp ni a Calendly (la
+   * fila no existe o sería otra); "Reagendar en Calendly" pasa por `onBoton` como un botón más, que la demo resuelve en memoria.
+   */
+  demo?: boolean;
 };
 
 /** "15/10" (Buenos Aires) de la fecha de la acción. */
@@ -106,7 +111,7 @@ function TelefonoCopiable({ telefono }: { telefono: string }) {
  * franja gris y, fuera de su sección plegada (p. ej. en la ficha), la marca "Listo por hoy"; el
  * título y los botones son los de siempre.
  */
-export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordatorio, linkFicha = true, onAbrirFicha, mostrarGrupo = true, tenue = false }: Props) {
+export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordatorio, linkFicha = true, onAbrirFicha, mostrarGrupo = true, tenue = false, demo = false }: Props) {
   const { accion, identidad } = item;
   // La marca "Listo por hoy" sobra dentro de su sección; la del seguimiento coordinado ("Seguimiento el 15/10") no
   const marcaListo = accion.listoPorHoy && (!tenue || accion.grupo !== "precall");
@@ -204,7 +209,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
       {/* Si el nombre y la hora no entran en una línea (columnas angostas), la hora baja abajo. */}
       <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h3 id={idNombre} className="min-w-0 max-w-full text-lg font-bold leading-tight [overflow-wrap:anywhere]">
-          {linkFicha ? (
+          {linkFicha && !demo ? (
             // El área táctil llega a 44 px sin cambiar el alto de la línea.
             <Link
               href={hrefFicha(identidad)}
@@ -265,7 +270,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
 
       {/* Abre WhatsApp Web con el teléfono del lead y sin mensaje precargado. */}
       <div className="mt-3 flex flex-wrap gap-2">
-        {tieneTelefono && (
+        {tieneTelefono && !demo && (
           <a
             href={item.urlChat}
             target="_blank"
@@ -300,7 +305,17 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
         ))}
         {/* Reagendar en Calendly (Pre-call y No-show): abre el link de reprogramación del lead en otra pestaña. Mover el
             evento en Google Calendar no lo mueve en Calendly; desde acá se libera el horario viejo y el CRM se actualiza solo. */}
-        {(accion.grupo === "precall" || accion.grupo === "noShow") && (
+        {demo && accion.grupo === "precall" && (
+          <button
+            type="button"
+            disabled={enCurso}
+            onClick={() => onBoton(item, BOTON_REAGENDAR_DEMO)}
+            className="flex min-h-11 flex-auto items-center justify-center rounded-xl border border-negro bg-blanco px-3 py-2 text-center text-sm font-bold leading-tight text-negro hover:bg-negro hover:text-blanco"
+          >
+            Reagendar en Calendly
+          </button>
+        )}
+        {!demo && (accion.grupo === "precall" || accion.grupo === "noShow") && (
           <a
             href={`/ventas/reagendar/${encodeURIComponent(identidad.hoja)}/${identidad.numeroFila}`}
             target="_blank"
@@ -326,6 +341,9 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
     </article>
   );
 }
+
+/** Solo en la demo: "Reagendar en Calendly" como botón (no abre nada; la demo lo resuelve en memoria). */
+export const BOTON_REAGENDAR_DEMO: Boton = { id: "demoReagendar", etiqueta: "Reagendar en Calendly", cambios: {} };
 
 function IconoChat() {
   return (

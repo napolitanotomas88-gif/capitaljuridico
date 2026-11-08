@@ -69,6 +69,11 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
                 Pre-caller
               </Link>
             )}
+            {precallV2Activo() && (
+              <Link href="/ventas/demo-precaller" className={BOTON_BARRA}>
+                Práctica pre-caller
+              </Link>
+            )}
             <BotonActualizar generado={ahora.toISOString()} />
             <a href={urlPlanilla} target="_blank" rel="noopener noreferrer" className={BOTON_BARRA}>
               <span className="lg:hidden">Planilla</span>
