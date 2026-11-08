@@ -307,7 +307,7 @@ describe('schema y mensaje de usuario', () => {
   })
   test('prompts: texto fijo con versión y las reglas de la kickoff real', () => {
     assert.equal(VERSION_PROMPT, 'k3-2026-10-24')
-    assert.equal(VERSION_IDEAS, 'i4-2026-10-25')
+    assert.equal(VERSION_IDEAS, 'i5-2026-11-08')
     // k3: la kickoff la hacen Tomás o Gero M (quién grabó va en <reunion>); los pendientes no repiten el portfolio
     assert.match(PROMPT_SISTEMA, /la hace Tomás Napolitano o Gerónimo Mozzi \(Gero M\)/)
     assert.ok(!/Tomás Napolitano hace con el cliente/.test(PROMPT_SISTEMA))
@@ -319,7 +319,10 @@ describe('schema y mensaje de usuario', () => {
     assert.match(PROMPT_IDEAS, /proponer 6 ideas/)
     assert.match(PROMPT_IDEAS, /nunca «laburo»/)
     assert.match(PROMPT_IDEAS, /ya firmó la liquidación/)
-    assert.match(PROMPT_IDEAS, /PROVINCIA de la ficha/)
+    assert.match(PROMPT_IDEAS, /UNA sola zona/)
+    assert.match(PROMPT_IDEAS, /ninguna idea nombra ciudad, provincia ni gentilicio/)
+    assert.match(PROMPT_IDEAS, /con «puede» o «podría», nunca garantizado/)
+    assert.ok(!/el doble", "48 horas/.test(PROMPT_IDEAS), 'ya no prohíbe «el doble»: lo pide p6 con «puede»')
     assert.match(PROMPT_IDEAS, /firmar en blanco/)
     assert.match(PROMPT_IDEAS, /"USD 0,45"/)
     assert.match(PROMPT_SISTEMA, /NO van en subramas: van en avatar/)
