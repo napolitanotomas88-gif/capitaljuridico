@@ -11,6 +11,23 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 
 **Estado: todo construido y APAGADO.** Falta el número de WhatsApp nuevo del pre-caller. Con `PRECALL_V2` sin cargar, el Despacho, la planilla y la confirmación al agendar funcionan igual que hoy.
 
+## Cambio de Gero (7/11/2026): tablero del pre-caller en 3 columnas
+
+Encendido el 7/11/2026 20:40 (Marcos y Nahuel). Después Gero simplificó el chat:
+
+| Columna | Tarjeta | Botones |
+|---|---|---|
+| Llamar | Llamar (hasta 2 veces seguidas) | «Llamada efectiva» (pase; WhatsApp del closer a los 3 min) · «Llamada no efectiva» (WhatsApp del pre-caller) |
+| Pre-call por chat | Pre-call por chat | «Decisores» (marca que le preguntó; AN = Si) · «Pre-call hecho» (pase) · desplegable **Follow-up** 1, 2, 3 y Ultimátum (AS = S1–S4) |
+| Reagendar o cancelar | La reunión pasó sin pase / Ultimátum sin respuesta | «Pre-call hecho» · «Sin respuesta 🔴» · Cancelar reunión / Reagendar |
+
+**«Pre-call hecho» por chat:** primero sale desde el WhatsApp del pre-caller el mensaje de recomendaciones (texto 3, con el
+nombre del closer) por `MAKE_WEBHOOK_RECOMENDACIONES`, y al minuto el pase del closer. **Pendiente:** plantilla de Meta en la
+WABA del pre-caller (fraccionada, un mensaje por párrafo, como las demás) + escenario de Make + la variable en Vercel. Mientras
+falte la variable, el pase sale enseguida y la app avisa «mandalo a mano» para las recomendaciones.
+
+Lo de abajo (escalera S1–S4 con «Enviado», «Confirmó · …», «Reprogramó») quedó reemplazado por esta tabla.
+
 ## Los 2 mensajes automáticos
 
 | Botón de la tarjeta | Sale desde | Mensaje | Cuándo |

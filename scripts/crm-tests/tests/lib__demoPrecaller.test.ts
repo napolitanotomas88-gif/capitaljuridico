@@ -11,6 +11,6 @@ describe("práctica del pre-caller", () => {
       const [a] = accionesDeFila(f, ahora, dia).filter((x) => x.tipo === "PRE_CALLER");
       return a?.etapaPrecaller;
     });
-    expect(etapas).toEqual(["llamar", "llamar", "chat", "chat", "pasar", "pasar", "vencida", "vencida"]);
+    expect(etapas).toEqual(["llamar", "llamar", "chat", "chat", "vencida", "vencida"]);
   });
 });

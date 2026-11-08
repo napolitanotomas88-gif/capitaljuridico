@@ -71,34 +71,35 @@ describe("tarjeta del pre-caller", () => {
     // Un "No atendió 1ª" de la versión anterior cae en el mismo paso
     expect(v2({ contactoPrecaller: PRECALLER.noAtendio1 })[0].titulo).toBe("Llamar (hasta 2 veces seguidas)");
   });
-  it("escalera: ¿Pudiste leerme? → decisores → seguimiento de decisores → ultimátum → cancelar", () => {
-    const titulos = ["", "S1", "S2", "S3"].map((s) => v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: s })[0]);
-    expect(titulos.map((t) => t.titulo)).toEqual([
-      "Chat: «¿Pudiste leerme?»",
-      "Chat: preguntar por los decisores (2 h después)",
-      "Chat: seguimiento de decisores",
-      "Chat: ultimátum (confirmamos o liberamos)",
-    ]);
-    expect(titulos[3].botones[0].cambios).toEqual({ seguimientosPrecaller: "S4" });
-    // En cualquier paso puede confirmar o reprogramar
-    expect(ids(titulos[1])).toEqual(["seguimiento", "confirmoSolo", "confirmoDecisores", "confirmo", "reprograma"]);
+  it("pre-call por chat (Gero, 7/11/2026): solo Decisores y Pre-call hecho; los follow-ups van en el desplegable (AS)", () => {
+    for (const s of ["", "S1", "S2", "S3"]) {
+      const [a] = v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: s });
+      expect(a.titulo).toBe("Pre-call por chat");
+      expect(a.etapaPrecaller).toBe("chat");
+      expect(ids(a)).toEqual(["decisores", "pasarAlCloser"]);
+    }
+    const [a] = v2({ contactoPrecaller: PRECALLER.noAtendio2 });
+    expect(a.botones[0].cambios).toEqual({ confirmoPrecaller: "Si" });
+    expect(a.botones[1]).toMatchObject({ etiqueta: "Pre-call hecho", pide: "pase", cambios: { llamadaPrecall: "No efectiva", estadoPrecaller: PRECALLER.pasado } });
+    // Con los decisores ya preguntados queda solo "Pre-call hecho"
+    const [b] = v2({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si", seguimientosPrecaller: "S2" });
+    expect(ids(b)).toEqual(["pasarAlCloser"]);
+    expect(b.estado).toContain("decisores preguntados");
+    expect(b.estado).toContain("Follow-up 2");
+  });
+  it("Ultimátum (S4) sin respuesta: pasa a Reagendar o cancelar", () => {
     const [fin] = v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S4" });
     expect(fin.titulo).toBe("Sin respuesta al ultimátum: cancelar la reunión");
+    expect(fin.etapaPrecaller).toBe("vencida");
     expect(fin.atrasado).toBe(true);
-    expect(ids(fin)).toContain("sinRespuesta");
-  });
-  it("por chat: confirmó → pregunta de decisores → recomendaciones y pase", () => {
-    expect(v2({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si" })[0].titulo).toBe("Chat: preguntar por los decisores");
-    const [pase] = v2({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.vienenDecisores });
-    expect(pase.titulo).toBe("Chat: mandar las recomendaciones y tocar Pre-call hecho");
-    expect(pase.botones[0]).toMatchObject({ id: "pasarAlCloser", etiqueta: "Pre-call hecho", pide: "pase", cambios: { llamadaPrecall: "No efectiva" } });
+    expect(ids(fin)).toEqual(["pasarAlCloser", "sinRespuesta"]);
   });
   it("cada tarjeta cae en su columna del tablero del pre-caller (Gero, 7/11/2026)", () => {
     const etapa = (v: Parameters<typeof v2>[0], ahora?: Date) => v2(v, ahora)[0].etapaPrecaller;
     expect(etapa({})).toBe("llamar");
+    expect(etapa({ contactoPrecaller: PRECALLER.llamadaEfectiva })).toBe("llamar");
     expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S2" })).toBe("chat");
-    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si" })).toBe("pasar");
-    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.decideSolo })).toBe("pasar");
+    expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, confirmoPrecaller: "Si", decisoresPrecaller: PRECALLER.decideSolo })).toBe("chat");
     expect(etapa({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S4" })).toBe("vencida");
     expect(etapa({ contactoPrecaller: PRECALLER.porChat }, parsearFechaSheet("26/09/2026 12:00")!)).toBe("vencida");
   });

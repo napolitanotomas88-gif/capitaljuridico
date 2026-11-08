@@ -9,6 +9,7 @@ import { partesFecha } from "@/lib/crm/fechas";
 import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
 import { recordatorioParaGuardar, recordatorioVisual, videosConfEnviados } from "@/lib/crm/recordatorio";
 import { digitosWhatsApp } from "@/lib/crm/presentacion";
+import { PASOS_CHAT_PRECALLER } from "@/lib/crm/config/precallV2";
 
 const FRANJA: Record<Urgencia, string> = {
   hoy: "border-l-dorado",
@@ -249,6 +250,33 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             <option value="3">3</option>
           </select>
           {guardandoRecordatorio && <span role="status" className="text-xs text-gris-texto">Guardando…</span>}
+        </div>
+      )}
+
+      {/* Pre-call por chat (Gero, 7/11/2026): los follow-ups en un desplegable fijo (AS = S1…S4; S4 = Ultimátum). */}
+      {accion.tipo === "PRE_CALLER" && (accion.etapaPrecaller === "chat" || /^S\d/.test(item.valores.seguimientosPrecaller ?? "")) && (
+        <div className="mt-2 flex items-center gap-2">
+          <label htmlFor={`${idNombre}-followup`} className="text-xs font-semibold">Follow-up</label>
+          <select
+            id={`${idNombre}-followup`}
+            value={item.valores.seguimientosPrecaller ?? ""}
+            disabled={enCurso}
+            onChange={(e) => {
+              const valor = e.target.value;
+              const paso = PASOS_CHAT_PRECALLER[Number(valor.slice(1)) - 1];
+              if (paso) onBoton(item, { id: "seguimiento", etiqueta: paso, cambios: { seguimientosPrecaller: valor } });
+            }}
+            className="min-h-8 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+          >
+            <option value="" disabled>
+              Ninguno
+            </option>
+            {PASOS_CHAT_PRECALLER.map((paso, i) => (
+              <option key={paso} value={`S${i + 1}`}>
+                {paso}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

@@ -21,11 +21,13 @@ function queHariaDeVerdad(b: Boton): string {
     case "llamadaEfectiva":
       return "se abre el formulario del pase, el lead pasa al closer y a los 3 minutos sale el WhatsApp del closer (video + cita + link).";
     case "pasarAlCloser":
-      return "se abre el formulario del pase, el lead pasa al closer y sale enseguida el WhatsApp del closer.";
+      return "se abre el formulario del pase y el lead pasa al closer: primero sale desde tu WhatsApp el mensaje con las recomendaciones y quién le va a escribir, y al minuto el WhatsApp del closer.";
+    case "decisores":
+      return "queda marcado que le preguntaste por los decisores; la respuesta se carga en el formulario del pase.";
     case "llamadaNoEfectiva":
-      return "sale solo el WhatsApp del pre-caller («Hace unos minutos te llamé… Confirmamos tu asistencia?») y el lead pasa a Seguimiento por chat.";
+      return "sale solo el WhatsApp del pre-caller («Hace unos minutos te llamé… Confirmamos tu asistencia?») y el lead pasa a Pre-call por chat.";
     case "seguimiento":
-      return "queda anotado el mensaje que mandaste a mano por chat; la tarjeta pasa al paso siguiente.";
+      return "queda anotado el follow-up que mandaste a mano por chat (con «Ultimátum», la tarjeta pasa a Reagendar o cancelar).";
     case "cancelarReunion":
       return "pide confirmación, cancela la reunión en Calendly (le llega un mail al lead) y el lead sale de la lista.";
     case "demoReagendar":

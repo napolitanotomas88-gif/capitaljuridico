@@ -27,7 +27,7 @@ import { BOTON_CANCELAR_REUNION } from "@/lib/crm/pantalla";
 import { leerFila } from "@/lib/crm/sheets/leer";
 import { resolverMarcaManana } from "@/lib/crm/motor/proxima-accion";
 import { PRECALLER, precallV2Activo } from "@/lib/crm/config/precallV2";
-import { enviarNoEfectiva, enviarPaseAlCloser } from "@/lib/crm/pasePrecall";
+import { enviarNoEfectiva, enviarPaseAlCloser, enviarRecomendaciones } from "@/lib/crm/pasePrecall";
 import { formatearFechaSheet } from "@/lib/crm/fechas";
 
 const fallo = (codigo: CodigoError, error: string): Resultado<never> => ({ ok: false, error, codigo });
@@ -198,7 +198,13 @@ export async function pasarAlCloser(entrada: EntradaAccion): Promise<Resultado<O
     const fila = await leerFila(identidad.hoja, identidad.numeroFila);
     // Desde la llamada ("Llamada efectiva") el WhatsApp del closer sale a los 3 minutos; desde el chat, enseguida
     const porLlamada = cambios.llamadaPrecall === VALORES.llamadaEfectiva;
-    const aviso = fila ? await enviarPaseAlCloser(fila, porLlamada) : "WhatsApp no enviado: no se pudo releer la fila";
+    // Por chat ("Pre-call hecho"): primero las recomendaciones desde el WhatsApp del pre-caller, después el pase (Gero, 7/11/2026)
+    const avisos = !fila
+      ? ["WhatsApp no enviado: no se pudo releer la fila"]
+      : porLlamada
+        ? [await enviarPaseAlCloser(fila, true)]
+        : [await enviarRecomendaciones(fila), await enviarPaseAlCloser(fila, false)];
+    const aviso = avisos.join(" · ");
     revalidatePath("/ventas");
     return { ok: true, datos: { ...datos, aviso } };
   } catch (e) {
