@@ -116,6 +116,7 @@ test('revisor: recursos repetidos en la tanda es error', () => {
 test('provincia desde la ficha', () => {
   assert.equal(ciudadDeFicha({ zona: { descripcion: 'Provincia de San Juan: zona marcada…', presentarse_como: { texto: 'San Juan capital' }, lugares: [] } }), 'San Juan')
   assert.equal(ciudadDeFicha({ zona: { descripcion: '', presentarse_como: { texto: 'Mendoza capital' }, lugares: [] } }), 'Mendoza')
+  assert.equal(ciudadDeFicha({ zona: { descripcion: 'Solo CABA por ahora.', presentarse_como: null, lugares: ['CABA (Ciudad Autónoma de Buenos Aires)'], radio_km: null } }), 'CABA', 'sin la aclaración entre paréntesis (9/11)')
 })
 test('zonas muy separadas en la kickoff: sin ciudad en el gancho (5/11)', () => {
   const z = (lugares, extra = {}) => ({ zona: { descripcion: 'Provincia de Córdoba: zona marcada', presentarse_como: { texto: 'Córdoba capital' }, lugares, radio_km: null, ...extra } })
