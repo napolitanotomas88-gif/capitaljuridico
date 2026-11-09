@@ -330,13 +330,17 @@ function validarCliente(c: Record<string, unknown>, cx: ContextoValidacion, ajus
   const escuchado = acotar(c.nombre_escuchado, 120) || 'Sin nombre'
   const apodo = acotar(c.apodo, 40) || null
   const porId = new Map(cx.conocidos.filter(k => k.id).map(k => [k.id.toUpperCase(), k]))
-  const porNombre = new Map(cx.conocidos.map(k => [normNombre(k.nombre), k]))
+  // Un mismo nombre puede tener varios ID (renovación: A120 FINALIZADO y A184 ACTIVO, 9/11/2026). La lista viene con los
+  // vigentes primero: gana el primero, nunca el último
+  const porNombre = new Map<string, ClienteCRMKickoff>()
+  for (const k of cx.conocidos) if (!porNombre.has(normNombre(k.nombre))) porNombre.set(normNombre(k.nombre), k)
   const idDicho = acotar(c.id_crm, 20)?.toUpperCase() || null
   const nombreDicho = acotar(c.cliente_crm, 120) || null
   let elegido: ClienteCRMKickoff | null = null
   const hitId = idDicho ? porId.get(idDicho) ?? null : null
   const hitNombre = nombreDicho ? porNombre.get(normNombre(nombreDicho)) ?? null : null
-  if (hitId && hitNombre && hitId !== hitNombre) ajustes.push(`id_crm ${idDicho} y cliente_crm «${nombreDicho}» no coinciden: queda sin verificar`)
+  // ID y nombre del mismo cliente aunque el nombre tenga otro ID (homónimo): manda el ID que dijo Claude
+  if (hitId && hitNombre && hitId !== hitNombre && normNombre(hitId.nombre) !== normNombre(nombreDicho!)) ajustes.push(`id_crm ${idDicho} y cliente_crm «${nombreDicho}» no coinciden: queda sin verificar`)
   else elegido = hitId ?? hitNombre
   if (!elegido && (idDicho || nombreDicho) && !(hitId && hitNombre)) ajustes.push(`cliente «${nombreDicho ?? idDicho}» no está en la lista del CRM: queda sin verificar`)
 
@@ -344,11 +348,16 @@ function validarCliente(c: Record<string, unknown>, cx: ContextoValidacion, ajus
   let como: ClienteFicha['como'] = elegido ? 'claude' : null
   const mails = new Set(cx.emailsInvitados.map(m => m.trim().toLowerCase()).filter(Boolean))
   const porMail = cx.conocidos.filter(k => k.email && mails.has(k.email.trim().toLowerCase()))
-  if (porMail.length === 1) {
-    if (elegido && elegido !== porMail[0]) ajustes.push(`Claude eligió «${elegido.nombre}» pero el mail del invitado es de «${porMail[0].nombre}»: gana el mail`)
-    if (!elegido) ajustes.push(`cliente cruzado con el CRM por el mail del invitado (${porMail[0].nombre})`)
+  // El mail en varios ID: si uno es el que eligió Claude, lo confirma; si son todos la misma persona, el vigente (el primero)
+  const mismaPersona = porMail.length > 1 && porMail.every(k => normNombre(k.nombre) === normNombre(porMail[0].nombre))
+  const porMailUnico = porMail.length === 1 ? porMail[0]
+    : elegido && porMail.includes(elegido) ? elegido
+    : mismaPersona ? porMail[0] : null
+  if (porMailUnico) {
+    if (elegido && elegido !== porMailUnico) ajustes.push(`Claude eligió «${elegido.nombre}» pero el mail del invitado es de «${porMailUnico.nombre}»: gana el mail`)
+    if (!elegido) ajustes.push(`cliente cruzado con el CRM por el mail del invitado (${porMailUnico.nombre}${porMail.length > 1 ? `, ${porMailUnico.id} entre ${porMail.map(k => k.id).join(', ')}` : ''})`)
     como = 'email'                       // el mail confirma (o corrige) el cruce: es lo más firme que hay
-    elegido = porMail[0]
+    elegido = porMailUnico
   }
   return {
     nombre_escuchado: escuchado,

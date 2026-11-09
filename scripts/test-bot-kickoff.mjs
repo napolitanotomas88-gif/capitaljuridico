@@ -225,6 +225,30 @@ describe('validarSalida (extracción)', () => {
     assert.ok(x.ajustes.some(a => /gana el mail/.test(a)))
     assert.equal(x.extraccion.cliente.email, 'ana@estudio.test')
   })
+  test('mismo cliente con dos ID (renovación, Freddy 9/11): gana el vigente o el ID que dijo Claude, no queda sin verificar', () => {
+    const conocidos = [
+      { id: 'A184', nombre: 'Juan Homónimo', estado: 'ACTIVO', email: 'juan@estudio.test', cuentas: [] },
+      { id: 'A120', nombre: 'Juan Homónimo', estado: 'FINALIZADO', email: 'juan@estudio.test', cuentas: [] },
+    ]
+    const sinMail = cx({ conocidos, emailsInvitados: [] })
+    let x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: 'Juan Homónimo', id_crm: 'A184' } }, sinMail)
+    assert.equal(x.extraccion.cliente.id_crm, 'A184')
+    assert.ok(!x.ajustes.some(a => /no coinciden/.test(a)), x.ajustes.join(' | '))
+    x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: 'Juan Homónimo', id_crm: 'A120' } }, sinMail)
+    assert.equal(x.extraccion.cliente.id_crm, 'A120', 'si Claude dijo el ID viejo con el mismo nombre, manda el ID')
+    x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: 'Juan Homónimo', id_crm: null } }, sinMail)
+    assert.equal(x.extraccion.cliente.id_crm, 'A184', 'solo por nombre: el vigente (primero de la lista)')
+    const conMail = cx({ conocidos, emailsInvitados: ['juan@estudio.test'] })
+    x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: null, id_crm: null } }, conMail)
+    assert.equal(x.extraccion.cliente.id_crm, 'A184')
+    assert.equal(x.extraccion.cliente.como, 'email')
+    x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: 'Juan Homónimo', id_crm: 'A120' } }, conMail)
+    assert.equal(x.extraccion.cliente.id_crm, 'A120', 'el mail confirma el ID elegido si es uno de los suyos')
+    // Mail compartido por dos personas distintas: sigue sin cruce por mail
+    const dos = cx({ conocidos: [conocidos[0], { ...conocidos[1], nombre: 'Otra Persona' }], emailsInvitados: ['juan@estudio.test'] })
+    x = extraccionDe({ cliente: { nombre_escuchado: 'Juan', cliente_crm: null, id_crm: null } }, dos)
+    assert.equal(x.extraccion.cliente.id_crm, null)
+  })
   test('rama desconocida → null con ajuste; normalizarRama acepta nombres y sinónimos', () => {
     const x = extraccionDe({ rama: { ...salidaClaude().rama, principal: 'derecho_del_mar' } })
     assert.equal(x.extraccion.rama.principal, null)
