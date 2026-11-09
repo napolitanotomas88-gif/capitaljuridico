@@ -87,6 +87,14 @@
 }
 .rc-zoom p { margin: 0; }
 
+/* Mini filtro de Lanzado (días desde el lanzamiento): chico, en la cabecera de la columna y en el zoom */
+.rc-mini-filtro { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cj-texto-2); }
+.rc-mini-filtro select {
+  min-height: 32px; padding: 2px 8px; border: 1px solid var(--cj-control); border-radius: var(--cj-radio-pildora);
+  background: var(--cj-sala); color: var(--cj-hueso); font: inherit; font-size: 13px; cursor: pointer;
+}
+.rc-mini-filtro--activo select { border-color: var(--cj-laton); }
+
 /* ── Tablero: columnas por etapa (escritorio). El marco esfuma el borde derecho: hay más etapas deslizando ── */
 .rc-marco { position: relative; }
 .rc-marco--desliza::after {
@@ -366,6 +374,8 @@
   }
   .rc-col:not(.rc-col--abierta) .rc-col__cuerpo { display: none; }
   .rc-col__cab { flex-wrap: nowrap; }
+  .rc-col--lanzado .rc-col__cab { flex-wrap: wrap; }
+  .rc-col__cab .rc-mini-filtro { order: 3; flex-basis: 100%; padding: 0 4px 6px; }
   .rc-col__freno { white-space: nowrap; }
   .rc-tablero { gap: 8px; }
   .rc-marco--desliza::after { display: none; }
