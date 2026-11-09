@@ -25,7 +25,7 @@ export interface EntradaTanda {
   ficha: ExtraccionKickoff
   ideas: IdeaGuion[]              // las aprobadas (sin las que las preferencias descartan)
   cantidad: number                // guiones de la tanda (~6)
-  ciudad: string                  // la zona que nombran algunos guiones (en el gancho o en el CTA); vacía = sin zona
+  ciudad: string                  // la zona que nombra cada guion (en el gancho o en el CTA); vacía = sin zona
   catalogo: string                // catalogoEnTexto()
   mercado: string | null
   kb: string | null
