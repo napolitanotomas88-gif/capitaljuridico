@@ -97,8 +97,10 @@ export function ciudadDeFicha(f: ExtraccionKickoff): string {
   const d = `${f.zona.descripcion ?? ''} ${f.zona.presentarse_como?.texto ?? ''}`
   const m = d.match(/provincia de ([A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?: (?:del |de )?[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+)*)/i)
   if (m) return m[1].trim()
-  const p = f.zona.presentarse_como?.texto?.replace(/\b(capital|centro|ciudad de)\b/gi, '').trim()
-  return p || f.zona.lugares[0] || ''
+  // Sin la aclaración entre paréntesis: «CABA (Ciudad Autónoma de Buenos Aires)» se nombra «CABA» (A184, 9/11/2026)
+  const limpio = (s: string | undefined) => (s ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  const p = limpio(f.zona.presentarse_como?.texto?.replace(/\b(capital|centro|ciudad de)\b/gi, ''))
+  return p || limpio(f.zona.lugares[0])
 }
 
 export function entradaDe(k: KickoffParaGuiones, fila: FilaTanda, kb: string | null): EntradaTanda {
