@@ -557,7 +557,7 @@ export function parsearAlta(mensaje: string): AltaParseada {
   if (r.modalidad === 'PP' && !r.cuotas.length) r.faltantes.push('Cuotas (fecha y monto)')
   const argentino = r.telefonos[0]?.numero.startsWith('54') ?? false
   if (argentino && !r.dni) r.faltantes.push('DNI')
-  if (argentino && !r.cuit) r.faltantes.push('CUIT')
+  // CUIT/CUIL opcional (Tomás, 9/11/2026): a veces no lo tenemos y no puede frenar el alta (ni el contrato ni el CRM lo usan)
   if (!r.direccion) r.faltantes.push('Dirección')
   if (r.etiquetaAlta && !r.closer) r.faltantes.push('Closer')
 

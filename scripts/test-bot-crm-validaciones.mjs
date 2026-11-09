@@ -246,7 +246,7 @@ describe('vista previa contra un CRM de juguete (crmServidor.ts, sin red)', () =
     escribirSnapshot()
     const p = await previa({ dni: '', cuit: '' })
     assert.ok(p.parser.faltantes.includes('DNI'))
-    assert.match(p.motivosNoApto.join(' '), /Faltan datos del closer: DNI, CUIT/)
+    assert.match(p.motivosNoApto.join(' '), /Faltan datos del closer: DNI\./)   // CUIT opcional (9/11)
     assert.equal(p.aptoParaEscribir, false)
   })
 })
