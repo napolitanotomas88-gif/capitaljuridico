@@ -283,7 +283,7 @@ describe('OK / NO desde la pantalla (mismo camino que la ruta manual)', () => {
     const resp = alta.esperas.find((x) => x.id === e.id).respuesta
     assert.equal(resp.veredicto, 'ok'); assert.equal(resp.por, 'manual:Aylu')
     // Confirmada: sigue como un #ALTA (pide lo que le falta al closer y lo que difiere del comprobante)
-    assert.ok(alta.esperas.some((x) => x.estado === 'abierta' && x.quien === 'closer' && x.pedido.some((p) => /CUIT/.test(p))))
+    assert.ok(alta.esperas.some((x) => x.estado === 'abierta' && x.quien === 'closer' && x.pedido.some((p) => /DNI/.test(p)) && !x.pedido.some((p) => /CUIT/.test(p))))   // CUIT opcional (9/11)
     assert.ok(alta.esperas.some((x) => x.estado === 'abierta' && x.motivo === 'validar'))
     // Ya respondida: 409
     assert.equal((await m.post({ accion: 'responder', alta_id: r.json.altaId, espera_id: e.id, texto: 'OK' }, [], AYLU)).status, 409)

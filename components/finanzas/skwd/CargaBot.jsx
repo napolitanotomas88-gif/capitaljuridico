@@ -107,7 +107,7 @@ export default function CargaBot({ onListo }) {
             {campo('correo', 'Correo', { type: 'email', required: true })}
             {campo('inicio', 'Inicio del servicio', { type: 'date', required: true })}
             {campo('dni', 'DNI / CI', { required: true })}
-            {campo('cuit', 'CUIT / CUIL', { required: true })}
+            {campo('cuit', 'CUIT / CUIL (si lo tenés)')}
             {campo('direccion', 'Dirección', { required: true })}
             {campo('socios', 'Socios (nombre, teléfono y correo; «No tiene» si no hay)')}
             <label style={{ gridColumn: '1 / -1' }}>
