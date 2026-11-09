@@ -238,3 +238,18 @@ test('e01 «para enviar»: el día 0 vencido queda registrado una vez por paso, 
   // de noche no
   assert.equal((await W.paraEnviarE01(deps, { ahora: new Date('2026-11-04T02:00:00Z'), modo: 'real', deadline: Date.now() + 60_000 })).apagado, 'fuera de horario (9 a 20 h)')
 })
+
+test('alertarCon con plantilla (9/11): texto libre, cada mención en su lugar y el link; en ensayo, nombres sin notificar', async () => {
+  const FAUS = '100000000000000009'
+  const env = { ...envIds, DISCORD_ID_FAUS: FAUS, DISCORD_WEBHOOK_GUIONES: wh(3), DISCORD_WEBHOOK_SISTEMA: wh(2) }
+  const enviados = []
+  const a = { canal: 'guiones', tipo: 'guiones_revisar', clave: 'g:1', titulo: 'Guiones listos', cliente: 'Daniel', link: '/guiones/A145', menciones: ['faus', 'tomas', 'gero_m'],
+    plantilla: 'Guiones de Daniel listos para revisar. {@faus} revisalos, verificá cada uno y dale al check al final. {@tomas} {@gero_m}\n{link}' }
+  assert.equal((await A.alertarCon(a, deps(env, enviados))).estado, 'enviado')
+  assert.equal(enviados[0].texto, `Guiones de Daniel listos para revisar. <@${FAUS}> revisalos, verificá cada uno y dale al check al final. <@${ID.tomas}> <@${ID.gero_m}>\nhttps://despacho.example/guiones/A145`)
+  assert.deepEqual([...enviados[0].menciones].sort(), [FAUS, ID.tomas, ID.gero_m].sort())
+  const prueba = []
+  await A.alertarCon({ ...a, clave: 'g:2' }, deps({ ...env, ALERTAS_DISCORD: 'ensayo' }, prueba))
+  assert.match(prueba[0].texto, /^🧪 PRUEBA · Guiones de Daniel listos para revisar\. Faus revisalos.*Tomás Gero M\n/)
+  assert.deepEqual(prueba[0].menciones, [])
+})

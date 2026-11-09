@@ -4,11 +4,11 @@
 // enterara (el aviso salió por WhatsApp, que ya no existe).
 //   · Toda tanda que pasa a «a_revisar» (nueva, corregida con las notas del cliente, rearmada con la API, retomada…) avisa
 //     en ✍️-guiones mencionando a Faus (revisa y da el check final) y Gero M (atento), con cliente, tanda y link /guiones/<ID>.
-//     Tomás (3/11/2026): «yo no le tengo que dar check final de nada, Faus es el que da el check final» → Tomás no se
-//     menciona en ningún aviso de revisión (sigue pudiendo aprobar desde la pantalla si quiere).
+//     Tomás (3/11/2026): «Faus es el que da el check final» → Tomás no se menciona en ningún aviso de revisión (9/11: lo
+//     confirmó al pasar el aviso a texto corto con link).
 //   · Cada vuelta en «a_revisar» es una RONDA (tabla cj_guiones_revision: desde cuándo, qué aviso salió). El vigía (cada 15
-//     min) y el cron diario corren correrRecordatoriosRevision: a las 24 h menciona a Faus y Gero M; a las 48 h escala a
-//     Gero M con un texto más firme («¿lo destrabás?»). Solo de 9 a 20 h (Argentina). Cada recordatorio tiene su clave en cj_alertas_discord: nunca sale dos veces.
+//     min) y el cron diario corren correrRecordatoriosRevision: a las 24 h sale UN recordatorio «🚨 URGENTE» con el mismo
+//     texto y menciones (9/11/2026; antes había otro a las 48 h). Solo de 9 a 20 h (Argentina). Cada recordatorio tiene su clave en cj_alertas_discord: nunca sale dos veces.
 //     Cortan solos cuando la tanda sale de «a_revisar» (la ronda se borra).
 //   · Si una tanda está en «a_revisar» sin ronda (el aviso no salió, un camino viejo), el vigía manda el aviso inicial.
 import type { Alerta } from '@/lib/alertas/alerta'
@@ -16,12 +16,14 @@ import type { Mencion } from '@/lib/alertas/personas'
 import type { FilaTanda } from './registro'
 
 export type TipoRevision = 'revisar' | 'corregida'
-export type EtapaRecordatorio = 'rec24' | 'rec48'
+// 9/11/2026 (Tomás): un solo recordatorio por tanda, a las 24 h, con «🚨 URGENTE» adelante (el de 48 h se sacó)
+export type EtapaRecordatorio = 'rec24'
 
-/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa y da el check final) y Gero M (atento por si Faus tarda). */
+/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa y da el check final) y Gero M (atento por si Faus tarda).
+ *  Tomás no (3/11 y 9/11/2026). Los IDs salen de DISCORD_ID_FAUS y DISCORD_ID_GERO_M. */
 export const MENCIONES_REVISION: readonly Mencion[] = ['faus', 'gero_m']
-export const MENCIONES_REC: Record<EtapaRecordatorio, readonly Mencion[]> = { rec24: ['faus', 'gero_m'], rec48: ['gero_m', 'faus'] }
-export const HORAS_REC: Record<EtapaRecordatorio, number> = { rec24: 24, rec48: 48 }
+export const MENCIONES_REC: Record<EtapaRecordatorio, readonly Mencion[]> = { rec24: MENCIONES_REVISION }
+export const HORAS_REC: Record<EtapaRecordatorio, number> = { rec24: 24 }
 export const HORA_DESDE = 9
 export const HORA_HASTA = 20
 /** Estados del aviso inicial que NO se reintentan (salió o pudo haber salido). */
@@ -44,53 +46,40 @@ const nombreDe = (fila: FilaTanda) => fila.cliente?.trim() || fila.id_crm || 'cl
 /** La clave del aviso inicial de una ronda (la misma de siempre: tanda, tipo y el momento en que pasó a revisión). */
 export const claveAviso = (fila: FilaTanda, tipo: TipoRevision) => `guiones:${fila.id}:${tipo}:${fila.actualizado}`
 
+/** El texto del aviso (Tomás, 9/11/2026): corto, sin reglas ni detalle de cambios, con las menciones y SIEMPRE el link.
+ *  «Guiones de Daniel Álvarez Toscano listos para revisar. @Faus revisalos, verificá cada uno y dale al check al final. @Gero M»
+ *  El recordatorio de 24 h es el mismo texto con «🚨 URGENTE» adelante. */
+export function plantillaRevision(fila: FilaTanda, tipo: TipoRevision, urgente = false): string {
+  const que = tipo === 'revisar' ? 'listos para revisar' : 'corregidos con lo que pidió el cliente, listos para revisar'
+  return `${urgente ? '🚨 URGENTE ' : ''}Guiones de ${nombreDe(fila)} ${que}. {@faus} revisalos, verificá cada uno y dale al check al final. {@gero_m}\n{link}`
+}
+
 /** El aviso de «lista para revisar» (o «corregida con lo que pidió el cliente»). */
 export function alertaRevision(fila: FilaTanda, tipo: TipoRevision, clave: string = claveAviso(fila, tipo)): Alerta {
-  const n = Object.keys(fila.guiones).length
   return {
     canal: 'guiones', tipo: tipo === 'revisar' ? 'guiones_revisar' : 'guiones_correcciones', clave, idCrm: fila.id_crm,
-    emoji: tipo === 'revisar' ? '✍️' : '🔁',
-    titulo: tipo === 'revisar' ? `Guiones listos para revisar (${n}, tanda ${fila.tanda})` : `El cliente pidió cambios y el bot ya los aplicó (tanda ${fila.tanda})`,
-    cliente: nombreDe(fila),
-    lineas: ['Faus: revisalos, verificá cada uno y da el check final.', 'Gero M: atento por si se demora.'],
-    link: linkDe(fila), menciones: MENCIONES_REVISION,
+    titulo: `Guiones ${tipo === 'revisar' ? 'listos para revisar' : 'corregidos'} (tanda ${fila.tanda})`, cliente: nombreDe(fila),
+    plantilla: plantillaRevision(fila, tipo), link: linkDe(fila), menciones: MENCIONES_REVISION,
   }
 }
 
 /** Horas (enteras hacia abajo) desde que la tanda quedó para revisar. */
 export const horasDesde = (desde: string, ahora: Date) => Math.floor((ahora.getTime() - Date.parse(desde)) / 3_600_000)
 
-/** Qué recordatorio toca (el más alto que corresponde; si ya pasaron 48 h no se manda el de 24). null = ninguno todavía. */
+/** Qué recordatorio toca: el de 24 h (uno solo por ronda: su clave en cj_alertas_discord no lo deja repetir). null = todavía no. */
 export function etapaQueToca(desde: string, ahora: Date): EtapaRecordatorio | null {
   if (Number.isNaN(Date.parse(desde))) return null
-  const h = horasDesde(desde, ahora)
-  return h >= HORAS_REC.rec48 ? 'rec48' : h >= HORAS_REC.rec24 ? 'rec24' : null
+  return horasDesde(desde, ahora) >= HORAS_REC.rec24 ? 'rec24' : null
 }
 
 export const claveRecordatorio = (r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio) => `guiones_revision:${r.tanda_id}:${new Date(r.desde).toISOString()}:${etapa}`
 
-/** Cómo va la verificación de la tanda, para los recordatorios (CONSULTOR, 3/11/2026): «Van 5 de 6 verificados: falta el 3»,
- *  «Los 6 verificados: falta el check final» o «Ninguno verificado todavía». Puro. */
-export function estadoVerificacion(fila: Pick<FilaTanda, 'guiones'>): string {
-  const gs = Object.entries(fila.guiones), total = gs.length
-  const faltan = gs.filter(([, g]) => !(g.verificado && typeof g.verificado === 'object')).map(([n]) => Number(n)).sort((a, b) => a - b)
-  if (!faltan.length) return `Los ${total} verificados: falta el check final.`
-  if (faltan.length === total) return 'Ninguno verificado todavía.'
-  const cuales = faltan.length === 1 ? `el ${faltan[0]}` : `${faltan.slice(0, -1).join(', ')} y ${faltan[faltan.length - 1]}`
-  return `Van ${total - faltan.length} de ${total} verificados: ${faltan.length === 1 ? 'falta' : 'faltan'} ${cuales} y después el check final.`
-}
-
-/** El recordatorio de 24 h (Faus y Gero M) o de 48 h (escala a Gero M: «¿lo destrabás?»). */
+/** El recordatorio de 24 h: el mismo aviso con «🚨 URGENTE» adelante y las mismas menciones (Tomás, 9/11/2026). */
 export function alertaRecordatorio(fila: FilaTanda, r: Pick<Ronda, 'tanda_id' | 'desde'>, etapa: EtapaRecordatorio, ahora: Date): Alerta {
-  const h = horasDesde(r.desde, ahora)
   return {
-    canal: 'guiones', tipo: `guiones_revision_${etapa}`, clave: claveRecordatorio(r, etapa), idCrm: fila.id_crm,
-    emoji: etapa === 'rec48' ? '🚩' : '⏰',
-    titulo: `Guiones sin revisar hace ${h} h (tanda ${fila.tanda})`, cliente: nombreDe(fila),
-    lineas: etapa === 'rec48'
-      ? [`Faus lleva ${h} h sin revisar la tanda ${fila.tanda} de ${nombreDe(fila)}; Gero M, ¿lo destrabás?`, estadoVerificacion(fila)]
-      : ['Faus, ¿la podés revisar? Gero M, atento.', estadoVerificacion(fila)],
-    link: linkDe(fila), menciones: MENCIONES_REC[etapa],
+    canal: 'guiones', tipo: `guiones_revision_${etapa}`, clave: claveRecordatorio(r, etapa), idCrm: fila.id_crm, urgente: true,
+    titulo: `Guiones sin revisar hace ${horasDesde(r.desde, ahora)} h (tanda ${fila.tanda})`, cliente: nombreDe(fila),
+    plantilla: plantillaRevision(fila, 'revisar', true), link: linkDe(fila), menciones: MENCIONES_REC[etapa],
   }
 }
 
@@ -112,7 +101,7 @@ export function alertaBarrido(items: { fila: FilaTanda; desde: string }[], base:
       ...(items.length > 5 ? [`y ${items.length - 4} más en <${b}/guiones>`] : []),
       'Faus: revisalas, verificalas y da el check final. Gero M: atento.',
     ],
-    menciones: MENCIONES_REVISION,
+    menciones: ['faus', 'gero_m'],
   }
 }
 

@@ -8,42 +8,34 @@ const AHORA = new Date('2026-11-03T18:00:00Z')
 const hace = h => new Date(AHORA.getTime() - h * 3_600_000).toISOString()
 const fila = (id, extra = {}) => ({ id, tanda: 1, id_crm: `A${id}`, cliente: `Cliente ${id}`, estado: 'a_revisar', actualizado: hace(1), guiones: { 1: {}, 2: {}, 3: {} }, ...extra })
 
-test('aviso: menciona a Faus y Gero M (nunca a Tomás), con cliente, tanda y link', () => {
-  const a = R.alertaRevision(fila(7, { cliente: 'Cliente Prueba', id_crm: 'A169' }), 'revisar')
+test('aviso (9/11): corto, con Faus y Gero M (nunca Tomás), y siempre el link', () => {
+  const a = R.alertaRevision(fila(7, { cliente: 'Daniel Álvarez Toscano', id_crm: 'A169' }), 'revisar')
   assert.equal(a.canal, 'guiones')
   assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
-  assert.match(a.lineas.join(' '), /Faus: .*check final/)
-  assert.doesNotMatch(a.lineas.join(' '), /Tomi|Tomás/)
-  assert.match(a.titulo, /tanda 1/)
-  assert.equal(a.cliente, 'Cliente Prueba')
+  assert.equal(a.plantilla, 'Guiones de Daniel Álvarez Toscano listos para revisar. {@faus} revisalos, verificá cada uno y dale al check al final. {@gero_m}\n{link}')
+  assert.equal(a.lineas, undefined, 'sin reglas ni detalle de cambios')
   assert.equal(a.link, '/guiones/A169')
   assert.equal(a.clave, `guiones:7:revisar:${hace(1)}`)
   const c = R.alertaRevision(fila(7), 'corregida')
   assert.equal(c.tipo, 'guiones_correcciones')
-  assert.deepEqual([...c.menciones].sort(), ['faus', 'gero_m'])
-  assert.equal(c.emoji, '🔁')
+  assert.match(c.plantilla, /^Guiones de Cliente 7 corregidos con lo que pidió el cliente, listos para revisar\. \{@faus\}/)
 })
 
-test('etapa: nada antes de 24 h, rec24 entre 24 y 48, rec48 desde 48 (sin repetir la de 24)', () => {
+test('etapa (9/11): un solo recordatorio, a las 24 h', () => {
   assert.equal(R.etapaQueToca(hace(23.9), AHORA), null)
   assert.equal(R.etapaQueToca(hace(24), AHORA), 'rec24')
-  assert.equal(R.etapaQueToca(hace(47), AHORA), 'rec24')
-  assert.equal(R.etapaQueToca(hace(48), AHORA), 'rec48')
-  assert.equal(R.etapaQueToca(hace(200), AHORA), 'rec48')
+  assert.equal(R.etapaQueToca(hace(200), AHORA), 'rec24', 'después sigue siendo el mismo (su clave no deja que salga dos veces)')
   assert.equal(R.etapaQueToca('cualquiera', AHORA), null)
 })
 
-test('recordatorios: 24 h → Faus y Gero M; 48 h → escala a Gero M sin Tomás; clave por ronda y etapa', () => {
+test('recordatorio de 24 h (9/11): mismo texto con «🚨 URGENTE» adelante, mismas menciones, clave por ronda', () => {
   const r = { tanda_id: 7, desde: hace(30) }
   const a = R.alertaRecordatorio(fila(7), r, 'rec24', AHORA)
   assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
-  assert.match(a.lineas[0], /Faus, ¿la podés revisar\? Gero M, atento/)
+  assert.equal(a.plantilla, '🚨 URGENTE ' + R.alertaRevision(fila(7), 'revisar').plantilla)
+  assert.equal(a.urgente, true)
   assert.equal(a.clave, `guiones_revision:7:${hace(30)}:rec24`)
-  const b = R.alertaRecordatorio(fila(7), { tanda_id: 7, desde: hace(50) }, 'rec48', AHORA)
-  assert.deepEqual([...b.menciones].sort(), ['faus', 'gero_m'])
-  assert.match(b.lineas[0], /^Faus lleva 50 h sin revisar la tanda 1 de Cliente 7; Gero M, ¿lo destrabás\?$/)
-  assert.doesNotMatch(b.lineas.join(' '), /Tomi|Tomás/)
-  assert.notEqual(a.clave, b.clave)
+  assert.equal(R.alertaRecordatorio(fila(7), r, 'rec24', new Date(AHORA.getTime() + 86_400_000)).clave, a.clave, 'la misma clave aunque pasen días: no se repite')
 })
 
 test('horario: de 9 a 20 h de Argentina', () => {
@@ -87,7 +79,7 @@ test('vuelta: sin ronda → aviso inicial (una sola vez); con ronda vieja → re
   ])
   const r = await R.correrRecordatoriosRevision(x.d, { ahora: AHORA })
   assert.deepEqual(x.log.avisos, [[1, 'revisar']])
-  assert.deepEqual(x.log.alertas.map(a => a.tipo), ['guiones_revision_rec24', 'guiones_revision_rec48'])
+  assert.deepEqual(x.log.alertas.map(a => a.tipo), ['guiones_revision_rec24', 'guiones_revision_rec24'])
   assert.deepEqual(x.log.limpiar, [1, 2, 3, 4])
   assert.equal(r.errores.length, 0)
   // segunda vuelta: la tanda 1 ya tiene ronda (reservada): no se avisa de nuevo
@@ -132,10 +124,3 @@ test('vuelta: ronda reservada por el vigía que quedó «enviando» sin clave �
   assert.equal(x.log.alertas.length, 0)
 })
 
-test('recordatorio: dice cómo va la verificación (faltan X o falta el check final)', () => {
-  const v = { quien: 'Faus', email: 'x@y.z', cuando: hace(30) }
-  const r = { tanda_id: 7, desde: hace(25) }
-  assert.equal(R.alertaRecordatorio(fila(7), r, 'rec24', AHORA).lineas[1], 'Ninguno verificado todavía.')
-  assert.equal(R.alertaRecordatorio(fila(7, { guiones: { 1: { verificado: v }, 2: { verificado: v }, 3: {} } }), r, 'rec24', AHORA).lineas[1], 'Van 2 de 3 verificados: falta el 3 y después el check final.')
-  assert.equal(R.alertaRecordatorio(fila(7, { guiones: { 1: { verificado: v }, 2: { verificado: v }, 3: { verificado: v } } }), r, 'rec48', AHORA).lineas[1], 'Los 3 verificados: falta el check final.')
-})

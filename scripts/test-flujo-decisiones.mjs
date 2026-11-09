@@ -6,7 +6,7 @@
 //   4. si falla la carga de la tanda en el Doc, alerta en #🧰-sistema-bot a Gero M y Aylu con el link para reintentar.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { textoGuionesParaGrabar } from '../lib/bot/guiones/envio.ts'
+import { textoGuionesParaGrabar, urlTanda } from '../lib/bot/guiones/envio.ts'
 import { textoD02Unificado } from '../lib/bot/guiones/whatsappCliente.ts'
 import { paraEnviarE01 } from '../lib/bot/grabacion/e01Whatsapp.ts'
 import { RESPONSABLE } from '../lib/bot/grabacion/seguimiento.ts'
@@ -25,14 +25,19 @@ test('1 · el texto unificado lleva el link, la tanda del Doc y el pedido de gra
   assert.ok(t.includes(URL)); assert.match(t, /Tanda 3/); assert.match(t, /6 guiones nuevos/)
   assert.match(t, /¿Te queda bien grabarlos para el miércoles 4\/11\?/)
   assert.match(t, /carpeta de Crudos/)
-  assert.doesNotMatch(t, /\bno\b/i, 'los textos al cliente no llevan la palabra «no»')
 })
-test('1 · corregida y con un solo guion: concordancia en singular', () => {
-  const c = textoGuionesParaGrabar(fila({ notas: [{ aplicada: true }] }), URL, 'el jueves 5/11')
-  assert.match(c, /con los cambios que nos pediste/); assert.match(c, /grabarlos para el jueves 5\/11/)
-  const u = textoGuionesParaGrabar(fila({ guiones: { 1: {} } }), URL, 'el jueves 5/11')
-  assert.match(u, /tenés el guion nuevo/); assert.match(u, /grabarlo para el jueves 5\/11/); assert.match(u, /lo subas/)
-  for (const t of [c, u]) assert.doesNotMatch(t, /\bno\b/i)
+test('1 · texto exacto de Tomás (9/11), con la tanda, el link y la fecha', () => {
+  const t = textoGuionesParaGrabar(fila(), URL, 'el jueves 5/11')
+  assert.equal(t, `¡Hola Lucía! Ya están los 6 guiones nuevos. Los dejé en tu documento de guiones, en la Tanda 3: ${URL}\n`
+    + 'Leelos y comentanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
+    + '¿Te queda bien grabarlos para el jueves 5/11? Cuando los subas a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.')
+  assert.equal(textoGuionesParaGrabar(fila({ notas: [{ aplicada: true }] }), URL, 'el jueves 5/11'), t, 'el mismo texto en la 2.ª ronda')
+})
+test('1 · el link va directo a la tanda cuando el puente devuelve el ancla', () => {
+  assert.equal(urlTanda('DOC1', { tab: 't.0', heading: 'h.abc123' }), 'https://docs.google.com/document/d/DOC1/edit?tab=t.0#heading=h.abc123')
+  assert.equal(urlTanda('DOC1', { tab: null, heading: 'h.abc123' }), 'https://docs.google.com/document/d/DOC1/edit#heading=h.abc123')
+  assert.equal(urlTanda('DOC1', null), 'https://docs.google.com/document/d/DOC1/edit')
+  assert.equal(urlTanda('DOC1', { tab: 't.0', heading: 'javascript:x' }), 'https://docs.google.com/document/d/DOC1/edit')
 })
 test('1 · el «para enviar» unificado menciona a Aylu y Gero M', () => {
   assert.deepEqual(responsablesDe('d02', {}), ['aylu', 'gero_m'])

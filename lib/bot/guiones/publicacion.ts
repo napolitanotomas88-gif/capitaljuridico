@@ -1,6 +1,6 @@
 import * as reg from './registro'
 import { resolverDocumento, depsDocumentoReales, type DocAutomatico } from './documento'
-import { escribirEnDoc, marcarParaGrabar, type ResultadoChips, type ResultadoDoc } from './envio'
+import { escribirEnDoc, marcarParaGrabar, urlTanda, type ResultadoChips, type ResultadoDoc } from './envio'
 import { notificarEntrega } from './entrega'
 import type { FilaTanda } from './registro'
 import { exigirClienteNoArchivado } from '@/lib/clientes/archivados'
@@ -93,7 +93,7 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
     const d = await deps.escribir(fila, doc.id, hasta)
     if (d.estado !== 'ok') { dudoso = d.estado === 'dudoso'; throw new Error(d.motivo) }
     if (d.id !== doc.id) { dudoso = true; throw new Error('El puente respondió con otro documento. Revisar antes de entregar.') }
-    await deps.guardar(id, { id: d.id, url: `https://docs.google.com/document/d/${d.id}/edit`, tanda: d.tanda, publicada: fila.aprobacion!.cuando })
+    await deps.guardar(id, { id: d.id, url: urlTanda(d.id, d.ancla), tanda: d.tanda, publicada: fila.aprobacion!.cuando })
     const cantidad = Object.keys(fila.guiones).length
     if (deps.marcarChips && d.tanda && cantidad) {
       const c = await deps.marcarChips(d.id, d.tanda, cantidad, hasta).catch((e): ResultadoChips => ({ estado: 'error', motivo: String((e as Error)?.message ?? e) }))
