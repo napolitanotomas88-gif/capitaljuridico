@@ -110,13 +110,13 @@ export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
 
 /** d02 + día 0 de grabación en UN solo mensaje: el link a la tanda en el Doc y el pedido de grabar con la fecha sugerida (dos
  *  días hábiles después de hoy, como el día 0 de e01). `fecha` ya viene para el cliente («el jueves 5/11»).
- *  Texto exacto de Tomás (9/11/2026), tal cual lo dio (con «estan» y «cometanos»), también para clientes de fuera de Argentina. */
+ *  Texto exacto de Tomás (9/11/2026; con su OK se corrigieron «están» y «comentanos»), también para clientes de fuera de Argentina. */
 export function textoGuionesParaGrabar(fila: FilaTanda, urlDoc: string, fecha: string): string {
   const nombre = (fila.cliente ?? '').trim().split(/\s+/)[0] || ''
   const n = Object.keys(fila.guiones).length
   const tanda = fila.doc?.tanda ?? fila.tanda
-  return `¡Hola${nombre ? ` ${nombre}` : ''}! Ya estan los ${n} guiones nuevos. Los dejé en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\n`
-    + 'Leelos y cometanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
+  return `¡Hola${nombre ? ` ${nombre}` : ''}! Ya están los ${n} guiones nuevos. Los dejé en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\n`
+    + 'Leelos y comentanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
     + `¿Te queda bien grabarlos para ${fecha}? Cuando los subas a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.`
 }
 

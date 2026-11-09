@@ -79,7 +79,7 @@ test('d02: corrección / 2.ª ronda (otra aprobación, la anterior ya enviada) �
   const x = deps([{ id: 5, clave: 'd02:6:2026-10-30T10:00:00.000Z', estado: 'enviado', datos: { tanda: 6 } }])
   await W.guionesParaEnviar(fila({ notas: [{ id: 'n', aplicada: '2026-11-01' }] }), new Date(), null, x.d)
   assert.equal(x.log.creados.length, 1)
-  assert.match(x.log.creados[0].texto, /Ya estan los \d+ guiones nuevos/, 'texto único de Tomás (9/11), también para la 2.ª ronda')
+  assert.match(x.log.creados[0].texto, /Ya están los \d+ guiones nuevos/, 'texto único de Tomás (9/11), también para la 2.ª ronda')
 })
 
 test('d02: el pendiente que salió con el Doc en duda se actualiza cuando el Doc queda bien (y avisa en 📤)', async () => {

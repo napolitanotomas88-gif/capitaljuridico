@@ -8,11 +8,11 @@ const AHORA = new Date('2026-11-03T18:00:00Z')
 const hace = h => new Date(AHORA.getTime() - h * 3_600_000).toISOString()
 const fila = (id, extra = {}) => ({ id, tanda: 1, id_crm: `A${id}`, cliente: `Cliente ${id}`, estado: 'a_revisar', actualizado: hace(1), guiones: { 1: {}, 2: {}, 3: {} }, ...extra })
 
-test('aviso (9/11): corto, con Faus, Tomás y Gero M, y siempre el link', () => {
+test('aviso (9/11): corto, con Faus y Gero M (nunca Tomás), y siempre el link', () => {
   const a = R.alertaRevision(fila(7, { cliente: 'Daniel Álvarez Toscano', id_crm: 'A169' }), 'revisar')
   assert.equal(a.canal, 'guiones')
-  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m', 'tomas'])
-  assert.equal(a.plantilla, 'Guiones de Daniel Álvarez Toscano listos para revisar. {@faus} revisalos, verificá cada uno y dale al check al final. {@tomas} {@gero_m}\n{link}')
+  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
+  assert.equal(a.plantilla, 'Guiones de Daniel Álvarez Toscano listos para revisar. {@faus} revisalos, verificá cada uno y dale al check al final. {@gero_m}\n{link}')
   assert.equal(a.lineas, undefined, 'sin reglas ni detalle de cambios')
   assert.equal(a.link, '/guiones/A169')
   assert.equal(a.clave, `guiones:7:revisar:${hace(1)}`)
@@ -31,7 +31,7 @@ test('etapa (9/11): un solo recordatorio, a las 24 h', () => {
 test('recordatorio de 24 h (9/11): mismo texto con «🚨 URGENTE» adelante, mismas menciones, clave por ronda', () => {
   const r = { tanda_id: 7, desde: hace(30) }
   const a = R.alertaRecordatorio(fila(7), r, 'rec24', AHORA)
-  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m', 'tomas'])
+  assert.deepEqual([...a.menciones].sort(), ['faus', 'gero_m'])
   assert.equal(a.plantilla, '🚨 URGENTE ' + R.alertaRevision(fila(7), 'revisar').plantilla)
   assert.equal(a.urgente, true)
   assert.equal(a.clave, `guiones_revision:7:${hace(30)}:rec24`)

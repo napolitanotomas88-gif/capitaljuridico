@@ -28,8 +28,8 @@ test('1 · el texto unificado lleva el link, la tanda del Doc y el pedido de gra
 })
 test('1 · texto exacto de Tomás (9/11), con la tanda, el link y la fecha', () => {
   const t = textoGuionesParaGrabar(fila(), URL, 'el jueves 5/11')
-  assert.equal(t, `¡Hola Lucía! Ya estan los 6 guiones nuevos. Los dejé en tu documento de guiones, en la Tanda 3: ${URL}\n`
-    + 'Leelos y cometanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
+  assert.equal(t, `¡Hola Lucía! Ya están los 6 guiones nuevos. Los dejé en tu documento de guiones, en la Tanda 3: ${URL}\n`
+    + 'Leelos y comentanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
     + '¿Te queda bien grabarlos para el jueves 5/11? Cuando los subas a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.')
   assert.equal(textoGuionesParaGrabar(fila({ notas: [{ aplicada: true }] }), URL, 'el jueves 5/11'), t, 'el mismo texto en la 2.ª ronda')
 })

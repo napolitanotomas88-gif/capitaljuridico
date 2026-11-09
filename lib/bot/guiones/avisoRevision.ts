@@ -4,8 +4,8 @@
 // enterara (el aviso salió por WhatsApp, que ya no existe).
 //   · Toda tanda que pasa a «a_revisar» (nueva, corregida con las notas del cliente, rearmada con la API, retomada…) avisa
 //     en ✍️-guiones mencionando a Faus (revisa y da el check final) y Gero M (atento), con cliente, tanda y link /guiones/<ID>.
-//     Tomás (3/11/2026): «Faus es el que da el check final». 9/11/2026: igual se lo menciona en el aviso (corto, con link),
-//     pero el check sigue siendo de Faus.
+//     Tomás (3/11/2026): «Faus es el que da el check final» → Tomás no se menciona en ningún aviso de revisión (9/11: lo
+//     confirmó al pasar el aviso a texto corto con link).
 //   · Cada vuelta en «a_revisar» es una RONDA (tabla cj_guiones_revision: desde cuándo, qué aviso salió). El vigía (cada 15
 //     min) y el cron diario corren correrRecordatoriosRevision: a las 24 h sale UN recordatorio «🚨 URGENTE» con el mismo
 //     texto y menciones (9/11/2026; antes había otro a las 48 h). Solo de 9 a 20 h (Argentina). Cada recordatorio tiene su clave en cj_alertas_discord: nunca sale dos veces.
@@ -19,9 +19,9 @@ export type TipoRevision = 'revisar' | 'corregida'
 // 9/11/2026 (Tomás): un solo recordatorio por tanda, a las 24 h, con «🚨 URGENTE» adelante (el de 48 h se sacó)
 export type EtapaRecordatorio = 'rec24'
 
-/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa y da el check final), Tomás (9/11/2026: va siempre en el
- *  aviso; su ID sale de DISCORD_ID_TOMAS) y Gero M (atento por si Faus tarda). */
-export const MENCIONES_REVISION: readonly Mencion[] = ['faus', 'tomas', 'gero_m']
+/** Quiénes se mencionan en el aviso de «para revisar»: Faus (revisa y da el check final) y Gero M (atento por si Faus tarda).
+ *  Tomás no (3/11 y 9/11/2026). Los IDs salen de DISCORD_ID_FAUS y DISCORD_ID_GERO_M. */
+export const MENCIONES_REVISION: readonly Mencion[] = ['faus', 'gero_m']
 export const MENCIONES_REC: Record<EtapaRecordatorio, readonly Mencion[]> = { rec24: MENCIONES_REVISION }
 export const HORAS_REC: Record<EtapaRecordatorio, number> = { rec24: 24 }
 export const HORA_DESDE = 9
@@ -47,11 +47,11 @@ const nombreDe = (fila: FilaTanda) => fila.cliente?.trim() || fila.id_crm || 'cl
 export const claveAviso = (fila: FilaTanda, tipo: TipoRevision) => `guiones:${fila.id}:${tipo}:${fila.actualizado}`
 
 /** El texto del aviso (Tomás, 9/11/2026): corto, sin reglas ni detalle de cambios, con las menciones y SIEMPRE el link.
- *  «Guiones de Daniel Álvarez Toscano listos para revisar. @Faus revisalos, verificá cada uno y dale al check al final. @Tomás»
+ *  «Guiones de Daniel Álvarez Toscano listos para revisar. @Faus revisalos, verificá cada uno y dale al check al final. @Gero M»
  *  El recordatorio de 24 h es el mismo texto con «🚨 URGENTE» adelante. */
 export function plantillaRevision(fila: FilaTanda, tipo: TipoRevision, urgente = false): string {
   const que = tipo === 'revisar' ? 'listos para revisar' : 'corregidos con lo que pidió el cliente, listos para revisar'
-  return `${urgente ? '🚨 URGENTE ' : ''}Guiones de ${nombreDe(fila)} ${que}. {@faus} revisalos, verificá cada uno y dale al check al final. {@tomas} {@gero_m}\n{link}`
+  return `${urgente ? '🚨 URGENTE ' : ''}Guiones de ${nombreDe(fila)} ${que}. {@faus} revisalos, verificá cada uno y dale al check al final. {@gero_m}\n{link}`
 }
 
 /** El aviso de «lista para revisar» (o «corregida con lo que pidió el cliente»). */
