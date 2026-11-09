@@ -308,3 +308,16 @@ test('la etapa alta se muestra como «Onboard» (4/11/2026); la clave sigue sien
   assert.equal(R.NOMBRE_ETAPA.alta, 'Onboard')
   assert.equal(R.ETAPAS[0], 'alta')
 })
+
+test('mini filtro de Lanzado: días desde el lanzamiento, solo filtra a los de Lanzado (9/11)', () => {
+  const F = R.FILTROS_RECORRIDO_INICIALES
+  const fila = (id, etapa, diasEtapa) => ({ id, nombre: id, closer: '', etapa, fuente: 'meta', desde: null, diasEtapa, diasCliente: 40, frenado: false, alertas: [], detalle: '', contento: null, venceEn: null })
+  const filas = [fila('L1', 'lanzado', 0), fila('L7', 'lanzado', 6), fila('L8', 'lanzado', 7), fila('L11', 'lanzado', 10), fila('LX', 'lanzado', null), fila('G', 'guiones', 50)]
+  const ids = r => R.filtrarRecorrido(filas, { ...F, lanzado: r }).map(x => x.id)
+  assert.deepEqual(ids('todos'), ['L1', 'L7', 'L8', 'L11', 'LX', 'G'])
+  assert.deepEqual(ids('d7'), ['L1', 'L7', 'G'], 'día 1 = el día del lanzamiento; las otras etapas no se filtran')
+  assert.deepEqual(ids('d10'), ['L1', 'L7', 'L8', 'G'])
+  assert.deepEqual(ids('mas7'), ['L8', 'L11', 'G'])
+  assert.deepEqual(ids('mas10'), ['L11', 'G'])
+  assert.equal(R.diaLanzado({ diasEtapa: 0 }), 1)
+})

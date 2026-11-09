@@ -244,8 +244,21 @@ export function ubicarCliente(c: ClienteRecorrido, f: FuentesCliente, hoy: Ymd, 
 export const RANGOS_ANTIGUEDAD = ['todos', 'nuevos', 'medio', 'veteranos'] as const
 export type RangoAntiguedad = (typeof RANGOS_ANTIGUEDAD)[number]
 export const NOMBRE_RANGO: Record<RangoAntiguedad, string> = { todos: 'Todos', nuevos: 'Hasta 30 días', medio: '31 a 90 días', veteranos: 'Más de 90 días' }
-export interface FiltrosRecorrido { etapa: Etapa | null; closer: string | null; antiguedad: RangoAntiguedad; frenados: boolean; vencen: boolean; texto: string; cierre: boolean }
-export const FILTROS_RECORRIDO_INICIALES: FiltrosRecorrido = { etapa: null, closer: null, antiguedad: 'todos', frenados: false, vencen: false, texto: '', cierre: false }
+// Mini filtro de la etapa Lanzado (pedido de Tomás, 9/11/2026): cuántos días lleva desde el último lanzamiento, para separar
+// en los reportes lo recién lanzado. Día 1 = el día del lanzamiento (como en /anuncios). Solo filtra a los de Lanzado.
+export const RANGOS_LANZADO = ['todos', 'd7', 'd10', 'mas7', 'mas10'] as const
+export type RangoLanzado = (typeof RANGOS_LANZADO)[number]
+export const NOMBRE_RANGO_LANZADO: Record<RangoLanzado, string> = { todos: 'Todos', d7: '1 a 7 días', d10: '1 a 10 días', mas7: 'Más de 7 días', mas10: 'Más de 10 días' }
+/** Día desde el lanzamiento (1 = el día que lanzó) de una fila en Lanzado; null si no se sabe cuándo lanzó. */
+export const diaLanzado = (x: Pick<UbicacionCliente, 'diasEtapa'>): number | null => (x.diasEtapa === null ? null : x.diasEtapa + 1)
+export function enRangoLanzado(x: Pick<UbicacionCliente, 'etapa' | 'diasEtapa'>, r: RangoLanzado): boolean {
+  if (r === 'todos' || x.etapa !== 'lanzado') return true
+  const d = diaLanzado(x)
+  if (d === null) return false
+  return r === 'd7' ? d <= 7 : r === 'd10' ? d <= 10 : r === 'mas7' ? d > 7 : d > 10
+}
+export interface FiltrosRecorrido { etapa: Etapa | null; closer: string | null; antiguedad: RangoAntiguedad; lanzado: RangoLanzado; frenados: boolean; vencen: boolean; texto: string; cierre: boolean }
+export const FILTROS_RECORRIDO_INICIALES: FiltrosRecorrido = { etapa: null, closer: null, antiguedad: 'todos', lanzado: 'todos', frenados: false, vencen: false, texto: '', cierre: false }
 
 // clave: una por fila del CRM (el ID puede repetirse en la planilla): es la key de React; el ID abre la tarjeta
 export interface FilaRecorrido extends UbicacionCliente { id: string; clave?: string; nombre: string; closer: string }
@@ -260,7 +273,7 @@ export function enRango(dias: number | null, r: RangoAntiguedad): boolean {
 export function filtrarRecorrido(filas: FilaRecorrido[], f: FiltrosRecorrido): FilaRecorrido[] {
   const q = sinTildes(f.texto.trim())
   return filas.filter(x =>
-    (!f.closer || x.closer === f.closer) && enRango(x.diasCliente, f.antiguedad) && (!f.frenados || x.frenado) &&
+    (!f.closer || x.closer === f.closer) && enRango(x.diasCliente, f.antiguedad) && enRangoLanzado(x, f.lanzado) && (!f.frenados || x.frenado) &&
     (!f.vencen || (x.venceEn !== null && x.venceEn <= VENCE_PRONTO_DIAS)) && (!q || sinTildes(x.nombre).includes(q) || sinTildes(x.id) === q))
 }
 /** Dentro de una etapa: primero los frenados, después los que más días llevan en ella. */

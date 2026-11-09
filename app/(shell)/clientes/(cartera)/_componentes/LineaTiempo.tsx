@@ -4,9 +4,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  AYUDA_ETAPA, ETAPAS, ETAPAS_CIERRE, FILTROS_RECORRIDO_INICIALES, NOMBRE_ETAPA, NOMBRE_RANGO, RANGOS_ANTIGUEDAD, VENCE_PRONTO_DIAS,
+  AYUDA_ETAPA, ETAPAS, ETAPAS_CIERRE, FILTROS_RECORRIDO_INICIALES, NOMBRE_ETAPA, NOMBRE_RANGO, NOMBRE_RANGO_LANZADO, RANGOS_ANTIGUEDAD, RANGOS_LANZADO, VENCE_PRONTO_DIAS,
   NOMBRE_TRAMO, TRAMOS, agruparPorEtapa, agruparPorTramo, filtrarRecorrido, posicionEnEje, tramoDe,
-  type Etapa, type FilaRecorrido, type FiltrosRecorrido, type IdTramo,
+  type Etapa, type FilaRecorrido, type FiltrosRecorrido, type IdTramo, type RangoLanzado,
 } from '@/lib/clientes/recorrido'
 import { clasesFuentes } from '../../../fuentes'
 import './recorrido.css'
@@ -60,12 +60,16 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
   const conCierre = f.cierre || f.texto.trim() !== ''   // al buscar por nombre también aparecen los pausados y las bajas (si no, una clienta pausada no se encontraba al buscarla)
   const enColumnas = (xs: FilaRecorrido[]) => xs.filter(x => conCierre || !ETAPAS_CIERRE.includes(x.etapa)).length
   const cuentaFrenados = useMemo(() => enColumnas(filtrarRecorrido(filas, { ...f, frenados: true })), [filas, f])   // eslint-disable-line react-hooks/exhaustive-deps
+  // Mini filtro de Lanzado: cuántos de Lanzado entran en cada rango con los demás filtros puestos
+  const cuentaLanzado = useMemo(() => Object.fromEntries(RANGOS_LANZADO.map(r => [r, filtrarRecorrido(filas, { ...f, lanzado: r }).filter(x => x.etapa === 'lanzado').length])) as Record<RangoLanzado, number>, [filas, f])
+  const miniLanzado = <MiniLanzado valor={f.lanzado} cuentas={cuentaLanzado} onCambiar={r => cambiar({ lanzado: r })} />
   const cuentaVencen = useMemo(() => enColumnas(filtrarRecorrido(filas, { ...f, vencen: true })), [filas, f])         // eslint-disable-line react-hooks/exhaustive-deps
   const columnas = f.etapa ? [f.etapa] : RECORRIDO.concat(conCierre ? ETAPAS_CIERRE : [])
   const totalRecorrido = filas.filter(x => !ETAPAS_CIERRE.includes(x.etapa)).length
   const mostrando = columnas.reduce((s, e) => s + grupos.get(e)!.length, 0)
   const activos = [
     f.texto && `búsqueda «${f.texto}»`, f.closer && `closer ${f.closer}`, f.antiguedad !== 'todos' && `cliente hace ${NOMBRE_RANGO[f.antiguedad].toLowerCase()}`,
+    f.lanzado !== 'todos' && `lanzados hace ${NOMBRE_RANGO_LANZADO[f.lanzado].toLowerCase()}`,
     f.frenados && 'solo frenados', f.vencen && `vencen en ${VENCE_PRONTO_DIAS} días`, f.etapa && `etapa ${NOMBRE_ETAPA[f.etapa]}`,
   ].filter((x): x is string => !!x)
   const limpiar = () => setF(x => ({ ...FILTROS_RECORRIDO_INICIALES, cierre: x.cierre }))
@@ -168,6 +172,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
       {f.etapa && (
         <div className="rc-zoom">
           <p><strong>{NOMBRE_ETAPA[f.etapa]}</strong> <span className="cj-texto-2">· {AYUDA_ETAPA[f.etapa]}</span></p>
+          {f.etapa === 'lanzado' && miniLanzado}
           <button type="button" className="rc-limpiar" onClick={() => cambiar({ etapa: null })}>Ver todas las etapas</button>
         </div>
       )}
@@ -196,6 +201,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
                       <span className="rc-col__n">{xs.length}</span>
                     </button>
                     {frenados > 0 && <span className="rc-col__freno">{plural(frenados, 'frenado', 'frenados')}</span>}
+                    {e === 'lanzado' && !f.etapa && miniLanzado}
                     {/* En el celular las etapas vienen cerradas: este botón las abre (en escritorio no se ve) */}
                     <button type="button" className="rc-col__plegar" aria-expanded={abiertaMovil} aria-controls={`rc-lista-${e}`}
                       onClick={() => setAbiertasMovil(s => { const n = new Set(s); if (n.has(e)) n.delete(e); else n.add(e); return n })}>
@@ -235,6 +241,18 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
         </Panel>
       )}
     </section>
+  )
+}
+
+/** Mini filtro de la etapa Lanzado: días desde el último lanzamiento (día 1 = el día que lanzó). */
+function MiniLanzado({ valor, cuentas, onCambiar }: { valor: RangoLanzado; cuentas: Record<RangoLanzado, number>; onCambiar: (r: RangoLanzado) => void }) {
+  return (
+    <label className={valor === 'todos' ? 'rc-mini-filtro' : 'rc-mini-filtro rc-mini-filtro--activo'}>
+      <span>Lanzados hace</span>
+      <select value={valor} onChange={e => onCambiar(e.target.value as RangoLanzado)}>
+        {RANGOS_LANZADO.map(r => <option key={r} value={r}>{NOMBRE_RANGO_LANZADO[r]} ({cuentas[r]})</option>)}
+      </select>
+    </label>
   )
 }
 
