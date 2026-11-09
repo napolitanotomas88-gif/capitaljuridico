@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from 'node:fs'
 globalThis.fetch = async () => { throw new Error('red bloqueada en los tests') }
 const R = await import('../lib/bot/guiones/revisar.ts')
 const { CATALOGO } = await import('../lib/bot/guiones/formatos.ts')
-const { ciudadDeFicha, zonasSeparadas, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
+const { ciudadDeFicha, zonasSeparadas, zonaMetropolitana, iniciar, correrPaso, reanudar } = await import('../lib/bot/guiones/proceso.ts')
 const { bloqueCiudad } = await import('../lib/bot/guiones/tipos.ts')
 const { guionesParaChips, claveTanda, sinParentesis } = await import('../lib/bot/guiones/envio.ts')
 const { esAprobador, faltanVerificar } = await import('../lib/bot/guiones/aprobadores.ts')
@@ -34,7 +34,20 @@ test('revisor: la provincia en el HOOK o en el CTA; en ninguno de los dos es err
   assert.ok(!R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'), 'en el CTA alcanza')
   assert.equal(R.donde(g, 'San Juan'), 'cta')
   g.secciones[3].texto = 'Escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
-  assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'))
+  assert.ok(R.errores(R.revisarGuion(g, 'San Juan', CATALOGO)).some(x => x.regla === 'ciudad'), 'sin zona en ningún lado es error')
+})
+test('zona metropolitana «Gran X» es una sola zona y vale «y alrededores» (p8, 8/11)', () => {
+  const ficha = { zona: { descripcion: 'Gran Resistencia (Chaco, Argentina) y pueblos cercanos', lugares: ['Resistencia', 'Barranqueras', 'Fontana', 'Puerto Vilelas'], radio_km: null, presentarse_como: null } }
+  assert.equal(ciudadDeFicha(ficha), 'Gran Resistencia')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Córdoba y alrededores', lugares: ['Córdoba', 'Villa Allende'], radio_km: null } }), 'Gran Córdoba')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran La Plata', lugares: [], radio_km: null } }), 'Gran La Plata')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Buenos Aires', lugares: [], radio_km: null } }), null, 'GBA sigue en AMBA')
+  assert.equal(zonaMetropolitana({ zona: { descripcion: 'Gran Rosario y también Mendoza', lugares: ['Rosario', 'Mendoza'], radio_km: null } }), null, 'con otra provincia no es una zona')
+  const g = guion(1)
+  g.secciones[0].texto = 'Si te despidieron y una parte del sueldo te la daban en un sobre, esperá.'
+  g.secciones[3].texto = 'Si sos de Gran Resistencia y alrededores, escribime acá abajo (gesto con el dedo hacia abajo) así resolvemos juntos esta situación, antes de que firmes.'
+  assert.equal(R.donde(g, 'Gran Resistencia'), 'cta')
+  assert.ok(!R.errores(R.revisarGuion(g, 'Gran Resistencia', CATALOGO)).some(x => x.regla === 'ciudad'), '«Gran Resistencia y alrededores» en el CTA alcanza')
 })
 test('revisor: largo de 500 a 1.000 y la tanda mezcla cortos, medianos y largos (p7, 8/11)', () => {
   const g = guion(1); g.secciones[1].texto = relleno.repeat(5).trim()

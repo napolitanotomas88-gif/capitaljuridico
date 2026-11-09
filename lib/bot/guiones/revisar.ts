@@ -3,7 +3,7 @@
 // Sale del prompt maestro de Tomás («PROMPT PARA HACER GUIONES CON CLAUDE») y de sus decisiones del 24/10/2026.
 // Errores (la tanda no pasa):
 //   · por guion: las 4 secciones en orden; velocidad entera de 1 a 5; indicación de grabación en cada sección; texto hablado
-//     de 500 a 1.000 caracteres (sin indicaciones ni el gesto; la tanda mezcla cortos, medianos y largos); la ciudad en el HOOK o en el CTA (solo si la campaña tiene una zona);
+//     de 500 a 1.000 caracteres (sin indicaciones ni el gesto; la tanda mezcla cortos, medianos y largos); la ciudad en el HOOK o en el CTA de cada guion (solo si la campaña tiene una zona; «Gran X» vale);
 //     sin comillas en el texto; sin WhatsApp; sin fundamento legal ni cifras legales (7/11: artículos, leyes, códigos,
 //     organismos, porcentajes, plazos, montos); ortografía («así», mayúscula al empezar cada oración, sin dobles puntos);
 //     el CTA con «escribime acá abajo (gesto con el dedo hacia abajo)»; si el HOOK va con cámara frontal, la sección
@@ -191,8 +191,8 @@ export function revisarTanda(t: Tanda, catalogo: Catalogo, cantidad: number): Ha
 
   // 7/11/2026: la provincia repartida (unos arriba, otros en el CTA) y los dos cierres de CTA combinados
   if (t.ciudad && n >= 3) {
-    const lugares = t.guiones.map(g => donde(g, t.ciudad)).filter(Boolean)
-    if (lugares.length === n && lugares.every(l => l === lugares[0])) aviso('ciudad', `la provincia va siempre ${lugares[0] === 'hook' ? 'en el gancho' : 'en el CTA'}: repartila (unos arriba, otros abajo)`)
+    const con = t.guiones.map(g => donde(g, t.ciudad)).filter(Boolean)
+    if (con.length >= 2 && con.every(l => l === con[0])) aviso('ciudad', `«${t.ciudad}» va siempre ${con[0] === 'hook' ? 'en el gancho' : 'en el cierre'}: repartila (unos arriba, otros abajo)`)
     const ctas = t.guiones.map(g => tipoCta(g.secciones.find(s => s.seccion === 'CTA')?.texto ?? ''))
     const dir = ctas.filter(c => c === 'directo').length, pru = ctas.filter(c => c === 'prudente').length
     if (Math.min(dir, pru) < Math.floor(n / 3)) aviso('cta', `los cierres del CTA no están combinados (${dir} directos, ${pru} prudentes): más o menos la mitad de cada uno`)
