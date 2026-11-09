@@ -92,7 +92,9 @@ function cargarEnChips_(p) {
     doc.saveAndClose();
     // Los chips de la tanda nueva son copias de otro (pueden venir en «Grabado completo»): vuelven a «No iniciado»
     var reiniciados = creada ? reiniciarChipsTanda_(p.docId, tanda) : null;
-    return { ok: true, id: f.getId(), url: f.getUrl(), yaExistia: false, tanda: tanda, creada: creada, reiniciados: reiniciados, cargados: guiones.length, agregados: agregados, reemplazados: reemplazados };
+    // 9/11/2026: el ancla del título de la tanda, para que el link al cliente vaya directo a «TANDA N°» (null si no se pudo)
+    var ancla = anclaTanda_(p.docId, tanda);
+    return { ok: true, id: f.getId(), url: f.getUrl(), yaExistia: false, tanda: tanda, creada: creada, reiniciados: reiniciados, cargados: guiones.length, agregados: agregados, reemplazados: reemplazados, ancla: ancla };
   } finally {
     candado.releaseLock();
   }
@@ -160,6 +162,27 @@ function crearTandaChips_(body, cantidad) {
   }
   body.appendParagraph('').setHeading(DocumentApp.ParagraphHeading.NORMAL);
   return nueva;
+}
+
+// El id del título «TANDA N°» (Docs API: headingId) y de su pestaña, para armar «…/edit?tab=t.0#heading=h.xxx». Nunca tira:
+// sin ancla el link va al Doc entero.
+function anclaTanda_(docId, tanda) {
+  try {
+    var d = Docs.Documents.get(docId, { includeTabsContent: true });
+    var tab = d.tabs && d.tabs[0];
+    if (!tab || !tab.documentTab) return null;
+    var esTanda = /^\s*TANDA\s+(\d+)\s*[°º:]?\s*$/i, hallado = null;
+    (tab.documentTab.body.content || []).forEach(function (se) {
+      if (hallado || !se.paragraph) return;
+      var texto = (se.paragraph.elements || []).map(function (e) { return e.textRun ? e.textRun.content : ''; }).join('');
+      var t = esTanda.exec(texto);
+      var h = se.paragraph.paragraphStyle && se.paragraph.paragraphStyle.headingId;
+      if (t && Number(t[1]) === tanda && h) hallado = h;
+    });
+    return hallado ? { tab: (tab.tabProperties && tab.tabProperties.tabId) || null, heading: hallado } : null;
+  } catch (err) {
+    return null;
+  }
 }
 
 // Pone en «No iniciado» los chips de la tanda (Docs API, como GuionesEstadoChips.gs). Solo para una tanda que acaba de crear

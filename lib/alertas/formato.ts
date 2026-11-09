@@ -37,6 +37,18 @@ export interface PartesAlerta {
   porFalla?: boolean
 }
 
+/** Mensaje con texto libre (Tomás, 9/11/2026: el aviso de guiones para revisar va corto, sin título ni viñetas). La
+ *  plantilla lleva {@rol} donde va cada mención y {link} donde va el link; `porRol` trae la mención ya resuelta de cada rol
+ *  («<@id>» o el nombre). En prueba sale con «🧪 PRUEBA ·» y los nombres en vez de las menciones. */
+export function armarPlantilla(plantilla: string, p: { porRol: Record<string, string>; link?: string | null; prueba?: boolean; ibaA?: string | null; porFalla?: boolean }): string {
+  const cuerpo = sinTelefonos(plantilla).replace(/@(everyone|here)/gi, '＠$1')
+    .replace(/\{@([a-z_]+)\}/g, (_, r: string) => p.porRol[r] ?? '')
+    .replace(/\{link\}/g, p.link ?? '')
+    .replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ').trim()
+  const extra = p.ibaA ? `\n_(iba a ${p.ibaA}: ${p.porFalla ? 'Discord falló' : 'falta su webhook'})_` : ''
+  return `${p.prueba ? '🧪 PRUEBA · ' : ''}${cuerpo}${extra}`.slice(0, MAX_CARACTERES)
+}
+
 /** El texto del mensaje (sin las opciones del envío). */
 export function armarTexto(p: PartesAlerta): string {
   const cab = [

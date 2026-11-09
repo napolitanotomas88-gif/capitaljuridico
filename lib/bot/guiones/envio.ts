@@ -50,7 +50,7 @@ export function guionesParaChips(fila: FilaTanda): GuionChip[] {
 /** Una clave por tanda (no por aprobación): con ella el puente reconoce lo que cargó el bot y una corrección lo reemplaza. */
 export const claveTanda = (fila: FilaTanda) => `cj-guiones-${fila.recording_id}-${fila.tanda}`
 
-export type ResultadoDoc = { estado: 'ok'; id: string; url: string; yaExistia: boolean; tanda: number | null } | { estado: 'pendiente' | 'dudoso' | 'error'; motivo: string }
+export type ResultadoDoc = { estado: 'ok'; id: string; url: string; yaExistia: boolean; tanda: number | null; ancla?: { tab: string | null; heading: string | null } | null } | { estado: 'pendiente' | 'dudoso' | 'error'; motivo: string }
 
 export async function escribirEnDoc(fila: FilaTanda, docId: string, op: { hasta: number }): Promise<ResultadoDoc> {
   const url = process.env.PUENTE_DRIVE_URL?.trim(), secreto = process.env.PUENTE_DRIVE_SECRETO?.trim()
@@ -72,7 +72,8 @@ export async function escribirEnDoc(fila: FilaTanda, docId: string, op: { hasta:
     const d = String(j.error ?? '').slice(0, 160)
     return /acci[oó]n desconocida/i.test(d) ? { estado: 'pendiente', motivo: 'el Puente Drive todavía no tiene la acción cargarEnChips' } : { estado: 'error', motivo: `el puente rechazó cargarEnChips: ${d}` }
   }
-  return { estado: 'ok', id: String(j.id ?? docId), url: String(j.url ?? `https://docs.google.com/document/d/${docId}/edit`), yaExistia: j.yaExistia === true, tanda: typeof j.tanda === 'number' ? j.tanda : null }
+  return { estado: 'ok', id: String(j.id ?? docId), url: String(j.url ?? `https://docs.google.com/document/d/${docId}/edit`), yaExistia: j.yaExistia === true, tanda: typeof j.tanda === 'number' ? j.tanda : null,
+    ancla: j.ancla && typeof j.ancla === 'object' ? { tab: typeof (j.ancla as Record<string, unknown>).tab === 'string' ? String((j.ancla as Record<string, unknown>).tab) : null, heading: typeof (j.ancla as Record<string, unknown>).heading === 'string' ? String((j.ancla as Record<string, unknown>).heading) : null } : null }
 }
 
 /** Con el check final, los chips «Video:» de la tanda que cargó el bot pasan solos a «Para grabar» (pedido de RESPONSABLE_HUB del
@@ -107,19 +108,25 @@ export function textoWhatsApp(fila: FilaTanda, urlDoc: string): string {
     : `¡Hola${nombre ? ` ${nombre}` : ''}! Ya tenés los ${n} guiones nuevos 🎬\nTe los dejé en tu documento de guiones, en la Tanda ${fila.doc?.tanda ?? fila.tanda}: ${urlDoc}\nLeelos y contanos acá qué cambiarías. Cuando estén ok, grabalos siguiendo las indicaciones y subilos a tu carpeta de Crudos.`
 }
 
-/** d02 + día 0 de grabación en UN solo mensaje (Tomás, 2/11/2026): el link del Doc y el pedido de grabar con la fecha
- *  sugerida (dos días hábiles después de hoy, como el día 0 de e01). `fecha` ya viene para el cliente («el jueves 5/11»).
- *  Sin la palabra «no» (regla de los textos al cliente, lib/edicion/textos.ts). */
+/** d02 + día 0 de grabación en UN solo mensaje: el link a la tanda en el Doc y el pedido de grabar con la fecha sugerida (dos
+ *  días hábiles después de hoy, como el día 0 de e01). `fecha` ya viene para el cliente («el jueves 5/11»).
+ *  Texto exacto de Tomás (9/11/2026), tal cual lo dio (con «estan» y «cometanos»), también para clientes de fuera de Argentina. */
 export function textoGuionesParaGrabar(fila: FilaTanda, urlDoc: string, fecha: string): string {
   const nombre = (fila.cliente ?? '').trim().split(/\s+/)[0] || ''
   const n = Object.keys(fila.guiones).length
-  const uno = n === 1
   const tanda = fila.doc?.tanda ?? fila.tanda
-  const hola = `¡Hola${nombre ? ` ${nombre}` : ''}!`
-  const pedido = `¿Te queda bien ${uno ? 'grabarlo' : 'grabarlos'} para ${fecha}? Cuando ${uno ? 'lo subas' : 'los subas'} a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.`
-  return fila.notas.some(x => x.aplicada)
-    ? `${hola} Ya ${uno ? 'está el guion' : 'están los guiones'} con los cambios que nos pediste ✅\n${uno ? 'Lo' : 'Los'} tenés en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\nSi está todo ok, ya ${uno ? 'lo' : 'los'} podés grabar 🎬\n${pedido}`
-    : `${hola} Ya ${uno ? 'tenés el guion nuevo' : `tenés los ${n} guiones nuevos`} 🎬\nTe ${uno ? 'lo' : 'los'} dejé en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\n${uno ? 'Leelo' : 'Leelos'} y contanos acá qué cambiarías. Cuando ${uno ? 'esté ok, grabalo' : 'estén ok, grabalos'} siguiendo las indicaciones.\n${pedido}`
+  return `¡Hola${nombre ? ` ${nombre}` : ''}! Ya estan los ${n} guiones nuevos. Los dejé en tu documento de guiones, en la Tanda ${tanda}: ${urlDoc}\n`
+    + 'Leelos y cometanos si necesitan alguna modificación. Cuando estén ok, grabalos siguiendo las indicaciones.\n'
+    + `¿Te queda bien grabarlos para ${fecha}? Cuando los subas a tu carpeta de Crudos, avisanos por acá y arrancamos con la edición.`
+}
+
+/** El link a la tanda dentro del Doc: con el título de la tanda (ancla que devuelve el puente) va directo ahí; sin ancla, el Doc. */
+export function urlTanda(docId: string, ancla?: { tab?: string | null; heading?: string | null } | null): string {
+  const base = `https://docs.google.com/document/d/${docId}/edit`
+  const h = ancla?.heading && /^h\.[\w-]+$/.test(ancla.heading) ? ancla.heading : null
+  if (!h) return base
+  const t = ancla?.tab && /^t\.[\w-]+$/.test(ancla.tab) ? `?tab=${ancla.tab}` : ''
+  return `${base}${t}#heading=${h}`
 }
 
 const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')

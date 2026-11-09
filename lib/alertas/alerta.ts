@@ -12,8 +12,8 @@
 // Los logs llevan canal, tipo y estado: nunca la URL del webhook, teléfonos ni textos completos.
 import { ErrorEnvio, enviarDiscord } from '@/lib/fathomAnuncios/discord'
 import { NOMBRE_CANAL, webhookDe, type Canal } from './canales'
-import { armarTexto, flagsDe, linkDespacho } from './formato'
-import { resolverMenciones, type Mencion } from './personas'
+import { armarPlantilla, armarTexto, flagsDe, linkDespacho } from './formato'
+import { NOMBRE_ROL, resolverMenciones, type Mencion, type Rol } from './personas'
 
 type Entorno = Record<string, string | undefined>
 export type ModoAlertas = 'real' | 'ensayo' | 'apagado'
@@ -44,6 +44,8 @@ export interface Alerta {
   menciones?: readonly Mencion[]
   urgente?: boolean
   emoji?: string | null
+  /** Texto libre en vez del formato fijo: {@rol} = mención de ese rol (tiene que estar en `menciones`), {link} = el link. */
+  plantilla?: string | null
 }
 
 export type EstadoAlerta = 'enviado' | 'ya_estaba' | 'apagado' | 'sin_webhook' | 'tope' | 'dudoso' | 'error'
@@ -106,10 +108,16 @@ export async function alertarCon(a: Alerta, d: DepsAlerta): Promise<ResultadoAle
   }
   canal = destino.sale === 'respaldo' ? canal : destino.sale
   const m = resolverMenciones(a.menciones ?? [], d.env)
-  const texto = armarTexto({
-    menciones: m.texto, emoji: a.emoji, titulo: a.titulo, cliente: a.cliente, lineas: a.lineas, copiar: a.copiar,
-    link: linkDespacho(d.base, a.link), prueba: marcada, ibaA: !prueba && destino.respaldo ? NOMBRE_CANAL[a.canal] : null,
-  })
+  // Cada rol de la plantilla con su mención propia (en prueba, el nombre: no notifica a nadie)
+  const porRol = Object.fromEntries((a.menciones ?? []).filter((x): x is Rol => x !== 'aprobadores')
+    .map(r => [r, marcada ? NOMBRE_ROL[r] : resolverMenciones([r], d.env).texto]))
+  const armar = (ibaA: string | null, porFalla = false) => a.plantilla
+    ? armarPlantilla(a.plantilla, { porRol, link: linkDespacho(d.base, a.link), prueba: marcada, ibaA, porFalla })
+    : armarTexto({
+      menciones: m.texto, emoji: a.emoji, titulo: a.titulo, cliente: a.cliente, lineas: a.lineas, copiar: a.copiar,
+      link: linkDespacho(d.base, a.link), prueba: marcada, ibaA, porFalla,
+    })
+  const texto = armar(!prueba && destino.respaldo ? NOMBRE_CANAL[a.canal] : null)
   try {
     const id = await d.enviar(destino.url, texto, marcada ? [] : m.ids, flagsDe(d.ahora(), !!a.urgente))
     await cerrar('enviado', id, destino.respaldo ? `salió por el respaldo (${destino.sale})` : null)
@@ -125,10 +133,7 @@ export async function alertarCon(a: Alerta, d: DepsAlerta): Promise<ResultadoAle
     const resp = !dudoso && transitorio && destino.sale !== 'sistema' ? webhookDe('sistema', d.env) : null
     if (resp?.url && resp.url !== destino.url) {
       try {
-        const t2 = armarTexto({
-          menciones: m.texto, emoji: a.emoji, titulo: a.titulo, cliente: a.cliente, lineas: a.lineas, copiar: a.copiar,
-          link: linkDespacho(d.base, a.link), prueba: marcada, ibaA: NOMBRE_CANAL[a.canal], porFalla: true,
-        })
+        const t2 = armar(NOMBRE_CANAL[a.canal], true)
         const id = await d.enviar(resp.url, t2, marcada ? [] : m.ids, flagsDe(d.ahora(), !!a.urgente))
         await cerrar('enviado', id, `salió por el respaldo: ${motivoDe(e)}`)
         log.warn(`[alertas] ${a.tipo} a ${NOMBRE_CANAL[a.canal]}: salió por el respaldo (${motivoDe(e)})`)
