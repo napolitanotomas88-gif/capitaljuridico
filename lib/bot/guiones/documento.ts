@@ -1,7 +1,7 @@
 // Resolución automática del Doc. El alta se cruza por ID CRM, nunca por semejanza de nombres.
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { googleJson, sheetsBase } from '@/lib/auth/googleRest'
-import { columnasDeClientes } from '@/lib/clientes/parsear'
+import { columnasDeClientes, parsearEstadoCliente } from '@/lib/clientes/parsear'
 import type { Fila } from '@/lib/clientes/tipos'
 import { listarHijosDriveReal, nombresDriveCliente, plantillaGuionesDesdeEntorno, CARPETA_CLIENTES_DRIVE } from '../alta/driveCliente'
 import { carpetasParecidas } from '../alta/carpetasParecidas'
@@ -97,7 +97,12 @@ export async function resolverAliasDocumento(idCrm: string, nombre: string, deps
   const clientes = filas.agencia.slice(1).filter(f => /^[A-Za-z]\d{1,6}$/.test(String(f[columnas.idx.id] ?? '').trim()))
   const mismoId = clientes.filter(f => String(f[columnas.idx.id]).trim().toUpperCase() === idCrm)
   const mismoNombre = clientes.filter(f => exacto(f[columnas.idx.nombre]) === exacto(nombre))
-  if (!exacto(nombre) || mismoId.length !== 1 || mismoNombre.length !== 1 || mismoNombre[0] !== mismoId[0]) throw new Error('El alias no corresponde a un ID y nombre únicos del CRM actual.')
+  // Renovación (Freddy, A120 FINALIZADO y A184 ACTIVO, 9/11/2026): el mismo nombre con otro ID cerrado no lo vuelve ambiguo.
+  // Vale solo si el ID pedido es el único vigente con ese nombre; dos vigentes con el mismo nombre siguen frenando.
+  const cerrado = (f: Fila) => ['FINALIZADO', 'INACTIVO'].includes(parsearEstadoCliente(columnas.idx.estado >= 0 ? f[columnas.idx.estado] : undefined))
+  const vigentes = mismoNombre.filter(f => !cerrado(f))
+  const homonimoVigente = mismoNombre.length > 1 && vigentes.length === 1 && vigentes[0] === mismoId[0]
+  if (!exacto(nombre) || mismoId.length !== 1 || !mismoNombre.includes(mismoId[0]) || (mismoNombre.length !== 1 && !homonimoVigente)) throw new Error('El alias no corresponde a un ID y nombre únicos del CRM actual.')
   if (!/^alias\b/.test(exacto(filas.alias[0]?.[0])) || !/^cliente\b/.test(exacto(filas.alias[0]?.[1]))) throw new Error('Falta confirmar los encabezados de Alias Guiones antes de crear el Doc.')
   const pares = filas.alias.slice(1).map(f => ({ alias: String(f[0] ?? '').trim(), cliente: String(f[1] ?? '').trim() }))
   const vinculados = pares.filter(f => exacto(f.cliente) === exacto(nombre))

@@ -89,6 +89,14 @@ test('alias dudoso, Doc ausente o ajeno a Clientes bloquean sin reservar, copiar
     assert.deepEqual(a.log, [])
   }
 })
+test('alias con el mismo nombre en un ID viejo FINALIZADO (renovación, A120/A184 9/11): vale el vigente; el viejo no', async () => {
+  const normales = await aliasLegado().filas()
+  const conViejo = aliasLegado({ filas: async () => ({ ...normales, agencia: [['', '', 'Estado'], ['A040', 'Maria de la Paz Robles', 'FINALIZADO'], ['A078', 'Maria de la Paz Robles', 'ACTIVO']] }) })
+  const a = base({ alias: (id, nombre) => resolverAliasDocumento(id, nombre, conViejo) })
+  assert.equal((await resolverDocumento({ ...fila, id_crm: 'A078', cliente: 'Maria de la Paz Robles' }, a.deps)).id, ID)
+  const b = base({ alias: (id, nombre) => resolverAliasDocumento(id, nombre, conViejo) })
+  await assert.rejects(resolverDocumento({ ...fila, id_crm: 'A040', cliente: 'Maria de la Paz Robles' }, b.deps), /no corresponde/)
+})
 test('sin alias configurado sigue la carpeta exacta; un Doc ya vinculado nunca necesita leer Alias Guiones', async () => {
   const legado = aliasLegado({ filas: async () => ({ agencia: [['ID', 'Nombre', 'Estado'], ['A149', 'Ana Pérez', 'ACTIVO']], alias: [['Alias', 'Cliente']] }), documentos: async () => { throw new Error('No debe consultar Drive por alias') } })
   const a = base({ alias: (id, nombre) => resolverAliasDocumento(id, nombre, legado) })
