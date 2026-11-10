@@ -354,14 +354,45 @@ describe('secciones visibles por portal (2/11/2026)', () => {
   test('sin dato: todas visibles (los portales viejos se ven igual que antes)', () => {
     const r = validarDatosPortal({ nombre: 'X' })
     assert.equal(r.ok, true)
-    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true })
+    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, historias: false, seguimiento: true })
     assert.deepEqual(PORTAL_VACIO.secciones, r.datos.secciones)
   })
   test('solo false oculta; claves desconocidas no entran; formato malo se rechaza', () => {
     const r = validarDatosPortal({ secciones: { plan: false, proximos: false, proceso: false, seguimiento: false, guiones: 'no', inventada: false } })
     assert.equal(r.ok, true)
-    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: false, proximos: false, proceso: false, guiones: true, seguimiento: false })
+    assert.deepEqual(r.datos.secciones, { objetivo: true, progreso: false, reporte: false, plan: false, proximos: false, proceso: false, guiones: true, historias: false, seguimiento: false })
     assert.equal(validarDatosPortal({ secciones: ['plan'] }).ok, false)
     assert.equal(validarDatosPortal({ secciones: 'plan' }).ok, false)
+  })
+})
+
+describe('Guiones de historias (10/11/2026)', () => {
+  const base = { objetivo: { texto: 'x' } }
+  test('sin dato: vacío; con guiones: se limpian y se mantiene el orden', () => {
+    const vacio = validarDatosPortal(base)
+    assert.equal(vacio.ok, true)
+    assert.deepEqual(vacio.datos.historias, { indicaciones: '', guiones: [] })
+    assert.equal(vacio.datos.secciones.historias, false, 'en un portal guardado antes queda oculta hasta tildarla')
+    const r = validarDatosPortal({ ...base, secciones: { historias: true }, historias: { indicaciones: 'Grabá vertical.', guiones: [
+      { titulo: ' Quién soy ', clave: 'NICO', historias: [{ dice: 'Hola,\r\nsoy Nico.', pantalla: 'Abogado', sticker: '' }] },
+      { titulo: 'Hombro', clave: '', historias: [{ dice: 'Uno' }, { dice: 'Dos', sticker: 'Enlace https://wa.me/5491100000000' }] },
+    ] } })
+    assert.equal(r.ok, true)
+    assert.equal(r.datos.secciones.historias, true)
+    assert.equal(r.datos.historias.guiones[0].titulo, 'Quién soy')
+    assert.equal(r.datos.historias.guiones[0].historias[0].dice, 'Hola,\nsoy Nico.')
+    assert.deepEqual(r.datos.historias.guiones[1].historias.map(h => h.dice), ['Uno', 'Dos'])
+    assert.equal(r.datos.historias.guiones[1].historias[0].pantalla, '')
+  })
+  test('rechaza guion sin título, sin historias, con más de 5 o con una historia vacía', () => {
+    const malo = g => validarDatosPortal({ ...base, historias: { guiones: [g] } })
+    assert.equal(malo({ clave: 'X', historias: [{ dice: 'a' }] }).ok, false)
+    assert.equal(malo({ titulo: 'T', historias: [] }).ok, false)
+    assert.equal(malo({ titulo: 'T', historias: Array.from({ length: 6 }, () => ({ dice: 'a' })) }).ok, false)
+    assert.equal(malo({ titulo: 'T', historias: [{ dice: '  ' }] }).ok, false)
+    assert.equal(validarDatosPortal({ ...base, historias: [] }).ok, false)
+  })
+  test('PORTAL_VACIO trae historias vacías', () => {
+    assert.deepEqual(PORTAL_VACIO.historias, { indicaciones: '', guiones: [] })
   })
 })

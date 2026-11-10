@@ -27,6 +27,8 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
     // Sin plan visible ni etapas cargadas, la tarjeta solo diría «—»: no se muestra (2/11/2026)
     !ver.plan && !avance ? null : { etiqueta: 'Cómo vamos', icono: 'tarea', valor: avance ? <>{avance.hechas}<span className="cj-dato__unidad">de {avance.total} etapas</span></> : '—', contexto: avance ? `${avance.porcentaje} % recorrido` : 'El plan se arma en la primera reunión', ...(ver.plan ? { href: '#plan', accion: 'Ver el plan' } : {}) },
     { etiqueta: 'Guiones listos', icono: 'guiones', valor: String(guiones), contexto: p.tandas.length ? `En ${p.tandas.length} ${p.tandas.length === 1 ? 'tanda' : 'tandas'}` : 'Se están preparando', ...(ver.guiones ? { href: '#guiones', accion: 'Ver los guiones' } : {}) },
+    // Historias de Instagram (10/11/2026): tarjeta propia cuando hay guiones de historias cargados y la sección se ve
+    ver.historias && datos.historias.guiones.length ? { etiqueta: 'Historias de Instagram', icono: 'guiones', valor: <>{datos.historias.guiones.length}<span className="cj-dato__unidad">guiones</span></>, contexto: 'Uno por día, con las instrucciones para grabar', href: '#historias', accion: 'Ver las historias' } : null,
   ]
   // Casos conseguidos (2/11/2026): segunda tarjeta del resumen cuando hay conteo y la sección se ve
   if (ver.progreso && barra) resumen.splice(1, 0, { etiqueta: barra.mes ? 'Casos del mes' : 'Casos conseguidos', icono: 'estrategia', valor: <>{numero(barra.casos)}<span className="cj-dato__unidad">de {numero(barra.meta)}</span></>, contexto: barra.hito ? (barra.hito.logrado ? `Meta de ${numero(barra.hito.casos)} lograda` : `${barra.mes ? 'Meta del mes' : 'Próxima meta'}: ${numero(barra.hito.casos)}${barra.hito.fecha ? ` al ${fechaLarga(barra.hito.fecha)}` : ''}`) : `${Math.floor(barra.porcentaje)} % del objetivo`, href: '#progreso', accion: 'Ver el avance' })
@@ -157,6 +159,29 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
         ) : (
           <VacioGuiado titulo="Se están preparando" texto="Cuando una tanda de guiones esté lista y revisada, aparece acá para que la grabes." accion={p.documento ? <a className="cj-enlace" href={p.documento} target="_blank" rel="noreferrer">Abrir tu documento de guiones</a> : undefined} />
         )}
+      </Bloque>
+      )}
+
+      {ver.historias && datos.historias.guiones.length > 0 && (
+      <Bloque titulo="Historias de Instagram" etiqueta="Un guion por día" id="historias">
+        <div className="cj-pila cj-pila--chica">
+          {datos.historias.indicaciones && <p className="cj-parrafo" style={{ whiteSpace: 'pre-line' }}>{datos.historias.indicaciones}</p>}
+          {datos.historias.guiones.map((g, i) => (
+            <details key={i} className="cj-detalles" open={i === 0}>
+              <summary><strong>Día {i + 1} · {g.titulo}</strong>{g.clave && <span className="cj-texto-2">&nbsp;· Palabra clave: {g.clave}</span>}</summary>
+              <dl className="cj-pila cj-pila--chica" style={{ margin: '16px 0 0' }}>
+                {g.historias.map((h, j) => (
+                  <div key={j} className="cj-panel">
+                    <dt className="cj-etiqueta cj-etiqueta--laton">Historia {j + 1}</dt>
+                    <dd style={{ margin: '6px 0 0', whiteSpace: 'pre-line' }}>{h.dice}</dd>
+                    {h.pantalla && <dd className="cj-texto-2" style={{ margin: '8px 0 0', whiteSpace: 'pre-line' }}>En pantalla: <strong>{h.pantalla}</strong></dd>}
+                    {h.sticker && <dd className="cj-texto-2" style={{ margin: '4px 0 0', whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>Sticker: {h.sticker}</dd>}
+                  </div>
+                ))}
+              </dl>
+            </details>
+          ))}
+        </div>
       </Bloque>
       )}
 
