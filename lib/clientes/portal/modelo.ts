@@ -11,17 +11,22 @@ export const NOMBRE_ESTADO_ETAPA: Record<EstadoEtapa, string> = { pendiente: 'Pr
 export interface EtapaPlan { titulo: string; detalle: string; estado: EstadoEtapa; fecha: string | null }
 export interface NotaSeguimiento { fecha: string | null; titulo: string; texto: string }
 export interface ProximoPaso { texto: string; fecha: string | null; hecho: boolean }
+/** Guiones de historias para que el abogado se grabe (10/11/2026): cada guion son 1 a 5 historias, en el orden en que se publican. */
+export interface HistoriaGuion { dice: string; pantalla: string; sticker: string }
+export interface GuionHistorias { titulo: string; clave: string; historias: HistoriaGuion[] }
+export interface ContenidoHistorias { indicaciones: string; guiones: GuionHistorias[] }
+export const HISTORIAS_VACIO: ContenidoHistorias = { indicaciones: '', guiones: [] }
 /** Secciones de la vista del cliente que el equipo puede mostrar u ocultar por portal (2/11/2026). Sin dato: todas visibles. */
-export const SECCIONES_PORTAL = ['objetivo', 'progreso', 'reporte', 'plan', 'proximos', 'proceso', 'guiones', 'seguimiento'] as const
+export const SECCIONES_PORTAL = ['objetivo', 'progreso', 'reporte', 'plan', 'proximos', 'proceso', 'guiones', 'historias', 'seguimiento'] as const
 export type SeccionPortal = (typeof SECCIONES_PORTAL)[number]
 export type SeccionesPortal = Record<SeccionPortal, boolean>
 export const NOMBRE_SECCION_PORTAL: Record<SeccionPortal, string> = {
-  objetivo: 'El objetivo', progreso: 'Casos conseguidos (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', seguimiento: 'Seguimiento',
+  objetivo: 'El objetivo', progreso: 'Casos conseguidos (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', historias: 'Guiones de historias', seguimiento: 'Seguimiento',
 }
-/** Por defecto (portal nuevo o guardado antes de que existieran): las de siempre visibles; casos y reporte, ocultas hasta tildarlas. */
-export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, seguimiento: true }
+/** Por defecto (portal nuevo o guardado antes de que existieran): las de siempre visibles; casos, reporte e historias, ocultas hasta tildarlas. */
+export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, historias: false, seguimiento: true }
 /** Secciones sumadas después (2/11/2026): en un portal guardado ANTES (sin la clave) quedan ocultas hasta que el equipo las tilde. */
-const SECCIONES_NUEVAS: ReadonlySet<SeccionPortal> = new Set(['progreso', 'reporte'])
+const SECCIONES_NUEVAS: ReadonlySet<SeccionPortal> = new Set(['progreso', 'reporte', 'historias'])
 
 /** Cómo se lee la barra (5/11/2026): acumulado desde que arrancamos, o casos del mes en curso contra una meta mensual. */
 export const MODOS_CASOS = ['acumulado', 'mensual'] as const
@@ -63,13 +68,15 @@ export interface DatosPortal {
   proximos: ProximoPaso[]
   progreso: ProgresoCasos
   reporte: ConfigReporte
+  /** Guiones de historias (10/11/2026). Sin dato: vacío. */
+  historias: ContenidoHistorias
 }
 export interface PortalGuardado { datos: DatosPortal; version: number; actualizado: string | null }
 
-export const PORTAL_VACIO: DatosPortal = { nombre: '', secciones: SECCIONES_TODAS, objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [], progreso: PROGRESO_VACIO, reporte: REPORTE_VACIO }
+export const PORTAL_VACIO: DatosPortal = { nombre: '', secciones: SECCIONES_TODAS, objetivo: { texto: '', metrica: '', fecha: null }, etapas: [], notas: [], proximos: [], progreso: PROGRESO_VACIO, reporte: REPORTE_VACIO, historias: HISTORIAS_VACIO }
 
 // Topes: el portal es para leer de un vistazo (y una fila de Neon no tiene que crecer sin límite)
-export const TOPES = { nombre: 80, objetivo: 1500, casos: 1_000_000, historial: 60, cuentas: 5, valorCaso: 10_000_000, metrica: 120, titulo: 120, detalle: 800, nota: 2000, paso: 300, etapas: 12, notas: 40, proximos: 12 } as const
+export const TOPES = { nombre: 80, objetivo: 1500, casos: 1_000_000, historial: 60, cuentas: 5, valorCaso: 10_000_000, metrica: 120, titulo: 120, detalle: 800, nota: 2000, paso: 300, etapas: 12, notas: 40, proximos: 12, historiasGuiones: 60, historiasPorGuion: 5, historiaDice: 1200, historiaPantalla: 200, historiaSticker: 300, historiaClave: 40, historiasIndicaciones: 1500 } as const
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
 const fechaReal = (f: unknown): f is string => typeof f === 'string' && FECHA.test(f) && new Date(`${f}T00:00:00Z`).toISOString().slice(0, 10) === f
 
@@ -140,7 +147,40 @@ export function validarDatosPortal(x: unknown): { ok: true; datos: DatosPortal }
   if (typeof progreso === 'string') return { ok: false, error: progreso }
   const reporte = validarReporte(o.reporte)
   if (typeof reporte === 'string') return { ok: false, error: reporte }
-  return { ok: true, datos: { nombre, secciones, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos, progreso, reporte } }
+  const historias = validarHistorias(o.historias)
+  if (typeof historias === 'string') return { ok: false, error: historias }
+  return { ok: true, datos: { nombre, secciones, objetivo: { texto: objetivo.texto, metrica: objetivo.metrica, fecha: objetivo.fecha }, etapas, notas, proximos, progreso, reporte, historias } }
+}
+
+/** Guiones de historias: lista ordenada de guiones con sus historias (lo que dice, el texto en pantalla y el sticker). */
+function validarHistorias(x: unknown): ContenidoHistorias | string {
+  if (x === undefined || x === null) return HISTORIAS_VACIO
+  if (typeof x !== 'object' || Array.isArray(x)) return 'Historias: formato inválido.'
+  const o = x as Record<string, unknown>
+  const indicaciones = texto(o.indicaciones, TOPES.historiasIndicaciones, true)
+  if (indicaciones === null) return `Historias: las indicaciones pueden tener hasta ${TOPES.historiasIndicaciones} caracteres.`
+  const crudos = o.guiones === undefined || o.guiones === null ? [] : o.guiones
+  if (!Array.isArray(crudos)) return 'Historias: formato inválido.'
+  if (crudos.length > TOPES.historiasGuiones) return `Historias: hasta ${TOPES.historiasGuiones} guiones.`
+  const guiones: GuionHistorias[] = []
+  for (const [i, g] of crudos.entries()) {
+    const r = g && typeof g === 'object' ? (g as Record<string, unknown>) : {}
+    const titulo = texto(r.titulo, TOPES.titulo), clave = texto(r.clave, TOPES.historiaClave)
+    if (!titulo) return `Guion de historias ${i + 1}: falta el título (hasta ${TOPES.titulo} caracteres).`
+    if (clave === null) return `Guion de historias ${i + 1}: la palabra clave puede tener hasta ${TOPES.historiaClave} caracteres.`
+    const hs = Array.isArray(r.historias) ? r.historias : null
+    if (!hs || !hs.length || hs.length > TOPES.historiasPorGuion) return `Guion de historias ${i + 1}: entre 1 y ${TOPES.historiasPorGuion} historias.`
+    const historias: HistoriaGuion[] = []
+    for (const [j, h] of hs.entries()) {
+      const q = h && typeof h === 'object' ? (h as Record<string, unknown>) : {}
+      const dice = texto(q.dice, TOPES.historiaDice, true), pantalla = texto(q.pantalla, TOPES.historiaPantalla, true), sticker = texto(q.sticker, TOPES.historiaSticker, true)
+      if (dice === null || pantalla === null || sticker === null) return `Guion de historias ${i + 1}, historia ${j + 1}: demasiado larga.`
+      if (!dice) return `Guion de historias ${i + 1}, historia ${j + 1}: falta lo que se dice.`
+      historias.push({ dice, pantalla, sticker })
+    }
+    guiones.push({ titulo, clave, historias })
+  }
+  return { indicaciones, guiones }
 }
 
 const entero = (x: unknown, min: number, max: number): number | null | undefined =>

@@ -160,6 +160,29 @@ export function VistaPortal({ p }: { p: PaginaPortal }) {
       </Bloque>
       )}
 
+      {ver.historias && datos.historias.guiones.length > 0 && (
+      <Bloque titulo="Guiones de historias" etiqueta="Para grabar en historias" id="historias">
+        <div className="cj-pila cj-pila--chica">
+          {datos.historias.indicaciones && <p className="cj-parrafo" style={{ whiteSpace: 'pre-line' }}>{datos.historias.indicaciones}</p>}
+          {datos.historias.guiones.map((g, i) => (
+            <details key={i} className="cj-detalles" open={i === 0}>
+              <summary><strong>Día {i + 1} · {g.titulo}</strong>{g.clave && <span className="cj-texto-2">&nbsp;· Palabra clave: {g.clave}</span>}</summary>
+              <dl className="cj-pila cj-pila--chica" style={{ margin: '16px 0 0' }}>
+                {g.historias.map((h, j) => (
+                  <div key={j} className="cj-panel">
+                    <dt className="cj-etiqueta cj-etiqueta--laton">Historia {j + 1}</dt>
+                    <dd style={{ margin: '6px 0 0', whiteSpace: 'pre-line' }}>{h.dice}</dd>
+                    {h.pantalla && <dd className="cj-texto-2" style={{ margin: '8px 0 0', whiteSpace: 'pre-line' }}>En pantalla: <strong>{h.pantalla}</strong></dd>}
+                    {h.sticker && <dd className="cj-texto-2" style={{ margin: '4px 0 0', whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>Sticker: {h.sticker}</dd>}
+                  </div>
+                ))}
+              </dl>
+            </details>
+          ))}
+        </div>
+      </Bloque>
+      )}
+
       {ver.seguimiento && (
       <Bloque titulo="Seguimiento" etiqueta="Lo que vamos viendo" id="seguimiento">
         {notas.length ? (
