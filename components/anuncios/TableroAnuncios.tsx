@@ -254,14 +254,18 @@ export function TableroAnuncios() {
         </p>
       </section>
 
-      <TermometroMeta dias={datos.diasMeta} hoy={datos.hoy} />
-      <RecuentoMeta hoy={datos.hoy} casa="bolsa" />
+      {/* 10/11/2026: orden por urgencia y todo en solapas (cerradas salvo lo que se abre desde el resumen) */}
       <PanelLanzamientos filas={datos.filas} foco={foco} alOptimizar={() => void cargar()} />
       <PanelCompetencia filas={datos.filas} alRevisar={() => void cargar(false)} />
-      <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
-      <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} esperando={datos.porLanzarEsperando ?? []} />
       <NotasCliente />
       <GuionesAGrabar filas={datos.filas} />
+      <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
+      <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} esperando={datos.porLanzarEsperando ?? []} />
+      <details aria-label="Días malos de Meta" className="mt-8" style={{ borderLeft: '2px solid var(--filete)', paddingLeft: 16 }}>
+        <summary className="etq" style={{ cursor: 'pointer' }}>Meta · días malos y recuento{(datos.diasMeta ?? []).some(x => x.malo && x.d >= sumarDias(datos.hoy, -3)) ? ' · hubo un día malo reciente' : ''}</summary>
+        <TermometroMeta dias={datos.diasMeta} hoy={datos.hoy} />
+        <RecuentoMeta hoy={datos.hoy} casa="bolsa" />
+      </details>
 
       {/* ── Avisos (Meta limita, token, sheets) ── */}
       {datos.avisos.length > 0 && (
@@ -552,7 +556,7 @@ function TermometroMeta({ dias, hoy }: { dias: Tablero['diasMeta']; hoy: string 
   const recientes = malos.filter(x => x.d >= sumarDias(hoy, -3))
   const ultimo = recientes[recientes.length - 1]
   return (
-    <section aria-label="Días malos de Meta" className="mt-8">
+    <section aria-label="Termómetro de Meta" className="mt-4">
       {ultimo && (
         <p style={{ fontSize: 15, borderLeft: '2px solid var(--borgona)', paddingLeft: 12, color: 'var(--hueso)', marginBottom: 14 }}>
           {ultimo.d === sumarDias(hoy, -1) ? 'Ayer' : `El ${nombreDia(ultimo.d)} ${dm(ultimo.d)}`} fue un día malo de Meta: al {Math.round(ultimo.parte * 100)}% de las cuentas le subió el CPL (suba mediana {fmtPct(ultimo.mediana - 1)}). Es general, no de los guiones: no cuenta para las alertas.
@@ -646,8 +650,8 @@ function GuionesAGrabar({ filas }: { filas: FilaAnuncio[] }) {
     </li>
   )
   return (
-    <section aria-label="Guiones a grabar" className="mt-8" style={{ borderLeft: '2px solid var(--borgona)', paddingLeft: 16 }}>
-      <p className="etq-laton">Guiones a grabar · {quema.length + noRinde.length}</p>
+    <details aria-label="Guiones a grabar" className="mt-8" style={{ borderLeft: '2px solid var(--borgona)', paddingLeft: 16 }}>
+      <summary className="etq-laton" style={{ cursor: 'pointer' }}>Guiones a grabar · {quema.length + noRinde.length}</summary>
       {quema.length > 0 && <>
         <p className="mt-3" style={{ fontSize: 13, color: 'var(--humo)' }}>Se están quemando: 4 o más días hábiles seguidos más caros</p>
         <ul>{quema.map(f => item(f, 'grabar'))}</ul>
@@ -656,7 +660,7 @@ function GuionesAGrabar({ filas }: { filas: FilaAnuncio[] }) {
         <p className="mt-4" style={{ fontSize: 13, color: 'var(--humo)' }}>Primera tanda: 4 días completos con CPL del cliente alto o sin mensajes después de lanzar</p>
         <ul>{noRinde.map(f => item(f, 'no_rinde'))}</ul>
       </>}
-    </section>
+    </details>
   )
 }
 
@@ -769,15 +773,15 @@ function BotonOptimizada({ campanaId, alGuardar, revision = false }: { campanaId
 function PanelCompetencia({ filas, alRevisar }: { filas: FilaAnuncio[]; alRevisar: () => void }) {
   const items = filas.flatMap(f => f.lanzamientos.filter(l => l.etapa).map(l => ({ f, l })))
   if (!items.length) return null
-  return <section id="competencia" aria-label="Seguimiento de optimizaciones" className="mt-8" style={{ borderLeft: '2px solid var(--azul)', paddingLeft: 16 }}>
-    <p className="etq" style={{ color: 'var(--azul)' }}>Mejores compitiendo · {items.filter(x => x.l.etapa === 'competencia').length} · Revisar ganador final · {items.filter(x => x.l.etapa === 'ganador').length}</p>
+  return <details id="competencia" aria-label="Seguimiento de optimizaciones" className="mt-8" style={{ borderLeft: '2px solid var(--azul)', paddingLeft: 16 }}>
+    <summary className="etq" style={{ color: 'var(--azul)', cursor: 'pointer' }}>Mejores compitiendo · {items.filter(x => x.l.etapa === 'competencia').length} · Revisar ganador final · {items.filter(x => x.l.etapa === 'ganador').length}</summary>
     <p className="mt-2" style={{ fontSize: 13, color: 'var(--humo)' }}>7 días desde la confirmación de optimización. Después: comparar los anuncios que quedaron, elegir el ganador y mantener presupuesto si funciona.</p>
     <ul>{items.map(({ f, l }) => <li key={l.campanaId} className="flex flex-col lg:flex-row gap-3 py-2" style={{ borderBottom: '1px solid var(--filete)' }}>
       <span>{f.cliente}</span><span style={{ color: 'var(--azul)', flex: 1 }}>{l.etapa === 'ganador' ? 'Revisar ganador final' : `Mejores compitiendo · ${l.diasCompetencia} de 7 días`} · optimización confirmada {dm(l.fechaOptimizacion!)} · {l.campana}</span>
       {l.etapa === 'ganador' && <BotonOptimizada campanaId={l.campanaId} alGuardar={alRevisar} revision />}
       <a className="enlace" href={l.link} target="_blank" rel="noopener noreferrer">Abrir campaña</a>
     </li>)}</ul>
-  </section>
+  </details>
 }
 
 function PanelPresupuesto({ filas, hoy }: { filas: FilaAnuncio[]; hoy: string }) {

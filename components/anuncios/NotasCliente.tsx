@@ -9,6 +9,9 @@ import { etiquetaTipo } from '@/lib/bot/anuncios/notas'
 
 const fecha = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })
 const VISIBLES = 8
+// 10/11/2026 (Tomás): solo las que sirven para cambiar la estrategia — cómo vienen las consultas (bien o mal), zona, tipo de caso,
+// presupuesto, pausas, horarios, videos/copy. Los temas de pago/tarjeta y los comentarios sueltos quedan detrás de «ver también».
+export const esImportante = (n: Pick<NotaCliente, 'avisar' | 'pide' | 'tipo'>) => n.tipo !== 'pago' && (n.tipo === 'calidad_consultas' || ((n.avisar || !!n.pide) && n.tipo !== 'otro') || (n.tipo === 'otro' && !!n.pide))
 
 export function NotasCliente() {
   const [notas, setNotas] = useState<NotaCliente[] | null>(null)
@@ -16,6 +19,7 @@ export function NotasCliente() {
   // La nota del link del aviso (?nota=<id>): se lee una vez; mientras no hay notas el panel no pinta nada, así no hay desfase con el servidor
   const [foco] = useState<number | null>(() => (typeof window === 'undefined' ? null : Number(new URLSearchParams(window.location.search).get('nota')) || null))
   const [todas, setTodas] = useState(() => foco !== null)
+  const [conResto, setConResto] = useState(false)
   useEffect(() => {
     fetch('/api/anuncios/notas', { cache: 'no-store' })
       .then(r => r.json().then(j => (r.ok ? setNotas(j.notas ?? []) : setError(j.error ?? 'No se pudieron leer las notas'))))
@@ -26,13 +30,16 @@ export function NotasCliente() {
   }, [notas, foco])
   if (error) return <section id="notas" aria-label="Notas del cliente" className="mt-8"><p style={{ fontSize: 13, color: 'var(--humo)' }}>Notas del cliente: {error}</p></section>
   if (!notas) return null
-  const pendientes = notas.filter(n => n.avisar).length
-  const lista = todas ? notas : notas.slice(0, VISIBLES)
+  const importantes = notas.filter(n => esImportante(n) || n.id === foco)
+  const resto = notas.length - importantes.length
+  const base = conResto ? notas : importantes
+  const pendientes = importantes.filter(n => n.avisar).length
+  const lista = todas ? base : base.slice(0, VISIBLES)
   return (
-    <section id="notas" aria-label="Notas del cliente" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-      <p className="etq-laton">Notas del cliente · {notas.length}{pendientes ? ` · ${pendientes} con pedido` : ''}</p>
-      <p className="mt-1" style={{ fontSize: 13, color: 'var(--humo)' }}>Lo que dijeron de sus anuncios en su grupo de WhatsApp (últimos 60 días). El bot solo lee.</p>
-      {!notas.length && <p className="mt-3" style={{ fontSize: 13, color: 'var(--humo)' }}>Todavía no hay notas.</p>}
+    <details id="notas" open={foco !== null} aria-label="Notas del cliente" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
+      <summary className="etq-laton" style={{ cursor: 'pointer' }}>Notas del cliente · {importantes.length} importantes{pendientes ? ` · ${pendientes} con pedido` : ''}</summary>
+      <p className="mt-1" style={{ fontSize: 13, color: 'var(--humo)' }}>Lo que dijeron de sus anuncios en su grupo de WhatsApp (últimos 60 días), solo lo que sirve para la estrategia: pedidos, cosas a tener en cuenta y cómo vienen las consultas. El bot solo lee.</p>
+      {!importantes.length && !conResto && <p className="mt-3" style={{ fontSize: 13, color: 'var(--humo)' }}>No hay notas importantes.</p>}
       <ul className="mt-3 flex flex-col">
         {lista.map(n => (
           <li key={n.id} id={`nota-${n.id}`} className="py-3" style={{ borderTop: '1px solid var(--filete)', fontSize: 14, ...(foco === n.id ? { background: 'color-mix(in srgb, var(--laton) 12%, transparent)', paddingLeft: 8, paddingRight: 8 } : {}) }}>
@@ -49,7 +56,10 @@ export function NotasCliente() {
           </li>
         ))}
       </ul>
-      {notas.length > VISIBLES && <button type="button" className="enlace mt-2" style={{ fontSize: 13 }} onClick={() => setTodas(!todas)}>{todas ? 'Ver menos' : `Ver las ${notas.length}`}</button>}
-    </section>
+      <div className="mt-2 flex flex-wrap gap-x-5" style={{ fontSize: 13 }}>
+        {base.length > VISIBLES && <button type="button" className="enlace" onClick={() => setTodas(!todas)}>{todas ? 'Ver menos' : `Ver las ${base.length}`}</button>}
+        {resto > 0 && <button type="button" className="enlace" onClick={() => setConResto(!conResto)}>{conResto ? 'Ocultar los comentarios sueltos' : `Ver también ${resto} comentario${resto > 1 ? 's' : ''} suelto${resto > 1 ? 's' : ''}`}</button>}
+      </div>
+    </details>
   )
 }
