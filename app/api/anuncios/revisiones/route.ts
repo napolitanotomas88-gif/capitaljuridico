@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { COOKIE_ANUNCIOS, claveConfigurada, cronAutorizado, sesionValida } from '@/lib/anuncios/auth'
 import { adminPorCabeceras } from '@/lib/auth/llaveAdmin'
-import { leerRevisiones, vistaRevisiones } from '@/lib/anuncios/revisiones'
+import { conLinks, leerRevisiones, vistaRevisiones } from '@/lib/anuncios/revisiones'
 import { hoyAR } from '@/lib/anuncios/formato'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const hoy = hoyAR()
-    return NextResponse.json({ hoy, revisiones: vistaRevisiones(await leerRevisiones(), hoy) }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ hoy, revisiones: await conLinks(vistaRevisiones(await leerRevisiones(), hoy)) }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }

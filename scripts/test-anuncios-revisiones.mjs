@@ -28,3 +28,12 @@ test('cuenta días y ordena por lo más urgente; oculta las revisadas', () => {
   assert.equal(luego[1].hoyToca, true)
   assert.equal(luego[1].dia, 8)
 })
+
+test('saca etiqueta e ID de la columna de conjuntos y arma el link (10/11)', () => {
+  const p = R.idsDeConjuntos('Broad 120250704284800649 · Intereses 120251062083140649 · Campaña 120249629034410377')
+  assert.deepEqual(p.map(x => [x.etiqueta, x.id, x.campana]), [['Broad', '120250704284800649', false], ['Intereses', '120251062083140649', false], ['Campaña', '120249629034410377', true]])
+  assert.equal(R.idsDeConjuntos('sin ids').length, 0)
+  assert.equal(R.linkAdministrador('123', 'act_99', false), 'https://adsmanager.facebook.com/adsmanager/manage/adsets?act=99&selected_adset_ids=123')
+  assert.equal(R.linkAdministrador('123', 'act_99', true), 'https://adsmanager.facebook.com/adsmanager/manage/adsets?act=99&selected_campaign_ids=123')
+  assert.equal(R.linkAdministrador('123', null, false), null)
+})
