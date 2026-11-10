@@ -21,7 +21,7 @@ export const SECCIONES_PORTAL = ['objetivo', 'progreso', 'reporte', 'plan', 'pro
 export type SeccionPortal = (typeof SECCIONES_PORTAL)[number]
 export type SeccionesPortal = Record<SeccionPortal, boolean>
 export const NOMBRE_SECCION_PORTAL: Record<SeccionPortal, string> = {
-  objetivo: 'El objetivo', progreso: 'Casos conseguidos (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', historias: 'Guiones de historias', seguimiento: 'Seguimiento',
+  objetivo: 'El objetivo', progreso: 'Casos conseguidos (barra de progreso)', reporte: 'Reporte de anuncios (inversión, costo por caso, profit)', plan: 'Cómo vamos a llegar (el plan por etapas)', proximos: 'Próximos pasos', proceso: 'Cómo viene el proceso', guiones: 'Tus guiones', historias: 'Historias de Instagram', seguimiento: 'Seguimiento',
 }
 /** Por defecto (portal nuevo o guardado antes de que existieran): las de siempre visibles; casos, reporte e historias, ocultas hasta tildarlas. */
 export const SECCIONES_TODAS: SeccionesPortal = { objetivo: true, progreso: false, reporte: false, plan: true, proximos: true, proceso: true, guiones: true, historias: false, seguimiento: true }
