@@ -317,7 +317,7 @@ export interface RawData {
   monthlyClicksAgendar: (number | null)[]  // Clicks en "Agendar" (GA4 click_agendar; null hasta instalar el snippet)
   monthlyLeadsIG: number[]            // Leads de IG (pestaña "Leads IG", alimentada por ManyChat)
   // Setter (Maite): asignados por ManyChat (etiqueta ASIGNADO → pestaña "Setter IG") y agendas
-  // propias (col K "Setter" = mai en las hojas de closers). % agenda del setter = agendas ÷ asignados
+  // propias (col K "Setter" = mai en las hojas de closers). % agenda del setter = agendas ÷ leads IG del mes
   monthlyAsignadosSetter: number[]
   monthlyAgendasSetter: number[]
   monthlyTasaAgendaSetter: (number | null)[]
@@ -1868,12 +1868,13 @@ async function construirRawData(ligero = false): Promise<RawData> {
   const monthlyFeccuCacWebinar: (number | null)[] = Array.from({ length: 12 }, (_, i) => ratioSiGasto(monthlyFeccuWebinar[i], monthlyAdsWebinar[i]))
   const monthlyFeccuCacUruguay: (number | null)[] = Array.from({ length: 12 }, (_, i) => ratioSiGasto(monthlyFeccuUruguay[i], monthlyAdsUruguay[i]))
 
-  // % de agenda del setter = agendas de Maite ÷ asignados por ManyChat (definición del usuario, 8-sep).
-  // null si el mes no tiene asignados reales (ni histórico D/E ni filas vivas: antes de agosto no se
-  // medía) o si hay menos asignados que agendas (el denominador no cubre el mes).
+  // % de agenda del setter = agendas de Maite ÷ leads IG del mes (Gero, 11/11/2026). Maite es la única
+  // setter y todos los leads le llegan; la etiqueta ASIGNADO ("Setter IG") solo la ponen los flujos de
+  // comentarios, así que dividir por asignados inflaba el % (antes: definición del 8-sep, ÷ asignados).
+  // null si el mes no tiene leads IG medidos.
+  void asignadosReales
   const monthlyTasaAgendaSetter: (number | null)[] = Array.from({ length: 12 }, (_, i) =>
-    asignadosReales[i] && monthlyAsignadosSetter[i] > 0 && monthlyAsignadosSetter[i] >= monthlyAgendasSetter[i]
-      ? monthlyAgendasSetter[i] / monthlyAsignadosSetter[i] : null)
+    monthlyLeadsIG[i] > 0 ? monthlyAgendasSetter[i] / monthlyLeadsIG[i] : null)
 
   // ── Enrutamiento del DÍA ANTERIOR (reporte Discord de las 8:05) ──────
   // Entrada: filas vivas de Leads IG / Setter IG por fecha (los históricos D/E no tienen

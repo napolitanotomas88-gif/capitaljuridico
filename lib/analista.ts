@@ -39,7 +39,7 @@ interface Vista {
   monthlyAdsRetargeting?: Serie; monthlyAdsWebinar?: Serie; monthlyAdsUruguay?: Serie
   monthlyFeccuRetargeting?: Serie
   monthlyFeccuCacVSL?: Serie; monthlyFeccuCacFM?: Serie; monthlyFeccuCacRetargeting?: Serie; monthlyFeccuCacWebinar?: Serie; monthlyFeccuCacUruguay?: Serie
-  monthlyAsignadosSetter?: Serie; monthlyTasaAgendaSetter?: Serie
+  monthlyAsignadosSetter?: Serie; monthlyTasaAgendaSetter?: Serie; monthlyLeadsIG?: Serie
   backend?: {
     churn?: Serie
     crm?: { disponible?: boolean; churnBajas?: Serie; churnActivosInicio?: Serie; churnRenov?: Serie; bajasSinFecha?: number }
@@ -97,9 +97,6 @@ const normNombre = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-
 // Nota de la col E de guiones que saca al cliente del seguimiento ("no mandar", "no grabar", "pausa", "baja")
 // (un /api/raw viejo no trae `inactiva`: se deduce de la nota)
 const NOTA_INACTIVA = /no\s+mandar|no\s+grabar|pausa|\bbaja\b/i
-// Desde septiembre 2026 los asignados del setter salen de las filas vivas de "Setter IG" (regla ASIGNADO
-// del 8-sep); antes, de la etiqueta de ManyChat cargada a mano. Meses de métodos distintos no se comparan.
-const metodoSetter = (anio: number, i: number) => anio > 2026 || (anio === 2026 && i >= 8) ? 'filas' : 'etiqueta'
 
 // Número válido de una serie (null si falta, no es finito o el índice no existe)
 function v(serie: Serie, i: number): number | null {
@@ -508,18 +505,16 @@ export function analizarNegocio(raw: RawSerializada, opts: { monthIdx: number; h
       })
     }
 
-    // Setter (Maite): % de asignados que agenda (serie en proporción 0–1; solo con volumen real)
-    const asig = v(r.monthlyAsignadosSetter, m), tasaS = v(r.monthlyTasaAgendaSetter, m)
-    if (asig != null && asig >= 50 && tasaS != null) {
+    // Setter (Maite): % de los leads IG del mes que agenda (es la única setter; serie en proporción 0–1)
+    const leadsS = v(r.monthlyLeadsIG, m), tasaS = v(r.monthlyTasaAgendaSetter, m)
+    if (leadsS != null && leadsS >= 50 && tasaS != null) {
       const pS = tasaS <= 1 ? tasaS * 100 : tasaS
-      const asigP = v(r.monthlyAsignadosSetter, m - 1), tasaP = v(r.monthlyTasaAgendaSetter, m - 1)
-      // Solo contra un mes medido con el mismo método (etiqueta de ManyChat vs filas vivas de "Setter IG")
-      const mismoMetodo = m > 0 && metodoSetter(anio, m) === metodoSetter(anio, m - 1)
-      const pP = mismoMetodo && asigP != null && asigP >= 50 && tasaP != null ? (tasaP <= 1 ? tasaP * 100 : tasaP) : null
+      const leadsP = v(r.monthlyLeadsIG, m - 1), tasaP = v(r.monthlyTasaAgendaSetter, m - 1)
+      const pP = m > 0 && leadsP != null && leadsP >= 50 && tasaP != null ? (tasaP <= 1 ? tasaP * 100 : tasaP) : null
       add({
         id: `setter-${idm}`, prioridad: 3, tipo: 'dato', area: 'ventas', icono: '💬',
-        titulo: `Setter agenda el ${pct(pS)} de asignados`,
-        texto: `Maite agendó el ${pct(pS)} de ${Math.round(asig)} leads asignados${pP != null ? ` (${mesPrev}: ${pct(pP)})` : ''}.`,
+        titulo: `Setter agenda el ${pct(pS)} de los leads IG`,
+        texto: `Maite agendó el ${pct(pS)} de ${Math.round(leadsS)} leads IG${pP != null ? ` (${mesPrev}: ${pct(pP)})` : ''}.`,
       })
     }
 

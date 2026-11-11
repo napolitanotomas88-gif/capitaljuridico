@@ -249,10 +249,9 @@ export function armarEnrutamientosPerdidos(
   const noAsig = e.noAsignados
   // Todos los leads de IG van a Maite (única setter): no hay "no asignados" que contar (pedido de Gero, 11/11/2026).
   const perdidas = routing.perdidos.length + cal.canceladas.length + noCargadas.length + noShows.length + sinRegistro.length
-  const pctSetterMes = e.tasaAgendaSetterMes == null ? '—' : (e.tasaAgendaSetterMes * 100).toFixed(1) + '%'   // histórico (÷ asignados), solo para el sheet
   // % agenda de Maite sobre TODOS los leads de IG del mes (la etiqueta ASIGNADO solo la ponen los flujos de comentarios,
-  // así que dividir por "asignados" inflaba el % y no medía nada útil).
-  const pctAgendaLeadsMes = e.leadsIG.mes > 0 ? ((e.agendasSetterMes / e.leadsIG.mes) * 100).toFixed(1).replace('.', ',') + '%' : '—'
+  // así que dividir por "asignados" inflaba el % y no medía nada útil). Mismo número que el dashboard.
+  const pctAgendaLeadsMes = e.tasaAgendaSetterMes == null ? '—' : (e.tasaAgendaSetterMes * 100).toFixed(1).replace('.', ',') + '%'
 
   partes.push(`🕳 **ENRUTAMIENTOS PERDIDOS — ${diaLargo}** _(reporte de la mañana del ${diaCorto(hoy)})_\n` +
     `• Leads IG: **${n(e.leadsIG.dia)}** (día anterior ${n(e.leadsIG.previo)} · mes ${n(e.leadsIG.mes)})\n` +
@@ -313,7 +312,7 @@ export function armarEnrutamientosPerdidos(
     fecha: fechaDia, leadsIG: e.leadsIG.dia, asignados: e.asignados.dia, pctAsignados: pctDe(e.asignados.dia, e.leadsIG.dia), noAsignados: noAsig.total,
     formulariosSinAgendar: routing.perdidos.length,
     agendasMaite: e.agendasSetterDia, reservasCalendly: conCal ? cal.creadas.length : 0, llamadas: total, presentadas: presentadas.length,
-    noShows: noShows.length, sinRegistrar: sinRegistro.length, cierres: cierres.length, pctAgendaSetterMes: pctSetterMes,
+    noShows: noShows.length, sinRegistrar: sinRegistro.length, cierres: cierres.length, pctAgendaSetterMes: pctAgendaLeadsMes,
   }
   return { partes, registro: { formularios, noShows: noShowsSheet, leadsIG: leadsIGSheet, resumen } }
 }

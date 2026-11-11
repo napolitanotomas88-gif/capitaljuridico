@@ -10,7 +10,7 @@ const raw = {
     leadsIG: { dia: 360, previo: 263, mes: 2982 },
     asignados: { dia: 61, previo: 45, mes: 514 },
     noAsignados: { total: 299, identificados: [{ nombre: 'Z001', usuario: 'z001', id: '1' }] },
-    agendasSetterDia: 3, agendasSetterMes: 25, tasaAgendaSetterMes: 25 / 514,
+    agendasSetterDia: 3, agendasSetterMes: 25, tasaAgendaSetterMes: 25 / 2982,   // = agendas ÷ leads IG del mes (rawSheets)
     llamadas: { total: 0, porCloser: {}, lista: [] },
   },
 }
