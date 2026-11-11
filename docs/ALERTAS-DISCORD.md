@@ -91,6 +91,7 @@ Otras variables:
 | g04–g06 | El texto ya va en el aviso de 📣-ads para Valentino, que entra a /anuncios con su clave. No se registra en 📤 |
 | h01, h02, h03 | Al aprobar en `/clientes/aprobaciones`, o al cargar el testimonio (Gero M) |
 | i01, i03 | Al aprobar en `/clientes/aprobaciones` (Gero M y Tomás, o Aylu) |
+| j01 aviso de incumplimiento (11/11/2026) | Controles de cumplimiento (`lib/clientes/controles`, `GET /api/clientes/controles`, 10:00 AR; apagado salvo `CONTROLES_CLIENTES=encendido`). Cada incumplimiento (Meta del día anterior, guiones sin revisar, sin crudos, sin capturas) queda en `cj_controles_incumplimientos` y «para enviar» con el texto formal para el grupo General. Sale UNA alerta en 🛠️-operaciones (Gero M) con el texto y el link; los lunes, el resumen de la semana. Historial por cliente en `/clientes/controles`. La configuración de cada cliente va en `cj_controles_cliente` (POST con CRON_SECRET), nunca en el repo |
 
 ## 4. Aprobaciones — `/clientes/aprobaciones`
 

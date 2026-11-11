@@ -381,6 +381,7 @@ Guiones, Edición, Anuncios y Referidos dejaron de ser entradas sueltas del men�
 | `/api/clientes/sincronizar` | Cron diario con `Bearer CRON_SECRET` | Recupera pedidos durables y meses de referidos; actualiza avisos internos. No crea pedidos nuevos. |
 | `/api/clientes/inactivos/cron` | Cron diario con `Bearer CRON_SECRET` | Alerta interna cada tres días sin respuesta. No envía mensajes al cliente. |
 | `/api/clientes/encuesta/cron` | Cron diario con `Bearer CRON_SECRET` | Encuesta mensual: los que no contestaron (desde el día 3 del envío marcado en `/clientes/encuesta`) van a 🛠️-operaciones. No envía mensajes al cliente. |
+| `/api/clientes/controles` | Cron diario y de los lunes con `Bearer CRON_SECRET` (fuera del proxy) | Controles de cumplimiento (11/11/2026): cron diario 10:00 AR, `?semanal=1` los lunes, `?dry=1`, `?config=1` y POST de la configuración del cliente. Apagado salvo `CONTROLES_CLIENTES=encendido`. No envía mensajes al cliente: los avisos quedan «para enviar» (j01). |
 
 ## Portal del cliente (2/11/2026)
 

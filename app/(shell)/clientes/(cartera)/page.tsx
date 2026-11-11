@@ -76,6 +76,7 @@ export default async function ClientesPage({ searchParams }: Props) {
             {puedeVer(sesion, 'altas') && <BotonEnlace href="/finanzas/pagos" variante="marca">＋ Cargar pago o alta</BotonEnlace>}
             <BotonEnlace href="/clientes/para-enviar" variante="secundario">📤 Para enviar</BotonEnlace>
             <BotonEnlace href="/clientes/aprobaciones" variante="secundario">✅ Aprobaciones</BotonEnlace>
+            <BotonEnlace href="/clientes/controles" variante="secundario">🧾 Controles</BotonEnlace>
             {/* Ocultar o mostrar los montos en pantalla (solo con Finanzas; sin Finanzas ni llegan) */}
             {verCobros && <BotonMontos />}
             <p className="cj-etiqueta cj-seccion__meta">
