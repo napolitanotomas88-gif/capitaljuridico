@@ -2,8 +2,10 @@
 //   · cj_controles_cliente: la configuración de cada cliente con garantía (id_crm PK, cuenta publicitaria, presupuesto
 //     diario en USD, carpetas de Drive, desde, plazos y cláusulas). Se carga con POST /api/clientes/controles (Bearer
 //     CRON_SECRET): los datos del cliente nunca van al repo.
-//   · cj_controles_incumplimientos: una fila por incumplimiento (clave UNIQUE: nunca dos veces), con el id del mensaje
-//     «para enviar» (cj_canal_mensajes, pieza j01) que guarda «Enviado», quién y cuándo.
+//   · cj_controles_incumplimientos: una fila por incumplimiento o posible incumplimiento (clave UNIQUE: nunca dos veces).
+//     estado: 'aviso' (automático, con su «para enviar») | 'a_verificar' (sin aviso hasta «Es incumplimiento») |
+//     'confirmado' (alguien lo confirmó: ya tiene su «para enviar») | 'descartado' («No corresponde», con motivo). El id del
+//     mensaje «para enviar» (cj_canal_mensajes, pieza j01) guarda «Enviado», quién y cuándo.
 // Todas las sentencias son CREATE … IF NOT EXISTS / ADD COLUMN IF NOT EXISTS: correrlas dos veces no cambia nada.
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import { asegurarTablaCanal, insertarMensaje, baseCanalLista } from '@/lib/bot/canal/registro'
@@ -24,8 +26,13 @@ export const SENTENCIAS_CONTROLES: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS cj_controles_incumplimientos (
     id bigserial PRIMARY KEY, clave text NOT NULL UNIQUE, id_crm text NOT NULL, tipo text NOT NULL, fecha date NOT NULL,
     clausula text, falta text NOT NULL, lineas jsonb NOT NULL DEFAULT '[]'::jsonb, texto text NOT NULL, mensaje_id bigint,
-    alerta text, creado timestamptz NOT NULL DEFAULT now())`,
+    alerta text, estado text NOT NULL DEFAULT 'aviso', resuelto_por text, resuelto_cuando timestamptz, motivo text,
+    creado timestamptz NOT NULL DEFAULT now())`,
   `ALTER TABLE cj_controles_incumplimientos ADD COLUMN IF NOT EXISTS alerta text`,
+  `ALTER TABLE cj_controles_incumplimientos ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'aviso'`,
+  `ALTER TABLE cj_controles_incumplimientos ADD COLUMN IF NOT EXISTS resuelto_por text`,
+  `ALTER TABLE cj_controles_incumplimientos ADD COLUMN IF NOT EXISTS resuelto_cuando timestamptz`,
+  `ALTER TABLE cj_controles_incumplimientos ADD COLUMN IF NOT EXISTS motivo text`,
   `CREATE INDEX IF NOT EXISTS cj_controles_incumplimientos_cliente ON cj_controles_incumplimientos (id_crm, fecha)`,
 ]
 
@@ -108,23 +115,52 @@ export async function tandasConEnvio(idCrm: string): Promise<{ id: number; tanda
   } catch { return [] }
 }
 
-/** Registra el incumplimiento y su aviso «para enviar» (pieza j01). nuevo=false si ya estaba (no se repite nada). */
-export async function registrarIncumplimiento(i: Incumplimiento, clave: string, texto: string): Promise<{ nuevo: boolean; mensajeId: number | null }> {
+async function crearParaEnviar(c: Q, filaId: number, h: Pick<Incumplimiento, 'idCrm' | 'cliente' | 'tipo' | 'fecha' | 'clausula'>, clave: string, texto: string): Promise<number | null> {
+  try {
+    const id = await insertarMensaje({
+      pieza: 'j01', idCrm: h.idCrm, cliente: h.cliente, clave: `controles:${clave}`, claveCompleta: `j01:controles:${clave}`, texto,
+      abrir: `/clientes/controles?cliente=${h.idCrm}`, datos: { origen: 'controles', tipo: h.tipo, fecha: h.fecha, clausula: h.clausula },
+    })
+    if (id) await c`UPDATE cj_controles_incumplimientos SET mensaje_id = ${id} WHERE id = ${filaId}`
+    return id
+  } catch (e) {
+    console.error(`[controles] ${h.tipo}: no se pudo dejar «para enviar» (${String((e as Error)?.name ?? 'error')})`)
+    return null
+  }
+}
+
+/** Registra el hallazgo. 'aviso' deja además el «para enviar» (pieza j01); 'verificar' queda «a_verificar» sin aviso.
+ *  nuevo=false si ya estaba (no se repite nada). */
+export async function registrarIncumplimiento(i: Incumplimiento, clave: string, texto: string, modo: 'aviso' | 'verificar'): Promise<{ nuevo: boolean; mensajeId: number | null }> {
   const c = q()
   await asegurarTablasControles(c)
-  const r = (await c`INSERT INTO cj_controles_incumplimientos (clave, id_crm, tipo, fecha, clausula, falta, lineas, texto)
-    VALUES (${clave}, ${i.idCrm}, ${i.tipo}, ${i.fecha}::date, ${i.clausula}, ${i.falta.slice(0, 600)}, ${JSON.stringify(i.lineas.slice(0, 6))}::jsonb, ${texto.slice(0, 2000)})
+  const estado = modo === 'aviso' ? 'aviso' : 'a_verificar'
+  const r = (await c`INSERT INTO cj_controles_incumplimientos (clave, id_crm, tipo, fecha, clausula, falta, lineas, texto, estado)
+    VALUES (${clave}, ${i.idCrm}, ${i.tipo}, ${i.fecha}::date, ${i.clausula}, ${i.falta.slice(0, 600)}, ${JSON.stringify(i.lineas.slice(0, 6))}::jsonb, ${texto.slice(0, 2000)}, ${estado})
     ON CONFLICT (clave) DO NOTHING RETURNING id`) as Fila[]
   if (!r.length) return { nuevo: false, mensajeId: null }
-  let mensajeId: number | null = null
-  try {
-    mensajeId = await insertarMensaje({
-      pieza: 'j01', idCrm: i.idCrm, cliente: i.cliente, clave: `controles:${clave}`, claveCompleta: `j01:controles:${clave}`, texto,
-      abrir: `/clientes/controles?cliente=${i.idCrm}`, datos: { origen: 'controles', tipo: i.tipo, fecha: i.fecha, clausula: i.clausula },
-    })
-    if (mensajeId) await c`UPDATE cj_controles_incumplimientos SET mensaje_id = ${mensajeId} WHERE id = ${Number(r[0].id)}`
-  } catch (e) { console.error(`[controles] ${i.tipo}: no se pudo dejar «para enviar» (${String((e as Error)?.name ?? 'error')})`) }
+  const mensajeId = modo === 'aviso' ? await crearParaEnviar(c, Number(r[0].id), i, clave, texto) : null
   return { nuevo: true, mensajeId }
+}
+
+/** «Es incumplimiento» / «No corresponde» de un hallazgo a verificar (una sola vez). Con «Es incumplimiento» se arma el
+ *  aviso con el plazo desde hoy y queda «para enviar». null = no existe o ya se resolvió. */
+export async function resolverVerificacion(id: number, accion: 'confirmar' | 'descartar', por: string, motivo: string | null, armarTexto: (f: { idCrm: string; fecha: Ymd; falta: string; clausula: string }) => Promise<string>):
+  Promise<{ estado: 'confirmado' | 'descartado'; mensajeId: number | null } | null> {
+  const c = q()
+  await asegurarTablasControles(c)
+  const r = (await c`UPDATE cj_controles_incumplimientos SET estado = ${accion === 'confirmar' ? 'confirmado' : 'descartado'}, resuelto_por = ${por.slice(0, 120)},
+      resuelto_cuando = now(), motivo = ${motivo ? motivo.slice(0, 300) : null}
+    WHERE id = ${id} AND estado = 'a_verificar' RETURNING *`) as Fila[]
+  if (!r.length) return null
+  if (accion === 'descartar') return { estado: 'descartado', mensajeId: null }
+  const f = r[0]
+  const h = { idCrm: String(f.id_crm), fecha: ymd(f.fecha), falta: String(f.falta ?? ''), clausula: String(f.clausula ?? '') }
+  const cfg = (await c`SELECT cliente FROM cj_controles_cliente WHERE id_crm = ${h.idCrm}`) as Fila[]
+  const texto = await armarTexto(h)
+  await c`UPDATE cj_controles_incumplimientos SET texto = ${texto.slice(0, 2000)} WHERE id = ${id}`
+  const mensajeId = await crearParaEnviar(c, id, { ...h, cliente: String(cfg[0]?.cliente ?? h.idCrm), tipo: String(f.tipo) as TipoIncumplimiento }, String(f.clave), texto)
+  return { estado: 'confirmado', mensajeId }
 }
 
 export async function anotarAlerta(clave: string, estado: string): Promise<void> {
@@ -134,7 +170,12 @@ export async function anotarAlerta(clave: string, estado: string): Promise<void>
 export interface IncumplimientoGuardado {
   id: number; clave: string; idCrm: string; tipo: TipoIncumplimiento; fecha: Ymd; clausula: string | null; falta: string; texto: string
   lineas: string[]; creado: string; alerta: string | null
-  mensajeId: number | null; estado: 'para_enviar' | 'enviado' | 'descartado' | 'sin_mensaje'; por: string | null; cuando: string | null; motivo: string | null
+  mensajeId: number | null
+  /** a_verificar | descartado_verificacion (No corresponde al verificar) | para_enviar | enviado | descartado (en Para enviar) | sin_mensaje */
+  estado: 'a_verificar' | 'descartado_verificacion' | 'para_enviar' | 'enviado' | 'descartado' | 'sin_mensaje'
+  /** Quién confirmó o descartó la verificación. */
+  verificado: { por: string | null; cuando: string | null } | null
+  por: string | null; cuando: string | null; motivo: string | null
 }
 
 export async function incumplimientosEntre(idCrm: string | null, desde: Ymd, hasta: Ymd, limite = 300): Promise<IncumplimientoGuardado[]> {
@@ -151,7 +192,10 @@ export async function incumplimientosEntre(idCrm: string | null, desde: Ymd, has
     clausula: f.clausula ? String(f.clausula) : null, falta: String(f.falta ?? ''), texto: String(f.texto ?? ''),
     lineas: Array.isArray(f.lineas) ? (f.lineas as unknown[]).map(String) : [], creado: iso(f.creado) ?? '', alerta: f.alerta ? String(f.alerta) : null,
     mensajeId: f.mensaje_id ? Number(f.mensaje_id) : null,
-    estado: (f.m_estado ? String(f.m_estado) : 'sin_mensaje') as IncumplimientoGuardado['estado'],
-    por: f.m_por ? String(f.m_por) : null, cuando: iso(f.m_cuando), motivo: f.m_motivo ? String(f.m_motivo) : null,
+    estado: (f.estado === 'a_verificar' ? 'a_verificar' : f.estado === 'descartado' ? 'descartado_verificacion' : f.m_estado ? String(f.m_estado) : 'sin_mensaje') as IncumplimientoGuardado['estado'],
+    verificado: f.resuelto_por ? { por: String(f.resuelto_por), cuando: iso(f.resuelto_cuando) } : null,
+    por: f.estado === 'descartado' ? (f.resuelto_por ? String(f.resuelto_por) : null) : f.m_por ? String(f.m_por) : null,
+    cuando: f.estado === 'descartado' ? iso(f.resuelto_cuando) : iso(f.m_cuando),
+    motivo: f.estado === 'descartado' ? (f.motivo ? String(f.motivo) : null) : f.m_motivo ? String(f.m_motivo) : null,
   }))
 }
