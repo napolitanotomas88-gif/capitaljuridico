@@ -9,28 +9,37 @@ const TZ = 'America/Argentina/Buenos_Aires'
 const ar = (hhmm, dia = '2026-10-27') => new Date(`${dia}T${hhmm}:00-03:00`)
 const semana = (from, to) => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((wday) => ({ type: 'wday', wday, intervals: [{ from, to }] }))
 
-test('nivel de una reserva por su nombre (nombres del 26/10; las viejas "Reunión Consultiva" cuentan como A/B)', () => {
+test('nivel de una reserva por su nombre (llaves de la doble reserva de Calendly, 11/11/2026)', () => {
   assert.equal(nivelDeNombre('Reunión Consultiva'), 1)
-  assert.equal(nivelDeNombre('Reunión Consultiva - Capital Jurídico'), 2)
-  assert.equal(nivelDeNombre('Reunión Consultiva con el equipo de Capital Jurídico'), 2)
-  assert.equal(nivelDeNombre('Reunión Consultiva con Capital Jurídico'), 3)
+  assert.equal(nivelDeNombre('Reunión Consultiva Estratégica'), 2)
+  assert.equal(nivelDeNombre('Reunión Consultiva - Capital Jurídico'), 3)
+  assert.equal(nivelDeNombre('Reunión Consultiva con el equipo de Capital Jurídico'), 3)
+  assert.equal(nivelDeNombre('Reunión Consultiva con Capital Jurídico'), 4)
+  assert.equal(nivelDeNombre('Reunión Consultiva Inicial'), 5)
   assert.equal(nivelDeNombre('Reunión Consultiva - Reagenda Carlos'), 0)
   assert.equal(nivelDeNombre('Reunión WEBINAR'), 0)
-  assert.equal(nivelDeEvento('Leads A y B - 2 DÍAS DE AGENDA', 'x'), 1)
+  assert.equal(nivelDeEvento('Leads A+ (solo Carlos) - ANUNCIOS - 2 DÍAS DE AGENDA', 'Reunión Consultiva'), 1)
+  assert.equal(nivelDeEvento('Leads A y B - 2 DÍAS DE AGENDA', 'x'), 2)
   assert.equal(nivelDeEvento('ORGÁNICO (Instagram, WhatsApp, referidos) · A y B · sin doble reserva', 'Reunión Consultiva'), 0)
+  assert.equal(nivelDeEvento('ORGÁNICO (Instagram, WhatsApp, referidos) · E (solo Nahuel) · sin doble reserva', 'Reunión Consultiva'), 0)
   assert.equal(nivelDeEvento('REFERIDOS (link de referidos) · Carlos y Marcos · sin doble reserva', 'Reunión Consultiva'), 0)
-  assert.equal(nivelDeEvento('Leads C - 2 DÍAS DE AGENDA', 'x'), 2)
-  assert.equal(nivelDeEvento('Leads D+E - 2 DÍAS DE AGENDA', 'x'), 3)
+  assert.equal(nivelDeEvento('Leads C - 2 DÍAS DE AGENDA', 'x'), 3)
+  assert.equal(nivelDeEvento('Leads D - ANUNCIOS - 2 DÍAS DE AGENDA', 'x'), 4)
+  assert.equal(nivelDeEvento('Leads D+E - 2 DÍAS DE AGENDA', 'x'), 4)
+  assert.equal(nivelDeEvento('Leads E (solo Nahuel) - ANUNCIOS - 2 DÍAS DE AGENDA', 'x'), 5)
 })
 
-test('quién pisa a quién: A/B pisa a C y D+E, C pisa a D+E, nunca el mismo nivel ni una reagenda', () => {
+test('quién pisa a quién: cada nivel pisa a los de abajo, nunca al mismo nivel ni a una reagenda', () => {
   assert.equal(puedePisar(1, 2), true)
-  assert.equal(puedePisar(1, 3), true)
+  assert.equal(puedePisar(1, 5), true)
   assert.equal(puedePisar(2, 3), true)
-  assert.equal(puedePisar(2, 2), false)
-  assert.equal(puedePisar(3, 2), false)
-  assert.equal(puedePisar(1, 1), false)
+  assert.equal(puedePisar(3, 4), true)
+  assert.equal(puedePisar(4, 5), true)
+  assert.equal(puedePisar(2, 1), false)
+  assert.equal(puedePisar(4, 4), false)
+  assert.equal(puedePisar(5, 4), false)
   assert.equal(puedePisar(1, 0), false)
+  assert.equal(puedePisar(0, 5), false)
 })
 
 test('horario del host: la reunión entera tiene que entrar (y las fechas puntuales mandan sobre el día de la semana)', () => {
@@ -40,11 +49,12 @@ test('horario del host: la reunión entera tiene que entrar (y las fechas puntua
   assert.equal(dentroDeHorario([...reglas, { type: 'date', date: '2026-10-27', intervals: [] }], TZ, ar('10:00'), 60), false)
 })
 
-test('libre u ocupado según el nivel: una reserva de D+E no ocupa para A/B, sí para D+E; lo externo siempre ocupa', () => {
-  const h = { nombre: 'Marcos', reglas: semana('09:00', '20:00'), tz: TZ, ocupado: [{ inicio: ar('10:00'), fin: ar('11:00'), nivel: 3 }] }
-  assert.equal(hostLibre(h, ar('10:00'), 60, 1), true)
-  assert.equal(hostLibre(h, ar('10:00'), 60, 3), false)
-  assert.equal(hostLibre(h, ar('10:30'), 60, 2), true)
+test('libre u ocupado según el nivel: una reserva de D no ocupa para A/B ni C, sí para D y E; lo externo siempre ocupa', () => {
+  const h = { nombre: 'Marcos', reglas: semana('09:00', '20:00'), tz: TZ, ocupado: [{ inicio: ar('10:00'), fin: ar('11:00'), nivel: 4 }] }
+  assert.equal(hostLibre(h, ar('10:00'), 60, 2), true)
+  assert.equal(hostLibre(h, ar('10:00'), 60, 4), false)
+  assert.equal(hostLibre(h, ar('10:00'), 60, 5), false)
+  assert.equal(hostLibre(h, ar('10:30'), 60, 3), true)
   const ext = { ...h, ocupado: [{ inicio: ar('10:00'), fin: ar('11:00'), nivel: 0, externo: true }] }
   assert.equal(hostLibre(ext, ar('10:00'), 60, 1), false)
 })

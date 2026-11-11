@@ -5,47 +5,57 @@
 //
 // Para cada horario que ofrece Calendly se mira qué hosts del evento están libres:
 //   · dentro de SU horario para ese evento (event_type_availability_schedules, availability_setting "host");
-//   · sin una reserva que lo ocupe (user_busy_times). Desde el 26/10 hay doble booking por nivel de lead: A/B pisa a C y a
-//     D+E, C pisa a D+E y nunca dos del mismo nivel. El nivel de una reserva sale del NOMBRE con que se reservó (las de antes
-//     del cambio de nombres se llaman "Reunión Consultiva" y cuentan como A/B). Lo ocupado en el calendario externo (Google)
+//   · sin una reserva que lo ocupe (user_busy_times). Hay doble booking por nivel de lead en los eventos de anuncios
+//     (26/10, ampliado el 11/11/2026): A+ pisa a A/B, C, D y E; A/B a C, D y E; C a D y E; D a E; nunca dos del mismo nivel.
+//     El nivel de una reserva sale del NOMBRE con que se reservó (ver nivelDeNombre). Lo ocupado en el calendario externo (Google)
 //     y las reservas de otros eventos (reagendas, análisis) siempre ocupan;
 //   · sin pasar su tope de reuniones por día (TOPES_DIARIOS: Calendly no lo expone por API).
 // Después, por closer y por día, se toman en orden los horarios libres que no se pisan entre sí (una reunión empieza cuando
 // termina la anterior): esa es la cantidad de reuniones que todavía le entran.
 // Funciones puras (se prueban sin red); la lectura de Calendly está en lib/calendly.ts (fetchEspaciosAgenda).
 
-/** Nivel del lead: 1 = A y B, 2 = C, 3 = D+E. 0 = otra cosa (reagenda, análisis…): no se pisa nunca. */
-export type Nivel = 0 | 1 | 2 | 3
+/**
+ * Nivel del lead (11/11/2026, Gero: «que cada lead de anuncios pise a las agendas que están debajo»):
+ * 1 = A+, 2 = A y B, 3 = C, 4 = D, 5 = E. 0 = otra cosa (orgánico, referidos, reagenda, análisis…): no se pisa nunca.
+ * Un evento pisa a las reservas de nivel MAYOR (más abajo en la escalera), nunca al mismo nivel.
+ */
+export type Nivel = 0 | 1 | 2 | 3 | 4 | 5
 
 /** Topes de reuniones por día que Calendly aplica por usuario (no salen por API): nombre del closer → máximo. */
 export const TOPES_DIARIOS: Readonly<Record<string, number>> = { 'Yamila Coutoune': 3 }
 
-const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
+const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 /**
- * Nivel de una reserva por el nombre con que se reservó (26/10/2026, la sesión VSL FUNNEL renombró los eventos):
- * "Reunión Consultiva" = A y B (y todas las de antes del cambio); "Reunión Consultiva - Capital Jurídico" o "… con el
- * equipo de …" = C; "Reunión Consultiva con Capital Jurídico" = D+E. Cualquier otro nombre (Reagenda, WEBINAR, Análisis…) = 0.
+ * Nivel de una reserva por el nombre con que se reservó. Es la misma llave que usan las reglas de doble reserva de
+ * Calendly («Normas de libre/ocupado» de cada closer en cada evento de anuncios, 11/11/2026):
+ * "Reunión Consultiva" = A+ (y las orgánicas y todas las viejas: nadie las pisa) · "Reunión Consultiva Estratégica" = A y B ·
+ * "Reunión Consultiva - Capital Jurídico" o "… con el equipo de …" = C · "Reunión Consultiva con Capital Jurídico" = D ·
+ * "Reunión Consultiva Inicial" = E. Cualquier otro nombre (Reagenda, WEBINAR, Análisis…) = 0.
  */
 export function nivelDeNombre(nombre: string): Nivel {
   const n = normalizar(nombre)
   if (n === 'reunion consultiva') return 1
-  if (n === 'reunion consultiva con capital juridico') return 3
-  if (n.startsWith('reunion consultiva - capital juridico') || n.startsWith('reunion consultiva con el equipo de')) return 2
+  if (n.startsWith('reunion consultiva estrategica')) return 2
+  if (n.startsWith('reunion consultiva - capital juridico') || n.startsWith('reunion consultiva con el equipo de')) return 3
+  if (n === 'reunion consultiva con capital juridico') return 4
+  if (n.startsWith('reunion consultiva inicial')) return 5
   return 0
 }
 
 /**
- * Nivel de un evento a partir de su nota interna ("Leads A y B", "Leads C", "Leads D+E"); si no, por el nombre.
- * Nota con "sin doble reserva" (eventos orgánicos y Referidos, 5/11/2026: se llaman "Reunión Consultiva" igual que A y B)
+ * Nivel de un evento a partir de su nota interna ("Leads A+", "Leads A y B", "Leads C", "Leads D", "Leads E"; la vieja
+ * "Leads D+E" cuenta como D); si no, por el nombre. Nota con "sin doble reserva" (eventos orgánicos y Referidos, 5/11/2026)
  * = 0: Calendly no les deja pisar ninguna reserva.
  */
 export function nivelDeEvento(nota: string, nombre: string): Nivel {
   const n = normalizar(nota)
   if (/sin doble reserva/.test(n)) return 0
-  if (/leads? d\s*\+?\s*e/.test(n)) return 3
-  if (/leads? a y b/.test(n)) return 1
-  if (/leads? c\b/.test(n)) return 2
+  if (/leads? a\s*\+/.test(n)) return 1
+  if (/leads? a y b/.test(n)) return 2
+  if (/leads? c\b/.test(n)) return 3
+  if (/leads? d\b/.test(n)) return 4
+  if (/leads? e\b/.test(n)) return 5
   return nivelDeNombre(nombre)
 }
 
