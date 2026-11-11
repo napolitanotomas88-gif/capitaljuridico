@@ -91,6 +91,14 @@
     {
       "path": "/api/bot/drive-completo",
       "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/clientes/controles",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/clientes/controles?semanal=1",
+      "schedule": "0 13 * * 1"
     }
   ]
 }

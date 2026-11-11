@@ -720,8 +720,8 @@ describe('matcher de proxy.ts', () => {
     assert.ok(m.startsWith('/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|marca/[^/%]+$|pwa/[^/%]+$|bot/[^/%]+$|v/[^/%]+$|api/(?:'), m)
     assert.ok(m.endsWith(')/?$).*)'), m)
     assert.ok(!m.includes('finanzas|') && !m.includes('|raw'), 'las rutas protegidas no se excluyen')
-    assert.deepEqual([...m.matchAll(/(?:\||\()clientes([^|)]*)/g)].map(x => x[1]), ['/sincronizar', '/inactivos/cron', '/encuesta/cron'], 'sólo las tres rutas exactas autenticadas por CRON_SECRET salen del proxy')
-    for (const p of ['/api/clientes', '/api/clientes/inactivos', '/api/clientes/sincronizar/x', '/api/clientes/inactivos/cron/x', '/api/clientes/encuesta', '/api/clientes/encuesta/cron/x']) assert.equal(pasaPorProxy(p), true, `${p} permanece protegido`)
+    assert.deepEqual([...m.matchAll(/(?:\||\()clientes([^|)]*)/g)].map(x => x[1]), ['/sincronizar', '/inactivos/cron', '/encuesta/cron', '/controles'], 'sólo las cuatro rutas exactas autenticadas por CRON_SECRET salen del proxy')
+    for (const p of ['/api/clientes', '/api/clientes/inactivos', '/api/clientes/sincronizar/x', '/api/clientes/inactivos/cron/x', '/api/clientes/encuesta', '/api/clientes/encuesta/cron/x', '/api/clientes/controles/x']) assert.equal(pasaPorProxy(p), true, `${p} permanece protegido`)
   })
   test('todo lo que el matcher deja afuera está abierto en la tabla (si no, sería un hueco)', () => {
     const sondas = new Set(['/', '/entrar', '/api/raw', '/api/metrics', '/api/ads', '/ventas', '/clientes', '/clientes/x', '/referidos', '/sistema', '/finanzas', '/api/finanzas'])

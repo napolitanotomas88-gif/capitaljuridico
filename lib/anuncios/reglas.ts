@@ -54,7 +54,7 @@ const RACHA_MAX = 5
 const FINDE_NOTA = 1.3
 const FINDE_EXTREMO = 2.5
 const VENTANA_DIAS = 35          // días de insights que se piden (5 semanas)
-const ESTADOS_ERROR_PAGO = [2, 3, 7, 8]
+export const ESTADOS_ERROR_PAGO = [2, 3, 7, 8]
 
 export type Nivel = 'ok' | 'medio' | 'alto' | 'sin_ref' | 'sin_datos'
 export type Semaforo = 'sin_gasto' | 'error' | 'rojo' | 'amarillo' | 'verde'
