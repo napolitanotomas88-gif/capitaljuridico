@@ -280,4 +280,19 @@ ok('outbound por campo: del 1 al 5/10 es carga manual (cifra mínima); desde el 
   const e13 = calc({ outboundCampo: oc }, '2026-10-13', '2026-10-13'); assert.ok(!e13.avisos.some(a => /carga inicial manual/.test(a)))
   assert.equal(calc({ outboundCampo: [] }, '2026-10-02', '2026-10-06').aperturasHistorias, 0)   // con registros y sin filas ese día sí es 0 (día medible)
 })
+ok('agendas por origen (campo Origen lead, col G de EOD Agendas) desde el 11/11/2026; antes no se informa', () => {
+  const g = (f, n, id, o) => [S(f), n, n.toLowerCase(), id, S(f), '', o]
+  const ags = [g('2026-11-11', 'A', 1, 'COMENTARIO'), g('2026-11-11', 'B', 2, 'DM'), g('2026-11-11', 'C', 3, ''), g('2026-11-11', 'A', 1, 'COMENTARIO'),
+    g('2026-11-12', 'D', 4, 'FM'), g('2026-11-12', 'E', 5, 'dm'), g('2026-11-10', 'Z', 9, 'HISTORIA')]
+  const e = calc({ agendas: ags }, '2026-11-12', '2026-11-12')
+  assert.deepEqual(e.origenes.dia, { COMENTARIO: 0, DM: 1, FM: 1, HISTORIA: 0 })
+  assert.deepEqual(e.origenes.mes, { COMENTARIO: 1, DM: 2, FM: 1, HISTORIA: 0, 'sin origen': 1 })   // el 10/11 (sin campo todavía) no entra
+  assert.equal(e.origenes.desde, '2026-11-11')
+  const t = textoEOD(e).join('\n')
+  assert.match(t, /Agendas por origen \(campo Origen lead\): día COMENTARIO 0 · DM 1 · FM 1 · HISTORIA 0 \| mes desde 11\/11: COMENTARIO 1 · DM 2 · FM 1 · HISTORIA 0 · sin origen 1/)
+  assert.match(t, /\(@d\) · FM/)
+  const viejo = calc({ agendas: ags }, '2026-11-10', '2026-11-12'); assert.equal(viejo.origenes, undefined)
+  assert.doesNotMatch(textoEOD(viejo).join('\n'), /por origen|· HISTORIA/)
+  assert.equal(calc({ agendas: ags }, '2026-12-01', '2026-12-01').origenes.desde, '2026-12-01')
+})
 console.log(`OK: ${n} casos del EOD`)
