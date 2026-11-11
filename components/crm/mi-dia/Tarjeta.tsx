@@ -305,7 +305,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             </option>
             {PASOS_REAGENDA_PRECALLER.map((paso, i) => (
               <option key={paso} value={`S${MAX_SEGUIMIENTOS_PRECALLER + i + 1}`}>
-                {paso}
+                {i + 1}
               </option>
             ))}
             <option value="noHacer">No hacer</option>
