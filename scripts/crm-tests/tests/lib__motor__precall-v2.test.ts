@@ -208,3 +208,27 @@ describe("Reagendar o cancelar: seguimientos de reagenda (Gero, 11/11/2026)", ()
     expect(v2(chat)[0].noHacerPrecaller).toBeUndefined();
   });
 });
+
+describe("reagendado en Calendly antes del pase (Gero, 11/11/2026)", () => {
+  // Lo que deja una reprogramación: R = No, AC = horario nuevo, T vacía
+  const reag = { presentoAgenda1: "No", fechaReagenda: "29/09/2026 11:00:00" };
+  it("sigue en el tablero del pre-caller, en el mismo paso y con el horario nuevo", () => {
+    const [a] = v2({ contactoPrecaller: PRECALLER.noAtendio2, ...reag });
+    expect(a.tipo).toBe("PRE_CALLER");
+    expect(a.etapaPrecaller).toBe("chat");
+    expect(a.fecha).toEqual(parsearFechaSheet("29/09/2026 11:00"));
+    expect(v2({ ...reag })[0].etapaPrecaller).toBe("llamar");
+    expect(v2({ contactoPrecaller: PRECALLER.noAtendio2, seguimientosPrecaller: "S5", ...reag })[0].etapaPrecaller).toBe("vencida");
+  });
+  it("el closer no lo ve mientras no hay pase", () => {
+    expect(v2({ contactoPrecaller: PRECALLER.noAtendio2, ...reag }).map((a) => a.tipo)).toEqual(["PRE_CALLER"]);
+  });
+  it("si la reunión nueva también pasa sin pase, queda para reagendar o liberar", () => {
+    const [a] = v2({ contactoPrecaller: PRECALLER.noAtendio2, ...reag }, parsearFechaSheet("29/09/2026 12:00")!);
+    expect(a.etapaPrecaller).toBe("vencida");
+    expect(a.botones.some((b) => b.id === "liberar")).toBe(true);
+  });
+  it("una inasistencia cargada a mano sin reagenda sigue siendo del closer", () => {
+    expect(v2({ contactoPrecaller: PRECALLER.noAtendio2, presentoAgenda1: "No" }, parsearFechaSheet("26/09/2026 12:00")!).map((a) => a.tipo)).not.toContain("PRE_CALLER");
+  });
+});
