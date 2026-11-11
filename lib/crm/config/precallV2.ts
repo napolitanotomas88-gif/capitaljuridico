@@ -96,6 +96,23 @@ export const PASOS_CHAT_PRECALLER = ["Follow-up 1", "Follow-up 2", "Follow-up 3"
 export const MAX_SEGUIMIENTOS_PRECALLER = PASOS_CHAT_PRECALLER.length;
 
 /**
+ * Después del ultimátum, en "Reagendar o cancelar" (Gero, 11/11/2026): otro desplegable con 3 seguimientos más para intentar
+ * reagendar (AS = S5…S7) y "No hacer", que saca al lead del tablero (AT = Liberado).
+ */
+export const PASOS_REAGENDA_PRECALLER = ["Seguimiento 1", "Seguimiento 2", "Seguimiento 3"] as const;
+/** Todos los valores de AS: S1…S4 del chat y S5…S7 de la reagenda. */
+export const VALORES_SEGUIMIENTO_PRECALLER = Array.from(
+  { length: MAX_SEGUIMIENTOS_PRECALLER + PASOS_REAGENDA_PRECALLER.length },
+  (_, i) => `S${i + 1}`,
+);
+/** El nombre de un valor de AS ("S2" → "Follow-up 2", "S6" → "Seguimiento 2 (reagenda)"); "" si no es uno de esos. */
+export function nombreSeguimientoPrecaller(n: number): string {
+  if (n >= 1 && n <= MAX_SEGUIMIENTOS_PRECALLER) return PASOS_CHAT_PRECALLER[n - 1];
+  const r = n - MAX_SEGUIMIENTOS_PRECALLER;
+  return r >= 1 && r <= PASOS_REAGENDA_PRECALLER.length ? `${PASOS_REAGENDA_PRECALLER[r - 1]} (reagenda)` : "";
+}
+
+/**
  * Fases del closer en v2 (F): el pase deja F = "CONF + DECISORES" (lo hizo el pre-caller) y al closer le quedan el video con
  * la palabra clave (sale solo con el pase; "Enviado" = el lead mandó LISTO) y el link del día. DOLORES no va: la situación
  * del estudio ya la confirmó el pre-caller.

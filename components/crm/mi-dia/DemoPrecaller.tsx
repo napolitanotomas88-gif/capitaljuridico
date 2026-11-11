@@ -28,6 +28,10 @@ function queHariaDeVerdad(b: Boton): string {
       return "sale solo el WhatsApp del pre-caller («Hace unos minutos te llamé… Confirmamos tu asistencia?») y el lead pasa a Pre-call por chat.";
     case "seguimiento":
       return "queda anotado el follow-up que mandaste a mano por chat (con «Ultimátum», la tarjeta pasa a Reagendar o cancelar).";
+    case "seguimientoReagenda":
+      return "queda anotado el seguimiento para reagendar que mandaste a mano (Seguimiento 1, 2 o 3); la tarjeta sigue en Reagendar o cancelar.";
+    case "noHacerReagenda":
+      return "no se le hace más seguimiento: el lead sale del tablero (queda Liberado).";
     case "cancelarReunion":
       return "pide confirmación, cancela la reunión en Calendly (le llega un mail al lead) y el lead sale de la lista.";
     case "demoReagendar":

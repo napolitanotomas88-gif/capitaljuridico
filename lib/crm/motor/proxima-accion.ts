@@ -28,7 +28,7 @@ import {
   VALORES,
   VENTANA_DIAS,
 } from "@/lib/crm/config/crm";
-import { FASES_CLOSER_V2, MAX_SEGUIMIENTOS_PRECALLER, PASOS_CHAT_PRECALLER, PRECALLER } from "@/lib/crm/config/precallV2";
+import { FASES_CLOSER_V2, MAX_SEGUIMIENTOS_PRECALLER, nombreSeguimientoPrecaller, PRECALLER } from "@/lib/crm/config/precallV2";
 import { diasDesde, formatearFechaSheet, mismoDia, parsearFechaReagenda, parsearFechaSheet, partesFecha } from "@/lib/crm/fechas";
 import type { Campo, FilaLead } from "@/lib/crm/sheets/columnas";
 
@@ -100,6 +100,11 @@ export type Accion = {
   avisos: string[];
   /** Solo PRE_CALLER: la columna del tablero del pre-caller (Llamar / Pre-call por chat / Reagendar o cancelar). */
   etapaPrecaller?: EtapaPrecaller;
+  /**
+   * Solo PRE_CALLER en "Reagendar o cancelar": lo que escribe "No hacer" del desplegable de seguimientos de reagenda (saca al
+   * lead del tablero). Si la reunión ya pasó, es lo mismo que "Liberar".
+   */
+  noHacerPrecaller?: Boton;
 };
 
 /**
@@ -456,9 +461,15 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
     contacto || "sin contacto",
     confirmoConPrecaller(v) ? (es(v.confirmoPrecaller, PRECALLER.reprograma) ? "reprogramó" : "decisores preguntados") : "",
     v.decisoresPrecaller.trim(),
-    seguimientos ? PASOS_CHAT_PRECALLER[Math.min(seguimientos, MAX_SEGUIMIENTOS_PRECALLER) - 1] : "",
+    nombreSeguimientoPrecaller(seguimientos),
   ];
   const estado = `Pre-caller: ${partes.filter(Boolean).join(" · ")}`;
+  // "No hacer" de la reagenda (Gero, 11/11/2026): sale del tablero. Con la reunión pasada y sin "¿Se presentó?", como "Liberar".
+  const noHacer: Boton = {
+    id: "noHacerReagenda",
+    etiqueta: "No hacer",
+    cambios: fecha <= ahora && !v.presentoAgenda1.trim() ? botonLiberar().cambios : { estadoPrecaller: PRECALLER.liberado },
+  };
   const tarjeta = (etapaPrecaller: EtapaPrecaller, titulo: string, botones: Boton[], atrasado = false): Accion => ({
     tipo: "PRE_CALLER",
     grupo: "precall",
@@ -470,6 +481,7 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
     listoPorHoy: false,
     botones,
     avisos,
+    ...(etapaPrecaller === "vencida" ? { noHacerPrecaller: noHacer } : {}),
   });
 
   // Pasó la hora sin pase: el closer no la toma. Se reagenda en Calendly (y vuelve a confirmar) o se libera.
