@@ -78,10 +78,10 @@ const BLOQUES = [
 const pedido = (extra = {}) => ({ secreto: SECRETO, accion: 'agregarTanda', docId: DOC_ID, clave: 'cj-guiones-123-1', bloques: BLOQUES, ...extra })
 
 describe('Codigo.gs · agregarTanda', { skip: HAY ? false : `no está ${RUTA}` }, () => {
-  test('VERSION 2026-10-26a y ping la devuelve', () => {
+  test('VERSION 2026-11-11a y ping la devuelve', () => {
     const e = entorno()
-    assert.match(CODIGO, /var VERSION = '2026-10-26a';/)
-    assert.deepEqual(e.post({ secreto: SECRETO, accion: 'ping' }), { ok: true, cuenta: 'cuenta@ejemplo.test', version: '2026-10-26a' })
+    assert.match(CODIGO, /var VERSION = '2026-11-11a';/)
+    assert.deepEqual(e.post({ secreto: SECRETO, accion: 'ping' }), { ok: true, cuenta: 'cuenta@ejemplo.test', version: '2026-11-11a' })
   })
   test('sin el secreto no toca nada', () => {
     const e = entorno()

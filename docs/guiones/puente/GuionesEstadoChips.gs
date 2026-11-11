@@ -57,6 +57,9 @@ function chipsDeTandaApi_(content, tanda) {
     var t = esTanda.exec(texto);
     if (t) { actual = Number(t[1]); return; }
     if (actual !== tanda) return;
+    // 11/11/2026: solo los chips de renglones con viñeta, igual que cargarEnChips (tandaChips_). Un «Video:» viejo puesto como
+    // título no es de la tanda del bot: contarlo corría los números y cambiaba el estado de guiones ya grabados (Doc de A151).
+    if (!se.paragraph.bullet) return;
     els.forEach(function (e) {
       if (!e.dropdown) return;
       var pr = e.dropdown.dropdownProperties || {};

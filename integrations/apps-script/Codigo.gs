@@ -20,7 +20,7 @@
  * Apps Script junta todos los .gs del proyecto en un solo espacio de nombres (está también Vigia.gs): los nombres nuevos
  * de acá no pueden repetir ninguno de allá (scripts/test-puente-vigia.mjs y scripts/test-puente-drive.mjs lo controlan).
  */
-var VERSION = '2026-10-26a';
+var VERSION = '2026-11-11a';
 var PREFIJO_PRUEBA = 'PRUEBA BOT';
 var PREFIJO_PLANTILLA = 'Plantilla';
 var CARPETA_COMPROBANTES = String(PropertiesService.getScriptProperties().getProperty('DRIVE_CARPETA_COMPROBANTES') || '').trim();

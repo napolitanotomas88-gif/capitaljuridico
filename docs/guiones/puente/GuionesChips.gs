@@ -84,11 +84,25 @@ function cargarEnChips_(p) {
       agregados++;
       plan = tandaChips_(body, tanda);
     }
-    // 3) De abajo hacia arriba: lo que se escribe bajo un chip no mueve a los de arriba
-    var reemplazados = 0;
-    for (var m = guiones.length - 1; m >= 0; m--) {
-      if (escribirBajoChip_(doc, body, tanda, guiones[m], p.clave)) reemplazados++;
+    // 3) De abajo hacia arriba: lo que se escribe bajo un chip no mueve a los de arriba.
+    //    11/11/2026 (Tomás): PRIMERO se escribe todo lo nuevo (justo debajo de cada chip, arriba de lo viejo) y RECIÉN
+    //    DESPUÉS se borra lo viejo de esa tanda. Si algo falla escribiendo, se saca lo nuevo y el Doc queda como estaba.
+    var escritos = [];
+    try {
+      for (var m = guiones.length - 1; m >= 0; m--) escritos.push(escribirBajoChip_(doc, body, tanda, guiones[m], p.clave));
+    } catch (err) {
+      escritos.forEach(function (w) { w.nuevos.slice().reverse().forEach(function (el) { quitarParrafoChips_(body, el); }); });
+      return { ok: false, error: 'no se pudo escribir la tanda (el Doc quedó como estaba): ' + String(err && err.message || err).slice(0, 200) };
     }
+    var reemplazados = 0;
+    escritos.forEach(function (w) {
+      w.viejos.forEach(function (r) {
+        r.getRange().getRangeElements().forEach(function (re) { quitarParrafoChips_(body, re.getElement()); });
+        r.remove();
+      });
+      doc.addNamedRange(w.nombre, w.rango.build());
+      if (w.viejos.length) reemplazados++;
+    });
     doc.saveAndClose();
     // Los chips de la tanda nueva son copias de otro (pueden venir en «Grabado completo»): vuelven a «No iniciado»
     var reiniciados = creada ? reiniciarChipsTanda_(p.docId, tanda) : null;
@@ -132,9 +146,21 @@ function elegirTandaChips_(doc, body, clave) {
     if (!plan.chips.length) continue;
     var estados = plan.chips.map(function (_, j) { return estadoChip_(doc, body, plan, j + 1, clave); });
     if (estados.indexOf('bot') >= 0) return nums[k];
-    if (!libre && estados.every(function (e) { return e === 'vacio'; })) libre = nums[k];
+    if (!libre && estados.every(function (e) { return e === 'vacio'; }) && !textoFueraDeChips_(body, plan)) libre = nums[k];
   }
   return libre;
+}
+
+// 11/11/2026 (Doc de A151): una tanda puede tener guiones viejos cargados a mano con el «Video:» como título y no como renglón
+// con viñeta. Esos no cuentan como chips, pero la tanda NO está libre: si hay texto en la tanda fuera de las zonas de los chips
+// (entre el título y el primer chip), se considera ocupada.
+function textoFueraDeChips_(body, plan) {
+  var hasta = plan.chips.length ? plan.chips[0] : plan.fin;
+  for (var i = plan.ini + 1; i < hasta; i++) {
+    var el = body.getChild(i);
+    if (el.getType() !== DocumentApp.ElementType.PARAGRAPH || el.asParagraph().getText().trim()) return true;
+  }
+  return false;
 }
 
 // Agrega al final del doc la tanda siguiente a la más alta, con el mismo formato: copia del título «TANDA N°» de la última
@@ -229,28 +255,37 @@ function estadoChip_(doc, body, plan, n, clave) {
   return 'vacio';
 }
 
-// Escribe el guion debajo de su chip. Si el bot ya lo había cargado, primero borra eso (lo marcado por su rango con nombre).
-// Devuelve si reemplazó.
+// Escribe el guion justo debajo de su chip (arriba de lo que hubiera). NO borra nada: devuelve los párrafos nuevos, los rangos
+// viejos del bot con esta clave (se borran después, cuando todo lo nuevo ya quedó escrito) y el rango nuevo. Si falla a mitad
+// de un guion, saca lo que alcanzó a escribir de ESE guion antes de tirar el error.
 function escribirBajoChip_(doc, body, tanda, g, clave) {
-  var nombre = nombreChips_(clave, g.numero), viejos = doc.getNamedRanges(nombre), reemplazo = viejos.length > 0;
-  viejos.forEach(function (r) {
-    r.getRange().getRangeElements().forEach(function (re) {
-      var el = re.getElement();
-      if (el.getParent() && body.getChildIndex(el) < body.getNumChildren() - 1) el.removeFromParent();
-      else if (el.getType() === DocumentApp.ElementType.PARAGRAPH) el.asParagraph().setText('');
-    });
-    r.remove();
-  });
+  var nombre = nombreChips_(clave, g.numero), viejos = doc.getNamedRanges(nombre);
   var plan = tandaChips_(body, tanda);
-  var idx = plan.chips[g.numero - 1] + 1, rango = doc.newRange();
-  g.parrafos.forEach(function (x) {
-    var par = body.insertParagraph(idx++, x.texto);
-    par.setHeading(DocumentApp.ParagraphHeading.NORMAL);
-    formatoChips_(par, x.tipo);
-    rango.addElement(par);
-  });
-  doc.addNamedRange(nombre, rango.build());
-  return reemplazo;
+  var idx = plan.chips[g.numero - 1] + 1, rango = doc.newRange(), nuevos = [];
+  try {
+    g.parrafos.forEach(function (x) {
+      var par = body.insertParagraph(idx++, x.texto);
+      nuevos.push(par);
+      par.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+      formatoChips_(par, x.tipo);
+      rango.addElement(par);
+    });
+  } catch (err) {
+    nuevos.slice().reverse().forEach(function (el) { quitarParrafoChips_(body, el); });
+    throw err;
+  }
+  return { nombre: nombre, viejos: viejos, nuevos: nuevos, rango: rango };
+}
+
+// Saca un párrafo del cuerpo. El último párrafo del documento no se puede borrar, y vaciarlo con setText('') tira «No se puede
+// insertar un elemento vacío de texto» (11/11/2026, Doc de A117): ese se vacía con deleteText, y si ya está vacío se deja.
+function quitarParrafoChips_(body, el) {
+  try {
+    if (!el.getParent()) return;
+    if (body.getChildIndex(el) < body.getNumChildren() - 1) { el.removeFromParent(); return; }
+    var t = el.editAsText(), s = t.getText();
+    if (s.length) t.deleteText(0, s.length - 1);
+  } catch (err) { /* ya no está en el cuerpo */ }
 }
 
 // Como en los Docs cargados a mano: sección en negrita, indicación resaltada en rosa, el gesto del CTA resaltado; lo demás
