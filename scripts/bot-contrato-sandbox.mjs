@@ -87,7 +87,7 @@ if (deMas.length) console.log(`  ⚠ tokens que mandamos y la plantilla no tiene
 console.log(`  ${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? '⚠ la plantilla declara' : '✔ la plantilla no declara'} el token "TU DIRECCIÓN EN ARGENTINA"${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? ': revisar con --real que el domicilio del Proveedor no quede duplicado' : ''}`)
 const rolesPlantilla = (det.roles ?? []).map(r => r.name)
 const rolesFaltan = cuerpo.recipients.map(r => r.role).filter(r => !rolesPlantilla.includes(r))
-console.log(`${marca(rolesFaltan.length === 0)} Roles de los firmantes en la plantilla${rolesFaltan.length ? `: faltan ${rolesFaltan.join(', ')} (cargar los correos de los socios solo con las plantillas nuevas)` : ''}`)
+console.log(`${marca(rolesFaltan.length === 0)} Roles de los firmantes en la plantilla${rolesFaltan.length ? `: faltan ${rolesFaltan.join(', ')} (cargar CONTRATO_FIRMANTE_PROVEEDOR_EMAIL solo con las plantillas nuevas)` : ''}`)
 
 // ── 3b. Borradores de prueba que quedaron de corridas viejas (solo lectura) ─────────────────────────
 /** Documentos de la sandbox con el nombre EXACTO de la prueba ("Contrato - Cliente Prueba Bot - C.J"); con `desde`,

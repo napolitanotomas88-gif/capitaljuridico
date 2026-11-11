@@ -40,6 +40,8 @@ test('cuerpo completo con la plantilla normal', () => {
       { name: 'Proveedor.Nombre', value: 'CAPITAL JURÍDICO' },
       { name: 'Proveedor.Domicilio', value: 'Calle Ficticia 123, Ciudad Ejemplo, Provincia Ejemplo' },
       { name: 'Proveedor.Email', value: 'info@capitaljuridico.com.ar' },
+      { name: 'Proveedor.Firmante', value: 'Gerónimo Actis, en representación de Capital Jurídico' },
+      { name: 'Proveedor.Representacion', value: 'representada por sus socios Gerónimo Actis y Tomás Napolitano, titulares del 50 % cada uno' },
       { name: 'Socio1.Nombre', value: 'Gerónimo Actis' },
       { name: 'Socio1.Porcentaje', value: '50 %' },
       { name: 'Socio2.Nombre', value: 'Tomás Napolitano' },
@@ -259,33 +261,27 @@ test('Proveedor Capital Jurídico: sin Skyward en el cuerpo y con el correo de n
   assert.equal(PROVEEDOR.nombreMayusculas, 'CAPITAL JURÍDICO')
 })
 
-test('socios firmantes: apagados sin correos; con correos, Socio1 = Gerónimo Actis y Socio2 = Tomás Napolitano', () => {
+test('firmante del Proveedor: apagado sin correo; con correo, solo Gerónimo Actis con el rol Proveedor', () => {
   assert.deepEqual(firmantesProveedor({}), [])
-  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_SOCIO2_EMAIL: ' socio2@example.com ' }), [
-    { email: 'socio2@example.com', first_name: 'Tomás', last_name: 'Napolitano', role: 'Socio2' },
+  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_PROVEEDOR_EMAIL: ' firma@example.com ' }), [
+    { email: 'firma@example.com', first_name: 'Gerónimo', last_name: 'Actis', role: 'Proveedor' },
   ])
-  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_SOCIO1_EMAIL: 'socio1@example.com', CONTRATO_FIRMANTE_SOCIO2_EMAIL: 'socio2@example.com' }), [
-    { email: 'socio1@example.com', first_name: 'Gerónimo', last_name: 'Actis', role: 'Socio1' },
-    { email: 'socio2@example.com', first_name: 'Tomás', last_name: 'Napolitano', role: 'Socio2' },
-  ])
+  // Las variables viejas de dos socios ya no hacen nada: firma uno solo
+  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_SOCIO1_EMAIL: 'a@example.com', CONTRATO_FIRMANTE_SOCIO2_EMAIL: 'b@example.com' }), [])
 })
 
-test('socios firmantes en el cuerpo del POST solo con los correos cargados, sin repetir al cliente', () => {
-  const antes = { u: process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL, d: process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL }
+test('firmante del Proveedor en el cuerpo del POST solo con el correo cargado, sin repetir al cliente', () => {
+  const antes = process.env.CONTRATO_FIRMANTE_PROVEEDOR_EMAIL
   try {
-    delete process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL
-    delete process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL
+    delete process.env.CONTRATO_FIRMANTE_PROVEEDOR_EMAIL
     assert.deepEqual(cuerpoBorrador(alta()).cuerpo.recipients.map(r => r.role), ['Client'])
-    process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL = 'socio1@example.com'
-    process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL = 'socio2@example.com'
-    const { cuerpo } = cuerpoBorrador(alta())
-    assert.deepEqual(cuerpo.recipients.map(r => [r.role, r.email]), [
-      ['Client', 'juan.perez@example.com'], ['Socio1', 'socio1@example.com'], ['Socio2', 'socio2@example.com'],
+    process.env.CONTRATO_FIRMANTE_PROVEEDOR_EMAIL = 'firma@example.com'
+    assert.deepEqual(cuerpoBorrador(alta()).cuerpo.recipients.map(r => [r.role, r.email]), [
+      ['Client', 'juan.perez@example.com'], ['Proveedor', 'firma@example.com'],
     ])
-    // Si el cliente es uno de los socios (prueba interna), no se duplica el firmante
-    assert.deepEqual(cuerpoBorrador(alta({ correo: 'socio1@example.com' })).cuerpo.recipients.map(r => r.role), ['Client', 'Socio2'])
+    // Si el cliente es el mismo correo (prueba interna), no se duplica el firmante
+    assert.deepEqual(cuerpoBorrador(alta({ correo: 'firma@example.com' })).cuerpo.recipients.map(r => r.role), ['Client'])
   } finally {
-    if (antes.u === undefined) delete process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL; else process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL = antes.u
-    if (antes.d === undefined) delete process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL; else process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL = antes.d
+    if (antes === undefined) delete process.env.CONTRATO_FIRMANTE_PROVEEDOR_EMAIL; else process.env.CONTRATO_FIRMANTE_PROVEEDOR_EMAIL = antes
   }
 })

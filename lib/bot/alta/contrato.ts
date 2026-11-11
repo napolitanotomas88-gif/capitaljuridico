@@ -21,38 +21,40 @@ export const PROVEEDOR = {
   correo: 'info@capitaljuridico.com.ar',
 } as const
 
-/** Rol de un firmante en la plantilla de PandaDoc. Socio1 y Socio2 solo existen en las plantillas nuevas de Capital
- *  Jurídico: por eso cada socio va como firmante SOLO si su correo está cargado en el entorno. */
-export type RolFirmante = 'Client' | 'Socio1' | 'Socio2'
+/** Rol de un firmante en la plantilla de PandaDoc. "Proveedor" solo existe en las plantillas nuevas de Capital
+ *  Jurídico: por eso el firmante del Proveedor va SOLO si su correo está cargado en el entorno. */
+export type RolFirmante = 'Client' | 'Proveedor'
 
 export interface Firmante { email: string; first_name: string; last_name: string; role: RolFirmante }
 
-/** Los dos socios del Proveedor, al 50 % cada uno. El correo de cada uno sale de su variable de entorno. */
+/** Los dos socios del Proveedor, al 50 % cada uno. Van en el texto de las partes («representada por sus socios
+ *  Gerónimo Actis y Tomás Napolitano, titulares del 50 % cada uno»); firma solo FIRMANTE_PROVEEDOR. */
 export const SOCIOS_PROVEEDOR = [
-  { rol: 'Socio1', nombre: 'Gerónimo', apellido: 'Actis', variable: 'CONTRATO_FIRMANTE_SOCIO1_EMAIL', porcentaje: '50 %' },
-  { rol: 'Socio2', nombre: 'Tomás', apellido: 'Napolitano', variable: 'CONTRATO_FIRMANTE_SOCIO2_EMAIL', porcentaje: '50 %' },
+  { rol: 'Socio1', nombre: 'Gerónimo', apellido: 'Actis', porcentaje: '50 %' },
+  { rol: 'Socio2', nombre: 'Tomás', apellido: 'Napolitano', porcentaje: '50 %' },
 ] as const
 
-/** Socios que firman por el Proveedor: los que tienen el correo cargado (se lee en cada llamada). Sin ninguno cargado,
- *  [] y el contrato sale como hoy, con el cliente como único firmante (sirve con las plantillas viejas, que solo
- *  tienen el rol "Client"). */
-export function firmantesProveedor(entorno: Record<string, string | undefined> = process.env): Firmante[] {
-  return SOCIOS_PROVEEDOR.flatMap((s) => {
-    const email = entorno[s.variable]?.trim() ?? ''
-    return email ? [{ email, first_name: s.nombre, last_name: s.apellido, role: s.rol }] : []
-  })
-}
+/** Quien firma por Capital Jurídico (Tomás, 11/11/2026): solo Gerónimo Actis, «en representación de Capital Jurídico»,
+ *  con el rol "Proveedor" de la plantilla. El correo sale de CONTRATO_FIRMANTE_PROVEEDOR_EMAIL. */
+export const FIRMANTE_PROVEEDOR = {
+  nombre: 'Gerónimo', apellido: 'Actis', variable: 'CONTRATO_FIRMANTE_PROVEEDOR_EMAIL',
+  representacion: 'Gerónimo Actis, en representación de Capital Jurídico',
+} as const
 
-/** Dirección del cliente ya separada (ver direccion.ts). Un campo definido manda, aunque sea '' (= se sabe que no se
- *  sabe); uno sin definir sale de las reglas puras de separarDireccion. `confirmar`: ciudad y provincia son una
- *  conjetura de las reglas que nadie verificó (sin Claude o con Claude caído): el closer tiene que confirmarlas. Si
- *  ciudad o provincia vienen en `extra` sin `confirmar`, se toman como verificadas. */
-export interface DireccionContrato { calle?: string; ciudad?: string; provincia?: string; pais?: string; confirmar?: boolean }
+/** Texto de las partes con los dos socios. */
+export const PARTES_PROVEEDOR = `representada por sus socios ${SOCIOS_PROVEEDOR.map((s) => `${s.nombre} ${s.apellido}`).join(' y ')}, titulares del 50 % cada uno`
+
+/** Firmante del Proveedor si su correo está cargado (se lee en cada llamada). Sin el correo, [] y el contrato sale
+ *  como hoy, con el cliente como único firmante (sirve con las plantillas viejas, que solo tienen el rol "Client"). */
+export function firmantesProveedor(entorno: Record<string, string | undefined> = process.env): Firmante[] {
+  const email = entorno[FIRMANTE_PROVEEDOR.variable]?.trim() ?? ''
+  return email ? [{ email, first_name: FIRMANTE_PROVEEDOR.nombre, last_name: FIRMANTE_PROVEEDOR.apellido, role: 'Proveedor' }] : []
+}
 
 export interface DatosContrato {
   tokens: { name: string; value: string }[]
   destinatario: Firmante & { role: 'Client' }
-  /** Socios del Proveedor que firman (ver firmantesProveedor); [] si no hay correos cargados. */
+  /** Quien firma por el Proveedor (ver firmantesProveedor); [] si no está cargado el correo. */
   firmantesProveedor: Firmante[]
   faltantes: string[]
 }
@@ -119,6 +121,8 @@ export function datosContrato(a: AltaParseada, extra: DireccionContrato = {}): D
     { name: 'Proveedor.Nombre', value: PROVEEDOR.nombreMayusculas },
     { name: 'Proveedor.Domicilio', value: DIRECCION_ARGENTINA },
     { name: 'Proveedor.Email', value: PROVEEDOR.correo },
+    { name: 'Proveedor.Firmante', value: FIRMANTE_PROVEEDOR.representacion },
+    { name: 'Proveedor.Representacion', value: PARTES_PROVEEDOR },
     ...SOCIOS_PROVEEDOR.flatMap((s) => [
       { name: `${s.rol}.Nombre`, value: `${s.nombre} ${s.apellido}` },
       { name: `${s.rol}.Porcentaje`, value: s.porcentaje },

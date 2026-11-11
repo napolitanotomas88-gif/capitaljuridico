@@ -70,7 +70,7 @@ export interface OpcionesBorrador extends OpcionesPandaDoc {
 export interface CuerpoBorrador {
   name: string
   template_uuid: string
-  recipients: Firmante[]   // el cliente ("Client") y, si están cargados, los socios del Proveedor ("Socio1", "Socio2")
+  recipients: Firmante[]   // el cliente ("Client") y, si está cargado su correo, Gerónimo Actis por Capital Jurídico ("Proveedor")
   tokens: { name: string; value: string }[]
   metadata?: Record<string, string>
 }
@@ -175,7 +175,7 @@ export function cuerpoBorrador(a: AltaParseada, opciones: Pick<OpcionesBorrador,
   const cuerpo: CuerpoBorrador = {
     name: nombreDocumento(nombre),
     template_uuid: plantilla,
-    // Los socios de Capital Jurídico firman solo si su correo está en el entorno (roles de las plantillas nuevas)
+    // Gerónimo Actis firma por Capital Jurídico solo si su correo está en el entorno (rol de las plantillas nuevas)
     recipients: [d.destinatario, ...d.firmantesProveedor.filter((f) => f.email.toLowerCase() !== d.destinatario.email.trim().toLowerCase())],
     tokens: d.tokens.filter(t => t.value.trim() !== ''),
   }
