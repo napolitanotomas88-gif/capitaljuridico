@@ -17,6 +17,9 @@
 //   • % agenda setter = agendas de Maite ÷ leads IG nuevos (pestaña "Leads IG", por fecha de la col A); NO es conversión de
 //     cohorte. Antes (hasta 11/11/2026) se dividía por los asignados de "Setter IG", pero la etiqueta ASIGNADO solo la
 //     ponen los flujos de comentarios: Maite es la única setter y le llegan todos los leads.
+//   • Origen de las agendas (desde 11/11/2026): col G de "EOD Agendas" = campo de usuario «Origen lead» de ManyChat
+//     (COMENTARIO / FM / HISTORIA / DM; lo escriben las reglas «Origen lead · …» al primer contacto y la regla
+//     «AGENDA POR DÍA → EOD Agendas» lo copia). Vacío = «sin origen». Antes del 11/11 la columna no tenía dato: no se informa.
 //   • "Etiqueta de historias" es mensual: NO mide atribución por historia ni D+1 (eso va por "Historias publicadas", ver docs/).
 // ManyChat escribe fechas tipo "2026-09-30 21:15:00" y Sheets las guarda como serial → se leen UNFORMATTED.
 import { google } from 'googleapis'
@@ -100,7 +103,11 @@ const ddmmyyyy = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.
 const filasConDatos = (rows: Celda[][]) => rows.filter(r => r.some(c => String(c ?? '').trim() !== ''))
 const norm = (s: Celda) => String(s ?? '').trim().toLowerCase()
 
-export interface ContactoEOD { nombre: string; usuario: string; id: string }
+export interface ContactoEOD { nombre: string; usuario: string; id: string; origen?: string }
+// Campo «Origen lead» de ManyChat → col G de "EOD Agendas" (reglas creadas el 11/11/2026). Antes de esa fecha no hay dato.
+export const ORIGEN_LEAD_DESDE = '2026-11-11'
+export const ORIGENES = ['COMENTARIO', 'DM', 'FM', 'HISTORIA'] as const
+export type ConteoOrigen = Record<string, number>
 export interface DiaEOD { fecha: string; agendas: number; calendarios: number; outbound?: number | null; recursos?: number; sinDato?: boolean }
 // `leads` = denominador actual (leads IG). `asignados` solo existe en snapshots congelados antes del 11/11/2026.
 export interface PctSetter { agendas: number; leads?: number | null; asignados?: number | null; pct: number | null; motivo?: string }
@@ -121,6 +128,7 @@ export interface EOD {
   recursosEnviados?: number           // contactos con el campo "Recurso OUTBOUND Historias x día" = fecha (respuestas al outbound)
   serie: DiaEOD[]                     // últimos 7 días hasta `fecha`
   atribucion: { configurado: boolean; items: ItemHistoria[]; nota?: string }
+  origenes?: { dia: ConteoOrigen; mes: ConteoOrigen; desde: string }   // agendas por «Origen lead» (desde ORIGEN_LEAD_DESDE)
   avisos: string[]
   sinRegistros?: string               // día anterior al inicio de los registros EOD: ninguna métrica es medible
 }
@@ -137,6 +145,24 @@ const claveContacto = (r: Celda[]) => {
 
 // Fecha de un evento outbound: col F "Fecha evento outbound" (campo de ManyChat, confiable) o, si falta, col A (última interacción, poco confiable)
 const fechaOutbound = (r: Celda[]) => ymdDeCelda(r[5]) ?? ymdDeCelda(r[0])
+
+// Origen de cada agenda: (día|contacto) → valor de la col G de "EOD Agendas" (el último no vacío). Vacío = 'sin origen'.
+function origenPorAgenda(rows: Celda[][]): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const r of filasConDatos(rows)) {
+    const f = ymdDeCelda(r[0]); const { clave } = claveContacto(r)
+    if (!f || !clave) continue
+    const o = String(r[6] ?? '').trim().toUpperCase()
+    if (o || !out.has(`${f}|${clave}`)) out.set(`${f}|${clave}`, o || 'sin origen')
+  }
+  return out
+}
+const claveDe = (c: ContactoEOD) => c.id || c.nombre.toLowerCase() || c.usuario.toLowerCase()
+const contarOrigenes = (cs: ContactoEOD[]): ConteoOrigen => {
+  const n: ConteoOrigen = Object.fromEntries(ORIGENES.map(o => [o, 0]))
+  for (const c of cs) n[c.origen ?? 'sin origen'] = (n[c.origen ?? 'sin origen'] ?? 0) + 1
+  return n
+}
 
 // Contactos únicos de una pestaña EOD por fecha (col A): { día → contactos }. Un contacto cuenta una vez por día.
 function porDia(rows: Celda[][], hoy: string, tab: string, avisos: string[]): Map<string, ContactoEOD[]> {
@@ -222,6 +248,11 @@ export function calcularDesdeFilas(d: DatosEOD, fecha: string, hoy = hoyYMD()): 
   }
   const ag = porDia(d.agendas, hoy, PESTANAS.agendas, avisos), cal = porDia(d.calendarios, hoy, PESTANAS.calendarios, avisos)
   const agH = porDia(d.agendasHistorias, hoy, PESTANAS.agendasHistorias, avisos)
+  const conOrigen = fecha >= ORIGEN_LEAD_DESDE
+  if (conOrigen) {
+    const og = origenPorAgenda(d.agendas)
+    for (const [f, cs] of ag) if (f >= ORIGEN_LEAD_DESDE) cs.forEach(c => { c.origen = og.get(`${f}|${claveDe(c)}`) ?? 'sin origen' })
+  }
   const agendas = ag.get(fecha) ?? []
   const calendarios = (cal.get(fecha) ?? []).length
   const etiquetaHistorias = agH.get(fecha) ?? []
@@ -293,6 +324,11 @@ export function calcularDesdeFilas(d: DatosEOD, fecha: string, hoy = hoyYMD()): 
     ...(obC ? { recursosEnviados: (obC.get(fecha) ?? []).length } : {}),
     mes: { desde, agendas: mesSet(ag), calendarios: mesSet(cal), etiquetaHistorias: mesSet(agH), ...(obH ? { outbound: mesSet(obH) } : obC ? { outbound: mesSet(obC) } : {}), ...(obC && obH ? { recursos: mesSet(obC) } : {}) },
     serie, atribucion: atribucionHistorias(d.historias ?? [], d.agendasHistorias, fecha, hoy), avisos,
+    ...(conOrigen ? (() => {
+      const desdeO = desde > ORIGEN_LEAD_DESDE ? desde : ORIGEN_LEAD_DESDE
+      const delMes = [...ag].filter(([f]) => f >= desdeO && f <= fecha).flatMap(([, cs]) => cs)
+      return { origenes: { dia: contarOrigenes(agendas), mes: contarOrigenes(delMes), desde: desdeO } }
+    })() : {}),
   }
 }
 
@@ -428,11 +464,15 @@ export function textoEOD(e: EOD): string[] {
         : `• Aperturas de historias (outbound_historias): ${aper}`,
     ...(e.aperturasModo === 'campo-outbound' && e.recursosEnviados !== undefined ? [`• Recursos enviados (respuestas al outbound; campo Recurso OUTBOUND): **${e.recursosEnviados}**`] : []),
   ]
+  if (e.origenes) {
+    const txt = (n: ConteoOrigen) => [...ORIGENES, ...Object.keys(n).filter(k => !(ORIGENES as readonly string[]).includes(k))].filter(k => k in n && (n[k] > 0 || (ORIGENES as readonly string[]).includes(k))).map(k => `${k} ${n[k]}`).join(' · ')
+    lineas.push(`• Agendas por origen (campo Origen lead): día ${txt(e.origenes.dia)} | mes desde ${ddmmyyyy(e.origenes.desde).slice(0, 5)}: ${txt(e.origenes.mes)}`)
+  }
   for (const h of e.atribucion.items)
     lineas.push(`• Historia ${h.id} (${h.etiqueta}, publicada ${ddmmyyyy(h.fechaPub)}) → agendas D+1: ${h.agendasD1 === null ? `**sin medir** (${h.motivo ?? 'cobertura no garantizada'})` : `**${h.agendasD1}**`}`)
   const partes = [lineas.join('\n')]
   if (e.agendas.length) {
-    const lista = e.agendas.slice(0, 20).map(c => `• ${conArroba(c)}${e.etiquetaHistorias.some(h => h.id ? h.id === c.id : h.nombre === c.nombre && h.usuario === c.usuario) ? ' · 📲 etiqueta historias' : ''}`)
+    const lista = e.agendas.slice(0, 20).map(c => `• ${conArroba(c)}${c.origen ? ` · ${c.origen}` : ''}${e.etiquetaHistorias.some(h => h.id ? h.id === c.id : h.nombre === c.nombre && h.usuario === c.usuario) ? ' · 📲 etiqueta historias' : ''}`)
     if (e.agendas.length > 20) lista.push(`• … y ${e.agendas.length - 20} más`)
     partes.push(`📅 **Agendó hoy**\n${lista.join('\n')}`)
   }
