@@ -183,3 +183,28 @@ describe("encendido por closer (PRECALL_V2_CLOSERS)", () => {
     }
   });
 });
+
+describe("Reagendar o cancelar: seguimientos de reagenda (Gero, 11/11/2026)", () => {
+  const chat = { contactoPrecaller: PRECALLER.noAtendio2 };
+  it("con S5…S7 sigue en Reagendar o cancelar y el estado dice el seguimiento", () => {
+    for (const s of ["S5", "S6", "S7"]) {
+      const [a] = v2({ ...chat, seguimientosPrecaller: s });
+      expect(a.etapaPrecaller).toBe("vencida");
+    }
+    expect(v2({ ...chat, seguimientosPrecaller: "S6" })[0].estado).toContain("Seguimiento 2 (reagenda)");
+  });
+  it("«No hacer» antes de la reunión deja AT = Liberado y el lead sale del tablero", () => {
+    const [a] = v2({ ...chat, seguimientosPrecaller: "S4" });
+    expect(a.noHacerPrecaller?.cambios).toEqual({ estadoPrecaller: PRECALLER.liberado });
+    expect(v2({ ...chat, seguimientosPrecaller: "S5", estadoPrecaller: PRECALLER.liberado }).some((x) => x.tipo === "PRE_CALLER")).toBe(false);
+  });
+  it("«No hacer» con la reunión pasada hace lo mismo que Liberar", () => {
+    const [a] = v2(chat, parsearFechaSheet("26/09/2026 12:00")!);
+    expect(a.etapaPrecaller).toBe("vencida");
+    expect(a.noHacerPrecaller?.cambios).toEqual(a.botones.find((b) => b.id === "liberar")?.cambios);
+  });
+  it("en Llamar y Pre-call por chat no hay «No hacer»", () => {
+    expect(v2({})[0].noHacerPrecaller).toBeUndefined();
+    expect(v2(chat)[0].noHacerPrecaller).toBeUndefined();
+  });
+});

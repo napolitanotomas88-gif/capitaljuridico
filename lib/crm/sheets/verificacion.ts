@@ -8,7 +8,7 @@ import {
   CONTACTOS_PRECALLER,
   DECISORES_PRECALLER,
   ESTADOS_PRECALLER,
-  MAX_SEGUIMIENTOS_PRECALLER,
+  VALORES_SEGUIMIENTO_PRECALLER,
 } from "@/lib/crm/config/precallV2";
 import type { Cambios, Identidad } from "@/lib/crm/contratos";
 import { formatearFechaSheet, parsearFechaSheet } from "@/lib/crm/fechas";
@@ -59,7 +59,7 @@ export const LISTAS_FIJAS: Partial<Record<Campo, readonly string[]>> = {
   contactoPrecaller: CONTACTOS_PRECALLER,
   confirmoPrecaller: CONFIRMACIONES_PRECALLER,
   decisoresPrecaller: DECISORES_PRECALLER,
-  seguimientosPrecaller: SEGUIMIENTOS.slice(0, MAX_SEGUIMIENTOS_PRECALLER),
+  seguimientosPrecaller: VALORES_SEGUIMIENTO_PRECALLER,
   estadoPrecaller: ESTADOS_PRECALLER,
 };
 

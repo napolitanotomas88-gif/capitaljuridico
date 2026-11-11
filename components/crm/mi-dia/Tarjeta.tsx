@@ -9,7 +9,7 @@ import { partesFecha } from "@/lib/crm/fechas";
 import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
 import { recordatorioParaGuardar, recordatorioVisual, videosConfEnviados } from "@/lib/crm/recordatorio";
 import { digitosWhatsApp } from "@/lib/crm/presentacion";
-import { PASOS_CHAT_PRECALLER } from "@/lib/crm/config/precallV2";
+import { MAX_SEGUIMIENTOS_PRECALLER, PASOS_CHAT_PRECALLER, PASOS_REAGENDA_PRECALLER } from "@/lib/crm/config/precallV2";
 
 const FRANJA: Record<Urgencia, string> = {
   hoy: "border-l-dorado",
@@ -254,7 +254,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
       )}
 
       {/* Pre-call por chat (Gero, 7/11/2026): los follow-ups en un desplegable fijo (AS = S1…S4; S4 = Ultimátum). */}
-      {accion.tipo === "PRE_CALLER" && (accion.etapaPrecaller === "chat" || /^S\d/.test(item.valores.seguimientosPrecaller ?? "")) && (
+      {accion.tipo === "PRE_CALLER" && accion.etapaPrecaller === "chat" && (
         <div className="mt-2 flex items-center gap-2">
           <label htmlFor={`${idNombre}-followup`} className="text-xs font-semibold">Follow-up</label>
           <select
@@ -276,6 +276,39 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
                 {paso}
               </option>
             ))}
+          </select>
+        </div>
+      )}
+
+      {/* Reagendar o cancelar (Gero, 11/11/2026): ya pasó el ultimátum, así que otro desplegable con 3 seguimientos más para
+          reagendar (AS = S5…S7) y "No hacer", que saca al lead del tablero. */}
+      {accion.tipo === "PRE_CALLER" && accion.etapaPrecaller === "vencida" && accion.noHacerPrecaller && (
+        <div className="mt-2 flex items-center gap-2">
+          <label htmlFor={`${idNombre}-reagenda`} className="text-xs font-semibold">Seguimiento</label>
+          <select
+            id={`${idNombre}-reagenda`}
+            value={/^S[5-7]$/.test(item.valores.seguimientosPrecaller ?? "") ? item.valores.seguimientosPrecaller : ""}
+            disabled={enCurso}
+            onChange={(e) => {
+              const valor = e.target.value;
+              if (valor === "noHacer") {
+                if (accion.noHacerPrecaller) onBoton(item, accion.noHacerPrecaller);
+                return;
+              }
+              const paso = PASOS_REAGENDA_PRECALLER[Number(valor.slice(1)) - MAX_SEGUIMIENTOS_PRECALLER - 1];
+              if (paso) onBoton(item, { id: "seguimientoReagenda", etiqueta: paso, cambios: { seguimientosPrecaller: valor } });
+            }}
+            className="min-h-8 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+          >
+            <option value="" disabled>
+              Ninguno
+            </option>
+            {PASOS_REAGENDA_PRECALLER.map((paso, i) => (
+              <option key={paso} value={`S${MAX_SEGUIMIENTOS_PRECALLER + i + 1}`}>
+                {paso}
+              </option>
+            ))}
+            <option value="noHacer">No hacer</option>
           </select>
         </div>
       )}
