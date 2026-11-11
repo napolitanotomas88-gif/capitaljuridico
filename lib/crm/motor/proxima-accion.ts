@@ -429,6 +429,13 @@ export function esLeadV2(v: FilaLead["valores"], desde: Date | null = null): boo
 }
 
 const pasadoAlCloser = (v: FilaLead["valores"]) => es(v.estadoPrecaller, PRECALLER.pasado);
+/**
+ * Reagendado sin haberse presentado (R = No, AC con la reunión nueva, T sin "Si"): lo deja así una reprogramación de Calendly
+ * (`cambiosDeReprogramacion`). En v2, sin pase, el lead sigue con el pre-caller en el mismo paso y con el horario nuevo
+ * (Gero, 11/11/2026: el pre-caller sigue el pre-call hasta terminarlo, aunque se reagende).
+ */
+const reagendadoSinPresentarse = (v: FilaLead["valores"]) =>
+  es(v.presentoAgenda1, VALORES.no) && !es(v.presentoReagenda, VALORES.si) && v.fechaReagenda.trim() !== "";
 const confirmoConPrecaller = (v: FilaLead["valores"]) => es(v.confirmoPrecaller, PRECALLER.confirmo) || es(v.confirmoPrecaller, PRECALLER.reprograma);
 
 /** "Liberar" de una reunión que pasó sin pase: como Cancelar reunión, sin Calendly (el horario ya pasó). */
@@ -468,7 +475,10 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   const noHacer: Boton = {
     id: "noHacerReagenda",
     etiqueta: "No hacer",
-    cambios: fecha <= ahora && !v.presentoAgenda1.trim() ? botonLiberar().cambios : { estadoPrecaller: PRECALLER.liberado },
+    cambios:
+      fecha <= ahora && (!v.presentoAgenda1.trim() || reagendadoSinPresentarse(v))
+        ? botonLiberar().cambios
+        : { estadoPrecaller: PRECALLER.liberado },
   };
   const tarjeta = (etapaPrecaller: EtapaPrecaller, titulo: string, botones: Boton[], atrasado = false): Accion => ({
     tipo: "PRE_CALLER",
@@ -487,7 +497,7 @@ export function accionPrecaller(fila: FilaLead, ahora: Date): Accion | null {
   // Pasó la hora sin pase: el closer no la toma. Se reagenda en Calendly (y vuelve a confirmar) o se libera.
   // "Liberar" nunca pisa un "¿Se presentó?" ya cargado (con R cargada la tarjeta ni existe: `accionesDeFila`).
   if (fecha <= ahora) {
-    const botones = v.presentoAgenda1.trim() ? [] : [botonLiberar()];
+    const botones = v.presentoAgenda1.trim() && !reagendadoSinPresentarse(v) ? [] : [botonLiberar()];
     return tarjeta("vencida", "La reunión pasó sin pasar al closer: reagendar o liberar", botones, true);
   }
 
@@ -901,7 +911,8 @@ export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {
   const v2 = dia.precallV2 === true && hojaV2 && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
   const pasado = v2 && pasadoAlCloser(fila.valores);
   // Sin pase pero con "¿Se presentó?" ya cargado (alguien lo cargó a mano): lo que sigue es del closer, como siempre
-  const conAsistencia = fila.valores.presentoAgenda1.trim() !== "";
+  // Una reagenda (R = No con AC) no cuenta: el pre-caller sigue hasta el pase, con el horario nuevo.
+  const conAsistencia = fila.valores.presentoAgenda1.trim() !== "" && !reagendadoSinPresentarse(fila.valores);
   const candidatas = !v2
     ? [accionPrecall(fila, ahora, faseHoy), proximaAccion(fila, ahora)]
     : pasado
