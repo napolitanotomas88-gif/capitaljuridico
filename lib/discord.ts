@@ -247,18 +247,21 @@ export function armarEnrutamientosPerdidos(
   const presentadas = e.llamadas.lista.filter(l => l.estado === 'presentada' || l.estado === 'cerrada')
   const cierres = e.llamadas.lista.filter(l => l.estado === 'cerrada')
   const noAsig = e.noAsignados
-  const perdidas = noAsig.total + routing.perdidos.length + cal.canceladas.length + noCargadas.length + noShows.length + sinRegistro.length
-  const pctSetterMes = e.tasaAgendaSetterMes == null ? '—' : (e.tasaAgendaSetterMes * 100).toFixed(1) + '%'
+  // Todos los leads de IG van a Maite (única setter): no hay "no asignados" que contar (pedido de Gero, 11/11/2026).
+  const perdidas = routing.perdidos.length + cal.canceladas.length + noCargadas.length + noShows.length + sinRegistro.length
+  const pctSetterMes = e.tasaAgendaSetterMes == null ? '—' : (e.tasaAgendaSetterMes * 100).toFixed(1) + '%'   // histórico (÷ asignados), solo para el sheet
+  // % agenda de Maite sobre TODOS los leads de IG del mes (la etiqueta ASIGNADO solo la ponen los flujos de comentarios,
+  // así que dividir por "asignados" inflaba el % y no medía nada útil).
+  const pctAgendaLeadsMes = e.leadsIG.mes > 0 ? ((e.agendasSetterMes / e.leadsIG.mes) * 100).toFixed(1).replace('.', ',') + '%' : '—'
 
   partes.push(`🕳 **ENRUTAMIENTOS PERDIDOS — ${diaLargo}** _(reporte de la mañana del ${diaCorto(hoy)})_\n` +
     `• Leads IG: **${n(e.leadsIG.dia)}** (día anterior ${n(e.leadsIG.previo)} · mes ${n(e.leadsIG.mes)})\n` +
-    `• Asignados a Maite: **${n(e.asignados.dia)}** (${pctDe(e.asignados.dia, e.leadsIG.dia)} de los leads · mes ${n(e.asignados.mes)})\n` +
-    `• Agendas de Maite: **${n(e.agendasSetterDia)}** llamadas del día agendadas por ella · **% agenda del setter (mes): ${pctSetterMes}** (${n(e.agendasSetterMes)} / ${n(e.asignados.mes)})\n` +
+    `• Agendas de Maite: **${n(e.agendasSetterDia)}** llamadas del día agendadas por ella · **% agenda sobre leads IG (mes): ${pctAgendaLeadsMes}** (${n(e.agendasSetterMes)} / ${n(e.leadsIG.mes)})\n` +
     (conCal ? `• Reservas en Calendly: **${cal.creadas.length}**${ruteo.length ? ` → ${porHoja}` : ''}\n` : '') +
     `• Llamadas del día: **${total}**${total ? ` (${Object.entries(e.llamadas.porCloser).map(([c, p]) => `${c} ${p.agendadas}`).join(' · ')}) · ${presentadas.length} presentadas · ${noShows.length} no-show` : ''}` +
     (cierres.length ? ` · **${cierres.length} cierre${cierres.length > 1 ? 's' : ''}** 🎉` : ''))
 
-  if (!perdidas) partes.push(`✅ **Nada perdido** — todo lo que entró está asignado, cargado y registrado.`)
+  if (!perdidas) partes.push(`✅ **Nada perdido** — todo lo que entró está cargado y registrado.`)
 
   // 1) ENRUTAMIENTOS PERDIDOS (definición del usuario): completó el formulario de Calendly y no agendó
   if (!routing.disponible)
@@ -279,7 +282,7 @@ export function armarEnrutamientosPerdidos(
   // Discord (ni las canceladas); los no-shows y los leads con @ sí quedan en sus pestañas del sheet
   // para el seguimiento.
   for (const l of noShows) noShowsSheet.push({ fecha: fechaDia, hora: l.hora, nombre: l.lead, telefono: l.telefono, closer: l.closer, agendo: quienAgendo(l.setter), detalle: 'No se presentó a la llamada' })
-  for (const l of noAsig.identificados) leadsIGSheet.push({ fecha: fechaDia, nombre: l.nombre, usuario: l.usuario })
+  // "Leads IG sin asignar": ya no se completa (la etiqueta ASIGNADO no marca quién llegó a Maite).
 
   // 4) Cosas de operación de los closers (solo Discord)
   if (noCargadas.length)
@@ -304,7 +307,7 @@ export function armarEnrutamientosPerdidos(
   }
 
   const sheet = urlSheetEnrutamiento()
-  partes.push(`🔗 Dashboard: https://dashboard-metricas-eight.vercel.app` + (sheet ? `\n📄 Sheet (pestañas "Enrutamientos perdidos", "No-shows", "Leads IG sin asignar"): ${sheet}` : ''))
+  partes.push(`🔗 Dashboard: https://dashboard-metricas-eight.vercel.app` + (sheet ? `\n📄 Sheet (pestañas "Enrutamientos perdidos", "No-shows"): ${sheet}` : ''))
 
   const resumen: FilaResumen = {
     fecha: fechaDia, leadsIG: e.leadsIG.dia, asignados: e.asignados.dia, pctAsignados: pctDe(e.asignados.dia, e.leadsIG.dia), noAsignados: noAsig.total,
