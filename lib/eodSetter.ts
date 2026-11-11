@@ -14,7 +14,9 @@
 //     (Resumen col G = filas al cierre) y el cierre de este día, con ID único dentro del día. Un contacto que reabre otro día
 //     cuenta otra vez. Sin cierre inmediatamente anterior (hueco) o con día viejo → por fecha de fila; si tampoco hay → null (sin dato).
 //   • Snapshot: el cierre de un día queda CONGELADO en "Resumen EOD Maite" (col J = EOD en JSON); reejecutar no lo recalcula.
-//   • % agenda setter = agendas de Maite ÷ chats asignados por ManyChat ("Setter IG"); NO es conversión de cohorte.
+//   • % agenda setter = agendas de Maite ÷ leads IG nuevos (pestaña "Leads IG", por fecha de la col A); NO es conversión de
+//     cohorte. Antes (hasta 11/11/2026) se dividía por los asignados de "Setter IG", pero la etiqueta ASIGNADO solo la
+//     ponen los flujos de comentarios: Maite es la única setter y le llegan todos los leads.
 //   • "Etiqueta de historias" es mensual: NO mide atribución por historia ni D+1 (eso va por "Historias publicadas", ver docs/).
 // ManyChat escribe fechas tipo "2026-09-30 21:15:00" y Sheets las guarda como serial → se leen UNFORMATTED.
 import { google } from 'googleapis'
@@ -29,15 +31,15 @@ export const PESTANAS = {
   agendasHistorias: 'EOD Agendas historias',
   resumen: 'Resumen EOD Maite',
   setter: 'Setter IG',
+  leadsIG: 'Leads IG',
   historias: 'Historias publicadas',
   config: 'EOD Config',
   locks: 'EOD Locks',
 }
-const HEADER_RESUMEN = ['Fecha', 'Agendas', 'Calendarios enviados', '% agenda setter (agendas ÷ chats asignados, día)', 'Aperturas historias (outbound)', 'Contactos con etiqueta de historias (mensual, referencial)', 'Filas outbound al cierre', 'Discord (ids de mensaje)', 'Snapshot (UTC)', 'EOD congelado (JSON)']
+const HEADER_RESUMEN = ['Fecha', 'Agendas', 'Calendarios enviados', '% agenda setter (agendas ÷ leads IG, día)', 'Aperturas historias (outbound)', 'Contactos con etiqueta de historias (mensual, referencial)', 'Filas outbound al cierre', 'Discord (ids de mensaje)', 'Snapshot (UTC)', 'EOD congelado (JSON)']
 export const HEADER_HISTORIAS = ['ID historia', 'Fecha publicación (YYYY-MM-DD)', 'Etiqueta ManyChat de la historia', 'Link / descripción', 'Notas', 'Cobertura desde (YYYY-MM-DD)']
 export const HEADER_LOCKS = ['Fecha', 'Token', 'Creado (UTC)', 'Estado']
 export const HEADER_CONFIG = ['Clave', 'Valor', 'Nota']
-export const CLAVE_COBERTURA_ASIGNACION = 'asignacion_cobertura_desde'
 // Las reglas EOD de ManyChat se crearon el 30/9 ~18:15 AR y la primera fila de datos es del 1/10: antes de esa fecha NO existe registro
 // (un 0 sería falso → "sin dato"). Los eventos outbound por campo (regla 2967250) corren desde el 6/10; del 1 al 5/10 son una carga inicial
 // manual de los valores finales del campo, que guarda UNA sola fecha por contacto (si reabrió después, el día anterior queda subcontado).
@@ -100,7 +102,8 @@ const norm = (s: Celda) => String(s ?? '').trim().toLowerCase()
 
 export interface ContactoEOD { nombre: string; usuario: string; id: string }
 export interface DiaEOD { fecha: string; agendas: number; calendarios: number; outbound?: number | null; recursos?: number; sinDato?: boolean }
-export interface PctSetter { agendas: number; asignados: number | null; pct: number | null; motivo?: string }
+// `leads` = denominador actual (leads IG). `asignados` solo existe en snapshots congelados antes del 11/11/2026.
+export interface PctSetter { agendas: number; leads?: number | null; asignados?: number | null; pct: number | null; motivo?: string }
 export interface ItemHistoria { id: string; fechaPub: string; etiqueta: string; agendasD1: number | null; motivo?: string }
 export interface EOD {
   fecha: string                       // YYYY-MM-DD (AR)
@@ -123,7 +126,7 @@ export interface EOD {
 }
 export interface DatosEOD {
   agendas: Celda[][]; calendarios: Celda[][]; outbound: Celda[][]; agendasHistorias: Celda[][]; resumen: Celda[][]
-  setterIG?: Celda[][]; historias?: Celda[][]; config?: Celda[][]; outboundCampo?: Celda[][]; outboundHistoria?: Celda[][]
+  setterIG?: Celda[][]; leadsIG?: Celda[][]; historias?: Celda[][]; config?: Celda[][]; outboundCampo?: Celda[][]; outboundHistoria?: Celda[][]
 }
 
 const claveContacto = (r: Celda[]) => {
@@ -209,7 +212,7 @@ export function calcularDesdeFilas(d: DatosEOD, fecha: string, hoy = hoyYMD()): 
   const avisos: string[] = []
   if (fecha < EOD_REGISTRO_DESDE) {
     const motivo = `sin registros: las reglas EOD de ManyChat empiezan el ${ddmmyyyy(EOD_REGISTRO_DESDE)}`
-    const nulo = (a: number): PctSetter => ({ agendas: a, asignados: null, pct: null, motivo })
+    const nulo = (a: number): PctSetter => ({ agendas: a, leads: null, pct: null, motivo })
     return {
       fecha, agendas: [], calendarios: 0, aperturasHistorias: null, aperturasModo: 'sin-base', aperturasNota: motivo, etiquetaHistorias: [],
       filasOutbound: 0, outboundSinFecha: 0, setterDia: nulo(0), setterMes: nulo(0),
@@ -256,28 +259,23 @@ export function calcularDesdeFilas(d: DatosEOD, fecha: string, hoy = hoyYMD()): 
       : !previo ? (ult ? `hueco: el último cierre es del ${ddmmyyyy(ult.fecha)}, no del día anterior` : 'primer cierre: no hay base del día anterior') : undefined
   }
 
-  // % agenda setter = agendas de Maite ÷ chats asignados, SOLO con la fecha real de asignación (Setter IG col A "Fecha (asignación)").
-  // La col C "Suscrito" es la fecha de suscripción al bot, NO la de asignación: no se usa nunca como fallback. Además, como la regla
-  // ASIGNADO → Setter IG dejó A vacía en la mayoría de las filas, el conteo por A solo es válido desde la fecha de cobertura verificada
-  // ("EOD Config" → asignacion_cobertura_desde). Sin esa fecha, o para períodos anteriores, el dato es null (sin dato), no 0 ni parcial.
-  const cobertura = filasConDatos(d.config ?? []).flatMap(r => norm(r[0]) === CLAVE_COBERTURA_ASIGNACION ? [ymdDeCelda(r[1])] : []).find(Boolean) ?? null
-  const setter = new Map<string, Set<string>>()
-  filasConDatos(d.setterIG ?? []).forEach((r, i) => {
+  // % agenda setter = agendas de Maite ÷ leads IG nuevos del día/mes (pestaña "Leads IG": A = fecha, F = ID de contacto).
+  // Maite es la única setter: todos los leads le llegan (la etiqueta ASIGNADO solo marcaba los de comentarios).
+  // Sin la pestaña → null (sin dato), nunca 0.
+  const leads = new Map<string, Set<string>>()
+  filasConDatos(d.leadsIG ?? []).forEach((r, i) => {
     const f = ymdDeCelda(r[0])
     if (!f || f > hoy) return
-    const clave = String(r[6] ?? '').trim() || (norm(r[5]) ? `@${norm(r[5])}` : `fila-${i}`)
-    setter.set(f, (setter.get(f) ?? new Set()).add(clave))
+    const clave = String(r[5] ?? '').trim() || (norm(r[2]) ? `@${norm(r[2]).replace(/^@/, '')}` : `fila-${i}`)
+    leads.set(f, (leads.get(f) ?? new Set()).add(clave))
   })
   const desde = `${fecha.slice(0, 8)}01`
   const mesSet = (m: Map<string, unknown[] | Set<string>>) => [...m].filter(([f]) => f >= desde && f <= fecha).reduce((n, [, v]) => n + (Array.isArray(v) ? v.length : v.size), 0)
-  const sinCobertura = (inicio: string): string | null =>
-    !cobertura ? 'fecha de asignación ausente: seguimiento real no iniciado'
-      : cobertura > inicio ? `cobertura de fecha de asignación desde ${ddmmyyyy(cobertura)}` : null
-  const pct = (a: number, asig: number, motivo: string | null): PctSetter =>
-    motivo ? { agendas: a, asignados: null, pct: null, motivo }
-      : { agendas: a, asignados: asig, pct: asig > 0 && asig >= a ? a / asig : null, ...(asig > 0 && asig >= a ? {} : { motivo: asig === 0 ? 'sin chats asignados registrados' : 'los asignados no cubren las agendas' }) }
-  const setterDia = pct(agendas.length, setter.get(fecha)?.size ?? 0, sinCobertura(fecha))
-  const setterMes = pct(mesSet(ag), mesSet(setter), sinCobertura(desde))
+  const pct = (a: number, l: number): PctSetter =>
+    !d.leadsIG ? { agendas: a, leads: null, pct: null, motivo: `sin la pestaña "${PESTANAS.leadsIG}"` }
+      : l > 0 ? { agendas: a, leads: l, pct: a / l } : { agendas: a, leads: 0, pct: null, motivo: 'sin leads IG registrados' }
+  const setterDia = pct(agendas.length, leads.get(fecha)?.size ?? 0)
+  const setterMes = pct(mesSet(ag), mesSet(leads))
 
   const serie: DiaEOD[] = Array.from({ length: 7 }, (_, i) => {
     const f = sumarDias(fecha, i - 6)
@@ -316,7 +314,7 @@ export async function leerDatos(): Promise<DatosEOD> {
   const obligatorias = [PESTANAS.agendas, PESTANAS.calendarios, PESTANAS.outbound, PESTANAS.agendasHistorias]
   const faltan = obligatorias.filter(t => !existentes.has(t))
   if (faltan.length) throw new Error(`faltan pestañas en Ventas: ${faltan.join(', ')}`)
-  const opcionales: [keyof DatosEOD, string, string][] = [['outboundCampo', PESTANAS.outboundCampo, 'A2:E'], ['outboundHistoria', PESTANAS.outboundHistoria, 'A2:E'], ['resumen', PESTANAS.resumen, 'A2:J'], ['setterIG', PESTANAS.setter, 'A2:G'], ['historias', PESTANAS.historias, 'A2:F'], ['config', PESTANAS.config, 'A2:C']]
+  const opcionales: [keyof DatosEOD, string, string][] = [['outboundCampo', PESTANAS.outboundCampo, 'A2:E'], ['outboundHistoria', PESTANAS.outboundHistoria, 'A2:E'], ['resumen', PESTANAS.resumen, 'A2:J'], ['leadsIG', PESTANAS.leadsIG, 'A2:F'], ['historias', PESTANAS.historias, 'A2:F'], ['config', PESTANAS.config, 'A2:C']]
   const pedidos: [keyof DatosEOD, string][] = [
     ['agendas', `'${PESTANAS.agendas}'!A2:E`], ['calendarios', `'${PESTANAS.calendarios}'!A2:E`], ['outbound', `'${PESTANAS.outbound}'!A2:F`],
     ['agendasHistorias', `'${PESTANAS.agendasHistorias}'!A2:F`],
@@ -348,14 +346,15 @@ export async function registrarEOD(e: EOD): Promise<{ congelado: boolean; yaEnvi
   }
   const actual = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `'${PESTANAS.resumen}'!A:J`, valueRenderOption: 'UNFORMATTED_VALUE' })
   const filas = (actual.data.values ?? []) as Celda[][]
-  if (String(filas[0]?.[0] ?? '') !== HEADER_RESUMEN[0] || String(filas[0]?.[9] ?? '') !== HEADER_RESUMEN[9])
+  if (String(filas[0]?.[0] ?? '') !== HEADER_RESUMEN[0] || String(filas[0]?.[3] ?? '') !== HEADER_RESUMEN[3] || String(filas[0]?.[9] ?? '') !== HEADER_RESUMEN[9])
     await sheets.spreadsheets.values.update({ spreadsheetId: id, range: `'${PESTANAS.resumen}'!A1:J1`, valueInputOption: 'RAW', requestBody: { values: [HEADER_RESUMEN] } })
   const idx = filas.findIndex((r, i) => i > 0 && ymdDeCelda(r[0]) === e.fecha)
   const previa = idx > 0 ? filas[idx] : []
   if (previa[9] && String(previa[9]).trim()) return { congelado: true, yaEnviadoDiscord: String(previa[7] ?? '') || undefined }
   const json = JSON.stringify(e)
   if (json.length > 45_000) throw new Error('snapshot demasiado grande para una celda')
-  const pct = e.setterDia.pct === null || e.setterDia.asignados === null ? `sin dato (${e.setterDia.motivo ?? 'sin fuente'})` : `${pctFmt(e.setterDia.pct)} (${e.setterDia.agendas}/${e.setterDia.asignados})`
+  const den = e.setterDia.leads ?? e.setterDia.asignados ?? null
+  const pct = e.setterDia.pct === null || den === null ? `sin dato (${e.setterDia.motivo ?? 'sin fuente'})` : `${pctFmt(e.setterDia.pct)} (${e.setterDia.agendas}/${den})`
   const base = previa[6] !== undefined && previa[6] !== '' ? previa[6] : e.filasOutbound
   const fila = [
     ddmmyyyy(e.fecha), e.agendas.length, e.calendarios, pct,
@@ -409,7 +408,7 @@ export async function asegurarPestanasAuxiliares(): Promise<string[]> {
 const conArroba = (c: ContactoEOD) => c.nombre ? (c.usuario ? `${c.nombre} (@${c.usuario})` : c.nombre) : c.usuario ? `@${c.usuario}` : 'sin nombre'
 const corto = (ymd: string) => new Date(`${ymd}T15:00:00Z`).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', timeZone: TZ }).replace('.', '')
 export const pctFmt = (x: number) => `${(x * 100).toFixed(2).replace('.', ',')}%`   // 2 decimales: 1/41 = 2,44% (no 2%)
-const pctTxt = (p: PctSetter, etiqueta: string) => p.pct !== null && p.asignados !== null ? `${etiqueta} ${p.agendas}/${p.asignados} = ${pctFmt(p.pct)}` : `${etiqueta} **sin dato** _(${p.motivo ?? 'sin fuente'})_`
+const pctTxt = (p: PctSetter, etiqueta: string) => { const den = p.leads ?? p.asignados ?? null; return p.pct !== null && den !== null ? `${etiqueta} ${p.agendas}/${den} = ${pctFmt(p.pct)}` : `${etiqueta} **sin dato** _(${p.motivo ?? 'sin fuente'})_` }
 
 export function textoEOD(e: EOD): string[] {
   const fechaLarga = new Date(`${e.fecha}T15:00:00Z`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ })
@@ -421,14 +420,13 @@ export function textoEOD(e: EOD): string[] {
     `📊 **EOD MAITE — ${fechaLarga}**`,
     `• Agendas del día (botonera): **${e.agendas.length}**`,
     `• Calendarios enviados: **${e.calendarios}**`,
-    `• % agenda setter (agendas Mai ÷ chats asignados ManyChat): ${pctTxt(e.setterDia, 'día')} · ${pctTxt(e.setterMes, 'mes')}`,
+    `• % agenda setter (${'asignados' in e.setterDia && e.setterDia.leads === undefined ? 'agendas Mai ÷ chats asignados ManyChat' : 'agendas Mai ÷ leads IG nuevos'}): ${pctTxt(e.setterDia, 'día')} · ${pctTxt(e.setterMes, 'mes')}`,
     e.aperturasModo === 'campo-outbound'
       ? `• Outbound en historias (contactos con el campo OUTBOUND Historia x Día de hoy): ${aper}`
       : e.aperturasModo === 'campo'
         ? `• Recursos enviados por outbound de historias (campo Recurso OUTBOUND): ${aper}`
         : `• Aperturas de historias (outbound_historias): ${aper}`,
     ...(e.aperturasModo === 'campo-outbound' && e.recursosEnviados !== undefined ? [`• Recursos enviados (respuestas al outbound; campo Recurso OUTBOUND): **${e.recursosEnviados}**`] : []),
-    `• Contactos con etiqueta de historias (mensual): **${e.etiquetaHistorias.length}** _(referencial: NO es origen verificado ni mide atribución por historia ni D+1)_`,
   ]
   for (const h of e.atribucion.items)
     lineas.push(`• Historia ${h.id} (${h.etiqueta}, publicada ${ddmmyyyy(h.fechaPub)}) → agendas D+1: ${h.agendasD1 === null ? `**sin medir** (${h.motivo ?? 'cobertura no garantizada'})` : `**${h.agendasD1}**`}`)

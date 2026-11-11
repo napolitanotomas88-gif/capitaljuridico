@@ -54,7 +54,7 @@ ok('fecha inválida o futura se rechaza', () => {
 })
 ok('etiqueta mensual de historias: se marca por ID y NO se presenta como atribución', () => {
   const e = calc({ agendas: [fila(S('2026-10-04'), 'L', 'l', 7)], agendasHistorias: [fila(S('2026-10-04'), 'L', 'l', 7), fila(S('2026-10-03'), 'Z', 'z', 9)] }, '2026-10-04', '2026-10-05')
-  const t = textoEOD(e).join('\n'); assert.equal(e.etiquetaHistorias.length, 1); assert.match(t, /📲/); assert.match(t, /Contactos con etiqueta de historias \(mensual\): \*\*1\*\*/); assert.match(t, /referencial: NO es origen verificado/); assert.doesNotMatch(t, /vinieron de historias/)
+  const t = textoEOD(e).join('\n'); assert.equal(e.etiquetaHistorias.length, 1); assert.match(t, /📲/); assert.doesNotMatch(t, /Contactos con etiqueta de historias/);   // línea sacada el 11/11/2026: no medía nada assert.doesNotMatch(t, /vinieron de historias/)
 })
 // ── outbound
 const R = (id, f = '') => [f, '', `u${id}`, id]
@@ -107,31 +107,29 @@ ok('snapshot cerrado: se devuelve el guardado aunque los datos hayan cambiado', 
   assert.equal(snapshotCongelado([['03/10/2026', 1, 0, '', 0, 0, 0, '', '', '{roto']], '2026-10-03'), null)
 })
 // ── % setter
-const CFG = [['asignacion_cobertura_desde', '2026-10-05', 'verificado']]
-ok('% agenda setter = agendas ÷ asignados SOLO con fecha real (col A) y desde la cobertura verificada', () => {
-  const setterIG = [[S('2026-10-05'), '', '', '', '', 'u1', 'i1'], [S('2026-10-05'), '', '', '', '', 'u2', 'i2'], [S('2026-10-05'), '', '', '', '', 'u2', 'i2'], [S('2026-10-06'), '', '', '', '', 'u3', 'i3']]
-  const e = calc({ config: CFG, setterIG, agendas: [fila(S('2026-10-05'), 'A', 'a', 1)] }, '2026-10-05', '2026-10-06')
-  assert.deepEqual([e.setterDia.agendas, e.setterDia.asignados, e.setterDia.pct], [1, 2, 0.5])
-  assert.equal(e.setterMes.pct, null); assert.match(e.setterMes.motivo, /desde 05\/10\/2026/)   // el mes empieza antes de la cobertura → sin dato, nunca parcial
-  assert.doesNotMatch(textoEOD(e).join('\n'), /terminó en agenda/)
-  // asignados < agendas → el denominador no cubre: sin dato
-  const f = calc({ config: CFG, setterIG: [setterIG[0]], agendas: [fila(S('2026-10-05'), 'A', 'a', 1), fila(S('2026-10-05'), 'B', 'b', 2)] }, '2026-10-05', '2026-10-06')
-  assert.equal(f.setterDia.pct, null); assert.match(f.setterDia.motivo, /no cubren/)
+// Leads IG: A = fecha, B contacto, C usuario, D/E histórico, F ID (forma real de la pestaña)
+const L = (ymd, id, h = .5) => [S(ymd, h), '', `u${id}`, '', '', String(id)]
+ok('% agenda setter = agendas ÷ leads IG nuevos (día y mes), únicos por ID; ya no usa asignados', () => {
+  const leadsIG = [L('2026-11-05', 1), L('2026-11-05', 2), L('2026-11-05', 2), L('2026-11-05', 3), L('2026-11-05', 4), L('2026-11-04', 5), L('2026-10-31', 6), [S('2026-11-05'), '', '', '2026-11', '99', '']]
+  const setterIG = [[S('2026-11-05'), '', '', '', '', 'u1', 'i1']]
+  const e = calc({ leadsIG, setterIG, agendas: [fila(S('2026-11-05'), 'A', 'a', 1), fila(S('2026-11-04'), 'B', 'b', 2)] }, '2026-11-05', '2026-11-06')
+  assert.deepEqual([e.setterDia.agendas, e.setterDia.leads, e.setterDia.pct], [1, 5, 0.2])   // 4 IDs + 1 fila sin ID (histórico) = 5; "asignados" no cuenta
+  assert.deepEqual([e.setterMes.agendas, e.setterMes.leads], [2, 6])                          // el 31/10 no entra en noviembre
+  const t = textoEOD(e)[0]
+  assert.match(t, /agendas Mai ÷ leads IG nuevos\): día 1\/5 = 20,00% · mes 2\/6 = 33,33%/)
+  assert.doesNotMatch(t, /asignados|etiqueta de historias \(mensual\)/)
 })
-ok('REAL Setter IG: 147 filas de octubre sin fecha A y con C "Suscrito" → sin dato, jamás 56/152 ni 0', () => {
-  // forma real: A vacía, C = fecha de suscripción (ruido), F usuario, G id; + 5 filas con A real en octubre
-  const sinA = Array.from({ length: 147 }, (_, i) => ['', '', S(i % 2 ? '2026-10-03' : '2026-10-01', .3 + i / 1000), '', '', `u${i}`, 1000 + i])
-  const conA = [S('2026-10-01'), S('2026-10-03'), S('2026-10-03'), S('2026-10-03'), S('2026-10-03')].map((a, i) => [a, `N${i}`, S('2026-09-01'), '', '', `a${i}`, 5000 + i])
-  const ag3 = [fila(S('2026-10-03'), 'X', 'x', 1)]
-  // sin cobertura verificada: sin dato aunque haya 4 filas con A el 3/10 (las 41 de C no cuentan)
-  const e = calc({ setterIG: [...sinA, ...conA], agendas: ag3 }, '2026-10-03', '2026-10-05')
-  assert.equal(e.setterDia.pct, null); assert.equal(e.setterDia.asignados, null); assert.match(e.setterDia.motivo, /fecha de asignación ausente/)
-  assert.equal(e.setterMes.pct, null); assert.equal(e.setterMes.asignados, null)
-  const t = textoEOD(e)[0]; assert.match(t, /% agenda setter[^\n]*\*\*sin dato\*\*/); assert.doesNotMatch(t, /\d+\/\d+ = /)
-  // con cobertura posterior al día: sigue sin dato; con cobertura anterior: cuenta SOLO las filas con A
-  assert.equal(calc({ config: [['asignacion_cobertura_desde', '2026-10-05', '']], setterIG: [...sinA, ...conA], agendas: ag3 }, '2026-10-03', '2026-10-05').setterDia.pct, null)
-  const ok3 = calc({ config: [['asignacion_cobertura_desde', '2026-10-01', '']], setterIG: [...sinA, ...conA], agendas: ag3 }, '2026-10-03', '2026-10-05')
-  assert.deepEqual([ok3.setterDia.asignados, ok3.setterMes.asignados], [4, 5])   // 4 el 3/10 y 5 en el mes: las 147 sin A no se cuentan
+ok('% setter sin la pestaña Leads IG → sin dato (no 0); con pestaña y sin leads del día → sin dato con motivo', () => {
+  const e = calc({ agendas: [fila(S('2026-11-05'), 'A', 'a', 1)] }, '2026-11-05', '2026-11-06')
+  assert.equal(e.setterDia.pct, null); assert.equal(e.setterDia.leads, null); assert.match(e.setterDia.motivo, /Leads IG/)
+  assert.match(textoEOD(e)[0], /% agenda setter[^\n]*\*\*sin dato\*\*/)
+  const f = calc({ leadsIG: [L('2026-11-04', 1)], agendas: [] }, '2026-11-05', '2026-11-06')
+  assert.equal(f.setterDia.pct, null); assert.match(f.setterDia.motivo, /sin leads/); assert.equal(f.setterMes.leads, 1)
+})
+ok('snapshot congelado viejo (÷ asignados) se sigue mostrando con su etiqueta original', () => {
+  const e = calc({ leadsIG: [L('2026-11-05', 1)], agendas: [] }, '2026-11-05', '2026-11-06')
+  const viejo = { ...e, setterDia: { agendas: 1, asignados: 4, pct: 0.25 }, setterMes: { agendas: 2, asignados: 8, pct: 0.25 } }
+  assert.match(textoEOD(viejo)[0], /chats asignados ManyChat\): día 1\/4 = 25,00%/)
 })
 ok('mes: no mezcla meses', () => {
   const e = calc({ agendas: [fila(S('2026-09-30'), 'A', 'a', 1), fila(S('2026-10-01'), 'B', 'b', 2)] }, '2026-10-03', '2026-10-04'); assert.equal(e.mes.agendas, 1)
@@ -230,7 +228,7 @@ await okA('validaciones: futura/inválida, y HOY solo desde 23:30', async () => 
 })
 ok('porcentaje con precisión útil: 1/41 = 2,44% y 6/96 = 6,25% (no 2% / 6%)', () => {
   assert.equal(pctFmt(1 / 41), '2,44%'); assert.equal(pctFmt(6 / 96), '6,25%')
-  const e = calc({ config: [['asignacion_cobertura_desde', '2026-10-01', '']], setterIG: Array.from({ length: 41 }, (_, i) => [S('2026-10-03'), '', '', '', '', `u${i}`, `i${i}`]), agendas: [fila(S('2026-10-03'), 'A', 'a', 1)] }, '2026-10-03', '2026-10-04')
+  const e = calc({ leadsIG: Array.from({ length: 41 }, (_, i) => L('2026-10-03', i)), agendas: [fila(S('2026-10-03'), 'A', 'a', 1)] }, '2026-10-03', '2026-10-04')
   assert.match(textoEOD(e)[0], /día 1\/41 = 2,44%/)
 })
 ok('outbound: col F "Fecha evento outbound" manda sobre col A y permite contar por día con reaperturas', () => {

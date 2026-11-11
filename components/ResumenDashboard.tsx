@@ -633,12 +633,12 @@ export default function Dashboard() {
                 { title: 'Volumen', items: [
                   { label: 'Leads — VSL', value: leadsVSL, format: 'number', sub: 'visitas GA4' },
                   { label: 'Leads — Inbound', value: leadsIG, format: 'number', sub: 'conversaciones IG (orgánico + pago)' },
-                  // Setter (Maite): agendas propias (col K "mai") y % sobre los asignados por ManyChat (etiqueta ASIGNADO → pestaña Setter IG)
+                  // Setter (Maite): agendas propias (col K "mai") y % sobre TODOS los leads IG del mes (es la única setter)
                   { label: 'Agendas del setter', value: raw?.monthlyAgendasSetter[activeMonthIdx] ?? null, format: 'number',
-                    sub: ((raw?.monthlyAsignadosSetter[activeMonthIdx] ?? 0) > 0 ? `de ${(raw?.monthlyAsignadosSetter[activeMonthIdx] ?? 0).toLocaleString('en-US')} asignados (ManyChat)` : 'Maite · col K "mai" en closers') + sufEmpresa },
-                  // null = mes sin asignados reales (antes del tracking) o asignados < agendas → "—"
+                    sub: 'Maite · col K "mai" en closers' + sufEmpresa },
+                  // null = mes sin leads IG medidos → "—"
                   { label: '% Agenda del setter', value: raw?.monthlyTasaAgendaSetter[activeMonthIdx] != null ? (raw!.monthlyTasaAgendaSetter[activeMonthIdx] as number) * 100 : null, format: 'percent',
-                    sub: (raw?.monthlyTasaAgendaSetter[activeMonthIdx] != null ? 'agendas de Maite ÷ asignados (ASIGNADO)' : 'sin asignados medidos ese mes') + sufEmpresa },
+                    sub: (raw?.monthlyTasaAgendaSetter[activeMonthIdx] != null ? 'agendas de Maite ÷ leads IG del mes' : 'sin leads IG medidos ese mes') + sufEmpresa },
                   // CPL de IG = gasto FM ÷ seguimientos; mientras no se carguen, estimado de Meta
                   { label: 'CPL Instagram', value: cplIG, format: 'currency',
                     sub: (cplIG == null ? 'sin gasto FM ni datos de Meta'
