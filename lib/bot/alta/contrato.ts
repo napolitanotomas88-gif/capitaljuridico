@@ -51,6 +51,12 @@ export function firmantesProveedor(entorno: Record<string, string | undefined> =
   return email ? [{ email, first_name: FIRMANTE_PROVEEDOR.nombre, last_name: FIRMANTE_PROVEEDOR.apellido, role: 'Proveedor' }] : []
 }
 
+/** Dirección del cliente ya separada (ver direccion.ts). Un campo definido manda, aunque sea '' (= se sabe que no se
+ *  sabe); uno sin definir sale de las reglas puras de separarDireccion. `confirmar`: ciudad y provincia son una
+ *  conjetura de las reglas que nadie verificó (sin Claude o con Claude caído): el closer tiene que confirmarlas. Si
+ *  ciudad o provincia vienen en `extra` sin `confirmar`, se toman como verificadas. */
+export interface DireccionContrato { calle?: string; ciudad?: string; provincia?: string; pais?: string; confirmar?: boolean }
+
 export interface DatosContrato {
   tokens: { name: string; value: string }[]
   destinatario: Firmante & { role: 'Client' }
