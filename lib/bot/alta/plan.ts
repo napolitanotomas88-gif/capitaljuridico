@@ -197,7 +197,10 @@ export function planDeAlta(a: AltaParseada, hoy: string | Date, extras: ExtrasAl
         detalle: [
           `Plantilla ${a.contrato === 'garantia' ? '"con GARANTÍA"' : 'normal'} para ${nombre}, a firmar por ${c.destinatario.email || '(correo)'}.`,
           `DNI ${a.dni ?? '—'} · inicio ${fechaCorta(a.inicio)} · dirección del cliente: ${a.direccion ?? '—'}.`,
-          `Domicilio de Skyward: ${DIRECCION_ARGENTINA}.`,
+          `Proveedor: Capital Jurídico, domicilio ${DIRECCION_ARGENTINA || '(falta CONTRATO_DIRECCION_ARGENTINA)'}.`,
+          c.firmantesProveedor.length
+            ? `Firman por Capital Jurídico: ${c.firmantesProveedor.map((f) => `${f.first_name} ${f.last_name}`).join(' y ')}.`
+            : 'Los socios de Capital Jurídico todavía no firman desde el bot (faltan sus correos en el entorno).',
           // El bot nunca lo envía solo (pandadoc.ts): deja el borrador y el closer lo revisa y confirma el envío
           ...(c.faltantes.length ? [`Le falta: ${c.faltantes.join(', ')} (el bot arroba al closer).`] : []),
           'Queda el borrador en PandaDoc; el closer lo revisa y confirma antes de mandarlo a firmar.',

@@ -1,5 +1,7 @@
 // ── Bot "Capital Jurídico": datos del contrato de PandaDoc a partir del #ALTA (docs/BOT-ALTA-CJ.md) ─────
-// Puro y sin red. Plantillas y domicilio del emisor se configuran por entorno privado.
+// Puro y sin red. Plantillas, domicilio del Proveedor y correos de los socios firmantes se configuran por entorno privado.
+// Proveedor del contrato: Capital Jurídico (antes Skyward Consultoría Jurídica LLC; pedido de Tomás, 11/11/2026), con
+// dos socios al 50 %: Gerónimo Actis y Tomás Napolitano.
 import type { AltaParseada } from './parsear'
 import { faltantesDireccion, separarDireccion } from './direccion'
 import { PARTICULAS, nombreCliente } from './nombreCliente'
@@ -9,8 +11,37 @@ export const PLANTILLAS_CONTRATO = {
   garantia: process.env.PANDADOC_PLANTILLA_GARANTIA?.trim() ?? '',
 } as const
 
-/** Domicilio del emisor confirmado; nunca se deduce ni se publica en el repositorio. */
+/** Domicilio del Proveedor (la oficina de Capital Jurídico) confirmado; nunca se deduce ni se publica en el repositorio. */
 export const DIRECCION_ARGENTINA = process.env.CONTRATO_DIRECCION_ARGENTINA?.trim() ?? ''
+
+/** El Proveedor del contrato. `correo` es el de notificaciones del Proveedor (no es una cuenta de login). */
+export const PROVEEDOR = {
+  nombre: 'Capital Jurídico',
+  nombreMayusculas: 'CAPITAL JURÍDICO',
+  correo: 'info@capitaljuridico.com.ar',
+} as const
+
+/** Rol de un firmante en la plantilla de PandaDoc. Socio1 y Socio2 solo existen en las plantillas nuevas de Capital
+ *  Jurídico: por eso cada socio va como firmante SOLO si su correo está cargado en el entorno. */
+export type RolFirmante = 'Client' | 'Socio1' | 'Socio2'
+
+export interface Firmante { email: string; first_name: string; last_name: string; role: RolFirmante }
+
+/** Los dos socios del Proveedor, al 50 % cada uno. El correo de cada uno sale de su variable de entorno. */
+export const SOCIOS_PROVEEDOR = [
+  { rol: 'Socio1', nombre: 'Gerónimo', apellido: 'Actis', variable: 'CONTRATO_FIRMANTE_SOCIO1_EMAIL', porcentaje: '50 %' },
+  { rol: 'Socio2', nombre: 'Tomás', apellido: 'Napolitano', variable: 'CONTRATO_FIRMANTE_SOCIO2_EMAIL', porcentaje: '50 %' },
+] as const
+
+/** Socios que firman por el Proveedor: los que tienen el correo cargado (se lee en cada llamada). Sin ninguno cargado,
+ *  [] y el contrato sale como hoy, con el cliente como único firmante (sirve con las plantillas viejas, que solo
+ *  tienen el rol "Client"). */
+export function firmantesProveedor(entorno: Record<string, string | undefined> = process.env): Firmante[] {
+  return SOCIOS_PROVEEDOR.flatMap((s) => {
+    const email = entorno[s.variable]?.trim() ?? ''
+    return email ? [{ email, first_name: s.nombre, last_name: s.apellido, role: s.rol }] : []
+  })
+}
 
 /** Dirección del cliente ya separada (ver direccion.ts). Un campo definido manda, aunque sea '' (= se sabe que no se
  *  sabe); uno sin definir sale de las reglas puras de separarDireccion. `confirmar`: ciudad y provincia son una
@@ -20,7 +51,9 @@ export interface DireccionContrato { calle?: string; ciudad?: string; provincia?
 
 export interface DatosContrato {
   tokens: { name: string; value: string }[]
-  destinatario: { email: string; first_name: string; last_name: string; role: 'Client' }
+  destinatario: Firmante & { role: 'Client' }
+  /** Socios del Proveedor que firman (ver firmantesProveedor); [] si no hay correos cargados. */
+  firmantesProveedor: Firmante[]
   faltantes: string[]
 }
 
@@ -59,7 +92,7 @@ export function datosContrato(a: AltaParseada, extra: DireccionContrato = {}): D
   // Si ciudad o provincia vinieron resueltas en `extra`, decide `extra.confirmar`; si salen de las reglas, su confianza
   const confirmar = extra.ciudad !== undefined || extra.provincia !== undefined ? !!extra.confirmar : reglas?.confianza === 'baja'
   const faltantes: string[] = []
-  if (!DIRECCION_ARGENTINA) faltantes.push('Domicilio del emisor (CONTRATO_DIRECCION_ARGENTINA)')
+  if (!DIRECCION_ARGENTINA) faltantes.push('Domicilio del Proveedor, Capital Jurídico (CONTRATO_DIRECCION_ARGENTINA)')
   if (!nombre) faltantes.push('Nombre completo')
   if (!apellido && nombre) faltantes.push('Apellido')
   if (!a.correo) faltantes.push('Correo')
@@ -80,11 +113,21 @@ export function datosContrato(a: AltaParseada, extra: DireccionContrato = {}): D
     { name: 'Client.Country', value: pais },
     { name: 'DNI', value: a.dni ?? '' },
     { name: 'Fecha de Inicio', value: inicio },
+    // Token de las plantillas actuales (se sigue mandando para no romperlas); las nuevas usan Proveedor.Domicilio
     { name: 'TU DIRECCIÓN EN ARGENTINA', value: DIRECCION_ARGENTINA },
+    // Datos del Proveedor para las plantillas nuevas de Capital Jurídico (en las viejas no aparecen en el texto)
+    { name: 'Proveedor.Nombre', value: PROVEEDOR.nombreMayusculas },
+    { name: 'Proveedor.Domicilio', value: DIRECCION_ARGENTINA },
+    { name: 'Proveedor.Email', value: PROVEEDOR.correo },
+    ...SOCIOS_PROVEEDOR.flatMap((s) => [
+      { name: `${s.rol}.Nombre`, value: `${s.nombre} ${s.apellido}` },
+      { name: `${s.rol}.Porcentaje`, value: s.porcentaje },
+    ]),
   ]
   return {
     tokens,
     destinatario: { email: a.correo ?? '', first_name: nombre, last_name: apellido, role: 'Client' },
+    firmantesProveedor: firmantesProveedor(),
     faltantes,
   }
 }

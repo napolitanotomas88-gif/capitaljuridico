@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import {
   cuerpoBorrador, nombreDocumento, linkEdicion, verificarTokens, crearBorradorContrato, enviarContrato, ErrorPandaDoc,
 } from '../lib/bot/alta/pandadoc.ts'
-import { PLANTILLAS_CONTRATO } from '../lib/bot/alta/contrato.ts'
+import { PLANTILLAS_CONTRATO, PROVEEDOR, firmantesProveedor } from '../lib/bot/alta/contrato.ts'
 
 // Candado: un test que se olvide de pasar `fetch` no puede salir a api.pandadoc.com
 globalThis.fetch = async () => { throw new Error('red prohibida en tests') }
@@ -37,6 +37,13 @@ test('cuerpo completo con la plantilla normal', () => {
       { name: 'DNI', value: '30111222' },
       { name: 'Fecha de Inicio', value: '19/10/2026' },
       { name: 'TU DIRECCIÓN EN ARGENTINA', value: 'Calle Ficticia 123, Ciudad Ejemplo, Provincia Ejemplo' },
+      { name: 'Proveedor.Nombre', value: 'CAPITAL JURÍDICO' },
+      { name: 'Proveedor.Domicilio', value: 'Calle Ficticia 123, Ciudad Ejemplo, Provincia Ejemplo' },
+      { name: 'Proveedor.Email', value: 'info@capitaljuridico.com.ar' },
+      { name: 'Socio1.Nombre', value: 'Gerónimo Actis' },
+      { name: 'Socio1.Porcentaje', value: '50 %' },
+      { name: 'Socio2.Nombre', value: 'Tomás Napolitano' },
+      { name: 'Socio2.Porcentaje', value: '50 %' },
     ],
   })
   assert.deepEqual(faltantes, [])
@@ -243,4 +250,42 @@ test('enviarContrato revisa el borrador y arma el POST /send (sin llamar a la re
   assert.equal(llamadas[1].url, 'https://api.pandadoc.com/public/v1/documents/doc5/send')
   assert.equal(llamadas[1].method, 'POST')
   assert.deepEqual(llamadas[1].body, { message: 'Hola Juan, te mando el contrato.', silent: false, subject: 'Contrato C.J' })
+})
+
+test('Proveedor Capital Jurídico: sin Skyward en el cuerpo y con el correo de notificaciones', () => {
+  const { cuerpo } = cuerpoBorrador(alta())
+  assert.ok(!/skyward/i.test(JSON.stringify(cuerpo)))
+  assert.equal(PROVEEDOR.correo, 'info@capitaljuridico.com.ar')
+  assert.equal(PROVEEDOR.nombreMayusculas, 'CAPITAL JURÍDICO')
+})
+
+test('socios firmantes: apagados sin correos; con correos, Socio1 = Gerónimo Actis y Socio2 = Tomás Napolitano', () => {
+  assert.deepEqual(firmantesProveedor({}), [])
+  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_SOCIO2_EMAIL: ' socio2@example.com ' }), [
+    { email: 'socio2@example.com', first_name: 'Tomás', last_name: 'Napolitano', role: 'Socio2' },
+  ])
+  assert.deepEqual(firmantesProveedor({ CONTRATO_FIRMANTE_SOCIO1_EMAIL: 'socio1@example.com', CONTRATO_FIRMANTE_SOCIO2_EMAIL: 'socio2@example.com' }), [
+    { email: 'socio1@example.com', first_name: 'Gerónimo', last_name: 'Actis', role: 'Socio1' },
+    { email: 'socio2@example.com', first_name: 'Tomás', last_name: 'Napolitano', role: 'Socio2' },
+  ])
+})
+
+test('socios firmantes en el cuerpo del POST solo con los correos cargados, sin repetir al cliente', () => {
+  const antes = { u: process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL, d: process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL }
+  try {
+    delete process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL
+    delete process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL
+    assert.deepEqual(cuerpoBorrador(alta()).cuerpo.recipients.map(r => r.role), ['Client'])
+    process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL = 'socio1@example.com'
+    process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL = 'socio2@example.com'
+    const { cuerpo } = cuerpoBorrador(alta())
+    assert.deepEqual(cuerpo.recipients.map(r => [r.role, r.email]), [
+      ['Client', 'juan.perez@example.com'], ['Socio1', 'socio1@example.com'], ['Socio2', 'socio2@example.com'],
+    ])
+    // Si el cliente es uno de los socios (prueba interna), no se duplica el firmante
+    assert.deepEqual(cuerpoBorrador(alta({ correo: 'socio1@example.com' })).cuerpo.recipients.map(r => r.role), ['Client', 'Socio2'])
+  } finally {
+    if (antes.u === undefined) delete process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL; else process.env.CONTRATO_FIRMANTE_SOCIO1_EMAIL = antes.u
+    if (antes.d === undefined) delete process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL; else process.env.CONTRATO_FIRMANTE_SOCIO2_EMAIL = antes.d
+  }
 })

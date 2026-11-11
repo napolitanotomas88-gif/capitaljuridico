@@ -21,7 +21,7 @@
 // Una falla DESPUÉS del POST sale como ErrorBorrador con el id del documento (que ya existe en PandaDoc), y
 // `alCrear` avisa el id apenas se crea: así nunca queda un borrador huérfano ni se crea uno duplicado al reintentar.
 import type { AltaParseada } from './parsear'
-import { PLANTILLAS_CONTRATO, datosContrato, nombreContrato, type DireccionContrato } from './contrato'
+import { PLANTILLAS_CONTRATO, datosContrato, nombreContrato, type DireccionContrato, type Firmante } from './contrato'
 import { faltantesDireccion, separarDireccion } from './direccion'
 import { hayQueConfirmarCiudad, resolverDireccion, type DireccionResuelta } from './direccionClaude'
 
@@ -70,7 +70,7 @@ export interface OpcionesBorrador extends OpcionesPandaDoc {
 export interface CuerpoBorrador {
   name: string
   template_uuid: string
-  recipients: { email: string; first_name: string; last_name: string; role: 'Client' }[]
+  recipients: Firmante[]   // el cliente ("Client") y, si están cargados, los socios del Proveedor ("Socio1", "Socio2")
   tokens: { name: string; value: string }[]
   metadata?: Record<string, string>
 }
@@ -175,7 +175,8 @@ export function cuerpoBorrador(a: AltaParseada, opciones: Pick<OpcionesBorrador,
   const cuerpo: CuerpoBorrador = {
     name: nombreDocumento(nombre),
     template_uuid: plantilla,
-    recipients: [d.destinatario],
+    // Los socios de Capital Jurídico firman solo si su correo está en el entorno (roles de las plantillas nuevas)
+    recipients: [d.destinatario, ...d.firmantesProveedor.filter((f) => f.email.toLowerCase() !== d.destinatario.email.trim().toLowerCase())],
     tokens: d.tokens.filter(t => t.value.trim() !== ''),
   }
   if (opciones.metadata && Object.keys(opciones.metadata).length) cuerpo.metadata = opciones.metadata
