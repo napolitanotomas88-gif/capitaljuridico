@@ -22,21 +22,25 @@ const ROSA = '#f4cccc'
 
 /** Un Doc de juguete: el cuerpo es una lista de elementos (párrafos o renglones de lista) con su formato. */
 function docDeJuguete(estructura) {
+  const falla = { insertar: null }   // número de inserciones que salen bien antes de que falle una (null = nunca)
   const hijos = []
   const nombrados = []
   const elemento = (e) => {
     const el = {
       ...e, bold: e.bold ?? false, italic: false, bg: e.bg ?? null, rangos: [],
       getType: () => el.tipo, asParagraph: () => el, asListItem: () => el,
-      getText: () => el.texto, setText: (t) => { el.texto = t; return el },
+      // Como Apps Script: setText('') tira «No se puede insertar un elemento vacío de texto» (11/11/2026)
+      getText: () => el.texto, setText: (t) => { if (t === '') throw new Error('No se puede insertar un elemento vacío de texto.'); el.texto = t; return el },
       setHeading: (h) => { el.heading = h; return el },
       getParent: () => (hijos.includes(el) ? cuerpo : null),
-      removeFromParent: () => { const i = hijos.indexOf(el); if (i >= 0) hijos.splice(i, 1); return el },
+      // Como Apps Script: el último párrafo del documento no se puede borrar
+      removeFromParent: () => { const i = hijos.indexOf(el); if (i === hijos.length - 1) throw new Error('No se puede quitar el último párrafo de una sección.'); if (i >= 0) hijos.splice(i, 1); return el },
       copy: () => elemento({ tipo: el.tipo, texto: el.texto, heading: el.heading, chip: el.chip }),
       replaceText: (re, s) => { el.texto = el.texto.replace(new RegExp(re, 'g'), s); return el },
       editAsText: () => {
         const t = {
           getText: () => el.texto,
+          deleteText: (a, b) => { el.texto = el.texto.slice(0, a) + el.texto.slice(b + 1); return t },
           setBold: (v) => { if (!el.texto) throw new Error('vacío'); el.bold = v; return t },
           setItalic: (v) => { if (!el.texto) throw new Error('vacío'); el.italic = v; return t },
           setBackgroundColor: (...a) => { if (a.length === 1) el.bg = a[0]; else el.rangos.push([a[0], a[1], a[2]]); return t },
@@ -50,7 +54,7 @@ function docDeJuguete(estructura) {
     getNumChildren: () => hijos.length,
     getChild: (i) => { if (i < 0 || i >= hijos.length) throw new Error(`índice fuera de rango: ${i}`); return hijos[i] },
     getChildIndex: (el) => { const i = hijos.indexOf(el); if (i < 0) throw new Error('no es hijo'); return i },
-    insertParagraph: (i, texto) => { const el = elemento({ tipo: 'PARAGRAPH', texto, heading: 'NORMAL', bold: true, bg: '#ffff00' }); hijos.splice(i, 0, el); return el },
+    insertParagraph: (i, texto) => { if (falla.insertar !== null && falla.insertar-- <= 0) throw new Error('falla de prueba al insertar'); const el = elemento({ tipo: 'PARAGRAPH', texto, heading: 'NORMAL', bold: true, bg: '#ffff00' }); hijos.splice(i, 0, el); return el },
     insertListItem: (i, li) => { hijos.splice(i, 0, li); return li },
     appendParagraph: (x) => { const el = typeof x === 'string' ? elemento({ tipo: 'PARAGRAPH', texto: x, heading: 'NORMAL' }) : x; hijos.push(el); return el },
     appendListItem: (li) => { hijos.push(li); return li },
@@ -67,7 +71,7 @@ function docDeJuguete(estructura) {
     newRange: () => { const els = []; const b = { addElement: (e) => { els.push(e); return b }, build: () => ({ els }) }; return b },
     addNamedRange: (nombre, rango) => { nombrados.push({ nombre, els: rango.els }) },
   }
-  return { doc, hijos, nombrados, conteo }
+  return { doc, hijos, nombrados, conteo, falla }
 }
 
 const tituloTanda = (n) => ({ tipo: 'PARAGRAPH', texto: `TANDA ${n}°`, heading: 'HEADING2' })
@@ -284,7 +288,7 @@ test('con tanda explícita, lo que el bot cargó en OTRA tanda no habilita a esc
 const DEF = { 'kix.estado': { title: 'Estado', dropdownOptions: [
   { optionId: 'dropdownItem.no', displayValue: 'No iniciado' }, { optionId: 'dropdownItem.grabar', displayValue: 'Para grabar' },
   { optionId: 'dropdownItem.listo', displayValue: 'Grabado completo' }] } }
-const par = (texto, chip) => ({ paragraph: { elements: [
+const par = (texto, chip, bullet = !!chip) => ({ paragraph: { ...(bullet ? { bullet: { listId: 'l1' } } : {}), elements: [
   { textRun: { content: texto } },
   ...(chip ? [{ dropdown: { dropdownId: chip.id, dropdownProperties: { dropdownDefinitionId: 'kix.estado', selectedOptionId: 'x', displayValue: chip.valor } } }] : []),
 ] } })
@@ -332,4 +336,70 @@ test('estadoChips: errores claros (menos chips que guiones, opción inexistente,
   assert.match(entornoEstado(Array(6).fill('No iniciado')).estado({ estado: 'Publicado' }).error, /no tiene la opción «Publicado»/)
   assert.match(entornoEstado(Array(6).fill('No iniciado'), { codigoBatch: 403 }).estado({}).error, /no cambió los chips: API call failed with error 403/)
   assert.match(entornoEstado(Array(6).fill('No iniciado'), { nombre: 'Plantilla Guiones - C.J' }).estado({}).error, /solo se tocan docs/)
+})
+
+// ── 11/11/2026 (Tomás): nunca se pisa una tanda anterior y una recarga que falla deja todo como estaba ──
+const foto = (hijos) => JSON.stringify(hijos.map(x => [x.tipo, x.texto, x.bold, x.bg, x.chip ?? null]))
+const tramo = (hijos, t) => {
+  const ini = hijos.findIndex(e => e.texto === `TANDA ${t}°`)
+  let fin = hijos.findIndex((e, i) => i > ini && /^TANDA \d/.test(e.texto)); if (fin < 0) fin = hijos.length
+  return foto(hijos.slice(ini, fin))
+}
+
+test('con la TANDA 1 y la 2 llenas, cargar la 3 no cambia nada de la 1 ni de la 2 (guiones, chips y estados)', () => {
+  const e = entorno()
+  assert.equal(e.cargar(pedido({ tanda: 1, clave: 'cj-guiones-1-1' })).ok, true)
+  assert.equal(e.cargar(pedido({ tanda: 2, clave: 'cj-guiones-1-2', guiones: [1, 2, 3, 4, 5].map(n => guion(n, ' T2')) })).ok, true)
+  // un chip de la TANDA 2 ya grabado, cambiado a mano
+  e.hijos.filter(x => x.tipo === 'LIST_ITEM')[7].chip = 'Grabado completo'
+  const t1 = tramo(e.hijos, 1), t2 = tramo(e.hijos, 2)
+  const r = e.cargar(pedido({ tanda: 0, clave: 'cj-guiones-1-3', guiones: [1, 2, 3, 4, 5, 6].map(n => guion(n, ' T3')) }))
+  assert.equal(r.ok, true, r.error); assert.equal(r.tanda, 3)
+  assert.equal(tramo(e.hijos, 1), t1, 'la TANDA 1 queda igual')
+  assert.equal(tramo(e.hijos, 2), t2, 'la TANDA 2 queda igual')
+  assert.equal(bajoChips(e.hijos, 3).filter(ps => ps.length).length, 6)
+})
+
+test('una recarga que falla a mitad deja el Doc exactamente como estaba (lo viejo no se pierde)', () => {
+  const e = entorno()
+  assert.equal(e.cargar(pedido()).ok, true)
+  const antes = foto(e.hijos)
+  e.falla.insertar = 25   // escribe un par de guiones nuevos y falla en el medio de otro
+  const r = e.cargar(pedido({ guiones: [1, 2, 3, 4, 5, 6].map(n => guion(n, ' v2')) }))
+  assert.equal(r.ok, false); assert.match(r.error, /quedó como estaba/)
+  assert.equal(foto(e.hijos), antes)
+  assert.equal(e.nombrados.length, 6, 'los rangos del bot siguen siendo los de antes')
+  assert.equal(bajoChips(e.hijos, 1)[5][3], 'Hook del guion 6')
+})
+
+test('recargar la última tanda del Doc (lo del bot llega hasta el final) ya no tira «elemento vacío de texto»', () => {
+  // Doc con una sola tanda: lo que carga el bot bajo el último chip termina siendo el final del documento
+  const est = [{ tipo: 'PARAGRAPH', texto: '📲 Guiones', heading: 'HEADING1' }, tituloTanda(1)]
+  for (let i = 0; i < 6; i++) { est.push(chip()); if (i < 5) est.push(vacio()) }
+  const e = entorno({ estructura: est })
+  assert.equal(e.cargar(pedido()).ok, true)
+  assert.equal(e.hijos.at(-1).texto, '', 'el Doc termina en el renglón vacío del guion 6')
+  const r = e.cargar(pedido({ guiones: [1, 2, 3, 4, 5, 6].map(n => guion(n, ' v2')) }))
+  assert.equal(r.ok, true, r.error); assert.equal(r.reemplazados, 6)
+  const t1 = bajoChips(e.hijos, 1)
+  assert.equal(t1[5][3], 'Hook del guion 6 v2')
+  assert.equal(t1.flat().filter(x => /Hook del guion 6$/.test(x)).length, 0, 'lo viejo del 6 se fue')
+})
+
+test('tanda 0: una TANDA con guiones viejos escritos como título (sin viñeta) no está libre aunque tenga chips vacíos', () => {
+  const est = plantilla()
+  const i = est.findIndex(x => x.texto === 'TANDA 1°') + 1
+  est.splice(i, 0, { tipo: 'PARAGRAPH', texto: 'Video: Grabado completo HOOK', heading: 'HEADING3' }, { tipo: 'PARAGRAPH', texto: 'Texto de un guion viejo', heading: 'NORMAL' })
+  const e = entorno({ estructura: est })
+  const t1 = tramo(e.hijos, 1)
+  const r = e.cargar(pedido({ tanda: 0 }))
+  assert.equal(r.ok, true, r.error); assert.equal(r.tanda, 2)
+  assert.equal(tramo(e.hijos, 1), t1)
+})
+
+test('estadoChips: un «Video:» viejo puesto como título (sin viñeta) no cuenta como chip de la tanda', () => {
+  const ctx = { PREFIJO_DOC_GUIONES: 'Guiones - ', DriveApp: { getFileById: () => ({ getName: () => 'Guiones - PRUEBA', isTrashed: () => false }) } }
+  vm.createContext(ctx); vm.runInContext(CHIPS, ctx); vm.runInContext(ESTADO, ctx)
+  const content = [par('TANDA 2°\n'), par('Video: ', { id: 'viejo', valor: 'Grabado completo' }, false), par('Video: ', { id: 'n1', valor: 'No iniciado' }), par('Video: ', { id: 'n2', valor: 'No iniciado' })]
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.chipsDeTandaApi_(content, 2))).map(c => c.id), ['n1', 'n2'])
 })
