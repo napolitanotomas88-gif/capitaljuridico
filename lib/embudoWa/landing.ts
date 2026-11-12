@@ -21,7 +21,7 @@ var css='#cj-embudo{box-sizing:border-box;width:100%;max-width:560px;margin:0 au
 +'#cj-embudo button[disabled]{opacity:.6;cursor:wait}'
 +'#cj-embudo .err{color:#F0B1B8;font-size:14px;min-height:1em;margin:0}'
 +'#cj-embudo .nota{font-size:13px;opacity:.75;text-align:center;margin:14px 0 0}'
-+'#cj-embudo .marca{display:block;margin:0 auto 26px;width:min(200px,55vw);height:auto}'
++'#cj-embudo .marca{display:block;margin:0 auto 18px;width:min(120px,32vw);height:auto}'
 +'#cj-embudo .trampa{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}';
 var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 function el(id){return document.getElementById(id)}
