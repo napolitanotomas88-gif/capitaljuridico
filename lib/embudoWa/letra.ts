@@ -13,7 +13,7 @@ export const FACTURACIONES = [
   '$3.000 - $5.000 USD',
   '$5.000 - $15.000 USD',
   '$15.000 - $30.000 USD',
-  'Más de $30.000 USD',
+  '+ $30.000 USD',
 ] as const
 export type Letra = 'A' | 'B' | 'C' | 'D' | 'E'
 
