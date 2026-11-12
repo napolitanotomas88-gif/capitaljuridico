@@ -20,6 +20,8 @@ test('nivel de una reserva por su nombre (llaves de la doble reserva de Calendly
   assert.equal(nivelDeNombre('Reunión WEBINAR'), 0)
   assert.equal(nivelDeEvento('Leads A+ (solo Carlos) - ANUNCIOS - 2 DÍAS DE AGENDA', 'Reunión Consultiva'), 1)
   assert.equal(nivelDeEvento('Leads A y B - 2 DÍAS DE AGENDA', 'x'), 2)
+  assert.equal(nivelDeEvento('Leads A (solo Carlos) - ANUNCIOS - 2 DÍAS DE AGENDA', 'Reunión Consultiva'), 1)
+  assert.equal(nivelDeEvento('Leads B - 2 DÍAS DE AGENDA', 'x'), 2)
   assert.equal(nivelDeEvento('ORGÁNICO (Instagram, WhatsApp, referidos) · A y B · sin doble reserva', 'Reunión Consultiva'), 0)
   assert.equal(nivelDeEvento('ORGÁNICO (Instagram, WhatsApp, referidos) · E (solo Nahuel) · sin doble reserva', 'Reunión Consultiva'), 0)
   assert.equal(nivelDeEvento('REFERIDOS (link de referidos) · Carlos y Marcos · sin doble reserva', 'Reunión Consultiva'), 0)

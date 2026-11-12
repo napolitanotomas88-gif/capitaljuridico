@@ -12,11 +12,11 @@ interface Props {
   periodLabel: string
 }
 
-// Descripciones según la fórmula de la col Q "Lead Scoring" del CRM de ventas (desde el 3/11/2026: cada combinación de urgencia + facturación toma la letra según su cash por call histórico si tiene 50+ agendas y 5+ cierres; si no, letra por supuesto)
-const LETRAS: Array<{ key: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E'; color: string; texto: string; desc: string }> = [
-  { key: 'A+', color: '#0f4a38', texto: 'var(--tono-bueno)', desc: 'YA o 2–4 sem + $1.5–3K' },
-  { key: 'A', color: '#1f6b52', texto: 'var(--tono-bueno)', desc: 'YA + $750–1.5K' },
-  { key: 'B', color: '#5f9a7a', texto: 'var(--tono-bueno)', desc: 'sin combinaciones con datos suficientes hoy' },
+// Descripciones según la fórmula de la col Q "Lead Scoring" del CRM de ventas. Desde el 12/11/2026 las letras son A a E
+// (la vieja A+ pasó a A y la vieja A a B; mismas combinaciones). 'A+' queda en el tipo solo por compatibilidad.
+const LETRAS: Array<{ key: 'A' | 'B' | 'C' | 'D' | 'E'; color: string; texto: string; desc: string }> = [
+  { key: 'A', color: '#0f4a38', texto: 'var(--tono-bueno)', desc: 'YA o 2–4 sem + $1.5–3K' },
+  { key: 'B', color: '#1f6b52', texto: 'var(--tono-bueno)', desc: 'YA + $750–1.5K' },
   { key: 'C', color: '#be8f49', texto: 'var(--brand-texto)', desc: 'YA + $0–750, $0–1.5K (vieja) o $3K+ · 2–4 sem + $750–1.5K o $3K+ · meses o aún no sé + $1.5–3K' },
   { key: 'D', color: '#7f202c', texto: 'var(--tono-malo)', desc: '2–4 sem + $0–750 o $0–1.5K (vieja) · meses o aún no sé + $750–1.5K o $3K+' },
   { key: 'E', color: '#8c7b62', texto: 'var(--text-muted)', desc: 'meses o aún no sé + $0–750 o $0–1.5K (vieja)' },
@@ -33,7 +33,7 @@ export function LeadQualityCard({ stats, sinClasificar, periodLabel }: Props) {
   return (
     <div className="card p-5">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-        <p className="section-title" style={{ marginBottom: 0 }}>Lead Scoring — A+ · A · B · C · D · E</p>
+        <p className="section-title" style={{ marginBottom: 0 }}>Lead Scoring — A · B · C · D · E</p>
         <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{periodLabel}</p>
       </div>
 
