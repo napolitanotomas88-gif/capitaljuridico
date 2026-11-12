@@ -8,7 +8,7 @@
 // Pago en pesos sin el USD todavía (falta el MEP del día anterior, p. ej. en el simulador o si argentinadatos no
 // responde): puede ser un Fee, así que el alta tampoco arranca hasta saberlo (estado 'falta_usd').
 import { esAvisoFee, esSocioSkool, leerSocios, MINIMO_USD, type AltaParseada } from './parsear'
-import { DIRECCION_ARGENTINA, datosContrato } from './contrato'
+import { DIRECCION_ARGENTINA, FIRMANTE_PROVEEDOR, datosContrato } from './contrato'
 import { esPagoFee, faltaParaUsd, filaRegistroPagos, usdDelPago, type ExtrasRegistro } from './finanzas'
 import { armarBienvenida } from './bienvenida'
 
@@ -197,7 +197,10 @@ export function planDeAlta(a: AltaParseada, hoy: string | Date, extras: ExtrasAl
         detalle: [
           `Plantilla ${a.contrato === 'garantia' ? '"con GARANTÍA"' : 'normal'} para ${nombre}, a firmar por ${c.destinatario.email || '(correo)'}.`,
           `DNI ${a.dni ?? '—'} · inicio ${fechaCorta(a.inicio)} · dirección del cliente: ${a.direccion ?? '—'}.`,
-          `Domicilio de Skyward: ${DIRECCION_ARGENTINA}.`,
+          `Proveedor: Capital Jurídico, domicilio ${DIRECCION_ARGENTINA || '(falta CONTRATO_DIRECCION_ARGENTINA)'}.`,
+          c.firmantesProveedor.length
+            ? `Firma por Capital Jurídico: ${FIRMANTE_PROVEEDOR.representacion}.`
+            : 'Gerónimo Actis todavía no firma desde el bot por Capital Jurídico (falta CONTRATO_FIRMANTE_PROVEEDOR_EMAIL).',
           // El bot nunca lo envía solo (pandadoc.ts): deja el borrador y el closer lo revisa y confirma el envío
           ...(c.faltantes.length ? [`Le falta: ${c.faltantes.join(', ')} (el bot arroba al closer).`] : []),
           'Queda el borrador en PandaDoc; el closer lo revisa y confirma antes de mandarlo a firmar.',

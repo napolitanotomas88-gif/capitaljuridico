@@ -178,6 +178,8 @@ test('contrato: normal por defecto, garantía si lo dice, y tokens de PandaDoc',
   assert.equal(tok['Client.LastName'], 'Pérez')
   assert.equal(tok['Fecha de Inicio'], '19/10/2026')
   assert.equal(tok['TU DIRECCIÓN EN ARGENTINA'], DIRECCION_ARGENTINA)
+  assert.equal(tok['Proveedor.Domicilio'], DIRECCION_ARGENTINA)
+  assert.equal(tok['Proveedor.Nombre'], 'CAPITAL JURÍDICO')
   assert.equal(tok['Client.Country'], 'Argentina')
   // "Calle 1 123" no dice ciudad ni provincia: StreetAddress lleva la calle y se le piden al closer
   assert.equal(tok['Client.StreetAddress'], 'Calle 1 123')

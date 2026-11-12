@@ -4,17 +4,17 @@
 //
 // --simular (por defecto): NO crea nada. Separa la dirección (reglas puras), arma el cuerpo del POST /documents y lo
 //   compara con los tokens de la plantilla (GET de solo lectura): ningún token del cliente puede quedar vacío,
-//   StreetAddress lleva solo la calle y el domicilio de Skyward es DIRECCION_ARGENTINA.
+//   StreetAddress lleva solo la calle y el domicilio del Proveedor (Capital Jurídico) es DIRECCION_ARGENTINA.
 // --real: repite esas revisiones y, solo si pasan, crea UN borrador (plantilla normal, datos inventados), espera a
 //   "document.draft", verifica con GET /documents/{id}/details que no quede ninguna variable vacía ([Client.City]…),
-//   baja el PDF del borrador y revisa el texto (sin variables sin completar y con "Calle Ficticia 123, Ciudad Ejemplo, Provincia Ejemplo"
-//   en el domicilio de Skyward). Al final lo BORRA (aunque algo falle en el medio). Nunca lo envía.
+//   baja el PDF del borrador y revisa el texto (sin variables sin completar, con el domicilio de CONTRATO_DIRECCION_ARGENTINA,
+//   "CAPITAL JURÍDICO" como Proveedor y sin "Skyward"). Al final lo BORRA (aunque algo falle en el medio). Nunca lo envía.
 //   El id se guarda apenas PandaDoc lo devuelve (alCrear) y se imprime. Con Ctrl+C (o SIGTERM) el finally no corre:
 //   un manejador de la señal borra ese id antes de salir (un segundo Ctrl+C sale sin esperar).
 //   Si el POST crea el documento pero la respuesta se corta (el script nunca recibe el id), busca en la sandbox los
 //   borradores con el nombre exacto de la prueba creados desde que arrancó y los borra.
 // --garantia: lo mismo con la plantilla "con GARANTÍA" (plantilla-ficticia-garantia). Sirve para ver si esa plantilla usa
-//   el token "TU DIRECCIÓN EN ARGENTINA" y si el domicilio de Skyward queda duplicado. Crear con --real necesita el OK
+//   el token "TU DIRECCIÓN EN ARGENTINA" y si el domicilio del Proveedor queda duplicado. Crear con --real necesita el OK
 //   de Tomás (docs/BOT-ALTA-CJ.md, "Contrato en PandaDoc").
 // En los dos modos lista (solo lectura) los borradores de prueba que hayan quedado en la sandbox de corridas viejas.
 // Usa SOLO PANDADOC_API_KEY_SANDBOX (explícita: aunque exista la de producción, esta prueba no la toca) y no la imprime.
@@ -27,7 +27,7 @@ import {
   crearBorradorContrato, detallesDocumento, borrarDocumento, estadoDocumento, cuerpoBorrador, verificarTokens,
   revisarParaEnviar, BASE_PANDADOC, ErrorPandaDoc, ErrorBorrador,
 } from '../lib/bot/alta/pandadoc.ts'
-import { PLANTILLAS_CONTRATO, DIRECCION_ARGENTINA } from '../lib/bot/alta/contrato.ts'
+import { PLANTILLAS_CONTRATO, DIRECCION_ARGENTINA, PROVEEDOR } from '../lib/bot/alta/contrato.ts'
 import { separarDireccion, reglasAlcanzan } from '../lib/bot/alta/direccion.ts'
 
 const real = process.argv.includes('--real')
@@ -35,7 +35,9 @@ const garantia = process.argv.includes('--garantia')
 const apiKey = process.env.PANDADOC_API_KEY_SANDBOX
 if (!apiKey) { console.error('Falta PANDADOC_API_KEY_SANDBOX (cargá .env.local)'); process.exit(1) }
 const op = { apiKey }
-const DOMICILIO_SKYWARD = 'Calle Ficticia 123, Ciudad Ejemplo, Provincia Ejemplo'
+if (!DIRECCION_ARGENTINA) { console.error('Falta CONTRATO_DIRECCION_ARGENTINA (domicilio del Proveedor, cargá .env.local)'); process.exit(1) }
+/** El domicilio configurado como expresión que tolera espacios distintos (el PDF los cambia). */
+const reDomicilio = (flags) => new RegExp(DIRECCION_ARGENTINA.trim().split(/\s+/).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*'), flags)
 
 console.log(`Modo: ${real ? 'REAL (crea un borrador en la sandbox y lo borra)' : 'SIMULAR (no crea nada)'} · plantilla: ${garantia ? 'con GARANTÍA' : 'normal'} · clave: PANDADOC_API_KEY_SANDBOX`)
 
@@ -63,7 +65,9 @@ const tok = Object.fromEntries(cuerpo.tokens.map(t => [t.name, t.value]))
 console.log(`${marca(faltantes.length === 0)} Faltantes: ${faltantes.join(', ') || 'ninguno'}`)
 console.log(`${marca(tok['Client.StreetAddress'] === dir.calle && !tok['Client.StreetAddress'].includes(dir.ciudad))} StreetAddress solo la calle: ${JSON.stringify(tok['Client.StreetAddress'])}`)
 for (const n of ['Client.City', 'Client.State', 'Client.Country']) console.log(`${marca(!!tok[n]?.trim())} ${n} = ${JSON.stringify(tok[n] ?? '')}`)
-console.log(`${marca(DIRECCION_ARGENTINA === DOMICILIO_SKYWARD && tok['TU DIRECCIÓN EN ARGENTINA'] === DOMICILIO_SKYWARD)} Domicilio de Skyward (token): ${JSON.stringify(tok['TU DIRECCIÓN EN ARGENTINA'])}`)
+console.log(`${marca(tok['TU DIRECCIÓN EN ARGENTINA'] === DIRECCION_ARGENTINA && tok['Proveedor.Domicilio'] === DIRECCION_ARGENTINA)} Domicilio del Proveedor (tokens): ${JSON.stringify(tok['Proveedor.Domicilio'])}`)
+console.log(`${marca(tok['Proveedor.Nombre'] === PROVEEDOR.nombreMayusculas && tok['Proveedor.Email'] === PROVEEDOR.correo)} Proveedor: ${tok['Proveedor.Nombre']} · notificaciones ${tok['Proveedor.Email']}`)
+console.log(`  Firmantes: ${cuerpo.recipients.map(r => `${r.first_name} ${r.last_name} (${r.role})`).join(' · ')}`)
 
 // ── 3. Tokens de la plantilla (GET de solo lectura) ──────────────────────────────────────────────────
 const plantilla = PLANTILLAS_CONTRATO[alta.contrato]
@@ -80,7 +84,10 @@ const deMas = cuerpo.tokens.map(t => t.name).filter(n => !delCliente.includes(n)
 console.log(`✔ Plantilla: "${det.name}" · roles: ${(det.roles ?? []).map(r => r.name).join(', ') || '—'}`)
 console.log(`${marca(sinValor.length === 0)} Tokens de la plantilla con valor: ${delCliente.length - sinValor.length}/${delCliente.length}${sinValor.length ? ` · vacíos: ${sinValor.join(', ')}` : ''}`)
 if (deMas.length) console.log(`  ⚠ tokens que mandamos y la plantilla no tiene: ${deMas.join(', ')}`)
-console.log(`  ${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? '⚠ la plantilla declara' : '✔ la plantilla no declara'} el token "TU DIRECCIÓN EN ARGENTINA"${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? ': revisar con --real que el domicilio de Skyward no quede duplicado' : ''}`)
+console.log(`  ${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? '⚠ la plantilla declara' : '✔ la plantilla no declara'} el token "TU DIRECCIÓN EN ARGENTINA"${delCliente.includes('TU DIRECCIÓN EN ARGENTINA') ? ': revisar con --real que el domicilio del Proveedor no quede duplicado' : ''}`)
+const rolesPlantilla = (det.roles ?? []).map(r => r.name)
+const rolesFaltan = cuerpo.recipients.map(r => r.role).filter(r => !rolesPlantilla.includes(r))
+console.log(`${marca(rolesFaltan.length === 0)} Roles de los firmantes en la plantilla${rolesFaltan.length ? `: faltan ${rolesFaltan.join(', ')} (cargar CONTRATO_FIRMANTE_PROVEEDOR_EMAIL solo con las plantillas nuevas)` : ''}`)
 
 // ── 3b. Borradores de prueba que quedaron de corridas viejas (solo lectura) ─────────────────────────
 /** Documentos de la sandbox con el nombre EXACTO de la prueba ("Contrato - Cliente Prueba Bot - C.J"); con `desde`,
@@ -169,9 +176,11 @@ try {
   }
   const revision = revisarParaEnviar(d)
   console.log(`${marca(revision.vacios.length === 0)} Variables vacías en el borrador: ${revision.vacios.join(', ') || 'ninguna'} · listo para enviar: ${revision.listo ? 'sí' : 'no'}`)
-  const dest = (d.recipients ?? [])[0]
-  const destOk = dest && dest.email === cuerpo.recipients[0].email && dest.role === 'Client'
-  console.log(`${marca(destOk)} Destinatario: ${dest ? `${dest.first_name ?? ''} ${dest.last_name ?? ''} <${dest.email}> · rol ${dest.role}` : '—'}`)
+  for (const esperado of cuerpo.recipients) {
+    const dest = (d.recipients ?? []).find(x => x.email === esperado.email)
+    const destOk = dest && dest.role === esperado.role
+    console.log(`${marca(destOk)} Firmante ${esperado.role}: ${dest ? `${dest.first_name ?? ''} ${dest.last_name ?? ''} <${dest.email}> · rol ${dest.role}` : 'no está en el documento'}`)
+  }
 
   // 6. Texto del borrador (PDF)
   const rd = await fetch(`${BASE_PANDADOC}/documents/${r.id}/download`, { headers: { Authorization: `API-Key ${apiKey}` } })
@@ -184,11 +193,15 @@ try {
     const sinCompletar = [...new Set(texto.match(/\[[^\]]{2,60}\]/g) ?? [])]
     const delClienteSinCompletar = sinCompletar.filter(x => !/^\[Document\./.test(x))
     console.log(`${marca(delClienteSinCompletar.length === 0)} Variables sin completar en el texto: ${sinCompletar.join(', ') || 'ninguna'}`)
-    const re = /Uruguay\s*627\s*,\s*San\s*Pedro\s*,\s*Buenos\s*Aires/gi
-    const veces = (texto.match(re) ?? []).length
-    const duplicado = /San\s*Pedro\s*,\s*Buenos\s*Aires\s*,\s*San\s*Pedro/i.test(texto)
-    const i = texto.search(/Uruguay\s*627/i)
-    console.log(`${marca(veces >= 1 && !duplicado)} Domicilio de Skyward en el texto: "${DOMICILIO_SKYWARD}" ${veces} vez/veces${duplicado ? ' (DUPLICADO: la plantilla ya trae ciudad y provincia)' : ''}`)
+    const veces = (texto.match(reDomicilio('gi')) ?? []).length
+    // Duplicado: la plantilla ya traía la ciudad y el token la repite ("…, Ciudad Autónoma de Buenos Aires, Ciudad Autónoma…")
+    const ultima = DIRECCION_ARGENTINA.split(',').pop().trim()
+    const duplicado = ultima.length > 3 && texto.toLowerCase().includes(`${ultima}, ${ultima}`.toLowerCase())
+    const i = texto.search(reDomicilio('i'))
+    console.log(`${marca(veces >= 1 && !duplicado)} Domicilio del Proveedor en el texto: ${veces} vez/veces${duplicado ? ' (DUPLICADO: la plantilla ya trae la ciudad)' : ''}`)
+    console.log(`${marca(texto.toUpperCase().includes(PROVEEDOR.nombreMayusculas))} "${PROVEEDOR.nombreMayusculas}" en el texto (Proveedor)`)
+    console.log(`${marca(!/skyward/i.test(texto))} Sin "Skyward" en el texto${/skyward/i.test(texto) ? ': la plantilla todavía es la vieja' : ''}`)
+    console.log(`${marca(texto.includes(PROVEEDOR.correo))} Correo de notificaciones del Proveedor (${PROVEEDOR.correo}) en el texto`)
     console.log(`  contexto: «${i >= 0 ? texto.slice(Math.max(0, i - 90), i + 110) : '(no aparece el domicilio configurado)'}»`)
     for (const [n, val] of Object.entries({ 'Client.StreetAddress': tok['Client.StreetAddress'], 'Client.City': tok['Client.City'], 'Client.State': tok['Client.State'] })) {
       console.log(`  ${texto.includes(val) ? '✔' : '⚠'} ${n} aparece en el texto: ${JSON.stringify(val)}`)
