@@ -36,16 +36,22 @@ async function anotar(id: string, campo: 'mc' | 'error', valor: string) {
 export async function prepararContacto(id: string, telefono: string, nombre: string, apellido: string, letra: string): Promise<string | null> {
   const tel = '+' + telefono
   let sus: Sus | undefined
+  const consent = 'Completó el formulario de capitaljuridico.com.ar/aplicar y pidió que lo contacten por WhatsApp'
   const c = await mc<Sus>('/subscriber/createSubscriber', {
-    first_name: nombre, last_name: apellido, whatsapp_phone: tel, phone: tel, has_opt_in_sms: false, has_opt_in_email: false,
-    consent_phrase: 'Completó el formulario de capitaljuridico.com.ar/aplicar y pidió que lo contacten por WhatsApp',
+    first_name: nombre, last_name: apellido, whatsapp_phone: tel, has_opt_in_sms: false, has_opt_in_email: false, consent_phrase: consent,
   })
   if (c.status === 'success' && c.data?.id) sus = c.data
   else {
-    const f = await mc<Sus>(`/subscriber/findBySystemField?phone=${encodeURIComponent(tel)}`)
-    if (f.status === 'success' && f.data?.id) sus = f.data
+    // Ya existe (por ejemplo, alguien que ya le escribió al setter): se busca por teléfono, con y sin '+'.
+    for (const q of [tel, telefono]) {
+      const f = await mc<Sus>(`/subscriber/findBySystemField?phone=${encodeURIComponent(q)}`)
+      if (f.status === 'success' && f.data?.id) { sus = f.data; break }
+    }
   }
-  if (!sus) { await anotar(id, 'error', `ManyChat: no se pudo crear ni encontrar el contacto (${String(c.message ?? JSON.stringify(c.details ?? '')).slice(0, 200)})`); return null }
+  if (!sus) {
+    await anotar(id, 'error', `ManyChat: no se pudo crear ni encontrar el contacto (${String(c.message ?? '')} ${JSON.stringify(c.details ?? '')})`)
+    return null
+  }
   const sid = String(sus.id)
   await anotar(id, 'mc', sid)
   await mc('/subscriber/addTagByName', { subscriber_id: Number(sid), tag_name: ETIQUETA() })
