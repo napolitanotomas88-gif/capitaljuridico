@@ -219,8 +219,8 @@ export interface Enrutamiento {
 }
 
 // Lead Scoring = la letra que calcula la fórmula del propio CRM de ventas (col Q "Lead Scoring",
-// ARRAYFORMULA sobre urgencia col M + facturación col L). Desde el 1/11/2026 es por puntos y da 6 letras
-// (A+ a E): se lee tal cual para que el dashboard siempre coincida con lo que ven los closers.
+// ARRAYFORMULA sobre urgencia col M + facturación col L). Desde el 12/11/2026 da 5 letras (A a E; la vieja A+
+// pasó a A y la vieja A a B). 'A+' se sigue aceptando por compatibilidad: se lee tal cual para que el dashboard siempre coincida con lo que ven los closers.
 type LetraLead = 'A+' | 'A' | 'B' | 'C' | 'D' | 'E'
 function letraLead(scoring: unknown): LetraLead | null {
   const l = (scoring ?? '').toString().trim().toUpperCase()
