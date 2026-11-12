@@ -82,7 +82,7 @@ test('línea de Discord y textos para el cliente (formal, voseo, sin «anticipo�
 test('mensaje: menciona a Tomás, link a /cuotas y entra en 1.900 caracteres aunque sean muchas', () => {
   const muchas = A.cuotasParaAvisar([plan(Array.from({ length: 40 }, (_, i) => cuota(`2026-10-${String(i % 28 + 1).padStart(2, '0')}`)), { nombre: 'Un cliente con nombre bastante largo para probar' })], AHORA)
   const m = A.plantillaDiscord(muchas, '2026-11-12', 'https://despacho.ejemplo/clientes/para-enviar')
-  assert.ok(m.startsWith('{@tomas} 💳 **Cuotas que cobra Administración · 12/11/2026** (40 atrasadas)'), m.slice(0, 120))
+  assert.ok(m.startsWith('{@tomas} {@gero_m} 💳 **Cuotas que cobra Administración · 12/11/2026** (40 atrasadas)'), m.slice(0, 120))
   assert.match(m, /… y \d+ más en el tablero\./)
   assert.match(m, /➡️ <\{link\}>$/)
   assert.ok(m.length < 1800, String(m.length))
@@ -124,7 +124,7 @@ test('corrida: dry no escribe ni manda; real deja los textos (k01) y UN mensaje 
   const a = t.alertas[0]
   assert.equal(a.canal, 'operaciones')
   assert.equal(a.clave, 'cuotas_admin:2026-11-12')
-  assert.deepEqual(a.menciones, ['tomas'])
+  assert.deepEqual(a.menciones, ['tomas', 'gero_m'])
   assert.equal(a.link, '/cuotas')
 
   const otra = await A.correrAvisoCuotasAdmin(t.d)
