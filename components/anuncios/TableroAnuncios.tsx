@@ -95,7 +95,11 @@ export function TableroAnuncios() {
       }
       const r = await fetch('/api/anuncios', { method: manual ? 'POST' : 'GET' })
       if (r.status === 401) { window.location.href = '/anuncios/login'; return }
-      const j = await r.json()
+      // Si la función se corta (timeout de Vercel) la respuesta es texto plano, no JSON: avisar claro en vez de «Unexpected token».
+      const texto = await r.text()
+      let j: (Tablero & { error?: string }) | null = null
+      try { j = JSON.parse(texto) } catch { /* no era JSON */ }
+      if (!j) throw new Error(r.status === 504 || /timed out|An error occurred/i.test(texto) ? 'Meta tardó demasiado en responder. Probá «Actualizar» de nuevo en un minuto.' : `Error ${r.status}`)
       if (!r.ok) throw new Error(j.error ?? `Error ${r.status}`)
       setDatos(j as Tablero)
       setError(null)
