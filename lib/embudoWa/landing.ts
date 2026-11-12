@@ -3,8 +3,8 @@
 // Colores y letras de la marca: verde #012D25, oro #BE8F49, crema #F2EADC, Source Serif 4 + Inter.
 import { FACTURACIONES, URGENCIAS } from './letra'
 
-export function scriptLanding(api: string, whatsapp: string, evento: string): string {
-  const cfg = JSON.stringify({ api, whatsapp, evento, facturaciones: FACTURACIONES, urgencias: URGENCIAS })
+export function scriptLanding(api: string, whatsapp: string, evento: string, logo = ''): string {
+  const cfg = JSON.stringify({ api, whatsapp, evento, logo, facturaciones: FACTURACIONES, urgencias: URGENCIAS })
   return `(function(){
 var C=${cfg};
 var css='#cj-embudo{box-sizing:border-box;width:100%;max-width:560px;margin:0 auto;padding:32px 16px 48px;font-family:Inter,system-ui,sans-serif;color:#F2EADC}'
@@ -21,7 +21,7 @@ var css='#cj-embudo{box-sizing:border-box;width:100%;max-width:560px;margin:0 au
 +'#cj-embudo button[disabled]{opacity:.6;cursor:wait}'
 +'#cj-embudo .err{color:#F0B1B8;font-size:14px;min-height:1em;margin:0}'
 +'#cj-embudo .nota{font-size:13px;opacity:.75;text-align:center;margin:14px 0 0}'
-+'#cj-embudo .marca{font-family:"Source Serif 4",Georgia,serif;letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:#BE8F49;text-align:center;margin:0 0 22px}'
++'#cj-embudo .marca{display:block;margin:0 auto 26px;width:min(200px,55vw);height:auto}'
 +'#cj-embudo .trampa{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}';
 var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 function el(id){return document.getElementById(id)}
@@ -30,10 +30,11 @@ function cookie(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)
 function opciones(lista){return '<option value="" disabled selected>Elegí una opción</option>'+lista.map(function(o){return '<option>'+esc(o)+'</option>'}).join('')}
 var raiz=el('cj-embudo');if(!raiz){raiz=document.createElement('div');raiz.id='cj-embudo'}function montar(){var ov=document.getElementById('overlay'),host=(ov&&ov.nextElementSibling)||document.body;if(raiz.parentElement!==host)host.insertBefore(raiz,host.firstChild);if(host!==document.body){host.style.height='auto';host.style.minHeight='calc(100vh - 94px)';host.style.background='#012D25';host.style.display='block';host.style.width='100%';host.style.alignSelf='stretch'}document.body.style.background='#012D25'}montar();window.addEventListener('load',function(){setTimeout(montar,50)});try{new MutationObserver(function(){if(!document.body.contains(raiz))montar()}).observe(document.body,{childList:true,subtree:true})}catch(e){}
 var q=new URLSearchParams(location.search);
+var marca=C.logo?'<img class="marca" src="'+C.logo+'" alt="Capital Jurídico" width="200" height="96">':'<p style="text-align:center;color:#BE8F49">Capital Jurídico</p>';
 if(/gracias/.test(location.pathname)){
   var nombre=(q.get('n')||'').slice(0,40),id=q.get('id')||'';
   var msg='Hola! Completé el formulario y quiero más información para captar más y mejores clientes en mi estudio jurídico.';
-  raiz.innerHTML='<p class="marca">Capital Jurídico</p><h1>'+(nombre?'¡Listo, '+esc(nombre)+'!':'¡Listo!')+'</h1>'
+  raiz.innerHTML=marca+'<h1>'+(nombre?'¡Listo, '+esc(nombre)+'!':'¡Listo!')+'</h1>'
     +'<p class="sub">Recibimos tus datos. El último paso es escribirnos por WhatsApp: ahí te contamos cómo podemos ayudarte a captar más y mejores clientes para tu estudio.</p>'
     +'<a class="wa" id="cj-wa" href="https://wa.me/'+C.whatsapp+'?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener">'
     +'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#012D25" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7.5-.1 1.5-.6 1.7-1.2s.2-1.1.2-1.2l-.4-.3z"/></svg>'
@@ -45,7 +46,7 @@ if(/gracias/.test(location.pathname)){
   });
   return;
 }
-raiz.innerHTML='<p class="marca">Capital Jurídico</p><h1>Contanos sobre tu estudio</h1>'
+raiz.innerHTML=marca+'<h1>Contanos sobre tu estudio</h1>'
   +'<p class="sub">Completá estos datos y te contamos por WhatsApp cómo ayudarte a captar más y mejores clientes por medios digitales.</p>'
   +'<form id="cj-form" novalidate>'
   +'<div class="fila"><label>Nombre<input name="nombre" autocomplete="given-name" required maxlength="60"></label>'

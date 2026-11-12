@@ -8,7 +8,7 @@ export function GET(req: Request) {
   const base = (process.env.AUTH_BASE_URL || new URL(req.url).origin).replace(/\/$/, '')
   const wa = (process.env.EMBUDO_WA_WHATSAPP || '').replace(/\D/g, '')
   if (!wa) return new Response('/* Falta EMBUDO_WA_WHATSAPP */', { status: 503, headers: { 'content-type': 'text/javascript' } })
-  return new Response(scriptLanding(`${base}/api/embudo-wa`, wa, NOMBRE_EVENTO), {
+  return new Response(scriptLanding(`${base}/api/embudo-wa`, wa, NOMBRE_EVENTO, `${base}/marca/capital-juridico-imagotipo-marfil.png`), {
     headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=60' },
   })
 }
