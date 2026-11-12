@@ -127,7 +127,7 @@ export function plantillaDiscord(items: readonly CuotaAviso[], hoy: string, link
   if (items.length > lineas.length) lineas.push(`… y ${items.length - lineas.length} más en el tablero.`)
   const conTexto = items.filter(llevaTexto).length
   return [
-    `{@tomas} 💳 **Cuotas que cobra Administración · ${fechaCorta(hoy)}** (${resumen})`,
+    `{@tomas} {@gero_m} 💳 **Cuotas que cobra Administración · ${fechaCorta(hoy)}** (${resumen})`,
     ...lineas,
     conTexto ? `📤 ${conTexto === 1 ? 'El texto para el cliente está listo' : `Los ${conTexto} textos para los clientes están listos`} para pegar${linkParaEnviar ? `: <${linkParaEnviar}>` : ' en Para enviar'} (marcá «Enviado» al mandarlo).` : '',
     '➡️ <{link}>',
@@ -179,7 +179,7 @@ export async function correrAvisoCuotasAdmin(d: DepsAvisoCuotas, op: { dry?: boo
       c.paraEnviar = id === null ? 'ya_estaba' : 'nuevo'
     } catch { c.paraEnviar = 'error' }
   }
-  const a = await d.alertar({ canal: 'operaciones', tipo: 'cuotas_admin', clave: claveAlerta(hoy), titulo: 'Cuotas que cobra Administración', plantilla: r.mensaje, link: '/cuotas', menciones: ['tomas'] })
+  const a = await d.alertar({ canal: 'operaciones', tipo: 'cuotas_admin', clave: claveAlerta(hoy), titulo: 'Cuotas que cobra Administración', plantilla: r.mensaje, link: '/cuotas', menciones: ['tomas', 'gero_m'] })
   r.alerta = a.estado
   return r
 }
