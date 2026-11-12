@@ -9,6 +9,6 @@ export function GET(req: Request) {
   const wa = (process.env.EMBUDO_WA_WHATSAPP || '').replace(/\D/g, '')
   if (!wa) return new Response('/* Falta EMBUDO_WA_WHATSAPP */', { status: 503, headers: { 'content-type': 'text/javascript' } })
   return new Response(scriptLanding(`${base}/api/embudo-wa`, wa, NOMBRE_EVENTO), {
-    headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300' },
+    headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=60' },
   })
 }
