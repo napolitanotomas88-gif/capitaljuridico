@@ -60,6 +60,7 @@ export const REGLAS: readonly Regla[] = [
   { patron: '/api/alerta-anuncios', quien: 'propio', motivo: 'Cron de Vercel 8:45 AR. CRON_SECRET, falla cerrado.' },
   { patron: '/api/reporte-eod', quien: 'propio', motivo: 'Make 6463821 (EOD de Maite, 23:59 AR). CRON_SECRET o EOD_KEY (Bearer o ?key=).' },
   { patron: '/api/embudo-wa/lead', quien: 'propio', motivo: 'Formulario público de la landing del embudo formulario → WhatsApp. Solo el origen de la landing (EMBUDO_WA_ORIGENES, CORS); valida campos y no devuelve datos.' },
+  { patron: '/api/embudo-wa/script', quien: 'propio', motivo: 'JS público de la landing del embudo (lo carga Framer). Sin datos ni efectos.' },
   { patron: '/api/embudo-wa/click', quien: 'propio', motivo: 'Clic en el botón de WhatsApp de la página de gracias del embudo. Solo el origen de la landing; marca un id existente.' },
   { patron: '/api/calendly-webhook', quien: 'propio', motivo: 'Calendly. Firma HMAC en Calendly-Webhook-Signature. Si falla 24 h seguidas Calendly lo deshabilita.' },
   { patron: '/api/fathom-anuncios', quien: 'propio', motivo: 'Webhook de Fathom (firma Standard Webhooks con FATHOM_WEBHOOK_SECRET) y modo manual con Bearer CRON_SECRET. Falla cerrado.' },
