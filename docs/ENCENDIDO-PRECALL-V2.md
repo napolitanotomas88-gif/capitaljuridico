@@ -9,6 +9,8 @@ Pedidos de Tomás (5 y 6/11/2026): el pre-call se separa en dos partes.
 
 **Arranque (Tomás, 6/11): solo Marcos y Nahuel** (`PRECALL_V2_CLOSERS=Marcos,Nahuel`). Carlos sigue con el flujo de siempre: tarjeta, fases y confirmación al agendar.
 
+**Se suma Carlos (Gero, 12/11/2026).** `PRECALL_V2_CLOSERS=Marcos,Nahuel,Carlos` y `PRECALL_V2_DESDE_POR_CLOSER=Carlos=<momento del encendido>`: solo las reuniones de Carlos desde ese momento pasan por el pre-caller; las anteriores siguen con él como siempre. Pase con plantillas de Utilidad (`carlos_paseu1_nombre` con su video de traspaso, `carlos_paseu3`) y `MAKE_WEBHOOK_PASE_CARLOS`.
+
 **Estado: todo construido y APAGADO.** Falta el número de WhatsApp nuevo del pre-caller. Con `PRECALL_V2` sin cargar, el Despacho, la planilla y la confirmación al agendar funcionan igual que hoy.
 
 ## Cambio de Gero (7/11/2026): tablero del pre-caller en 3 columnas

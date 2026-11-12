@@ -3,7 +3,7 @@ import type { Campo, FilaLead } from "@/lib/crm/sheets/columnas";
 import { COLUMNAS } from "@/lib/crm/sheets/columnas";
 import { parsearFechaSheet } from "@/lib/crm/fechas";
 import { accionesDeFila, esLeadV2, type Accion } from "@/lib/crm/motor/proxima-accion";
-import { PRECALLER, closerConPrecallV2, precallV2Hojas } from "@/lib/crm/config/precallV2";
+import { PRECALLER, closerConPrecallV2, precallV2DesdePorHoja, precallV2Hojas } from "@/lib/crm/config/precallV2";
 import { formularioPase } from "@/lib/crm/pantalla";
 
 // "Hoy": jueves 24/09/2026, 15:00 en Buenos Aires. La call del lead, el sábado 26 a las 10:30.
@@ -180,6 +180,36 @@ describe("encendido por closer (PRECALL_V2_CLOSERS)", () => {
     } finally {
       if (antes === undefined) delete process.env.PRECALL_V2_CLOSERS;
       else process.env.PRECALL_V2_CLOSERS = antes;
+    }
+  });
+});
+
+describe("closer que se suma después (PRECALL_V2_DESDE_POR_CLOSER, Gero 12/11/2026)", () => {
+  const todos = new Set(["Closer 1", "Closer 2"]);
+  // Carlos (Closer 1) se suma el viernes 25/09: su reunión del 26 entra, la del 24 (sin asistencia cargada) no.
+  const porHoja = { "Closer 1": parsearFechaSheet("25/09/2026 00:00")! };
+  const dia = { precallV2: true, precallV2Desde: DESDE, precallV2DesdePorHoja: porHoja, precallV2Hojas: todos };
+  it("las reuniones del closer anteriores a su fecha siguen con él; las posteriores van al pre-caller", () => {
+    expect(accionesDeFila(fila({ fechaCall: "24/09/2026 10:00" }), AHORA, dia).map((a) => a.tipo)).not.toContain("PRE_CALLER");
+    expect(accionesDeFila(fila({}), AHORA, dia)[0].tipo).toBe("PRE_CALLER");
+  });
+  it("los demás closers siguen con la fecha general", () => {
+    const marcos = { ...fila({ fechaCall: "24/09/2026 10:00" }), hoja: "Closer 2" };
+    expect(accionesDeFila(marcos, AHORA, dia)[0].tipo).toBe("PRE_CALLER");
+  });
+  it("lee la variable por nombre de closer; una fecha ilegible no deja entrar a nadie de esa pestaña", () => {
+    const antes = process.env.PRECALL_V2_DESDE_POR_CLOSER;
+    try {
+      process.env.PRECALL_V2_DESDE_POR_CLOSER = " Carlos Roletto = 2026-11-12T20:00:00-03:00 , Fulano=2026-01-01";
+      expect(precallV2DesdePorHoja()).toEqual({ "Closer 1": new Date("2026-11-12T20:00:00-03:00") });
+      process.env.PRECALL_V2_DESDE_POR_CLOSER = "carlos=mañana";
+      const mapa = precallV2DesdePorHoja()!;
+      expect(accionesDeFila(fila({}), AHORA, { ...dia, precallV2DesdePorHoja: mapa }).map((a) => a.tipo)).not.toContain("PRE_CALLER");
+      delete process.env.PRECALL_V2_DESDE_POR_CLOSER;
+      expect(precallV2DesdePorHoja()).toBeNull();
+    } finally {
+      if (antes === undefined) delete process.env.PRECALL_V2_DESDE_POR_CLOSER;
+      else process.env.PRECALL_V2_DESDE_POR_CLOSER = antes;
     }
   });
 });

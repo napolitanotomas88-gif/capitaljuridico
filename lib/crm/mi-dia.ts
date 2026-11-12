@@ -20,7 +20,7 @@ import { armarItem, callsDelDiaDe, identidadDe } from "@/lib/crm/presentacion";
 import type { FilaLead } from "@/lib/crm/sheets/columnas";
 import { leerDesplegables } from "@/lib/crm/sheets/desplegables";
 import { leerHojas } from "@/lib/crm/sheets/leer";
-import { precallV2Activo, precallV2Desde, precallV2Hojas } from "@/lib/crm/config/precallV2";
+import { precallV2Activo, precallV2Desde, precallV2DesdePorHoja, precallV2Hojas } from "@/lib/crm/config/precallV2";
 import { historialDeFila, leerLog } from "@/lib/crm/sheets/log";
 
 // Datos para las pantallas (docs/arquitectura.md §Datos para la pantalla). Todo serializable.
@@ -54,7 +54,7 @@ export async function datosMiDia(hoja: string, ahora: Date): Promise<DatosMiDia>
   const filas = hojas.get(hoja) ?? [];
   const hechas = operacionesDeHoy(log, hoja, ahora);
   // Del log: a quién ya se le mandó hoy una fase del pre-call (el Enviado del pre-call no escribe AG).
-  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(hechas), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde(), precallV2Hojas: precallV2Hojas() };
+  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(hechas), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde(), precallV2DesdePorHoja: precallV2DesdePorHoja(), precallV2Hojas: precallV2Hojas() };
   return {
     // Pre-call v2: las tarjetas del pre-caller van solo a su vista (`datosPrecaller`), nunca a la hoja del closer
     items: itemsDelDia(filas, ahora, dia).filter((i) => i.accion.tipo !== "PRE_CALLER"),
@@ -71,7 +71,7 @@ export async function datosPrecaller(visibles: string[], ahora: Date): Promise<D
   const conV2 = precallV2Hojas();
   // Solo las pestañas de los closers con el v2 encendido (PRECALL_V2_CLOSERS)
   const hojas = conV2 ? visibles.filter((h) => conV2.has(h)) : visibles;
-  const dia: ContextoDia = { precallV2: true, precallV2Desde: precallV2Desde(), precallV2Hojas: conV2 };
+  const dia: ContextoDia = { precallV2: true, precallV2Desde: precallV2Desde(), precallV2DesdePorHoja: precallV2DesdePorHoja(), precallV2Hojas: conV2 };
   const [leidas, log] = await Promise.all([leerHojas(hojas), leerLog()]);
   const items = hojas.flatMap((hoja) =>
     accionesDelDia(leidas.get(hoja) ?? [], ahora, dia)
@@ -126,7 +126,7 @@ export async function tableroAdmin(ahora: Date, dias: Periodo): Promise<TableroA
   const lista = closers();
   const [datos, log] = await Promise.all([leerHojas(lista.map((c) => c.hoja)), leerLog()]);
   const hechas = hechasHoyPorHoja(log, ahora, NOMBRE_ADMIN, esDeTarjeta);
-  const dia: ContextoDia = { precallHoy: precallEnviadoHoyEnLog(log, ahora), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde(), precallV2Hojas: precallV2Hojas() };
+  const dia: ContextoDia = { precallHoy: precallEnviadoHoyEnLog(log, ahora), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde(), precallV2DesdePorHoja: precallV2DesdePorHoja(), precallV2Hojas: precallV2Hojas() };
 
   const equipo = lista.map((c): ResumenCloser => {
     const filas = datos.get(c.hoja) ?? [];
