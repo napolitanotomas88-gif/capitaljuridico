@@ -4,9 +4,11 @@ import { calificada, FACTURACIONES, letraDe, URGENCIAS } from '@/lib/embudoWa/le
 import { guardarLead, marcarCapi } from '@/lib/embudoWa/db'
 import { enviarEvento } from '@/lib/embudoWa/capi'
 import { cabecerasCors, origenPermitido } from '@/lib/embudoWa/cors'
+import { normalizarTel } from '@/lib/embudoWa/tel'
+import { esperaSegundos, seguimientoEncendido, seguirLead } from '@/lib/embudoWa/seguimiento'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 300
 
 // Formulario de la landing del embudo formulario → WhatsApp (público, sin sesión: solo acepta el origen de la landing).
 // Calcula la letra con la matriz del CRM, guarda el lead y, si es A o B, manda el evento de conversión por la API de
@@ -28,7 +30,7 @@ export async function POST(req: Request) {
   const nombre = texto(b.nombre), apellido = texto(b.apellido)
   const telefono = texto(b.telefono, 30).replace(/[^\d+]/g, '')
   const facturacion = texto(b.facturacion), urgencia = texto(b.urgencia)
-  const digitos = telefono.replace(/\D/g, '')
+  const digitos = normalizarTel(telefono)
   if (!nombre || !apellido || digitos.length < 8 || digitos.length > 15
     || !(FACTURACIONES as readonly string[]).includes(facturacion) || !(URGENCIAS as readonly string[]).includes(urgencia)) {
     return NextResponse.json({ error: 'Faltan datos o hay un dato inválido' }, { status: 400, headers: cors })
@@ -50,6 +52,13 @@ export async function POST(req: Request) {
     after(async () => {
       const r = await enviarEvento({ eventId: id, url, ip, ua, fbp: o.fbp, fbc: o.fbc, telefono: digitos, nombre, apellido, letra })
       await marcarCapi(id, r.ok, r.error).catch(() => {})
+    })
+  }
+  // Seguimiento por WhatsApp (todas las letras): espera y, si no hay conversación, 2Chat manda un mensaje del setter.
+  if (seguimientoEncendido()) {
+    after(async () => {
+      await new Promise((r) => setTimeout(r, esperaSegundos() * 1000))
+      await seguirLead(id, digitos, nombre)
     })
   }
   // La letra no se le muestra al lead: la página solo la usa para decidir si dispara el píxel.
