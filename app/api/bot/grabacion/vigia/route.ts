@@ -52,6 +52,15 @@ export async function POST(req: Request) {
   after(() => recordarGuionesARevisar().then(() => undefined).catch(e => { console.error('guiones-revision: falla inesperada —', motivo(e)) }))
   // Guiones aprobados sin su «para enviar» en 📤 (3/11/2026, «SÍ O SÍ»): la red que lo crea si el check final no lo dejó
   after(() => crearParaEnviarFaltantesReal().then(r => { if (r.faltantes.length || r.errores.length) console.log(`guiones-para-enviar: ${r.faltantes.map(f => `${f.id_crm} tanda ${f.tanda} (${f.estado})`).join(' · ') || '0'}${r.errores.length ? ` | errores ${r.errores.join(' · ')}` : ''}`) }).catch(e => { console.error('guiones-para-enviar: falla inesperada —', motivo(e)) }))
+  // Cargas de guiones en el Doc que quedaron «dudosas» (12/11/2026): se reintentan con la misma clave y, si quedan escritas,
+  // se completa lo que faltó (doc, chips «Para grabar», Edición, 📤). Detalle en lib/bot/guiones/publicacion.ts.
+  after(async () => {
+    try {
+      const { reconciliarDudosas } = await import('@/lib/bot/guiones/publicacion')
+      const r = await reconciliarDudosas(t0 + 280_000)
+      if (r.length) console.log(`guiones-dudosas: reintentadas ${r.join(', ')}`)
+    } catch (e) { console.error('guiones-dudosas: falla inesperada —', motivo(e)) }
+  })
   // Tablero de Edición ↔ ClickUp (4/11/2026): lectura de lo modificado, réplica de la outbox y anuncios de «Publicar».
   after(async () => {
     try {

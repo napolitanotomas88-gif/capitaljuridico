@@ -47,7 +47,7 @@ export interface FilaTanda {
   id: number; recording_id: number; tanda: number; id_crm: string | null; cliente: string | null; ciudad: string | null
   estado: EstadoTanda; mercado: string | null; plan: FilaPlan[] | null; guiones: Record<string, GuionGuardado>
   aprobacion: { quien: string; email: string; cuando: string } | null
-  doc: { id: string; url: string; tanda?: number | null; publicada?: string; entrega?: { quien: string; email: string; cuando: string }; publicacion?: { estado: string; cuando: string; motivo?: string } } | null; whatsapp: { id: string | null; cuando: string; grupo: string; enviando?: boolean } | null
+  doc: { id: string; url: string; tanda?: number | null; publicada?: string; entrega?: { quien: string; email: string; cuando: string }; publicacion?: { estado: string; cuando: string; motivo?: string; intentos?: number; aprobacion?: string | null } } | null; whatsapp: { id: string | null; cuando: string; grupo: string; enviando?: boolean } | null
   notas: NotaCliente[]; aviso_discord: string | null; error: string | null; tokens_in: number; tokens_out: number
   version: string | null; creado: string; actualizado: string
   /** Aviso de lectura del vínculo, no altera el estado de generación. */
@@ -312,11 +312,26 @@ export async function tandaPorCliente(nombre: string): Promise<FilaTanda | undef
 
 /** Reserva la escritura del Doc para esta aprobación. Las reservas dudosas esperan más que el máximo de Apps Script. */
 export async function reservarPublicacion(id: number): Promise<boolean> {
-  return correr('reservar publicación', async q => (await q`UPDATE cj_guiones SET doc = COALESCE(doc, '{}'::jsonb) || jsonb_build_object('publicacion', jsonb_build_object('estado', 'trabajando', 'cuando', now())), actualizado = now()
+  // 12/11/2026: la reserva conserva los intentos de esta aprobación (los cuenta errorPublicacion; los usa la reconciliación)
+  return correr('reservar publicación', async q => (await q`UPDATE cj_guiones SET doc = COALESCE(doc, '{}'::jsonb) || jsonb_build_object('publicacion', jsonb_strip_nulls(jsonb_build_object('estado', 'trabajando', 'cuando', now(), 'intentos', doc->'publicacion'->'intentos', 'aprobacion', doc->'publicacion'->'aprobacion'))), actualizado = now()
     WHERE id = ${id} AND estado = 'aprobada' AND (doc->'publicacion' IS NULL OR doc->'publicacion'->>'estado' = 'error' OR actualizado < now() - interval '7 minutes') RETURNING id`).length === 1)
 }
-export async function errorPublicacion(id: number, motivo: string, dudoso = false): Promise<void> {
-  await correr('anotar publicación', q => q`UPDATE cj_guiones SET doc = COALESCE(doc, '{}'::jsonb) || ${JSON.stringify({ publicacion: { estado: dudoso ? 'dudoso' : 'error', cuando: new Date().toISOString(), motivo: motivo.slice(0, 200) } })}::jsonb, actualizado = now() WHERE id = ${id} AND estado = 'aprobada'`)
+/** Anota la falla y devuelve cuántos intentos lleva ESTA aprobación (una corrección aprobada de nuevo vuelve a 1). */
+export async function errorPublicacion(id: number, motivo: string, dudoso = false): Promise<{ intentos: number } | undefined> {
+  const filas = await correr('anotar publicación', q => q`UPDATE cj_guiones SET doc = COALESCE(doc, '{}'::jsonb) || jsonb_build_object('publicacion', jsonb_build_object(
+      'estado', ${dudoso ? 'dudoso' : 'error'}::text, 'cuando', ${new Date().toISOString()}::text, 'motivo', ${motivo.slice(0, 200)}::text, 'aprobacion', aprobacion->>'cuando',
+      'intentos', (CASE WHEN doc->'publicacion'->>'aprobacion' IS NOT DISTINCT FROM aprobacion->>'cuando' THEN COALESCE((doc->'publicacion'->>'intentos')::int, 0) ELSE 0 END) + 1)), actualizado = now()
+    WHERE id = ${id} AND estado = 'aprobada' RETURNING (doc->'publicacion'->>'intentos')::int AS intentos`)
+  const n = Number((filas as { intentos?: unknown }[])[0]?.intentos)
+  return Number.isFinite(n) && n > 0 ? { intentos: n } : undefined
+}
+/** Tandas aprobadas cuya carga en el Doc quedó «dudosa» y todavía tienen reintentos (12/11/2026). Espera 7 minutos desde la
+ *  última vuelta (más que el máximo de Apps Script: la ejecución anterior ya terminó) y deja afuera a los archivados. */
+export async function dudosasParaReintentar(maxIntentos: number): Promise<number[]> {
+  const archivados = await leerArchivados()
+  const filas = await correr('dudosas para reintentar', async q => { try { return (await q`SELECT id, id_crm FROM cj_guiones WHERE estado = 'aprobada' AND doc->'publicacion'->>'estado' = 'dudoso'
+      AND COALESCE((doc->'publicacion'->>'intentos')::int, 1) < ${maxIntentos} AND actualizado < now() - interval '7 minutes' ORDER BY actualizado ASC LIMIT 10`) as { id: unknown; id_crm: string | null }[] } catch (e) { if (sinTabla(e)) return []; throw e } })
+  return excluirArchivados(filas.filter(f => !!f.id_crm), archivados, f => f.id_crm).map(f => Number(f.id))
 }
 export async function pendientesEntrega(): Promise<FilaTanda[]> {
   const archivados = await leerArchivados()

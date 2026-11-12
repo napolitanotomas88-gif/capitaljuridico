@@ -18,7 +18,8 @@ export interface DepsPublicacion {
   /** d05: con los chips ya en «Para grabar», los videos de la tanda entran a Edición (Esperando crudos) sin esperar al vigía.
    *  Si falla, la pasada diaria del vigía los crea igual al leer el Doc: se avisa en el log. */
   altaEdicion?(fila: FilaTanda, docId: string, tanda: number): Promise<ResultadoAlta>
-  error(id: number, motivo: string, dudoso: boolean): Promise<void>
+  /** Anota la falla; devuelve los intentos de esta aprobación (con eso se decide si la reintenta el vigía o se avisa ya). */
+  error(id: number, motivo: string, dudoso: boolean): Promise<{ intentos: number } | void>
   exigirActivo?(idCrm: string | null): Promise<void>
   /** d02: el «para enviar» del link (📤). Con `problema`, la carga en el Doc falló o quedó dudosa: sale igual con la advertencia
    *  (Tomás, 3/11/2026: SIEMPRE tras el check final). */
@@ -41,9 +42,15 @@ export function alertaChipsSinMarcar(t: TandaFallida, motivo: string): Alerta {
 /** Lo que se sabe de la tanda cuando falla la publicación (puede faltar si ni siquiera se pudo leer). */
 export interface TandaFallida { id: number; id_crm?: string | null; cliente?: string | null; tanda?: number | null; aprobacion?: { cuando?: string | null } | null }
 
+/** Una carga «dudosa» (el puente no respondió a tiempo: casi siempre ya la escribió) se reintenta sola desde el vigía, cada
+ *  15 minutos, con la MISMA clave: el puente encuentra la tanda que cargó el bot y reemplaza lo suyo (nunca duplica ni toca
+ *  otra tanda). Con éxito sigue el camino normal (doc, chips «Para grabar», Edición, 📤 actualizado). Recién cuando se agotan
+ *  los intentos (12/11/2026) sale la alerta. */
+export const MAX_INTENTOS_DUDOSO = 4
+
 /** La alerta de una carga fallida en el Doc (Tomás, 2/11/2026: que no quede silenciosa). Puro. Una por aprobación: el
  *  reintento que vuelve a fallar no repite el aviso; una nueva aprobación (corrección) sí avisa. */
-export function alertaFallaPublicacion(t: TandaFallida, motivo: string, dudoso: boolean): Alerta {
+export function alertaFallaPublicacion(t: TandaFallida, motivo: string, dudoso: boolean, intentos?: number): Alerta {
   const id = t.id_crm?.trim() || null
   return {
     canal: 'sistema', tipo: 'guiones_publicacion_falla', clave: `guiones_publicacion:${t.id}:${t.aprobacion?.cuando ?? 'sin-aprobacion'}`,
@@ -52,7 +59,8 @@ export function alertaFallaPublicacion(t: TandaFallida, motivo: string, dudoso: 
     lineas: [
       `Tanda ${t.tanda ?? '¿?'} (registro ${t.id}) aprobada, pero no quedó escrita en el Doc del cliente.`,
       `Motivo: ${motivo}`,
-      dudoso ? 'Puede haberse escrito a medias: revisá el Doc antes de reintentar (no duplicar la tanda).' : 'No se le mandó nada al cliente.',
+      ...(dudoso && intentos && intentos > 1 ? [`Se reintentó sola ${intentos - 1} ${intentos === 2 ? 'vez' : 'veces'} y el puente tampoco respondió.`] : []),
+      dudoso ? 'Revisá el Doc: el puente puede haberla escrito (reintentar no la duplica: reemplaza lo que cargó el bot).' : 'No se le mandó nada al cliente.',
       'El «para enviar» igual quedó en 📤 con la advertencia: no se manda hasta que el Doc esté bien (al reintentar se actualiza solo).',
       'Reintentar: botón «Revisar publicación y aviso» en la tanda (lo toca Faus).',
     ],
@@ -122,13 +130,17 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
     }
   } catch (e) {
     const motivo = String((e as Error)?.message ?? 'No se pudo publicar el documento').replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 180)
-    if (reservada) await deps.error(id, motivo, dudoso)
-    console.error(`Guiones: publicación ${id} pendiente — ${motivo}`)
+    let intentos: number | undefined
+    if (reservada) { const r = await deps.error(id, motivo, dudoso).catch(() => undefined); intentos = r && typeof r.intentos === 'number' ? r.intentos : undefined }
+    // Dudosa con intentos por delante: la reintenta el vigía (sin alerta todavía; el «para enviar» sale igual, con advertencia)
+    const reintentaSola = dudoso && intentos !== undefined && intentos < MAX_INTENTOS_DUDOSO
+    if (reintentaSola) console.warn(`Guiones: publicación ${id} dudosa (intento ${intentos} de ${MAX_INTENTOS_DUDOSO}): la reintenta el vigía — ${motivo}`)
+    else console.error(`Guiones: publicación ${id} pendiente — ${motivo}`)
     // Un cliente archivado no es una falla de la carga (el bloqueo es a propósito): ese no avisa
     const archivado = (e as { code?: string })?.code === 'CLIENTE_ARCHIVADO'
-    if (deps.alertar && !archivado) {
+    if (deps.alertar && !archivado && !reintentaSola) {
       const tanda = (conocida as { doc?: { tanda?: number | null } | null }).doc?.tanda ?? conocida.tanda ?? null
-      await deps.alertar(alertaFallaPublicacion({ ...conocida, tanda }, motivo, dudoso)).catch(err => console.error('Guiones: no salió la alerta de la falla —', (err as Error)?.name ?? 'error'))
+      await deps.alertar(alertaFallaPublicacion({ ...conocida, tanda }, motivo, dudoso, intentos)).catch(err => console.error('Guiones: no salió la alerta de la falla —', (err as Error)?.name ?? 'error'))
     }
     // El «para enviar» sale IGUAL (Tomás, 3/11/2026: «SÍ O SÍ»), con la advertencia de que el Doc no quedó bien
     if (reservada && !archivado && deps.whatsapp) {
@@ -141,4 +153,20 @@ export async function publicarParaEntrega(id: number, hasta: number, deps: DepsP
       } catch (err) { console.error(`Guiones: publicación ${id}, no quedó el «para enviar» (lo crea el vigía) —`, String((err as Error)?.message ?? err).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 120)) }
     }
   }
+}
+
+
+/** Reconciliación de las cargas dudosas (12/11/2026): la corre el vigía cada 15 minutos (8 a 22). Una por vez y solo si queda
+ *  tiempo para esperar al puente: reintenta con publicarParaEntrega (misma clave → mismo lugar del Doc) y completa lo que faltó. */
+export interface DepsReconciliar { dudosas(max: number): Promise<number[]>; publicar(id: number, hasta: number): Promise<void> }
+export const MARGEN_RECONCILIAR_MS = 150_000
+export async function reconciliarDudosas(hasta: number, deps: DepsReconciliar = { dudosas: reg.dudosasParaReintentar, publicar: (id, h) => publicarParaEntrega(id, h) }): Promise<number[]> {
+  const ids = await deps.dudosas(MAX_INTENTOS_DUDOSO)
+  const hechas: number[] = []
+  for (const id of ids) {
+    if (hasta - Date.now() < MARGEN_RECONCILIAR_MS) break
+    await deps.publicar(id, hasta)
+    hechas.push(id)
+  }
+  return hechas
 }
