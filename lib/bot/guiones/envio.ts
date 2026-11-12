@@ -8,8 +8,9 @@
 //     chips vacíos (el Doc puede traer tandas cargadas a mano: la tanda 1 del bot no siempre es la «TANDA 1°» del Doc). Acción «cargarEnChips» del Puente Drive (Apps Script con la cuenta administradora configurada; el código está
 //     en docs/guiones/puente/GuionesChips.gs y lo publica la sesión CONSULTOR). Solo escribe bajo chips vacíos o ya cargados
 //     por el bot (clave estable por tanda: una corrección reemplaza lo suyo); si una persona ya escribió ahí, frena. Mientras
-//     el puente no tenga la acción, responde «acción desconocida» y el envío queda pendiente. No se reintenta (un 5xx después
-//     de correr el script puede haberla escrito: queda dudoso).
+//     el puente no tenga la acción, responde «acción desconocida» y el envío queda pendiente. En el momento no se reintenta
+//     (un timeout o un 5xx después de correr el script puede haberla escrito: queda «dudoso»); desde el 12/11/2026 el vigía
+//     la reintenta sola con la MISMA clave (el puente reemplaza lo suyo en la misma tanda: nunca duplica) — publicacion.ts.
 //   · WhatsApp: SOLO con GUIONES_WHATSAPP=real (apagado por defecto: nada sale a un cliente sin la prueba controlada y el OK
 //     de Tomás). El grupo se busca por nombre (GET /groups: «Contenido» + el nombre del cliente) o se carga a mano.
 // Nunca imprime la URL ni el secreto del puente ni el token de Whapi. Solo servidor.
@@ -50,6 +51,11 @@ export function guionesParaChips(fila: FilaTanda): GuionChip[] {
 /** Una clave por tanda (no por aprobación): con ella el puente reconoce lo que cargó el bot y una corrección lo reemplaza. */
 export const claveTanda = (fila: FilaTanda) => `cj-guiones-${fila.recording_id}-${fila.tanda}`
 
+/** Cuánto se espera al puente (12/11/2026): antes eran 90 s fijos y en Docs largos Apps Script tarda más (el caso de A160
+ *  escribió la tanda completa y la respuesta llegó tarde: quedó «dudosa»). Ahora todo lo que deja `hasta` menos 30 s para
+ *  chips, Edición y avisos, hasta 4 minutos (Apps Script corta a los 6). Si igual no responde, la reconcilia el vigía. */
+export const plazoEscritura = (hasta: number, ahora = Date.now()) => Math.max(5_000, Math.min(240_000, hasta - ahora - 30_000))
+
 export type ResultadoDoc = { estado: 'ok'; id: string; url: string; yaExistia: boolean; tanda: number | null; ancla?: { tab: string | null; heading: string | null } | null } | { estado: 'pendiente' | 'dudoso' | 'error'; motivo: string }
 
 export async function escribirEnDoc(fila: FilaTanda, docId: string, op: { hasta: number }): Promise<ResultadoDoc> {
@@ -62,7 +68,7 @@ export async function escribirEnDoc(fila: FilaTanda, docId: string, op: { hasta:
     r = await fetch(url, {
       method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secreto, accion: 'cargarEnChips', docId, tanda: 0, clave: claveTanda(fila), guiones: guionesParaChips(fila) }),
-      signal: AbortSignal.timeout(Math.max(5_000, Math.min(90_000, op.hasta - Date.now()))),
+      signal: AbortSignal.timeout(plazoEscritura(op.hasta)),
     })
   } catch { return { estado: 'dudoso', motivo: 'el puente no respondió (puede haberla escrito)' } }
   let j: Record<string, unknown> | null = null

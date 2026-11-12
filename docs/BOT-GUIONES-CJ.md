@@ -68,6 +68,11 @@ Script + una línea en el `switch` de `doPost` de Codigo.gs; lo publica CONSULTO
 CUENTA_QA CUENTA_QA, «Guiones - CUENTA_QA», ya tenía la TANDA 1° cargada a mano). Si falta el chip del 6.º, lo agrega copiando el último.
 Si no hay ninguna tanda libre (5/11/2026), agrega al final la siguiente con el mismo formato (título y chips copiados de la
 última, chips en «No iniciado» por la Docs API) y carga ahí: ya no se traba esperando que alguien la arme a mano.
+Carga «dudosa» (12/11/2026): si el puente no responde a tiempo casi siempre ya escribió (caso A160, tanda 3). La espera subió
+de 90 s a lo que deja la función (hasta 4 min, `plazoEscritura` en envio.ts) y el vigía (cada 15 min, 8 a 22) la reintenta sola
+pasados 7 minutos con la MISMA clave: el puente reemplaza lo que cargó el bot en esa tanda (nunca duplica ni toca otra). Si queda
+escrita sigue el camino normal (doc, chips «Para grabar», Edición, 📤 actualizado). Hasta 4 intentos por aprobación; recién
+entonces sale la alerta «DUDOSA» (`reconciliarDudosas` en publicacion.ts).
 Sin ciudad (5/11/2026): si la zona de la kickoff junta lugares muy separados (más de una provincia, AMBA cuenta como una, o radio ≥300 km),
 `ciudadDeFicha` devuelve '' y ningún gancho nombra ciudad (`bloqueCiudad` en tipos.ts). Al editar un guion se guarda `original`
 (lo que escribió el bot) para medir cuánto cambia hasta el check final.

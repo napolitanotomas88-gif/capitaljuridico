@@ -403,3 +403,14 @@ test('estadoChips: un «Video:» viejo puesto como título (sin viñeta) no cuen
   const content = [par('TANDA 2°\n'), par('Video: ', { id: 'viejo', valor: 'Grabado completo' }, false), par('Video: ', { id: 'n1', valor: 'No iniciado' }), par('Video: ', { id: 'n2', valor: 'No iniciado' })]
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.chipsDeTandaApi_(content, 2))).map(c => c.id), ['n1', 'n2'])
 })
+
+test('reintento de una carga dudosa (12/11): la MISMA clave y el mismo contenido dejan el Doc igual, en la misma tanda', () => {
+  const e = entorno()
+  const r1 = e.cargar(pedido({ tanda: 0 }))
+  assert.equal(r1.ok, true, r1.error)
+  const antes = e.hijos.map(x => `${x.tipo}|${x.texto}`), nombrados = e.nombrados.length
+  const r2 = e.cargar(pedido({ tanda: 0 }))
+  assert.equal(r2.ok, true, r2.error); assert.equal(r2.tanda, r1.tanda); assert.equal(r2.creada, false); assert.equal(r2.agregados, 0)
+  assert.deepEqual(e.hijos.map(x => `${x.tipo}|${x.texto}`), antes, 'ni duplica ni mueve nada')
+  assert.equal(e.nombrados.length, nombrados)
+})
