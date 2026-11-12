@@ -5,7 +5,7 @@ import { guardarLead, marcarCapi } from '@/lib/embudoWa/db'
 import { enviarEvento } from '@/lib/embudoWa/capi'
 import { cabecerasCors, origenPermitido } from '@/lib/embudoWa/cors'
 import { normalizarTel } from '@/lib/embudoWa/tel'
-import { esperaSegundos, seguimientoEncendido, seguirLead } from '@/lib/embudoWa/seguimiento'
+import { esperaSegundos, prepararContacto, seguimientoEncendido, seguirLead } from '@/lib/embudoWa/seguimiento'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -54,11 +54,14 @@ export async function POST(req: Request) {
       await marcarCapi(id, r.ok, r.error).catch(() => {})
     })
   }
-  // Seguimiento por WhatsApp (todas las letras): espera y, si no hay conversación, 2Chat manda un mensaje del setter.
+  // Seguimiento por WhatsApp (todas las letras): contacto en ManyChat ya; a los 3 minutos, si no escribió, plantilla del setter.
   if (seguimientoEncendido()) {
+    const desde = new Date()
     after(async () => {
+      const sid = await prepararContacto(id, digitos, nombre, apellido, letra).catch(() => null)
+      if (!sid) return
       await new Promise((r) => setTimeout(r, esperaSegundos() * 1000))
-      await seguirLead(id, digitos, nombre)
+      await seguirLead(id, sid, desde)
     })
   }
   // La letra no se le muestra al lead: la página solo la usa para decidir si dispara el píxel.
