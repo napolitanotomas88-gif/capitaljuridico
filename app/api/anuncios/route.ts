@@ -5,7 +5,7 @@ import { invalidarCacheAnuncios } from '@/lib/anuncios/cache'
 import { obtenerTablero } from '@/lib/anuncios/tablero'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300 // 12/11: con 60 s el «Actualizar» se cortaba (Drive + ClickUp + Meta) y Vercel devolvía texto, no JSON
 
 // GET carga el tablero desde caché; POST actualiza las fuentes al pulsar el botón.
 // Acceso: cookie de sesión del tablero o CRON_SECRET.
