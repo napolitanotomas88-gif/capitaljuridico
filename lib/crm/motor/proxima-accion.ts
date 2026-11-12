@@ -878,6 +878,11 @@ export type ContextoDia = {
   precallV2?: boolean;
   /** Desde qué reunión entra un lead nuevo al v2 (`precallV2Desde()`, PRECALL_V2_DESDE). */
   precallV2Desde?: Date | null;
+  /**
+   * Fecha de inicio propia de una pestaña (`precallV2DesdePorHoja()`, PRECALL_V2_DESDE_POR_CLOSER), para un closer que se suma
+   * después del encendido: sus reuniones anteriores siguen con el closer. Sin entrada, vale `precallV2Desde`.
+   */
+  precallV2DesdePorHoja?: Readonly<Record<string, Date>> | null;
   /** Pestañas con el v2 encendido (`precallV2Hojas()`, PRECALL_V2_CLOSERS); sin esto, todas. */
   precallV2Hojas?: ReadonlySet<string> | null;
 };
@@ -908,7 +913,7 @@ export function accionesDeFila(fila: FilaLead, ahora: Date, dia: ContextoDia = {
   const faseHoy = faseEnviadaHoyDe(fila, dia);
   // Pre-call v2: hasta el pase el lead es solo del pre-caller (ni pre-call ni "¿Se presentó?" para el closer)
   const hojaV2 = !dia.precallV2Hojas || dia.precallV2Hojas.has(fila.hoja);
-  const v2 = dia.precallV2 === true && hojaV2 && esLeadV2(fila.valores, dia.precallV2Desde ?? null);
+  const v2 = dia.precallV2 === true && hojaV2 && esLeadV2(fila.valores, dia.precallV2DesdePorHoja?.[fila.hoja] ?? dia.precallV2Desde ?? null);
   const pasado = v2 && pasadoAlCloser(fila.valores);
   // Sin pase pero con "¿Se presentó?" ya cargado (alguien lo cargó a mano): lo que sigue es del closer, como siempre
   // Una reagenda (R = No con AC) no cuenta: el pre-caller sigue hasta el pase, con el horario nuevo.

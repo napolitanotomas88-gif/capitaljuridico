@@ -40,6 +40,27 @@ export const precallV2Closers = (): string[] | null => {
   return lista.length ? lista : null;
 };
 
+/**
+ * Fecha de inicio por closer, para los que se suman después del encendido general (Gero, 12/11/2026: se suma Carlos):
+ * `PRECALL_V2_DESDE_POR_CLOSER="Carlos=2026-11-12T20:00:00-03:00"` (varios separados por coma). Las reuniones anteriores de ese
+ * closer siguen con él como siempre. Un closer sin entrada usa `PRECALL_V2_DESDE`; una fecha ilegible no deja entrar a nadie de esa
+ * pestaña (falla cerrado).
+ */
+export const precallV2DesdePorHoja = (): Record<string, Date> | null => {
+  const texto = process.env.PRECALL_V2_DESDE_POR_CLOSER?.trim();
+  if (!texto) return null;
+  const mapa: Record<string, Date> = {};
+  for (const parte of texto.split(",")) {
+    const i = parte.indexOf("=");
+    if (i < 0) continue;
+    const hoja = HOJA_DE_CLOSER[primerNombre(parte.slice(0, i))];
+    if (!hoja) continue;
+    const fecha = new Date(parte.slice(i + 1).trim());
+    mapa[hoja] = Number.isNaN(fecha.getTime()) ? new Date(8.64e15) : fecha;
+  }
+  return Object.keys(mapa).length ? mapa : null;
+};
+
 /** Las pestañas con el v2 encendido (null = todas). */
 export const precallV2Hojas = (): ReadonlySet<string> | null => {
   const lista = precallV2Closers();
