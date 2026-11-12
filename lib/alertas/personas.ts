@@ -49,19 +49,19 @@ export function resolverMenciones(ms: readonly Mencion[], env: Entorno = process
 }
 
 // ── Responsable de cada pieza que hay que mandarle al cliente a mano («para enviar») ────────────────────────────────────
-export const PIEZAS_CLIENTE = ['b07', 'd02', 'e01', 'f04', 'g04', 'g05', 'g06', 'h01', 'h02', 'h03', 'i01', 'i03', 'j01'] as const
+export const PIEZAS_CLIENTE = ['b07', 'd02', 'e01', 'f04', 'g04', 'g05', 'g06', 'h01', 'h02', 'h03', 'i01', 'i03', 'j01', 'k01'] as const
 export type PiezaCliente = (typeof PIEZAS_CLIENTE)[number]
 export const esPiezaCliente = (x: unknown): x is PiezaCliente => typeof x === 'string' && (PIEZAS_CLIENTE as readonly string[]).includes(x)
 
 export const NOMBRE_PIEZA: Record<PiezaCliente, string> = {
   b07: 'Bienvenida', d02: 'Guiones listos y pedido de grabación', e01: 'Recordatorio de grabación', f04: 'Videos listos', g04: 'Campaña al aire', g05: 'Optimización',
   g06: 'Ganadores', h01: 'Pedido de testimonio', h02: 'Agradecimiento del testimonio', h03: 'Encuesta mensual', i01: 'Invitación a la llamada de proyección', i03: 'Despedida',
-  j01: 'Aviso de incumplimiento',
+  j01: 'Aviso de incumplimiento', k01: 'Pedido de pago de cuota',
 }
 /** El grupo de WhatsApp del cliente donde va cada pieza. */
 export const GRUPO_PIEZA: Record<PiezaCliente, 'General' | 'Contenido' | 'Ventas'> = {
   b07: 'General', d02: 'Contenido', e01: 'Contenido', f04: 'Contenido', g04: 'Ventas', g05: 'Ventas', g06: 'Ventas',
-  h01: 'General', h02: 'General', h03: 'General', i01: 'General', i03: 'General', j01: 'General',
+  h01: 'General', h02: 'General', h03: 'General', i01: 'General', i03: 'General', j01: 'General', k01: 'General',
 }
 
 export const RESPONSABLE_POR_DEFECTO: Record<PiezaCliente, Rol[]> = {
@@ -69,6 +69,8 @@ export const RESPONSABLE_POR_DEFECTO: Record<PiezaCliente, Rol[]> = {
   h01: ['gero_m'], h02: ['gero_m'], h03: ['gero_m'], i01: ['aylu', 'gero_m', 'tomas'], i03: ['aylu'],
   // j01: controles de cumplimiento del cliente (lib/clientes/controles, 11/11/2026)
   j01: ['gero_m'],
+  // k01: cuotas que cobra Administración (lib/crm/cuotas/avisoAdmin.ts, 12/11/2026)
+  k01: ['tomas'],
 }
 
 /** Responsables de una pieza: ALERTAS_RESPONSABLES_JSON ({"f04":["aylu"],…}) pisa la tabla; lo roto se ignora. */

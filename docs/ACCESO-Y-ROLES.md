@@ -382,6 +382,7 @@ Guiones, Edición, Anuncios y Referidos dejaron de ser entradas sueltas del men�
 | `/api/clientes/inactivos/cron` | Cron diario con `Bearer CRON_SECRET` | Alerta interna cada tres días sin respuesta. No envía mensajes al cliente. |
 | `/api/clientes/encuesta/cron` | Cron diario con `Bearer CRON_SECRET` | Encuesta mensual: los que no contestaron (desde el día 3 del envío marcado en `/clientes/encuesta`) van a 🛠️-operaciones. No envía mensajes al cliente. |
 | `/api/clientes/controles` | Cron diario y de los lunes con `Bearer CRON_SECRET` (fuera del proxy) | Controles de cumplimiento (11/11/2026): cron diario 10:00 AR, `?semanal=1` los lunes, `?dry=1`, `?config=1` y POST de la configuración del cliente. Apagado salvo `CONTROLES_CLIENTES=encendido`. No envía mensajes al cliente: los avisos quedan «para enviar» (j01). |
+| `/api/cuotas/aviso-admin` | Cron diario con `Bearer CRON_SECRET` (fuera del proxy) | Aviso de las cuotas que cobra Administración (12/11/2026): cron 10:00 AR y `?dry=1`. Apagado salvo `AVISO_CUOTAS_ADMIN=encendido`. Un mensaje por día en 🛠️-operaciones; los textos para el cliente quedan «para enviar» (k01). |
 
 ## Portal del cliente (2/11/2026)
 
