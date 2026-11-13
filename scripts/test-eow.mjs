@@ -22,6 +22,7 @@ const API = await import('../lib/eow/api.ts')
 const L = await import('../lib/eow/lanzados.ts')
 const LR = await import('../lib/eow/lanzadosReales.ts')
 const I = await import('../lib/eow/importar.ts')
+const V = await import('../lib/eow/vinculo.ts')
 
 const PERMITIDOS = 'tomas@ejemplo.com, empresa@ejemplo.com;gerom@ejemplo.com'
 const conLista = (fn) => { process.env.EOW_CORREOS = PERMITIDOS; try { return fn() } finally { delete process.env.EOW_CORREOS } }
@@ -217,8 +218,13 @@ describe('recién lanzados y aviso del domingo', () => {
     { nombre: 'PRUEBA BOT Alfa', idCrm: null, lanzado: '2026-11-12' },       // prueba
   ]
   test('ventana y filtro', () => {
-    const v = L.ventana('2026-11-15', '2026-11-08')
-    assert.deepEqual(v, { desde: '2026-11-09', hasta: '2026-11-15' })
+    const v = L.ventana('2026-11-15')
+    assert.deepEqual(v, { desde: '2026-11-09', hasta: '2026-11-15' }, 'de ese lunes a ese domingo')
+    // Aunque el último reporte sea más viejo, la ventana es la semana del reporte (lunes a domingo)
+    assert.deepEqual(L.ventana('2026-11-22'), { desde: '2026-11-16', hasta: '2026-11-22' })
+    assert.equal(M.rangoSemana('2026-11-15'), '09/11 al 15/11/26')
+    assert.equal(M.rangoSemana('2026-10-03'), '27/09 al 03/10/26', 'historial: la fecha del doc es el cierre')
+    assert.equal(M.lunesDe('2026-11-08'), '2026-11-02')
     assert.deepEqual(L.recienLanzados(lanzados, reporte, v).map((c) => c.nombre), ['Estudio Nuevo Ejemplo'])
     const datos = L.agregarFilas(reporte, [lanzados[2]])
     assert.equal(datos.filas[0].color, null)
@@ -229,18 +235,21 @@ describe('recién lanzados y aviso del domingo', () => {
   test('texto del aviso', () => {
     const t = L.textoAviso('2026-11-15', ['Uno', 'Dos'], 'https://despacho.ejemplo/eow')
     assert.match(t, /^Reporte EOW de la semana: 2 clientes recién lanzados para ubicar\n• Uno\n• Dos\n/)
-    assert.match(t, /https:\/\/despacho\.ejemplo\/eow/)
+    assert.match(t, /https:\/\/despacho\.ejemplo\/eow \(semana del 09\/11 al 15\/11\/26\)/)
   })
 
   function deps(hoy, extra = {}) {
-    const llamadas = { agregar: [], enviar: [], reservas: new Set() }
+    const llamadas = { agregar: [], enviar: [], reservas: new Set(), creadas: [] }
+    const semanas = new Map([['2026-11-08', reporte]])
     return {
       llamadas,
+      semanas,
       d: {
         hoy: () => hoy, encendido: true, base: 'https://despacho.ejemplo',
         lanzados: async () => lanzados,
         semanaAnterior: async () => '2026-11-08',
-        leer: async (s) => (s === '2026-11-08' ? reporte : null),
+        leer: async (s) => semanas.get(s) ?? null,
+        crearSemana: async (s) => { if (semanas.has(s)) return false; llamadas.creadas.push(s); semanas.set(s, M.copiarSemana(reporte)); return true },
         agregar: async (s, nuevos) => { llamadas.agregar.push([s, nuevos.map((c) => c.nombre)]); return { ok: true, creado: true } },
         reservarAviso: async (s) => { if (llamadas.reservas.has(s)) return false; llamadas.reservas.add(s); return true },
         cerrarAviso: async () => {},
@@ -257,7 +266,22 @@ describe('recién lanzados y aviso del domingo', () => {
     const dry = deps('2026-11-14')
     const r = await L.correrAvisoEow(dry.d, { dry: true })
     assert.deepEqual(r.nuevos.map((x) => x.nombre), ['Estudio Nuevo Ejemplo'])
-    assert.equal(dry.llamadas.agregar.length + dry.llamadas.enviar.length, 0)
+    assert.equal(dry.llamadas.agregar.length + dry.llamadas.enviar.length + dry.llamadas.creadas.length, 0)
+    assert.equal(r.semanaCreada, true, 'en dry informa que la crearía')
+  })
+  test('el domingo crea SIEMPRE la semana nueva copiando la anterior (aunque no haya lanzados ni Meta), una sola vez', async () => {
+    const sinMeta = deps('2026-11-15', { lanzados: async () => null })
+    const r = await L.correrAvisoEow(sinMeta.d)
+    assert.equal(r.semanaCreada, true)
+    assert.deepEqual(sinMeta.llamadas.creadas, ['2026-11-15'])
+    assert.equal(sinMeta.semanas.get('2026-11-15').filas[0].cliente, 'Lucía Fernández')
+    assert.deepEqual(sinMeta.semanas.get('2026-11-15').tarjetas.servicioTerminado, ['Pedro Gómez'])
+    const sinNuevos = deps('2026-11-15', { lanzados: async () => [] })
+    assert.equal((await L.correrAvisoEow(sinNuevos.d)).semanaCreada, true)
+    const r2 = await L.correrAvisoEow(sinNuevos.d)
+    assert.equal(r2.semanaCreada, false, 'idempotente')
+    assert.deepEqual(sinNuevos.llamadas.creadas, ['2026-11-15'])
+    assert.equal(sinNuevos.llamadas.enviar.length, 0)
   })
   test('el domingo agrega a la semana (15/11), avisa una sola vez', async () => {
     const x = deps('2026-11-15')
@@ -337,5 +361,49 @@ describe('importador del documento', () => {
     assert.ok(t.observaciones.includes('Reclamo: Cliente Tres por la demora'))
     assert.ok(t.observaciones.includes('Algo para decidir'))
     assert.ok(t.observaciones.includes('Verde: Nota del verde'))
+  })
+})
+
+describe('vínculo con la Cartera (solo lectura)', () => {
+  const cartera = [
+    { id: 'A001', nombre: 'Teresa Santoni', estadoCrm: 'ACTIVO', pausaDesde: null },
+    { id: 'A002', nombre: 'Julio Ejemplar', estadoCrm: 'ACTIVO', pausaDesde: '2026-11-01' },
+    { id: 'A003', nombre: 'Ana Pérez', estadoCrm: 'PAUSADO', pausaDesde: null },
+    { id: 'A004', nombre: 'Ana Pérez', estadoCrm: 'FINALIZADO', pausaDesde: null },
+    { id: 'A005', nombre: 'Carla Gómez', estadoCrm: 'ACTIVO', pausaDesde: null },
+    { id: 'A006', nombre: 'Carla Gómez', estadoCrm: 'ACTIVO', pausaDesde: null },
+  ].map((c) => ({ ...c, estado: V.estadoDe(c.estadoCrm, c.pausaDesde) }))
+  const vincular = V.crearVinculador(cartera)
+  const fila = (cliente, extra = {}) => ({ cliente, idCrm: null, noVincular: false, pausado: false, ...extra })
+  test('estado: CRM PAUSADO o pausa abierta en el Despacho = pausado', () => {
+    assert.deepEqual(cartera.map((c) => c.estado), ['activo', 'pausado', 'pausado', 'finalizado', 'activo', 'activo'])
+  })
+  test('emparejamiento por nombre normalizado, paréntesis y cruce; dudosos sin vincular; manual manda', () => {
+    assert.equal(vincular(fila('julio ejemplar')).cliente.id, 'A002')
+    assert.equal(vincular(fila('Mara (Teresa Santoni)')).cliente.id, 'A001')
+    assert.equal(vincular(fila('Ana Perez')).cliente.id, 'A003', 'entre dos iguales, el vigente')
+    assert.equal(vincular(fila('Carla Gómez')).tipo, 'ninguno', 'dos vigentes con el mismo nombre: dudoso')
+    assert.equal(vincular(fila('Desconocido Total')).tipo, 'ninguno')
+    assert.deepEqual([vincular(fila('Carla Gómez', { idCrm: 'A006' })).tipo, vincular(fila('Carla Gómez', { idCrm: 'A006' })).cliente.id], ['manual', 'A006'])
+    assert.equal(vincular(fila('Julio Ejemplar', { noVincular: true })).motivo, 'quitado')
+    assert.equal(vincular(fila('X', { idCrm: 'Z999' })).motivo, 'id_desconocido')
+  })
+  test('«no coincide» cuando el EOW y la Cartera dicen distinto; link a la tarjeta', () => {
+    assert.equal(V.difiereDeCartera({ pausado: false }, vincular(fila('Julio Ejemplar'))), true)
+    assert.equal(V.difiereDeCartera({ pausado: true }, vincular(fila('Julio Ejemplar'))), false)
+    assert.equal(V.difiereDeCartera({ pausado: true }, vincular(fila('Desconocido'))), false)
+    assert.equal(V.linkCartera('a002'), '/clientes?cliente=A002')
+  })
+  test('el EOW NO escribe la Cartera: sin acciones ni escrituras al CRM en lib/eow', () => {
+    for (const f of ['lib/eow/cartera.ts', 'lib/eow/vinculo.ts', 'lib/eow/db.ts', 'app/api/eow/route.ts']) {
+      const t = readFileSync(join(RAIZ, f), 'utf8')
+      assert.doesNotMatch(t, /ejecutarAccion|guardarAccion|INSERT INTO cj_cliente_acciones|UPDATE cj_cliente_acciones|crmEscribir|escritor/, f)
+    }
+    assert.match(readFileSync(join(RAIZ, 'lib/eow/cartera.ts'), 'utf8'), /SELECT DISTINCT ON \(id_crm\)/)
+  })
+  test('el modelo guarda el vínculo manual y «no vincular»', () => {
+    const v = M.validarDatos({ filas: [{ cliente: 'A', color: 'verde', idCrm: 'a002' }, { cliente: 'B', color: 'rojo', noVincular: true }] })
+    assert.equal(v.datos.filas[0].idCrm, 'A002')
+    assert.equal(v.datos.filas[1].noVincular, true)
   })
 })

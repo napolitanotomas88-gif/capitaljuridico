@@ -33,8 +33,10 @@ export interface FilaEow {
   /** null = recién lanzado, todavía sin ubicar */
   color: Color | null
   pausado: boolean
-  /** ID del CRM (A001…), si se conoce */
+  /** ID del CRM (A001…), si se conoce: vínculo con la Cartera puesto a mano (o por el sistema). Sin ID, se empareja por nombre. */
   idCrm: string | null
+  /** true = «no vincular con la Cartera» (no se empareja por nombre) */
+  noVincular?: boolean
   /** Fecha de lanzamiento de la campaña (la pone el sistema) */
   lanzado: string | null
   origen: OrigenFila
@@ -115,6 +117,7 @@ export function validarDatos(entrada: unknown): Validacion {
       idCrm: typeof f.idCrm === 'string' && ID_CRM.test(f.idCrm) ? f.idCrm.toUpperCase() : null,
       lanzado: esFecha(f.lanzado) ? f.lanzado : null,
       origen,
+      ...(f.noVincular === true ? { noVincular: true } : {}),
     })
   }
   const t = (o.tarjetas && typeof o.tarjetas === 'object' ? o.tarjetas : {}) as Record<string, unknown>
@@ -162,6 +165,10 @@ export function domingoDe(hoy: string): string {
   const dia = new Date(`${hoy}T12:00:00Z`).getUTCDay() // 0 = domingo
   return dia === 0 ? hoy : sumarDias(hoy, 7 - dia)
 }
+/** El lunes de la semana que cierra el domingo `semana` (la semana va de lunes a domingo). */
+export const lunesDe = (semana: string): string => sumarDias(semana, -6)
+/** «09/11 al 15/11/26»: la semana del reporte, del lunes al domingo de cierre. */
+export const rangoSemana = (semana: string): string => (esFecha(semana) ? `${fechaCorta(lunesDe(semana)).slice(0, 5)} al ${fechaCorta(semana)}` : semana)
 /** «13/11/26» */
 export const fechaCorta = (f: string): string => (esFecha(f) ? `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(2, 4)}` : f)
 
@@ -190,6 +197,7 @@ export function resumirCambios(antes: DatosEow | null, despues: DatosEow): strin
     if (a.color !== f.color) cambios.push(`${f.cliente}: ${a.color ? NOMBRE_COLOR[a.color] : 'sin ubicar'} → ${f.color ? NOMBRE_COLOR[f.color] : 'sin ubicar'}`)
     if (a.pausado !== f.pausado) cambios.push(`${f.cliente}: ${f.pausado ? 'pausado' : 'sin pausa'}`)
     if (a.comentario !== f.comentario) cambios.push(`${f.cliente}: comentario`)
+    if ((a.idCrm ?? null) !== (f.idCrm ?? null) || !!a.noVincular !== !!f.noVincular) cambios.push(`${f.cliente}: vínculo con la Cartera ${f.idCrm ?? (f.noVincular ? 'quitado' : 'automático')}`)
   }
   for (const a of antes.filas) if (!nuevosIds.has(a.id)) cambios.push(`− ${a.cliente}`)
   for (const k of TARJETAS) {
