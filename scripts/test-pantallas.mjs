@@ -80,7 +80,7 @@ describe('listado: filas, filtros y orden', () => {
   test('la fila no lleva teléfono, mail ni notas', () => {
     const j = JSON.stringify(filas)
     assert.ok(!/5550|ejemplo\.test|Cliente de ejemplo/.test(j))
-    assert.deepEqual(Object.keys(filas[0]).sort(), ['clave', 'closer', 'cobrado', 'cobrosAviso', 'contratado', 'credito', 'dias', 'estado', 'fin', 'id', 'linea', 'nombre', 'noCliente', 'panel', 'saldo', 'semaforo', 'puntaje', 'sinRespuestaMes', 'sinCampana', 'backend'].sort())
+    assert.deepEqual(Object.keys(filas[0]).sort(), ['clave', 'closer', 'cobrado', 'cobrosAviso', 'contratado', 'credito', 'dias', 'estado', 'fin', 'id', 'linea', 'nombre', 'noCliente', 'panel', 'saldo', 'semaforo', 'puntaje', 'sinRespuestaMes', 'sinCampana', 'backend', 'calificacion'].sort())
     // La única nota que viaja es la de "Llamada agendada" en las marcas de renovación (pedido de Tomás, 10/10/2026)
     assert.equal(filas[0].backend, null)
   })

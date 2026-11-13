@@ -56,10 +56,14 @@ test('pestañas del hub en orden: Cartera, Guiones, Edición, Anuncios, Referido
   assert.deepEqual(H.PESTANAS_CLIENTES.map((p) => [p.etiqueta, p.clave, p.href]), [
     ['Cargar alta', 'altas', '/clientes/altas'], ['Cartera', 'clientes', '/clientes'], ['Guiones', 'guiones', '/guiones'], ['Edición', 'edicion', '/clientes/edicion'],
     ['Anuncios', 'anuncios', '/anuncios'], ['Referidos', 'referidos', '/clientes/referidos'], ['Encuesta', 'clientes', '/clientes/encuesta'],
+    ['Wins', 'clientes', '/clientes/wins'],
   ])
-  assert.deepEqual(H.pestanasVisibles('socio').map(H.idPestana), ['altas', 'clientes', 'guiones', 'edicion', 'anuncios', 'referidos', 'encuesta'])
+  assert.deepEqual(H.pestanasVisibles('socio').map(H.idPestana), ['altas', 'clientes', 'guiones', 'edicion', 'anuncios', 'referidos', 'encuesta', 'wins'])
   // 2/11/2026: sin WhatsApp el alta arranca en «Cargar alta» y la carga también CSM (Aylu, Gero M); Clientes sigue yendo a Cartera
-  assert.deepEqual(H.pestanasVisibles('csm').map(H.idPestana), ['altas', 'clientes', 'referidos', 'encuesta'])
+  assert.deepEqual(H.pestanasVisibles('csm').map(H.idPestana), ['altas', 'clientes', 'referidos', 'encuesta', 'wins'])
+  // Wins (13/11/2026) pide 'clientes' como la Cartera: sin la Cartera tampoco se ve; /clientes/wins es su pestaña, no Cartera
+  assert.ok(!H.pestanasVisibles(acceso(['edicion', 'referidos'])).some((p) => p.href === '/clientes/wins'))
+  assert.equal(H.pestanaActiva('/clientes/wins'), 'wins')
   // Encuesta (4/11/2026) pide 'clientes': sin la Cartera tampoco se ve
   assert.ok(!H.pestanasVisibles(acceso(['edicion', 'referidos'])).some((p) => p.href === '/clientes/encuesta'))
   assert.equal(new Set(H.SECCIONES_HUB).size, H.SECCIONES_HUB.length)

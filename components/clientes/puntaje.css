@@ -1,0 +1,73 @@
+/* ── Puntaje del cliente e interno (lib/clientes/puntaje.ts) y Wins. Prefijo pz-. Tokens de cj.css ──────────────────────
+   El color es del NIVEL (ok = Éxito, atención = en camino, error = atención) y siempre va con texto: no se lee solo por color. */
+
+.pz-mini {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  font-size: 12px; line-height: 1.35; font-variant-numeric: tabular-nums; color: var(--cj-texto-2);
+  overflow-wrap: anywhere;
+}
+.pz-mini__punto { flex: none; width: 8px; height: 8px; border-radius: 999px; background: var(--pz-c, var(--cj-texto-2)); }
+.pz-mini strong { font-weight: 700; color: var(--pz-c, var(--cj-hueso)); }
+.pz--exito { --pz-c: var(--cj-ok); }
+.pz--en_camino { --pz-c: var(--cj-atencion); }
+.pz--atencion { --pz-c: var(--cj-error); }
+.pz-mini__brecha { color: var(--cj-laton); }
+
+/* Bloque «Puntaje» de la tarjeta */
+.pz { display: flex; flex-direction: column; gap: var(--cj-esp-4); }
+.pz-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--cj-esp-3) var(--cj-esp-4); margin: 0; }
+.pz-cifra { display: flex; flex-direction: column; gap: 2px; }
+.pz-cifra dd { margin: 0; }
+.pz-cifra__n { font-family: var(--cj-fuente-titulo); font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--cj-hueso); }
+.pz-cifra__n small { font-size: 15px; font-weight: 600; color: var(--cj-texto-2); }
+.pz-nivel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--pz-c); }
+.pz-nivel::before { content: ''; width: 10px; height: 10px; border-radius: 999px; background: var(--pz-c); }
+.pz-nota { margin: 0; font-size: 14px; color: var(--cj-texto-2); }
+.pz-brecha { margin: 0; padding: var(--cj-esp-2) var(--cj-esp-3); border: 1px solid var(--cj-filete-fuerte); border-radius: 10px; font-size: 14px; }
+.pz-detalle { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pz-detalle caption { text-align: left; padding-bottom: var(--cj-esp-2); }
+.pz-detalle th, .pz-detalle td { padding: 6px 8px; border-bottom: 1px solid var(--cj-filete); text-align: left; vertical-align: top; }
+.pz-detalle th { font-size: 12px; font-weight: 600; color: var(--cj-texto-2); }
+.pz-detalle td.pz-detalle__n { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+.pz-detalle tr.pz-bloque th { padding-top: var(--cj-esp-3); color: var(--cj-laton); }
+.pz-estado { font-size: 12px; white-space: nowrap; }
+.pz-estado--suma { color: var(--cj-ok); }
+.pz-estado--parcial { color: var(--cj-atencion); }
+.pz-estado--no_suma, .pz-estado--resta { color: var(--cj-error); }
+.pz-estado--sin_dato, .pz-estado--no_aplica { color: var(--cj-texto-2); }
+@media (max-width: 600px) {
+  .pz-detalle thead { display: none; }
+  .pz-detalle tr { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px 0; border-bottom: 1px solid var(--cj-filete); }
+  .pz-detalle td, .pz-detalle th { border: 0; padding: 0; }
+  .pz-detalle td.pz-detalle__motivo { grid-column: 1 / -1; color: var(--cj-texto-2); }
+  .pz-detalle tr.pz-bloque { display: block; }
+}
+
+/* Wins */
+.pz-wins { display: flex; flex-direction: column; gap: var(--cj-esp-3); margin: 0; padding: 0; list-style: none; }
+.pz-win { display: flex; flex-direction: column; gap: var(--cj-esp-2); padding: var(--cj-esp-3); border: 1px solid var(--cj-filete); border-radius: 12px; background: var(--cj-sala); }
+.pz-win__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 13px; color: var(--cj-texto-2); }
+.pz-win__cliente { font-weight: 600; color: var(--cj-hueso); }
+.pz-win__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pz-win__captura { display: block; max-width: min(100%, 360px); max-height: 420px; border-radius: 10px; border: 1px solid var(--cj-filete); object-fit: contain; background: var(--cj-sala); }
+.pz-win__pie { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--cj-texto-2); }
+.pz-autorizado { font-weight: 600; color: var(--cj-ok); }
+.pz-boton-texto { min-height: 44px; padding: 8px 4px; border: 0; background: transparent; color: var(--cj-laton); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pz-boton-texto:hover { color: var(--cj-hueso); }
+.pz-boton-texto:focus-visible { outline: 2px solid #eed6a8; outline-offset: 2px; }
+.pz-forma { display: flex; flex-direction: column; gap: var(--cj-esp-3); padding: var(--cj-esp-3); border: 1px solid var(--cj-filete-fuerte); border-radius: 12px; }
+.pz-forma__fila { display: flex; flex-wrap: wrap; gap: var(--cj-esp-3) var(--cj-esp-4); align-items: flex-end; }
+.pz-forma textarea { width: 100%; min-height: 120px; resize: vertical; }
+.pz-pegar { display: flex; flex-direction: column; gap: var(--cj-esp-2); padding: var(--cj-esp-3); border: 1px dashed var(--cj-control); border-radius: 10px; font-size: 14px; color: var(--cj-texto-2); }
+.pz-pegar:focus-within, .pz-pegar:focus-visible { border-color: #eed6a8; outline: none; }
+.pz-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.pz-check input { width: 20px; height: 20px; accent-color: var(--cj-laton); }
+.pz-filtros { display: flex; flex-wrap: wrap; gap: var(--cj-esp-3) var(--cj-esp-4); align-items: flex-end; }
+.pz-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pz-input {
+  min-height: 44px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--cj-control); border-radius: 10px;
+  background: var(--cj-sala); color: var(--cj-hueso); font: inherit; font-size: 15px;
+}
+.pz-input:focus-visible { outline: 2px solid #eed6a8; outline-offset: 1px; }
+/* Puntaje arriba de la tarjeta chica del eje de tiempo (ocupa las dos columnas) */
+.rc-mini__item .rc-mini__puntaje { grid-column: 1 / -1; margin-bottom: 2px; }

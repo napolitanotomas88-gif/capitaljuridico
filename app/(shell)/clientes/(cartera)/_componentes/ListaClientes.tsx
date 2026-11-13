@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Monto } from '@/components/clientes/Monto'
 import { PuntajeRapido } from '@/components/clientes/PuntajeRapido'
+import { Calificacion } from '@/components/clientes/Calificacion'
 import { Boton, CampoBusqueda, ChipFiltro, ChipSemaforo, Tabla, Vacio, type Columna } from '@/components/ui'
 import { ETIQUETA_ESTADO, fechaCorta, numeroAR, textoDias } from '@/lib/clientes/formato'
 import {
@@ -185,6 +186,7 @@ export function ListaClientes({ filas, iniciales, noClientes, creditosDisponible
             </>
           )}
           {f.noCliente && <span className="cj-sub">No cuenta como cliente</span>}
+          {f.calificacion && <span className="cj-sub"><Calificacion p={f.calificacion} /></span>}
           <MarcasBackend f={f} />
         </>
       ),
@@ -341,6 +343,7 @@ export function ListaClientes({ filas, iniciales, noClientes, creditosDisponible
                       {f.semaforo && <ChipSemaforo estado={f.semaforo} />}
                     </div>
                     <p id={`cl-n-${f.clave}`} className="cj-tarjeta__nombre">{f.nombre}</p>
+                    {f.calificacion && <Calificacion p={f.calificacion} />}
                     <MarcasBackend f={f} id={`cl-m-${f.clave}`} idNota={`cl-a-${f.clave}`} />
                     <dl id={`cl-d-${f.clave}`} className="cj-tarjeta__datos">
                       <div>

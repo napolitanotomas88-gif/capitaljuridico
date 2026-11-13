@@ -140,7 +140,7 @@ const META_VIEJO_MS = 10 * 60_000
 const ESPERA_META_MS = 4_000
 export async function campanasMetaCartera(): Promise<{ porCliente: Map<string, CampanaMeta>; aviso: string | null }> {
   try {
-    const lectura = conCache('cartera-meta-v2', META_CARTERA_SEG, async () => {
+    const lectura = conCache('cartera-meta-v3', META_CARTERA_SEG, async () => {
       const m = await campanasMeta(25_000)
       if (m.aviso) throw new Error(m.aviso)
       // Un tablero incompleto (cuentas o planillas caídas) devuelve cero campañas sin aviso: no se guarda sobre el último bueno

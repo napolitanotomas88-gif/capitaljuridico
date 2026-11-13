@@ -4,6 +4,7 @@ import { exigirCorreos } from '@/lib/auth/sesion'
 import { baseEowConfigurada, historialSemana, leerReporte, listarSemanas, type EntradaHistorial } from '@/lib/eow/db'
 import { esFecha, type ReporteEow } from '@/lib/eow/modelo'
 import { leerCartera } from '@/lib/eow/cartera'
+import { puntajesParaEow } from '@/lib/clientes/puntajeEow'
 import { EditorEow } from './EditorEow'
 import './eow.css'
 
@@ -30,6 +31,8 @@ export default async function PaginaEow({ searchParams }: { searchParams: Promis
   let error = ''
   // Estado de la Cartera (solo lectura): en paralelo con el reporte; si el CRM no responde, el EOW sale sin esa columna
   const lecturaCartera = leerCartera()
+  // Puntaje interno de cada cliente, como referencia para Gero M (no cambia el color que él elige). Si falla, sin la columna.
+  const lecturaPuntajes = puntajesParaEow()
   try {
     semanas = await listarSemanas()
     const semana = q.semana && esFecha(q.semana) && semanas.includes(q.semana) ? q.semana : semanas[0]
@@ -48,6 +51,6 @@ export default async function PaginaEow({ searchParams }: { searchParams: Promis
       </div>
     )
   }
-  const cartera = await lecturaCartera
-  return <EditorEow key={`${reporte?.semana ?? 'nada'}-${reporte?.version ?? 0}`} semanas={semanas} inicial={reporte} historial={historial} cartera={cartera} />
+  const [cartera, puntajes] = await Promise.all([lecturaCartera, lecturaPuntajes])
+  return <EditorEow key={`${reporte?.semana ?? 'nada'}-${reporte?.version ?? 0}`} semanas={semanas} inicial={reporte} historial={historial} cartera={cartera} puntajes={puntajes} />
 }
