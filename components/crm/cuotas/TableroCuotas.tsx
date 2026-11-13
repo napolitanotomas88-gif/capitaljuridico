@@ -1,5 +1,6 @@
 "use client";
 import {
+  useDeferredValue,
   useEffect,
   useId,
   useLayoutEffect,
@@ -137,12 +138,12 @@ export function TableroCuotas({
   };
   const porCobrarPlan = (p: Plan) =>
     p.cuotas.reduce((n, c) => n + porCobrar(c), 0);
+  // El campo de búsqueda responde al instante; el filtrado de las listas (lo caro) sigue al texto sin trabar el tipeo
+  const busquedaLista = useDeferredValue(busqueda).toLowerCase();
   const visibles = registros.filter(
     ({ plan: p }) =>
       (filtro === "todos" || p.responsable === filtro) &&
-      `${p.nombre} ${p.telefono}`
-        .toLowerCase()
-        .includes(busqueda.toLowerCase()),
+      `${p.nombre} ${p.telefono}`.toLowerCase().includes(busquedaLista),
   );
   const activas = visibles.filter((r) => !r.plan.abandonado);
   // La fila "Pagado" no entra nunca en las columnas de cobro (porCobrar = 0)
