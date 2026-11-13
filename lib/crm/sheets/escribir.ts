@@ -5,7 +5,7 @@ import { sheets } from "./cliente";
 import { CAMPOS_PRECALL_V2, COLUMNAS, ENCABEZADOS_ESPERADOS, rango, etiquetaCampo, type Campo } from "./columnas";
 import { precallV2Activo } from "@/lib/crm/config/precallV2";
 import { actualizarFilaEnCache, invalidarCache, leerFila } from "./leer";
-import { agregarAlLog, invalidarCacheLog, leerLog } from "./log";
+import { agregarAlLog, leerLog } from "./log";
 import {
   armarRangos,
   camposDistintos,
@@ -219,8 +219,8 @@ export type EntradaDeshacerOperacion = {
  * (después de comprobar el nombre), y `aplicarCambios` la vuelve a verificar al escribir.
  */
 export async function deshacerOperacion(entrada: EntradaDeshacerOperacion): Promise<Operacion> {
-  invalidarCacheLog(); // la operación puede ser de hace un segundo, en otra instancia
-  const operaciones = agruparOperaciones(await leerLog());
+  // La operación puede ser de hace un segundo, en otra instancia: directo de la API, sin cachés
+  const operaciones = agruparOperaciones(await leerLog({ alDia: true }));
   // Si el id se repite (8 hex al azar), la más reciente.
   const op = [...operaciones].reverse().find((o) => o.idOperacion === entrada.idOperacion);
   if (!op) throw new ErrorEscritura("entrada_invalida", "No encontré esa acción en el registro (Log App).");

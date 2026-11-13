@@ -137,11 +137,13 @@ describe("leerLog / historialDeFila", () => {
 
   it("una lectura que salió antes de una escritura no vuelve a llenar la caché", async () => {
     const { invalidarCacheLog, leerLog } = await import("@/lib/crm/sheets/log");
-    let responder: (v: unknown) => void = () => {};
+    let responder: ((v: unknown) => void) | null = null;
     api.spreadsheets.values.get.mockImplementationOnce(() => new Promise((r) => (responder = r)));
     const enVuelo = leerLog();
     invalidarCacheLog(); // se escribió mientras tanto
-    responder({ data: { values: [["24/09/2026 10:00:00", "viejo", "c", "h", 2, "l", "S", "fupsNoShow", "", "S1", "m"]] } });
+    // La lectura pasa por la caché compartida (conCache): llega a la API en una vuelta posterior del bucle
+    await vi.waitFor(() => { if (!responder) throw new Error("todavía no"); });
+    responder!({ data: { values: [["24/09/2026 10:00:00", "viejo", "c", "h", 2, "l", "S", "fupsNoShow", "", "S1", "m"]] } });
     expect((await enVuelo).map((e) => e.operacion)).toEqual(["viejo"]);
 
     api.spreadsheets.values.get.mockResolvedValue({ data: { values: [] } });

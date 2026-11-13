@@ -3,6 +3,8 @@ import type { EntradaLog } from "@/lib/crm/contratos";
 import { sheets } from "./cliente";
 import { rango } from "./columnas";
 import { ENCABEZADOS_LOG, normalizarTexto } from "./verificacion";
+import { conCache, invalidarEtiqueta } from "@/lib/anuncios/cache";
+import { claveDePlanilla, ETIQUETA_CRM_VENTAS } from "./cacheCompartida";
 
 // Hoja "Log App": una fila por celda que escribe la app (BRIEF.md §6). Sirve para auditar,
 // para Deshacer, para "Hechas hoy" y para el historial de la ficha.
@@ -90,7 +92,11 @@ export async function agregarAlLog(filas: (string | number)[][]): Promise<void> 
   agregarACacheLog(filas);
 }
 
+// Dos capas, como las hojas (leer.ts): memoria de 30 s por instancia y caché compartida de 60 s (filas crudas). Cada
+// agregado al log y cada invalidación la invalidan en todas las instancias. Deshacer lee con `alDia`.
 const TTL_MS = 30_000;
+const CACHE_COMPARTIDA_SEG = 60;
+const ETIQUETA_LOG = `${ETIQUETA_CRM_VENTAS}-log`;
 let cacheLog: { hasta: number; entradas: EntradaLog[] } | null = null;
 /** Sube con cada invalidación: una lectura que empezó antes no vuelve a llenar la caché. */
 let generacion = 0;
@@ -98,6 +104,7 @@ let generacion = 0;
 export function invalidarCacheLog() {
   cacheLog = null;
   generacion += 1;
+  invalidarEtiqueta(ETIQUETA_LOG);
 }
 
 const texto = (c: unknown) => (c == null ? "" : String(c));
@@ -126,13 +133,12 @@ function entradaDesdeFila(f: unknown[]): EntradaLog {
  */
 function agregarACacheLog(filas: (string | number)[][]) {
   generacion += 1;
+  invalidarEtiqueta(ETIQUETA_LOG); // las otras instancias vuelven a leer el log
   if (cacheLog) cacheLog = { hasta: cacheLog.hasta, entradas: [...cacheLog.entradas, ...filas.map(entradaDesdeFila)] };
 }
 
-/** Todo el log en el orden de la planilla (más viejo primero). [] si la hoja no existe todavía. */
-export async function leerLog(): Promise<EntradaLog[]> {
-  if (cacheLog && cacheLog.hasta > Date.now()) return cacheLog.entradas;
-  const generacionInicial = generacion;
+/** Las filas con algún dato del log, crudas (lo que guarda la caché compartida). [] si la hoja no existe todavía. */
+async function leerFilasLog(): Promise<unknown[][]> {
   let filas: unknown[][] = [];
   try {
     const res = await sheets().spreadsheets.values.get({
@@ -145,8 +151,22 @@ export async function leerLog(): Promise<EntradaLog[]> {
     // "Unable to parse range": la hoja no existe todavía (p. ej. en el original, que es solo lectura).
     if ((e as { code?: number }).code !== 400) throw e;
   }
-  const entradas = filas.filter((f) => f.some((c) => texto(c).trim() !== "")).map(entradaDesdeFila);
+  return filas.filter((f) => f.some((c) => texto(c).trim() !== ""));
+}
+
+/**
+ * Todo el log en el orden de la planilla (más viejo primero). [] si la hoja no existe todavía.
+ * `alDia`: directo de la API, sin cachés (Deshacer busca una operación que puede ser de hace un segundo).
+ */
+export async function leerLog(opciones: { alDia?: boolean } = {}): Promise<EntradaLog[]> {
+  if (!opciones.alDia && cacheLog && cacheLog.hasta > Date.now()) return cacheLog.entradas;
+  const generacionInicial = generacion;
+  const filas = opciones.alDia
+    ? await leerFilasLog()
+    : (await conCache(claveDePlanilla("crm-ventas-log-v1", spreadsheetId()), CACHE_COMPARTIDA_SEG, leerFilasLog, { etiquetas: [ETIQUETA_CRM_VENTAS, ETIQUETA_LOG] })).data;
+  const entradas = (Array.isArray(filas) ? filas : []).map(entradaDesdeFila);
   if (generacion === generacionInicial) cacheLog = { hasta: Date.now() + TTL_MS, entradas };
+  else if (!opciones.alDia) invalidarEtiqueta(ETIQUETA_LOG); // pudo traer el log de antes del último agregado
   return entradas;
 }
 
