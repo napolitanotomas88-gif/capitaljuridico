@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { fmtMoneda } from './tablero'
-import { veredictoCosto, type CruceCalculado, type FilaPosteo, type TotalesCruce } from '@/lib/anuncios/seguidoresCruce'
+import { tonoCpm, tonoCtr, veredictoCosto, type CruceCalculado, type FilaPosteo, type TotalesCruce } from '@/lib/anuncios/seguidoresCruce'
 
 // Costo por seguidor real de FM: cruce diario de Meta Ads (lo que atribuye) con Business Suite (lo que trajo cada
 // posteo). El costo real usa solo los seguidores que vinieron de anuncios: los orgánicos no cuentan.
@@ -74,7 +74,7 @@ function FilaCuenta({ nombre, t, total = false }: { nombre: string; t: TotalesCr
 }
 
 export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
-  const [vista, setVista] = useState<'ayer' | 'acumulado'>('ayer')
+  const [vista, setVista] = useState<'ayer' | 'acumulado' | 'anuncios'>('ayer')
   const t = cruce.totales
   const conGastoAyer = cruce.posteos.filter(p => p.gastoAyer > 0)
   const acumulado = [...cruce.posteos].filter(p => p.gastoAyer > 0 || p.gastoAcum >= 50).sort((a, b) => b.gastoAcum - a.gastoAcum)
@@ -84,7 +84,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
   const diaDatos = (() => { const d = new Date(`${cruce.dia}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10) })()
   const dia = fechaCorta(diaDatos)
 
-  const boton = (k: 'ayer' | 'acumulado', etiqueta: string) => (
+  const boton = (k: 'ayer' | 'acumulado' | 'anuncios', etiqueta: string) => (
     <button type="button" onClick={() => setVista(k)} aria-pressed={vista === k}
       style={{
         fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
@@ -134,12 +134,48 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {boton('ayer', `Día ${dia}`)}
         {boton('acumulado', 'Acumulado')}
+        {cruce.anuncios.length > 0 && boton('anuncios', 'Por anuncio')}
         {vista === 'ayer' && !hayAnterior && (
           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Seguidores del día: desde la segunda foto (Business Suite da acumulados).</span>
         )}
       </div>
 
-      {filas.length === 0 ? (
+      {vista === 'anuncios' ? (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th style={{ ...th, textAlign: 'left' }}>ANUNCIO</th>
+                <th style={th}>GASTO DÍA {dia}</th><th style={th}>GASTO TOTAL</th><th style={th}>CPM</th><th style={th}>CTR</th>
+                <th style={th}>ATRIBUIDOS</th><th style={th}>COSTO ATRIB.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cruce.anuncios.map((a, i) => (
+                <tr key={`${a.cuenta}|${a.nombre}|${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '7px 6px', maxWidth: 320 }}>
+                    <span role="img" aria-label={a.activo ? 'Activo' : 'Apagado'} title={a.activo ? 'Activo' : 'Apagado'} style={{
+                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 7,
+                      background: a.activo ? 'var(--tono-bueno)' : 'transparent', border: a.activo ? 'none' : '1.5px solid var(--text-muted)',
+                    }} />
+                    <span style={{ fontWeight: 600 }}>{a.nombre}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{a.cuenta}</span>
+                  </td>
+                  <td style={td}>{fmtMoneda(a.gastoAyer)}</td>
+                  <td style={td}>{fmtMoneda(a.gastoAcum)}</td>
+                  <td style={{ ...td, fontWeight: 700, color: a.cpm == null ? 'var(--text-muted)' : TONO[tonoCpm(a.cpm)] }}>{a.cpm == null ? '—' : `$${a.cpm.toFixed(2)}`}</td>
+                  <td style={{ ...td, fontWeight: a.ctr != null && tonoCtr(a.ctr) === 'bueno' ? 700 : 500, color: a.ctr != null && tonoCtr(a.ctr) === 'bueno' ? TONO.bueno : undefined }}>
+                    {a.ctr == null ? '—' : `${a.ctr.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`}
+                  </td>
+                  <td style={td}>{entero(a.atribuidosAcum)}</td>
+                  <td style={td}><Costo v={a.costoAtribuido} fuerte={false} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 6 }}>CPM: hasta $1,40 bien · hasta $1,70 regular · más, mal. CTR: desde 3,5 % bien. El punto verde marca los anuncios prendidos.</p>
+        </div>
+      ) : filas.length === 0 ? (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
           {vista === 'ayer' ? 'Ningún posteo de FM gastó ese día.' : 'Sin posteos con gasto para mostrar.'}
         </p>
@@ -216,6 +252,39 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {cruce.calidad.length > 0 && (
+        <div style={{ marginTop: 14, overflowX: 'auto' }}>
+          <p style={{ ...rotulo, marginBottom: 4 }}>Calidad de los seguidores · abogados o estudios jurídicos</p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th style={{ ...th, textAlign: 'left' }}>CUENTA</th>
+                <th style={th}>REVISADOS</th><th style={th}>ABOGADOS</th><th style={th}>% CONFIRMADO</th>
+                <th style={th}>DUDOSOS</th><th style={th}>OTRA PROFESIÓN</th><th style={th}>SIN DATO</th><th style={th}>PERFILES ABIERTOS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cruce.calidad.map((c, i) => (
+                <tr key={`${c.cuenta}|${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '7px 6px' }}>
+                    <span style={{ fontWeight: 700 }}>{nombreCuenta(c.cuenta)}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{c.alcance}</span>
+                  </td>
+                  <td style={td}>{entero(c.revisados)}</td>
+                  <td style={td}>{entero(c.abogados)}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{c.pctAbogados == null ? '—' : `${Math.round(c.pctAbogados * 100)} %`}</td>
+                  <td style={td}>{entero(c.dudosos)}</td>
+                  <td style={td}>{entero(c.otros)}</td>
+                  <td style={td}>{entero(c.sinDato)}</td>
+                  <td style={td}>{entero(c.perfilesAbiertos ?? null)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 6 }}>% confirmado = seguidores que se identifican como abogado o estudio jurídico en el nombre, el usuario, la bio o el chat. Es un piso: «sin dato» son cuentas personales que no dicen a qué se dedican.</p>
         </div>
       )}
 
