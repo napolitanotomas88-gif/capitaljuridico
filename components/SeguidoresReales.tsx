@@ -27,9 +27,9 @@ const fechaCorta = (dia: string) => {
 const horaDe = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })
 
-const th: React.CSSProperties = { textAlign: 'right', padding: '6px 6px', fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }
+const th: React.CSSProperties = { textAlign: 'right', padding: '6px 6px', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }
 const td: React.CSSProperties = { textAlign: 'right', padding: '7px 6px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
-const rotulo: React.CSSProperties = { fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }
+const rotulo: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }
 
 function Tarjeta({ titulo, valor, pie }: { titulo: string; valor: number | null; pie: string }) {
   const tono = valor != null ? TONO[veredictoCosto(valor).tono] : 'var(--text-muted)'
@@ -39,7 +39,7 @@ function Tarjeta({ titulo, valor, pie }: { titulo: string; valor: number | null;
       <p style={{ fontSize: 24, fontWeight: 800, color: tono, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
         {valor != null ? `$${valor.toFixed(2)}` : '—'}
       </p>
-      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
         {valor != null ? `${veredictoCosto(valor).etiqueta} · ` : ''}{pie}
       </p>
     </div>
@@ -50,8 +50,8 @@ function NombrePosteo({ p }: { p: Pick<FilaPosteo, 'clave' | 'texto' | 'cuenta'>
   return (
     <td style={{ padding: '7px 6px', maxWidth: 260 }}>
       <span style={{ fontWeight: 700 }}>{p.clave}</span>
-      <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{p.cuenta}</span>
-      {p.texto && <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.texto}</span>}
+      <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 6 }}>{p.cuenta}</span>
+      {p.texto && <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.texto}</span>}
     </td>
   )
 }
@@ -85,29 +85,24 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
   const dia = fechaCorta(diaDatos)
 
   const boton = (k: 'ayer' | 'acumulado' | 'anuncios', etiqueta: string) => (
-    <button type="button" onClick={() => setVista(k)} aria-pressed={vista === k}
-      style={{
-        fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-        border: '1px solid var(--border)', background: vista === k ? 'var(--text)' : 'transparent',
-        color: vista === k ? 'var(--card)' : 'var(--text-muted)',
-      }}>{etiqueta}</button>
+    <button type="button" onClick={() => setVista(k)} aria-pressed={vista === k} className={`filter-pill ${vista === k ? 'active' : ''}`}>{etiqueta}</button>
   )
 
   return (
     <div className="card p-5">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <p className="section-title" style={{ margin: 0 }}>FM — Costo por seguidor real</p>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-          Cruce del {fechaCorta(cruce.dia)} a las {horaDe(cruce.tomada)} · Meta Ads × Business Suite · sin orgánicos
+        <p className="section-title" style={{ margin: 0 }}>FM: costo por seguidor real</p>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Cruce del {fechaCorta(cruce.dia)} a las {horaDe(cruce.tomada)} · Meta Ads × Business Suite, sin orgánicos
         </span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, margin: '14px 0' }}>
-        <Tarjeta titulo="Costo real FM — acumulado" valor={t.costoReal}
+        <Tarjeta titulo="Costo real FM: acumulado" valor={t.costoReal}
           pie={`${fmtMoneda(t.gastoConDato)} ÷ ${entero(t.seguidoresReales)} seguidores de anuncios`} />
         <Tarjeta titulo="Costo atribuido por Meta" valor={t.costoAtribuido}
           pie={`${fmtMoneda(t.gastoAcum)} ÷ ${entero(t.atribuidosAcum)} seguidores atribuidos`} />
-        <Tarjeta titulo={`Costo real FM — día ${dia}`} valor={t.costoRealAyer}
+        <Tarjeta titulo={`Costo real FM: día ${dia}`} valor={t.costoRealAyer}
           pie={hayAnterior ? `${fmtMoneda(t.gastoAyerConDato)} ÷ ${entero(t.seguidoresRealesAyer)} seguidores de anuncios · gasto total ${fmtMoneda(t.gastoAyer)}`
             : `gasto ${fmtMoneda(t.gastoAyer)} · los seguidores del día salen desde la segunda foto`} />
       </div>
@@ -136,7 +131,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
         {boton('acumulado', 'Acumulado')}
         {cruce.anuncios.length > 0 && boton('anuncios', 'Por anuncio')}
         {vista === 'ayer' && !hayAnterior && (
-          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Seguidores del día: desde la segunda foto (Business Suite da acumulados).</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Seguidores del día: desde la segunda foto (Business Suite da acumulados).</span>
         )}
       </div>
 
@@ -159,7 +154,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
                       background: a.activo ? 'var(--tono-bueno)' : 'transparent', border: a.activo ? 'none' : '1.5px solid var(--text-muted)',
                     }} />
                     <span style={{ fontWeight: 600 }}>{a.nombre}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{a.cuenta}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 6 }}>{a.cuenta}</span>
                   </td>
                   <td style={td}>{fmtMoneda(a.gastoAyer)}</td>
                   <td style={td}>{fmtMoneda(a.gastoAcum)}</td>
@@ -173,7 +168,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
               ))}
             </tbody>
           </table>
-          <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 6 }}>CPM: hasta $1,40 bien · hasta $1,70 regular · más, mal. CTR: desde 3,5 % bien. El punto verde marca los anuncios prendidos.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>CPM: hasta $1,40 bien, hasta $1,70 regular, más, mal. CTR: desde 3,5 % bien. El punto verde marca los anuncios prendidos.</p>
         </div>
       ) : filas.length === 0 ? (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
@@ -236,7 +231,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
                 <tr key={`${p.cuenta}|${p.usuario}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '7px 6px' }}>
                     <span style={{ fontWeight: 700 }}>@{p.usuario}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{p.cuenta}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 6 }}>{p.cuenta}</span>
                   </td>
                   <td style={td}>{entero(p.seguidores)}</td>
                   <td style={td}>{entero(p.crecimientoAcum)}</td>
@@ -271,7 +266,7 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
                 <tr key={`${c.cuenta}|${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '7px 6px' }}>
                     <span style={{ fontWeight: 700 }}>{nombreCuenta(c.cuenta)}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 6 }}>{c.alcance}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 6 }}>{c.alcance}</span>
                   </td>
                   <td style={td}>{entero(c.revisados)}</td>
                   <td style={td}>{entero(c.abogados)}</td>
@@ -284,16 +279,16 @@ export function SeguidoresReales({ cruce }: { cruce: CruceCalculado }) {
               ))}
             </tbody>
           </table>
-          <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 6 }}>% confirmado = seguidores que se identifican como abogado o estudio jurídico en el nombre, el usuario, la bio o el chat. Es un piso: «sin dato» son cuentas personales que no dicen a qué se dedican.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>% confirmado = seguidores que se identifican como abogado o estudio jurídico en el nombre, el usuario, la bio o el chat. Es un piso: «sin dato» son cuentas personales que no dicen a qué se dedican.</p>
         </div>
       )}
 
       {cruce.notas.length > 0 && (
-        <ul style={{ marginTop: 10, paddingLeft: 16, fontSize: 11, color: 'var(--text-muted)' }}>
+        <ul style={{ marginTop: 10, paddingLeft: 16, fontSize: 12, color: 'var(--text-muted)' }}>
           {cruce.notas.map((n, i) => <li key={i}>{n}</li>)}
         </ul>
       )}
-      <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 8 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
         Costo real = gasto ÷ seguidores que vinieron de anuncios según Business Suite (los orgánicos no cuentan; incluye anuncios de otras campañas que usen el mismo posteo). En los perfiles sin posteo propio: crecimiento del perfil menos los seguidores orgánicos de sus posteos. Costo atribuido = gasto ÷ seguidores que Meta Ads le atribuye. Semáforo: hasta $2,20 winner · hasta $3 escalar · hasta $5 regular · más, bajo.
       </p>
     </div>

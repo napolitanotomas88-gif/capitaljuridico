@@ -342,7 +342,7 @@ describe("Recordatorio: sólo VIDEOS CONF enviada, sin depender de la llamada", 
     expect(html.includes('>Recordatorio</label>')).toBe(visible);
     if (visible) {
       expect(html).toContain('<option value="2" selected="">2</option>');
-      expect(html).toContain('min-h-8 w-14');
+      expect(html).toContain('min-h-11 w-14');
       expect(html).not.toContain('Sin recordatorio');
     }
     expect(item.valores.recordatorioPrecall).toBe("2");

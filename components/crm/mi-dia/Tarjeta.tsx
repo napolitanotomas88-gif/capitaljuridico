@@ -165,7 +165,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
 
   return (
     <article
-      className={`relative min-w-0 rounded-2xl border border-l-4 border-gris-linea p-4 ${tenue ? "bg-gris-fondo" : "bg-blanco shadow-sm"} ${FRANJA[urgencia(accion)]} ${
+      className={`relative min-w-0 border-l-4 p-4 ${tenue ? "rounded-2xl border border-gris-linea bg-gris-fondo" : "crm-panel"} ${FRANJA[urgencia(accion)]} ${
         enCurso ? "opacity-60" : ""
       }`}
       aria-busy={enCurso}
@@ -242,7 +242,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             onChange={(e) => void cambiarRecordatorio(recordatorioParaGuardar(e.target.value))}
             disabled={enCurso || guardandoRecordatorio}
             aria-busy={guardandoRecordatorio}
-            className="min-h-8 w-14 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+            className="min-h-11 w-14 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
           >
             <option value="0">0</option>
             <option value="1">1</option>
@@ -266,7 +266,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
               const paso = PASOS_CHAT_PRECALLER[Number(valor.slice(1)) - 1];
               if (paso) onBoton(item, { id: "seguimiento", etiqueta: paso, cambios: { seguimientosPrecaller: valor } });
             }}
-            className="min-h-8 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+            className="min-h-11 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
           >
             <option value="" disabled>
               Ninguno
@@ -298,7 +298,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
               const paso = PASOS_REAGENDA_PRECALLER[Number(valor.slice(1)) - MAX_SEGUIMIENTOS_PRECALLER - 1];
               if (paso) onBoton(item, { id: "seguimientoReagenda", etiqueta: paso, cambios: { seguimientosPrecaller: valor } });
             }}
-            className="min-h-8 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
+            className="min-h-11 rounded-md border border-gris-linea bg-blanco px-2 text-xs text-negro focus-visible:ring-2 focus-visible:ring-dorado"
           >
             <option value="" disabled>
               Ninguno
@@ -356,8 +356,8 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
               b.id === "olvidar"
                 ? "flex-none border border-bordo bg-blanco text-bordo hover:bg-bordo hover:text-blanco"
                 : b.principal
-                  ? "flex-auto bg-dorado text-negro hover:bg-dorado-oscuro hover:text-blanco"
-                  : "flex-auto border border-negro bg-blanco text-negro hover:bg-negro hover:text-blanco"
+                  ? "flex-auto bg-accion text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover"
+                  : "flex-auto border border-control bg-blanco text-negro hover:border-negro hover:bg-gris-fondo"
             }`}
           >
             {b.etiqueta}
@@ -371,7 +371,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             type="button"
             disabled={enCurso}
             onClick={() => onBoton(item, BOTON_REAGENDAR_DEMO)}
-            className="flex min-h-11 flex-auto items-center justify-center rounded-xl border border-negro bg-blanco px-3 py-2 text-center text-sm font-bold leading-tight text-negro hover:bg-negro hover:text-blanco"
+            className="flex min-h-11 flex-auto items-center justify-center rounded-xl border border-control bg-blanco px-3 py-2 text-center text-sm font-bold leading-tight text-negro hover:border-negro hover:bg-gris-fondo"
           >
             Reagendar en Calendly
           </button>
@@ -381,7 +381,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
             href={`/ventas/reagendar/${encodeURIComponent(identidad.hoja)}/${identidad.numeroFila}`}
             target="_blank"
             rel="noopener"
-            className="flex min-h-11 flex-auto items-center justify-center rounded-xl border border-negro bg-blanco px-3 py-2 text-center text-sm font-bold leading-tight text-negro hover:bg-negro hover:text-blanco"
+            className="flex min-h-11 flex-auto items-center justify-center rounded-xl border border-control bg-blanco px-3 py-2 text-center text-sm font-bold leading-tight text-negro hover:border-negro hover:bg-gris-fondo"
           >
             Reagendar en Calendly <span aria-hidden="true">&nbsp;↗</span>
             <span className="sr-only"> (abre otra pestaña)</span>

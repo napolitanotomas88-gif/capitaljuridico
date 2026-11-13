@@ -132,7 +132,7 @@ export function ListaHechas({
                     onClick={() => onDeshacer(op)}
                     disabled={bloqueada || ocupados.has(`${op.hoja}:${op.fila}`)}
                     aria-label={`Deshacer: ${op.lead.trim() || `Fila ${op.fila}`}, ${motivoLegible(op.motivo)}`}
-                    className="min-h-11 shrink-0 rounded-xl border border-negro bg-blanco px-3 text-sm font-bold hover:bg-negro hover:text-blanco disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 shrink-0 rounded-xl border border-control bg-blanco px-3 text-sm font-bold hover:border-negro hover:bg-gris-fondo disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Deshacer
                   </button>

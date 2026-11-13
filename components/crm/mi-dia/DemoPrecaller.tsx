@@ -78,7 +78,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
 
   return (
     <div className="flex min-h-dvh flex-col pb-28 lg:pb-6">
-      <header className="marca-barra sticky top-0 z-30 bg-negro text-blanco" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="marca-barra sticky top-0 z-30 bg-barra text-sobre-barra" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="flex flex-col items-start justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center lg:px-6">
           <div className="min-w-0">
             <h1 className="text-lg font-bold leading-tight">Pre-caller · práctica</h1>
@@ -88,7 +88,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
             <button type="button" onClick={reiniciar} className="flex h-11 items-center rounded-lg border border-white/60 px-3 text-sm font-semibold hover:bg-white/10">
               Volver a empezar
             </button>
-            <Link href="/ventas/closer/pre-caller" className="flex h-11 items-center rounded-lg bg-dorado px-3 text-sm font-bold text-negro hover:bg-dorado-oscuro hover:text-blanco">
+            <Link href="/ventas/closer/pre-caller" className="flex h-11 items-center rounded-lg bg-accion px-3 text-sm font-bold text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover">
               Ir al tablero real
             </Link>
           </div>
@@ -100,7 +100,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
           const deLaColumna = items.filter(col.incluye);
           return (
             <section key={col.clave} aria-label={col.titulo} className="flex flex-col">
-              <h2 data-grupo={col.grupo} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-negro px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-blanco">
+              <h2 data-grupo={col.grupo} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-barra px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-sobre-barra">
                 <span>{col.titulo}</span>
                 <span className="tabular rounded-full bg-dorado px-2 py-0.5 text-negro">{deLaColumna.length}</span>
               </h2>
@@ -119,7 +119,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
       </div>
 
       <div className="grid gap-3 px-4 pt-6 lg:grid-cols-2 lg:px-6">
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-gris-texto">Lo que habría pasado de verdad</h2>
           {registro.length === 0 ? (
             <p className="text-sm text-gris-texto">Tocá un botón de cualquier tarjeta.</p>
@@ -131,7 +131,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
             </ul>
           )}
         </section>
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-gris-texto">Ya no están en el tablero del pre-caller</h2>
           {fuera.length === 0 ? (
             <p className="text-sm text-gris-texto">Ninguno todavía.</p>

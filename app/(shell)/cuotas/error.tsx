@@ -14,7 +14,7 @@ export default function ErrorCuotas({ error, unstable_retry }: { error: Error & 
       <h1 className="text-2xl font-bold">No se pudieron cargar las cuotas</h1>
       <p role="alert" className="mt-3">Probá otra vez. Si continúa, avisale a Tomás para revisar la conexión.</p>
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="button" onClick={() => unstable_retry()} className="min-h-11 rounded-lg bg-dorado px-4 font-bold text-negro hover:bg-dorado-oscuro hover:text-blanco">
+        <button type="button" onClick={() => unstable_retry()} className="min-h-11 rounded-lg bg-accion px-4 font-bold text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover">
           Reintentar
         </button>
         <Link href="/" className="inline-flex min-h-11 items-center px-3 underline-offset-4 hover:underline">

@@ -231,7 +231,7 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-40 flex h-dvh items-end justify-center bg-negro/50 lg:items-stretch lg:justify-end"
+      className="fixed inset-x-0 top-0 z-40 flex h-dvh items-end justify-center bg-black/50 lg:items-stretch lg:justify-end"
       // A los costados, la safe-area (iPhone en horizontal): la hoja no queda bajo el notch.
       style={{
         paddingLeft: "env(safe-area-inset-left)",
@@ -490,8 +490,8 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
                 disabled={enCurso}
                 className={`min-h-12 flex-[2] rounded-xl text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
                   boton.pide === "cancelacion"
-                    ? "bg-bordo text-blanco hover:brightness-110"
-                    : "bg-dorado text-negro hover:bg-dorado-oscuro hover:text-blanco"
+                    ? "bg-bordo text-blanco hover:bg-bordo/90"
+                    : "bg-accion text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover"
                 }`}
               >
                 {enCurso ? "Guardando…" : boton.pide === "cancelacion" ? "Sí, cancelar la reunión" : "Confirmar"}

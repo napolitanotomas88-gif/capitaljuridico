@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: "Admin" };
 
 const TITULO_SECCION = "text-xs font-bold uppercase tracking-wide text-gris-texto";
 const BOTON_VER_DIA =
-  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-dorado px-3 text-sm font-bold text-negro hover:bg-dorado-oscuro hover:text-blanco";
+  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-accion px-3 text-sm font-bold text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover";
 const BOTON_BARRA = "flex h-11 items-center rounded-lg border border-white/60 px-3 text-sm font-semibold hover:bg-white/10";
 
 const hrefDia = (c: ResumenCloser) => `/ventas/closer/${encodeURIComponent(c.id)}`;
@@ -56,7 +56,7 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="marca-barra sticky top-0 z-30 bg-negro text-blanco" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="marca-barra sticky top-0 z-30 bg-barra text-sobre-barra" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="flex flex-col items-start justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center lg:gap-4 lg:px-6">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold leading-tight">Equipo</h1>
@@ -100,9 +100,9 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
           </h2>
 
           {/* Computadora: una fila por closer. */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-gris-linea bg-blanco lg:block">
+          <div className="hidden overflow-x-auto crm-panel lg:block">
             <table className="w-full text-sm">
-              <thead className="bg-negro text-xs text-blanco">
+              <thead className="bg-barra text-xs text-sobre-barra">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left align-bottom uppercase tracking-wide">
                     Closer
@@ -161,7 +161,7 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
             {equipo.map((c) => (
               <li
                 key={c.id}
-                className={`rounded-2xl border border-l-4 border-gris-linea bg-blanco p-4 ${c.atrasados > 0 ? "border-l-dorado" : "border-l-negro"}`}
+                className={`crm-panel p-4 ${c.atrasados > 0 ? "border-l-4 border-l-dorado" : ""}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -219,12 +219,12 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
             <Kpi etiqueta="Valor del servicio" valor={formatearMonto(metricasEquipo.valorServicio)} />
           </dl>
 
-          <div className="overflow-x-auto rounded-2xl border border-gris-linea bg-blanco">
+          <div className="overflow-x-auto crm-panel">
             <table className="w-full min-w-[640px] text-sm">
               <caption className="sr-only">Métricas por closer de los últimos {dias} días</caption>
-              <thead className="bg-negro text-xs text-blanco">
+              <thead className="bg-barra text-xs text-sobre-barra">
                 <tr>
-                  <th scope="col" className="sticky left-0 bg-negro px-4 py-3 text-left uppercase tracking-wide">
+                  <th scope="col" className="sticky left-0 bg-barra px-4 py-3 text-left uppercase tracking-wide">
                     Closer
                   </th>
                   <th scope="col" className="px-3 py-3 text-right font-semibold">Calls agendadas</th>
@@ -252,7 +252,7 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
           <h2 id="titulo-actividad" className={`mb-2 ${TITULO_SECCION}`}>
             Actividad reciente
           </h2>
-          <div className="rounded-2xl border border-gris-linea bg-blanco">
+          <div className="crm-panel">
             {actividad.length === 0 ? (
               <p className="px-4 py-5 text-sm text-gris-texto">Todavía no hay acciones registradas desde la app.</p>
             ) : (
@@ -299,7 +299,7 @@ export default async function PaginaAdmin({ searchParams }: PageProps<"/ventas/a
 function Total({ etiqueta, valor, destacar }: { etiqueta: string; valor: number; destacar?: boolean }) {
   const alerta = destacar && valor > 0;
   return (
-    <div className={`rounded-2xl border border-l-4 border-gris-linea bg-blanco px-4 py-3 ${alerta ? "border-l-dorado" : "border-l-negro"}`}>
+    <div className={`crm-panel px-4 py-3 ${alerta ? "border-l-4 border-l-dorado" : ""}`}>
       <p className="text-xs font-semibold uppercase tracking-wide text-gris-texto">{etiqueta}</p>
       <p className={`font-titulo tabular text-3xl font-bold leading-tight ${alerta ? "text-dorado-oscuro" : ""}`}>{valor}</p>
     </div>
@@ -308,7 +308,7 @@ function Total({ etiqueta, valor, destacar }: { etiqueta: string; valor: number;
 
 function Kpi({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-gris-linea bg-blanco px-4 py-3">
+    <div className="crm-panel px-4 py-3">
       <dt className="text-xs font-semibold uppercase tracking-wide text-gris-texto">{etiqueta}</dt>
       <dd className="font-titulo tabular text-2xl font-bold leading-tight">{valor}</dd>
     </div>

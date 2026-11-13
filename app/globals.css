@@ -68,9 +68,38 @@
   --color-ambar-fondo: #f7edda;
   --color-rojo: #7f202c;
   --color-rojo-fondo: #f8e9eb;
+  /* Roles (13/11/2026, tanda visual 3b). El cristal del Despacho invierte negro y blanco (texto claro sobre fondo oscuro); lo
+     que NO se invierte tiene su propio token, así el tema se resuelve acá y no con parches por selector:
+       barra: encabezados, títulos de columna y cabeceras de tabla (siempre oscuros, con texto claro);
+       accion: el botón principal (dorado en el tema claro; marfil en el cristal, como .cj-boton--primario);
+       control: el borde de los botones secundarios y los campos. */
+  --color-barra: #012d25;
+  --color-barra-alerta: #7f202c;
+  --color-sobre-barra: #fffdf8;
+  --color-accion: #be8f49;
+  --color-accion-hover: #805c29;
+  --color-sobre-accion: #1d1d1b;
+  --color-sobre-accion-hover: #fffdf8;
+  --color-control: #1d1d1b;
   --radius-lg: 0.375rem;
   --radius-xl: 0.5rem;
   --radius-2xl: 0.75rem;
+}
+/* Radios del Despacho dentro de Ventas y Cuotas (DESIGN.md: controles 10–12, tarjetas 18). Va acotado a esas pantallas:
+   Finanzas usa las mismas utilidades con sus radios. */
+.crm-raiz, .cuotas-raiz { --radius-md: 10px; --radius-lg: 10px; --radius-xl: 12px; --radius-2xl: 18px; }
+/* Tarjeta y panel del CRM (antes «rounded-2xl border border-gris-linea bg-blanco» en cada pantalla): la misma superficie,
+   filete y sombra que .cj-panel. Con el cristal la pinta components/shell/cristal.css */
+/* Va en la capa de componentes: las utilidades le ganan (p. ej. la franja de estado border-l-4 border-l-dorado). Con el
+   cristal, components/shell/cristal.css le da sus variables (--crm-panel-*). */
+@layer components {
+  .crm-panel {
+    border: 1px solid var(--crm-panel-borde, var(--color-gris-linea));
+    border-top-color: var(--crm-panel-borde-arriba, var(--color-gris-linea));
+    border-radius: 18px;
+    background: var(--crm-panel-fondo, var(--color-blanco));
+    box-shadow: var(--crm-panel-sombra, 0 1px 2px rgba(29, 29, 27, 0.06));
+  }
 }
 /* `font-titulo` (cifras del CRM: "Hechas N", contadores del encabezado, KPI del admin) con la fuente de títulos del shell.
    Va `inline`: la utilidad lleva el var() de cj.css y se resuelve en cada elemento. Sin `inline` la variable se resolvería
@@ -93,8 +122,12 @@
 
 /* Barras y columnas con la identidad Capital Jurídico */
 .marca-barra { background: linear-gradient(110deg, #012d25, #012d25 68%, #1d1d1b); border-bottom: 1px solid #be8f49; }
-.marca-columna { border-top: 2px solid #be8f49; background: #012d25; }
-.marca-columna[data-grupo="noShow"], .marca-columna[data-grupo="postCall"] { background: #7f202c; }
+.marca-columna { border-top: 2px solid #be8f49; background: var(--color-barra); color: var(--color-sobre-barra); }
+.marca-columna[data-grupo="noShow"], .marca-columna[data-grupo="postCall"] { background: var(--color-barra-alerta); }
+.bg-barra :focus-visible, .bg-barra-alerta :focus-visible { outline-color: #d0a45a; }
+/* cj.css hace que los enlaces del Despacho hereden el color (salvo en .crm-raiz): el enlace con forma de botón principal
+   (p. ej. «Volver al inicio» de Cuotas) conserva el texto de su relleno */
+.cj-raiz a.bg-accion { color: var(--color-sobre-accion); }
 
 * { box-sizing: border-box; }
 
@@ -116,7 +149,7 @@ body {
   /* 13/11/2026: superficie del flujo de la página, sin desenfoque (DESIGN.md: vidrio solo en lo que flota). Con el cristal del
      Despacho la pinta components/shell/cristal.css */
   background: color-mix(in srgb, var(--card) 72%, transparent);
-  border-radius: 14px;
+  border-radius: 18px;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 28px -18px rgba(29, 29, 27, 0.38);
   border: 1px solid color-mix(in srgb, var(--border) 65%, rgba(255, 255, 255, 0.4));
   overflow: hidden;
@@ -132,24 +165,17 @@ body {
   border: 1px solid color-mix(in srgb, var(--border) 80%, rgba(255, 255, 255, 0.12));
 }
 
-[data-theme="dark"] .card:hover {
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-}
 
 /* ── Big Metric Card ─────────────────────── */
 .big-metric {
   background: var(--card);
-  border-radius: 14px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   padding: 1.25rem 1.5rem 1rem;
   position: relative;
   overflow: hidden;
-  transition: box-shadow 0.2s;
 }
-.big-metric:hover { box-shadow: var(--shadow-md); }
 
 .big-metric .bm-label {
   font-size: 0.75rem;
@@ -176,7 +202,7 @@ body {
 }
 
 .big-metric .bm-sub {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
 }
@@ -184,14 +210,14 @@ body {
 /* ── Small Metric Card ───────────────────── */
 .small-metric {
   background: var(--card);
-  border-radius: 10px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   padding: 1rem 1.25rem;
 }
 
 .small-metric .sm-label {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -210,7 +236,7 @@ body {
 /* ── Goal Bar ────────────────────────────── */
 .goal-card {
   background: var(--card);
-  border-radius: 14px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   padding: 1.5rem;
@@ -218,7 +244,7 @@ body {
 
 /* ── Section title ───────────────────────── */
 .section-title {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -259,16 +285,12 @@ body {
 }
 
 /* ── Status dot ─────────────────────────── */
+/* 13/11/2026: quieto (antes latía sin fin). La hora de la última lectura, al lado, ya dice si está al día */
 .status-dot {
-  width: 7px; height: 7px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--brand-yellow);
   display: inline-block;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }
 
 /* ── Cuotas progress ─────────────────────── */
@@ -282,7 +304,7 @@ body {
 .cuotas-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--brand-orange), var(--brand-yellow));
+  background: var(--brand-orange);
   transition: width 0.8s ease-out;
 }
 
@@ -362,7 +384,7 @@ input[type="date"]:focus {
 /* ── Tablero rápido: estilo cristal (glassmorphism iOS) ─────────────── */
 .glass-board {
   position: relative;
-  border-radius: 14px;
+  border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.45));
   /* 27/10/2026: sin manchas doradas ni reflejos (estética sobria, oro mate solo en filetes). 13/11: sin desenfoque */
   background: color-mix(in srgb, var(--card) 62%, transparent);
@@ -378,7 +400,7 @@ input[type="date"]:focus {
   background: color-mix(in srgb, var(--card) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 55%, rgba(255, 255, 255, 0.5));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
-  border-radius: 10px;
+  border-radius: 12px;
   transition: border-color 0.15s ease;
   overflow: hidden;
 }
@@ -389,7 +411,7 @@ input[type="date"]:focus {
 /* ── Alertas: tarjetas de cristal sobrias (13/11/2026: sin desenfoque, sin destello ni elevación al pasar) ───────────── */
 .glass-alert {
   position: relative;
-  border-radius: 14px;
+  border-radius: 18px;
   background: color-mix(in srgb, var(--card) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 55%, rgba(255, 255, 255, 0.5));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 28px -18px rgba(29, 29, 27, 0.38);
@@ -437,7 +459,7 @@ input[type="date"]:focus {
 }
 [data-theme="dark"].resumen-marca::before { opacity: 0.08; }
 .resumen-marca .card, .resumen-marca .glass-board, .resumen-marca .goal-card, .resumen-marca .big-metric, .resumen-marca .small-metric {
-  border-top: 2px solid var(--brand-orange);
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.6));
 }
 @media (max-width: 768px) {
   .resumen-marca::before { left: 0; }
@@ -447,15 +469,22 @@ input[type="date"]:focus {
 }
 
 /* ── Pulido de interfaz (7/10/2026, guía ui-ux-pro-max): interacciones sobrias y accesibles ─────────────────────
-   Sin inclinaciones 3D ni destellos al pasar el cursor: un cambio de borde suave (150-200 ms) alcanza y se ve profesional.
-   13/11/2026: el destello y la elevación se borraron de las reglas de arriba; queda solo este cambio de borde. */
-.card, .glass-tile, .glass-alert, .big-metric { transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease; }
-.card:hover, .glass-tile:hover, .glass-alert:hover,
-[data-theme="dark"] .card:hover, [data-theme="dark"] .glass-tile:hover, [data-theme="dark"] .glass-alert:hover {
-  transform: none;
-  z-index: auto;
+   Sin inclinaciones 3D ni destellos al pasar el cursor. 13/11/2026: el destello y la elevación se borraron, y el cambio de
+   borde queda solo en las tarjetas que se tocan (un enlace o un botón): en una tarjeta de lectura prometía un clic. */
+.card, .glass-tile, .glass-alert, .big-metric { transition: border-color 0.18s ease, background-color 0.18s ease; }
+:is(a, button, [role="button"]):is(.card, .glass-tile, .glass-alert):hover {
   border-color: color-mix(in srgb, var(--brand-orange) 55%, var(--border));
 }
+/* Botón principal del encabezado del Resumen («Descargar PDF»): al pasar cambia el fondo (antes solo bajaba la opacidad) */
+.resumen-boton {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border-radius: 12px;
+  border: 1px solid var(--brand-orange); background: var(--brand-orange); color: var(--on-brand);
+  font-size: 14px; font-weight: 700; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.resumen-boton:hover:not(:disabled) { background: color-mix(in srgb, var(--brand-orange) 82%, #fff); }
+.resumen-boton:disabled { opacity: 0.55; }
+/* Cuadros de cifras anidados dentro de una tarjeta (KPI de Anuncios y del embudo): un velo, no otra tarjeta */
+.resumen-anidado { background: var(--bg); border-radius: 12px; padding: 12px 16px; }
 
 /* Todo lo que se toca tiene cursor de mano; lo deshabilitado, no */
 button, [role="button"], .filter-pill, summary, select, a[href], label[for] { cursor: pointer; }

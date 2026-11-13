@@ -44,7 +44,7 @@ export default async function PaginaLead({ params }: PageProps<"/ventas/lead/[ho
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="marca-barra sticky top-0 z-30 bg-negro px-4 py-2 text-blanco" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}>
+      <header className="marca-barra sticky top-0 z-30 bg-barra px-4 py-2 text-sobre-barra" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}>
         <div className="mx-auto flex max-w-6xl items-center gap-2">
           <Link
             href={volver}

@@ -237,7 +237,7 @@ export function FormularioFicha({ identidad, original }: Props) {
         <button
           type="submit"
           disabled={pendiente || !hayCambios}
-          className="min-h-12 flex-[2] rounded-xl bg-dorado text-sm font-bold text-negro hover:bg-dorado-oscuro hover:text-blanco disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-12 flex-[2] rounded-xl bg-accion text-sm font-bold text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pendiente ? "Guardando…" : "Guardar en la planilla"}
         </button>

@@ -23,7 +23,7 @@ function Tarjeta({ h }: { h: Hallazgo }) {
         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.35 }}>
           <span style={{ marginRight: 6 }}>{h.icono}</span>{h.titulo}
         </p>
-        <span style={{ flexShrink: 0, fontSize: 9, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {ETIQUETA[h.prioridad]}
         </span>
       </div>
@@ -46,7 +46,7 @@ export function AnalystPanel({ raw, monthIdx, metaMensual }: { raw: RawSerializa
 
   return (
     <div className="glass-board" style={{ padding: '20px 22px' }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
         Analista
       </p>
       <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.45, marginBottom: 14 }}>

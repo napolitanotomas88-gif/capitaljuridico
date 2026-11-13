@@ -40,7 +40,7 @@ export default async function Cuotas({
   const dueno = hoja && puedeVerHoja(sesion, hoja) ? closers().find((c) => c.hoja === hoja)?.id : undefined;
   return (
     <>
-      <header className="marca-barra sticky top-0 z-30 bg-negro text-blanco">
+      <header className="marca-barra sticky top-0 z-30 bg-barra text-sobre-barra">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
             <h1 className="text-xl font-bold">Cobro de cuotas</h1>
@@ -72,7 +72,7 @@ export default async function Cuotas({
         <div className="mx-auto w-full max-w-3xl p-6">
           <h2 className="text-2xl font-bold">Cuotas: conexión pendiente</h2>
           <p className="mt-4">Cuotas necesita su base de datos (Neon), que todavía no está conectada a este proyecto. El resto del dashboard sigue disponible.</p>
-          <Link href="/" className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-dorado px-4 font-bold">
+          <Link href="/" className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-accion px-4 font-bold text-sobre-accion hover:bg-accion-hover">
             Volver al inicio
           </Link>
         </div>
