@@ -9,6 +9,7 @@ import { leerCierres } from '@/lib/trazabilidad/cierres'
 import * as db from '@/lib/trazabilidad/db'
 import { procesarLlamadaManual, procesarLlamadas, procesarPendientes, procesarSetting } from '@/lib/trazabilidad/leads'
 import { normNombre, type TipoPieza } from '@/lib/trazabilidad/modelo'
+import { marcarLlamada, revisarLlamada, revisarPendientes, sincronizar } from '@/lib/trazabilidad/llamadasCloser'
 
 export type Estado = { ok?: string; error?: string }
 
@@ -135,6 +136,43 @@ export async function guardarAngulo(_: Estado, f: FormData): Promise<Estado> {
     })
     revalidatePath('/trazabilidad', 'layout')
     return { ok: 'Ángulo guardado.' }
+  } catch (e) {
+    return fallo(e)
+  }
+}
+
+// ── Llamadas de closers ───────────────────────────────────────────────────────────────────────────────────────────
+export async function traerLlamadasCloser(): Promise<Estado> {
+  try {
+    await quien()
+    const s = await sincronizar(3)
+    const r = await revisarPendientes(4)
+    revalidatePath('/trazabilidad/llamadas')
+    const ok = `${s.nuevas} llamadas nuevas de ${s.cuentas.length} cuentas · ${r.revisadas} revisiones armadas`
+    const errores = [...s.errores, ...r.errores]
+    return errores.length ? { ok, error: errores.slice(0, 3).join(' | ') } : { ok }
+  } catch (e) {
+    return fallo(e)
+  }
+}
+
+export async function prepararRevisionLlamada(_: Estado, f: FormData): Promise<Estado> {
+  try {
+    await quien()
+    await revisarLlamada(Number(f.get('recording') ?? 0))
+    revalidatePath('/trazabilidad/llamadas')
+    return { ok: 'Revisión lista.' }
+  } catch (e) {
+    return fallo(e)
+  }
+}
+
+export async function guardarMarcaLlamada(_: Estado, f: FormData): Promise<Estado> {
+  try {
+    const por = await quien()
+    await marcarLlamada(Number(f.get('recording') ?? 0), f.get('revisada') === 'on', String(f.get('nota') ?? '').trim(), por)
+    revalidatePath('/trazabilidad/llamadas')
+    return { ok: 'Guardado.' }
   } catch (e) {
     return fallo(e)
   }

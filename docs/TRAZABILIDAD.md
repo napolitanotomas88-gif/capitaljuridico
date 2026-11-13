@@ -46,6 +46,17 @@ código; la IA solo extrae datos de chats y llamadas, nunca saca conclusiones.
 - **ManyChat (API pública)**: `MANYCHAT_API_KEY`. `GET /api/trazabilidad/manychat` (Bearer `CRON_SECRET`) busca cada cierre sin setting en ManyChat por mail, teléfono (+549…) o nombre único y, con `?escribir=1`, guarda sus etiquetas y campos como envío `ManyChat API` (sin chat) y lo vincula; un envío de la botonera del mismo contacto no se pisa. El cron diario importa hasta 25 cierres nuevos por corrida.
 - **Cron** `GET /api/trazabilidad/semanal` (lunes 11:00 UTC = 8:00 AR): manda a Discord la semana domingo–sábado (EOD por día, agendas de la botonera, cierres a los que les falta setting o llamada). Canal `TRAZ_DISCORD_WEBHOOK` o el de enrutamientos. `?preview=1` para ver el texto.
 
+## Llamadas de closers (`/trazabilidad/llamadas`, 12/11/2026)
+
+Para revisar todos los días las llamadas de cada closer. Sale de la API de Fathom de cada cuenta (las mismas claves que
+usa el cruce de cierres: `FATHOM_API_KEYS` y `FATHOM_API_KEY_<CLOSER>`), tabla `cj_closer_llamadas`
+(`lib/trazabilidad/llamadasCloser.ts`). Solo reuniones con algún invitado de afuera; las de la cuenta de Tomás (onboardings)
+se ven eligiéndolas. Cada llamada muestra su fila del CRM (por mail del invitado o por nombre ±3 días), el resumen de Fathom
+y una revisión en español con Claude (por el puente a la Mac si `CLAUDE_VIA=mac`): resumen, resultado, precio, objeciones y
+momentos con el minuto y link a ese punto de la grabación. La revisión describe, no califica. Tomás marca «revisada» y deja
+su nota (queda en la base). Cron `GET /api/trazabilidad/llamadas-closers` 10:30 UTC = 7:30 AR (2 días, 6 revisiones) y botón
+«Traer llamadas nuevas» (3 días, 4 revisiones). Las llamadas de menos de 2 minutos no se revisan.
+
 ## Variables
 
 | Variable | Para qué |

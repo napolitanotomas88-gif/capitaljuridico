@@ -165,8 +165,12 @@ export function cierreDeFila(pestana: string, fila: number, r: unknown[], umbral
 }
 
 /** Agenda del CRM en versión liviana: lo justo para medir anuncios y formatos (todas las filas, cerradas o no) */
-export interface AgendaLigera { fecha: string; video: string; fuente: string; presento: boolean; closed: boolean; cobrado: number; grupo: Grupo | 'no_cierre' }
-export function agendaDeFila(r: unknown[], cierre: Cierre | null): AgendaLigera | null {
+export interface AgendaLigera {
+  fecha: string; video: string; fuente: string; presento: boolean; closed: boolean; cobrado: number; grupo: Grupo | 'no_cierre'
+  // Para cruzar llamadas de Fathom con su fila del CRM (Llamadas de closers)
+  nombre: string; email: string; telefono: string; situacion: string; pestana: string
+}
+export function agendaDeFila(r: unknown[], cierre: Cierre | null, pestana = ''): AgendaLigera | null {
   if (!String(r[0] ?? '').trim()) return null
   const fecha = fechaDeCelda(r[3])
   if (!fecha) return null
@@ -174,6 +178,8 @@ export function agendaDeFila(r: unknown[], cierre: Cierre | null): AgendaLigera 
     fecha, video: String(r[8] ?? '').trim(), fuente: String(r[6] ?? '').trim(),
     presento: [r[17], r[19], r[20]].some((x) => String(x ?? '').trim().toLowerCase().startsWith('s')),
     closed: !!cierre, cobrado: cierre?.cobrado ?? 0, grupo: cierre?.grupo ?? 'no_cierre',
+    nombre: String(r[0] ?? '').trim(), email: String(r[2] ?? '').trim(), telefono: String(r[1] ?? '').trim(),
+    situacion: String(r[21] ?? '').trim(), pestana,
   }
 }
 

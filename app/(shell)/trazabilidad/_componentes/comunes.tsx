@@ -3,6 +3,7 @@ import { clases } from '@/components/ui/clases'
 
 // Piezas chicas que comparten las pantallas de Trazabilidad.
 const PESTANAS = [
+  { href: '/trazabilidad/llamadas', etiqueta: 'Llamadas de closers' },
   { href: '/trazabilidad', etiqueta: 'Cierres' },
   { href: '/trazabilidad/reporte', etiqueta: 'Reporte mensual' },
   { href: '/trazabilidad/formatos', etiqueta: 'Formatos' },
