@@ -40,5 +40,9 @@ export function letraDe(urgencia: string, facturacion: string): Letra {
   return MATRIZ[u < 0 ? 3 : u][columna(facturacion)]
 }
 
-/** Las letras por las que optimiza la campaña: solo estas disparan el evento de conversión. */
-export const calificada = (l: Letra) => l === 'A' || l === 'B'
+/** Las letras por las que optimiza la campaña: solo estas disparan el evento de conversión. EMBUDO_WA_LETRAS (ej. "A,B,C");
+ *  por defecto A y B. Cambiarlo no toca nada en Meta (mismo evento): la campaña no reinicia el aprendizaje. */
+export function calificada(l: Letra): boolean {
+  const lista = (process.env.EMBUDO_WA_LETRAS || 'A,B').toUpperCase().split(',').map((x) => x.trim())
+  return lista.includes(l)
+}
