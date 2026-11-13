@@ -100,6 +100,7 @@ export const REGLAS: readonly Regla[] = [
   { patron: '/api/raw', quien: 'google_o_maquina', seccion: 'resumen', motivo: 'Datos del Resumen (teléfonos de leads, pagos). Navegador, o Bearer CRON_SECRET para verificar producción.' },
   { patron: '/api/metrics', quien: 'google_o_maquina', seccion: 'resumen', motivo: 'Cuotas a cobrar y cash del mes. Navegador, o Bearer CRON_SECRET.' },
   { patron: '/api/ads', quien: 'google_o_maquina', seccion: 'resumen', motivo: 'Gasto y campañas de Meta. Navegador, o Bearer CRON_SECRET.' },
+  { patron: '/api/ads/seguidores', quien: 'google_o_maquina', seccion: 'resumen', motivo: 'Costo por seguidor real de FM (cruce diario Meta Ads × Business Suite). GET: navegador o Bearer CRON_SECRET. POST (la foto del día que manda la tarea de la Mac): la ruta exige Bearer CRON_SECRET aunque haya sesión.' },
   { patron: '/', quien: 'google', seccion: 'resumen', motivo: 'Resumen (el dashboard principal). Solo socio por ahora.' },
   { patron: '/configuracion/*', quien: 'google', seccion: 'configuracion', motivo: 'Configuración: alta y baja de accesos. Solo administradores (la lista de Vercel y los "admin" de la planilla de Accesos).' },
   { patron: '/guiones/*', quien: 'google', seccion: 'guiones', motivo: 'Guiones y grabaciones de clientes (antes dentro del Resumen; el listado lee /api/raw: en la práctica, solo socio). /guiones/[id] es la verificación de la tanda de guiones del bot (Faus revisa y da el check final; Tomás conserva el permiso): lee su propia base, así que también anda con la sección Guiones sola.' },
