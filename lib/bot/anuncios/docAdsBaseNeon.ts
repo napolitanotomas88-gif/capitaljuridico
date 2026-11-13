@@ -39,11 +39,23 @@ function asegurarTabla(): Promise<void> {
   return tablaLista
 }
 
+/** Tabla que no existe (42P01): leer = todavía no hay línea de base. */
+export const faltaTablaBase = (e: unknown): boolean =>
+  (e as { code?: string })?.code === '42P01' || /relation "cj_anuncios_doc_base" does not exist/i.test(String((e as Error)?.message ?? ''))
+
 type FilaLeida = { huella: string; tipo: 'bloque' | 'video'; bloque: string; listo: boolean; estado: EstadoHuella }
-/** Las filas tal cual (serializables: el tablero las cachea). [] = todavía no hay línea de base. */
+/**
+ * Las filas tal cual (serializables: el tablero las cachea). [] = todavía no hay línea de base.
+ * La lee el tablero de anuncios, que también arma la cartera de clientes: no crea la tabla (velocidad 3, 13/11/2026, el
+ * CREATE TABLE sumaba una ida a Neon en cada arranque en frío). La crean las escrituras (insertar).
+ */
 export async function leerFilasBase(): Promise<FilaLeida[]> {
-  await asegurarTabla()
-  return await consulta('leer línea de base', q => q`SELECT huella, tipo, bloque, listo, estado FROM cj_anuncios_doc_base`) as FilaLeida[]
+  try {
+    return await consulta('leer línea de base', q => q`SELECT huella, tipo, bloque, listo, estado FROM cj_anuncios_doc_base`) as FilaLeida[]
+  } catch (e) {
+    if (faltaTablaBase(e)) return []
+    throw e
+  }
 }
 
 /** La línea de base, o null si todavía no se creó (tabla vacía). */

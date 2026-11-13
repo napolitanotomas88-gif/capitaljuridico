@@ -1,7 +1,7 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type CSSProperties, type ReactNode } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, startTransition, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AYUDA_ETAPA, ETAPAS, ETAPAS_CIERRE, FILTROS_RECORRIDO_INICIALES, NOMBRE_ETAPA, NOMBRE_RANGO, NOMBRE_RANGO_LANZADO, RANGOS_ANTIGUEDAD, RANGOS_LANZADO, VENCE_PRONTO_DIAS,
@@ -11,14 +11,18 @@ import {
 import { clasesFuentes } from '../../../fuentes'
 import './recorrido.css'
 import { Calificacion } from '@/components/clientes/Calificacion'
+import { clienteDelPanel, urlConCliente } from '@/lib/clientes/tarjetaUrl'
+import { tarjetaDelCliente } from './accionTarjeta'
 
 // Línea de tiempo de la cartera (25/10/2026, reemplaza "Prioridad: todavía sin campaña lanzada"): todos los clientes de
 // Agencia, cada uno en su etapa (la regla está en lib/clientes/recorrido.ts). Arriba, una barra con cuántos hay en cada
 // etapa (tocar una hace "zoom" a esa etapa); filtros por closer, antigüedad, frenados y vencimiento; abajo, las columnas
 // (en el celular, una lista por etapa que se abre de a una y los filtros detrás de un botón). Tocar un cliente abre su
-// tarjeta completa al costado (en el celular, a pantalla completa): la URL pasa a ?cliente=<ID> (se puede compartir) y el
-// servidor la arma con DetalleCliente; mientras llega se ve el esqueleto. Cerrar vuelve atrás en el historial si la abrió
-// un clic (el "atrás" no la reabre). El panel va en un portal sobre <body>: el shell anima su contenido con transform y
+// tarjeta completa al costado (en el celular, a pantalla completa): la URL pasa a ?cliente=<ID> (se puede compartir) con
+// history.pushState, sin que Next vuelva a pedir la página, y solo la tarjeta llega del servidor (tarjetaDelCliente en
+// accionTarjeta.ts, velocidad 3, 13/11/2026); mientras llega se ve el esqueleto. La cartera de fondo no se vuelve a pedir
+// ni a pintar. El enlace directo y el router.refresh() de las acciones de la tarjeta traen la página entera con la tarjeta
+// ya armada (prop detalle). Cerrar vuelve atrás en el historial si la abrió un clic (el "atrás" no la reabre). El panel va en un portal sobre <body>: el shell anima su contenido con transform y
 // eso rompería el position: fixed. Filtra en el navegador sobre filas livianas (sin contacto).
 // Dos vistas (25/10/2026, pedido de Tomás: "que la línea de tiempo sea literal"): POR TIEMPO (por defecto) es un eje de 0 a 4
 // meses desde el Día 1 con cada cliente en su día exacto y los tramos de 30 días debajo; tocar un tramo lo agranda y trae
@@ -29,8 +33,8 @@ const RECORRIDO = ETAPAS.filter(e => !ETAPAS_CIERRE.includes(e))
 
 type Props = {
   filas: FilaRecorrido[]
-  abierto: string | null          // ?cliente= que ya armó el servidor
-  detalle: ReactNode              // la tarjeta abierta (DetalleCliente dentro de Suspense)
+  abierto: string | null          // ?cliente= que ya armó el servidor (enlace directo o router.refresh)
+  detalle: ReactNode              // esa tarjeta (DetalleCliente dentro de Suspense)
   avisos: string[]
   avisoCliente?: { texto: string; href: string | null } | null   // ?cliente= que no abre ninguna tarjeta
 }
@@ -42,9 +46,9 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
   const router = useRouter()
   const ruta = usePathname()
   const [f, setF] = useState<FiltrosRecorrido>(FILTROS_RECORRIDO_INICIALES)
-  const [abriendo, setAbriendo] = useState<string | null>(null)
-  const [cerrado, setCerrado] = useState<string | null>(null)   // el que se acaba de cerrar: no se muestra mientras el servidor responde
-  const [, empezar] = useTransition()
+  const parametros = useSearchParams()
+  // La tarjeta que se está mostrando: la que armó el servidor con la página o la que trajo tarjetaDelCliente
+  const [contenido, setContenido] = useState<{ id: string; nodo: ReactNode } | null>(abierto && detalle ? { id: abierto, nodo: detalle } : null)
   const [masDe, setMasDe] = useState<Set<Etapa>>(new Set())
   const [abiertasMovil, setAbiertasMovil] = useState<Set<Etapa>>(new Set())
   const [filtrosMovil, setFiltrosMovil] = useState(false)
@@ -76,39 +80,61 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
   const limpiar = () => setF(x => ({ ...FILTROS_RECORRIDO_INICIALES, cierre: x.cierre }))
 
   // ── Abrir y cerrar la tarjeta (la URL manda: ?cliente=<ID>, conservando los demás parámetros) ──
-  const urlCon = useCallback((id: string | null) => {
-    const q = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search)
-    if (id) q.set('cliente', id)
-    else q.delete('cliente')
-    const s = q.toString()
-    return `${ruta}${s ? `?${s}` : ''}`
-  }, [ruta])
-  const idPanel = abriendo ?? (abierto && abierto !== cerrado ? abierto : null)
+  // pushState y replaceState se integran al router de Next (useSearchParams se entera) sin pedirle la página al servidor
+  const urlCon = useCallback((id: string | null) => urlConCliente(ruta, window.location.search, id), [ruta])
+  const pedido = parametros.get('cliente')
+  // Solo los clientes del recorrido abren tarjeta (un ?cliente= desconocido lo avisa el servidor con avisoCliente)
+  const idPanel = clienteDelPanel(pedido, filas)
+  const demo = parametros.get('demo')
+  const accion = parametros.get('accion')
   const abrir = (id: string, el: HTMLElement) => {
     origen.current = el
-    setCerrado(null)
-    setAbriendo(id)
     // Con otra tarjeta ya abierta se reemplaza la entrada: un solo "atrás" cierra
-    const yaAbierta = !!idPanel
-    if (!yaAbierta) porClic.current = true
-    empezar(() => (yaAbierta ? router.replace(urlCon(id), { scroll: false }) : router.push(urlCon(id), { scroll: false })))
+    if (idPanel) window.history.replaceState(null, '', urlCon(id))
+    else { porClic.current = true; window.history.pushState(null, '', urlCon(id)) }
   }
   const cerrar = useCallback(() => {
-    setCerrado(abierto)
-    setAbriendo(null)
-    if (porClic.current) { porClic.current = false; router.back() }
-    else empezar(() => router.replace(urlCon(null), { scroll: false }))
     focoPendiente.current = true
-  }, [router, urlCon, abierto])
-  // El "atrás" del navegador cierra la tarjeta: la URL ya no trae ?cliente y el servidor manda abierto = null
-  const [previo, setPrevio] = useState(abierto)
-  if (previo !== abierto) {
-    setPrevio(abierto)
-    if (!abierto) { setAbriendo(null); setCerrado(null) }
+    if (porClic.current) { porClic.current = false; window.history.back() }
+    else window.history.replaceState(null, '', urlCon(null))
+  }, [urlCon])
+  // Una acción de la tarjeta rearmó la página con la tarjeta abierta: al cerrar, la cartera de fondo se relee (el "atrás"
+  // restaura la cartera que había antes de abrir)
+  const [refrescarAlCerrar, setRefrescarAlCerrar] = useState(false)
+  // La página volvió del servidor (enlace directo o router.refresh() después de una acción): manda su tarjeta, que es la
+  // más nueva. Si la URL ya no pide ese cliente (se cerró mientras llegaba), no se muestra.
+  const [previo, setPrevio] = useState(detalle)
+  if (previo !== detalle) {
+    setPrevio(detalle)
+    if (abierto && detalle) {
+      setContenido({ id: abierto, nodo: detalle })
+      if (contenido) setRefrescarAlCerrar(true)
+    }
   }
-  // Se espera a que termine la navegación (abierto = null): Next mueve el foco al navegar y pisaría este
+  // Al cerrar se suelta la tarjeta: la próxima vez se trae de nuevo, con el dato al día
+  const [idPrevio, setIdPrevio] = useState(idPanel)
+  if (idPrevio !== idPanel) {
+    setIdPrevio(idPanel)
+    if (!idPanel) setContenido(null)
+  }
+  // La URL pide una tarjeta que no está (clic, "adelante" del navegador): se trae sola, sin la cartera
   useEffect(() => {
-    if (idPanel || abierto || !focoPendiente.current) return
+    if (!idPanel || contenido?.id === idPanel) return
+    let vigente = true
+    tarjetaDelCliente(idPanel, { demo, accion }).then(
+      r => { if (vigente) startTransition(() => setContenido({ id: idPanel, nodo: r.ok ? r.nodo : <p className="cj-aviso" role="alert">{r.aviso}</p> })) },
+      () => { if (vigente) setContenido({ id: idPanel, nodo: <p className="cj-aviso" role="alert">No se pudo traer la tarjeta. Cerrala y probá de nuevo en un minuto.</p> }) },
+    )
+    return () => { vigente = false }
+  }, [idPanel, contenido?.id, demo, accion])
+  useEffect(() => {
+    if (idPanel || !refrescarAlCerrar) return
+    setRefrescarAlCerrar(false)   // eslint-disable-line react-hooks/set-state-in-effect
+    router.refresh()
+  }, [idPanel, refrescarAlCerrar, router])
+  // Al cerrar, el foco vuelve a la tarjeta de origen cuando el panel ya se desmontó (y la página dejó de estar inerte)
+  useEffect(() => {
+    if (idPanel || !focoPendiente.current) return
     focoPendiente.current = false
     const id = requestAnimationFrame(() => {
       const el = origen.current
@@ -116,9 +142,8 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
       else document.getElementById('h-recorrido')?.focus()
     })
     return () => cancelAnimationFrame(id)
-  }, [idPanel, abierto])
+  }, [idPanel])
   const filaPanel = idPanel ? filas.find(x => x.id === idPanel) ?? null : null
-  const cargando = !!abriendo && abriendo !== abierto
 
   return (
     <section className="cj-panel rc" aria-labelledby="h-recorrido">
@@ -131,7 +156,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
       </div>
 
       {avisos.map(a => <p key={a} className="rc-aviso" role="status">{a}</p>)}
-      {avisoCliente && (
+      {avisoCliente && !idPanel && pedido && (
         <p className="rc-aviso" role="status">{avisoCliente.texto}{avisoCliente.href && <> <a className="cj-enlace" href={avisoCliente.href}>Abrir su ficha</a></>}</p>
       )}
 
@@ -238,7 +263,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
 
       {idPanel && (
         <Panel titulo={filaPanel?.nombre ?? idPanel} subtitulo={filaPanel ? `Cliente ${filaPanel.id}${filaPanel.closer ? ` · closer ${filaPanel.closer}` : ''}` : ''} onCerrar={cerrar}>
-          {cargando || !abierto ? <Esqueleto /> : detalle}
+          {contenido?.id === idPanel ? contenido.nodo : <Esqueleto />}
         </Panel>
       )}
     </section>
