@@ -85,7 +85,7 @@ export interface RevisionPar { clave: string; nombreCRM: string; id: string; mcN
  */
 export async function importarPares(pares: { clave: string; subscriber_id: string; via?: string }[], escribir: boolean): Promise<RevisionPar[]> {
   if (!manychatConfigurado()) throw new Error('Falta MANYCHAT_API_KEY en Vercel')
-  const { leads } = await cargarDatos()
+  const { leads } = await cargarDatos({ alDia: true })
   const porClave = new Map(leads.map((l) => [l.cierre.clave, l.cierre]))
   const out: RevisionPar[] = []
   for (const p of pares.slice(0, 200)) {
@@ -109,7 +109,7 @@ export async function importarPares(pares: { clave: string; subscriber_id: strin
  */
 export async function importarDesdeManyChat({ escribir, tope }: { escribir: boolean; tope: number }): Promise<ResultadoImportacion> {
   if (!manychatConfigurado()) throw new Error('Falta MANYCHAT_API_KEY en Vercel')
-  const datos = await cargarDatos()
+  const datos = await cargarDatos({ alDia: true })   // decide qué importar: sin caché
   const pendientes = datos.leads.filter((l) => !l.setting && !l.vinculoManual).slice(0, tope)
   const r: ResultadoImportacion = { revisados: 0, encontrados: { email: 0, telefono: 0, nombre: 0 }, ambiguos: [], sinMatch: [], importados: 0, errores: [] }
   for (const l of pendientes) {

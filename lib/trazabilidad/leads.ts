@@ -15,9 +15,10 @@ export interface DatosTraz {
   leidoEn: string
 }
 
-export async function cargarDatos(): Promise<DatosTraz> {
+/** Todo lo de las pantallas, con la caché de 90–120 s (db.ts, cierres.ts). `alDia` para lo que decide qué procesar. */
+export async function cargarDatos(o: db.Lectura = {}): Promise<DatosTraz> {
   const [{ cierres, leidoEn }, envios, llamadas, vinculos, angulos, piezas] = await Promise.all([
-    leerCierres(), db.listarSetting(), db.listarLlamadas(), db.listarVinculos(), db.listarAngulos(), db.listarPiezas(),
+    leerCierres(o), db.listarSetting(o), db.listarLlamadas(o), db.listarVinculos(o), db.listarAngulos(o), db.listarPiezas(o),
   ])
   const porId = new Map(envios.map((e) => [e.subscriberId, e]))
   const porClave = new Map(llamadas.map((l) => [l.clave, l]))
@@ -86,7 +87,7 @@ export async function procesarLlamadaManual(c: Cierre, resumen: string): Promise
  * Con topes para no pasar el tiempo de la función.
  */
 export async function procesarPendientes(topes = { setting: 12, llamadas: 8 }): Promise<{ setting: number; llamadas: number; errores: string[] }> {
-  const datos = await cargarDatos()
+  const datos = await cargarDatos({ alDia: true })   // decide qué analizar: sin caché (no repetir lo recién hecho)
   const errores: string[] = []
   let setting = 0
   for (const e of datos.envios.filter((x) => !x.analisis && !x.error).slice(0, topes.setting)) {
