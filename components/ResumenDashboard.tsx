@@ -13,6 +13,8 @@ import { SalesFunnel } from '@/components/SalesFunnel'
 import { LeadQualityCard } from '@/components/LeadQualityCard'
 import { KpiBoard } from '@/components/KpiBoard'
 import { AdsReport, AdsDaily, AdsCampaign, AdsAd } from '@/components/AdsReport'
+import { SeguidoresReales } from '@/components/SeguidoresReales'
+import type { CruceCalculado } from '@/lib/anuncios/seguidoresCruce'
 import { AnalystPanel } from '@/components/AnalystPanel'
 import { LeadSourceChart, type EmbudoPago } from '@/components/LeadSourceChart'
 import { fmtMoneda, gastosCompletos, baseOcurridas, pct, primerosPagosFeccu, resumenPrecall } from '@/components/tablero'
@@ -97,6 +99,8 @@ export default function Dashboard() {
   const [monthly, setMonthly] = useState<MetricsResp | null>(null)
   const [raw, setRaw] = useState<RawData | null>(null)
   const [ads, setAds] = useState<AdsData | null>(null)
+  // Costo por seguidor real de FM (cruce diario que manda la tarea de la Mac). null = todavía no hay foto.
+  const [cruceSeguidores, setCruceSeguidores] = useState<CruceCalculado | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   // Con el shell en la estética del CRM (marfil) el Resumen arranca en claro; el botón deja pasar al oscuro
@@ -179,6 +183,14 @@ export default function Dashboard() {
       .then(a => { if (a && !a.error) setAds(a) })
       .catch(() => {})
   }, [adsMonthParam, lastUpdated])
+
+  // Cruce de seguidores FM: una foto por día, no depende del mes elegido. Si falla, la sección no se muestra.
+  useEffect(() => {
+    fetch('/api/ads/seguidores', { cache: 'no-store' })
+      .then(r => leerJsonDeDatos(r, irAlLogin))
+      .then(d => { if (d && !d.error) setCruceSeguidores(d.cruce ?? null) })
+      .catch(() => {})
+  }, [lastUpdated])
 
   // Month label for column-M matching (e.g. "2026-mayo")
   const activeMonthLabel = useMemo(() => {
@@ -829,6 +841,11 @@ export default function Dashboard() {
               monthLabel={isMonth ? activeMonthName : null}
             />
           </section>
+        )}
+
+        {/* ── ANUNCIOS: COSTO POR SEGUIDOR REAL (FM) ───── */}
+        {hasData && cruceSeguidores && (
+          <section className="mb-6"><SeguidoresReales cruce={cruceSeguidores} /></section>
         )}
 
         {/* ── ANALISTA (único): hallazgos simples arriba de los objetivos ── */}
