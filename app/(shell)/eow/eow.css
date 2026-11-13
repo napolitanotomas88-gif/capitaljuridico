@@ -39,7 +39,7 @@
 
 .eow-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .eow-fila {
-  display: grid; grid-template-columns: minmax(140px, 0.9fr) minmax(0, 2.4fr) auto auto auto; gap: 8px; align-items: center;
+  display: grid; grid-template-columns: 180px minmax(0, 1fr) 160px 100px 210px 30px; gap: 8px; align-items: center;
   padding: 6px 0; border-bottom: 1px solid var(--cj-filete);
 }
 .eow-fila:last-child { border-bottom: 0; }
@@ -99,11 +99,31 @@
 .eow-estado { font-size: 13px; color: var(--cj-humo); margin-right: auto; }
 .eow-estado--error { color: var(--cj-error); }
 
+/* Estado de la fila (14/11/2026): Pausar / Reanudar y la columna Cartera */
+.eow-ayuda { font-size: 13px; color: var(--cj-humo); margin: 0; max-width: 900px; }
+.eow-estado-fila select { width: 100%; border-color: var(--eow-pill); color: var(--eow-pill); font-weight: 600; background: color-mix(in srgb, var(--eow-pill) 12%, transparent); }
+.eow-pill { justify-self: start; white-space: nowrap; }
+.eow-pausar {
+  justify-self: start;
+  font: inherit; font-size: 12px; white-space: nowrap; color: var(--cj-hueso); background: transparent; cursor: pointer;
+  border: 1px solid var(--cj-filete-fuerte); border-radius: 999px; padding: 4px 10px; min-height: 28px;
+}
+.eow-pausar:hover { border-color: var(--cj-dorado); }
+.eow-cartera { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cj-humo); flex-wrap: wrap; }
+.eow-cartera a { color: var(--cj-hueso); text-decoration: underline; text-decoration-color: var(--cj-filete-fuerte); text-underline-offset: 3px; }
+.eow-cartera--pausado a:first-child { color: var(--eow-gris); }
+.eow-cartera--finalizado a:first-child { color: var(--cj-humo); }
+.eow-cartera--difiere { padding: 2px 6px; border: 1px dashed var(--cj-atencion); border-radius: var(--cj-radio-s); }
+.eow-cartera__aviso { color: var(--cj-atencion) !important; }
+.eow-vincular { font: inherit; font-size: 11px; color: var(--cj-laton); background: transparent; border: 0; cursor: pointer; padding: 2px 4px; text-decoration: underline dotted; }
+.eow-cartera select { max-width: 240px; }
+
 @media (max-width: 768px) {
   .eow-contadores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .eow-contador { padding: 10px 12px; }
   .eow-contador__numero { font-size: 28px; }
-  .eow-fila { grid-template-columns: 1fr auto auto auto; }
+  .eow-fila { grid-template-columns: 1fr auto auto; }
+  .eow-cartera { grid-column: 1 / -1; }
   .eow-fila__comentario { grid-column: 1 / -1; grid-row: 2; }
   .eow-fila--lanzado { grid-template-columns: 1fr auto; }
   .eow-fila--lanzado .eow-fila__dato { grid-column: 1; grid-row: 2; }

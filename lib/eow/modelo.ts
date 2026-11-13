@@ -33,8 +33,10 @@ export interface FilaEow {
   /** null = recién lanzado, todavía sin ubicar */
   color: Color | null
   pausado: boolean
-  /** ID del CRM (A001…), si se conoce */
+  /** ID del CRM (A001…), si se conoce: vínculo con la Cartera puesto a mano (o por el sistema). Sin ID, se empareja por nombre. */
   idCrm: string | null
+  /** true = «no vincular con la Cartera» (no se empareja por nombre) */
+  noVincular?: boolean
   /** Fecha de lanzamiento de la campaña (la pone el sistema) */
   lanzado: string | null
   origen: OrigenFila
@@ -115,6 +117,7 @@ export function validarDatos(entrada: unknown): Validacion {
       idCrm: typeof f.idCrm === 'string' && ID_CRM.test(f.idCrm) ? f.idCrm.toUpperCase() : null,
       lanzado: esFecha(f.lanzado) ? f.lanzado : null,
       origen,
+      ...(f.noVincular === true ? { noVincular: true } : {}),
     })
   }
   const t = (o.tarjetas && typeof o.tarjetas === 'object' ? o.tarjetas : {}) as Record<string, unknown>
@@ -190,6 +193,7 @@ export function resumirCambios(antes: DatosEow | null, despues: DatosEow): strin
     if (a.color !== f.color) cambios.push(`${f.cliente}: ${a.color ? NOMBRE_COLOR[a.color] : 'sin ubicar'} → ${f.color ? NOMBRE_COLOR[f.color] : 'sin ubicar'}`)
     if (a.pausado !== f.pausado) cambios.push(`${f.cliente}: ${f.pausado ? 'pausado' : 'sin pausa'}`)
     if (a.comentario !== f.comentario) cambios.push(`${f.cliente}: comentario`)
+    if ((a.idCrm ?? null) !== (f.idCrm ?? null) || !!a.noVincular !== !!f.noVincular) cambios.push(`${f.cliente}: vínculo con la Cartera ${f.idCrm ?? (f.noVincular ? 'quitado' : 'automático')}`)
   }
   for (const a of antes.filas) if (!nuevosIds.has(a.id)) cambios.push(`− ${a.cliente}`)
   for (const k of TARJETAS) {

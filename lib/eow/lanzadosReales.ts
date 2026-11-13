@@ -4,7 +4,7 @@ import { esWebhook } from '@/lib/alertas/canales'
 import { resolverMenciones } from '@/lib/alertas/personas'
 import { hoyArgentina } from '@/lib/clientes/fechas'
 import { urlDespacho } from '@/lib/edicion/avisos/entorno'
-import { agregarRecienLanzados, cerrarAviso, leerReporte, reporteAnterior, reservarAviso } from './db'
+import { agregarRecienLanzados, cerrarAviso, leerReporte, nuevaSemana, reporteAnterior, reservarAviso } from './db'
 import { agregarFilas, type ClienteLanzado, type DepsAvisoEow } from './lanzados'
 import { sumarDias } from './modelo'
 
@@ -59,6 +59,7 @@ export function depsAvisoEowReales(env: Entorno = process.env): DepsAvisoEow {
     lanzados: () => lanzadosDeMeta(),
     semanaAnterior: async (semana) => (await reporteAnterior(semana))?.semana ?? null,
     leer: async (semana) => leerReporte(semana),
+    crearSemana: async (semana) => (await nuevaSemana(semana, 'Sistema (domingo)')).creada,
     agregar: (semana, nuevos) => agregarRecienLanzados(semana, (datos) => agregarFilas(datos, nuevos), 'Sistema (recién lanzados)'),
     reservarAviso,
     cerrarAviso,

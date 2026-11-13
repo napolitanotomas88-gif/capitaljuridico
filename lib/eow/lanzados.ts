@@ -1,6 +1,9 @@
 // ── EOW: recién lanzados automáticos y aviso de los domingos (13/11/2026) ────────────────────────────────────────────────
 // Cada día a las 10:00 (Argentina) corre el cron /api/eow/aviso, pero solo ACTÚA los domingos (Vercel Hobby solo permite
 // crons diarios; ?dry=1 muestra lo que haría cualquier día):
+//   0. Crea SIEMPRE la semana nueva (la fecha de ese domingo) copiando la anterior: rojos, amarillos, verdes, pausados,
+//      comentarios, vínculos y tarjetas (14/11/2026: Gero M no toca «Nueva semana», que queda como respaldo manual).
+//      Idempotente: si ya existe, no la toca. Aunque Meta no responda, la semana se crea igual.
 //   1. Lee los clientes con campaña lanzada (la misma fuente que la etapa «Lanzado» del Despacho: el PRIMER lanzamiento que
 //      se conoce en Meta, del tablero de /anuncios; ver lib/clientes/produccion.ts campanasMeta) y se queda con los lanzados
 //      después del reporte anterior (o en los últimos 7 días si no hay anterior), hasta hoy.
@@ -74,6 +77,8 @@ export interface DepsAvisoEow {
   base: string
   lanzados(): Promise<ClienteLanzado[] | null>
   semanaAnterior(semana: string): Promise<string | null>
+  /** Crea la semana copiando la anterior si no existe. true = la creó ahora. */
+  crearSemana(semana: string): Promise<boolean>
   leer(semana: string): Promise<DatosEow | null>
   agregar(semana: string, nuevos: ClienteLanzado[]): Promise<{ ok: boolean; creado: boolean }>
   reservarAviso(semana: string, nombres: string[]): Promise<boolean>
@@ -91,6 +96,8 @@ export interface ResultadoAvisoEow {
   nuevos: { nombre: string; lanzado: string }[]
   agregados?: boolean
   creado?: boolean
+  /** La semana se creó en esta corrida (o, en dry, se crearía) */
+  semanaCreada?: boolean
   aviso?: string
 }
 
@@ -102,15 +109,20 @@ export async function correrAvisoEow(d: DepsAvisoEow, opciones: { dry?: boolean;
   const base: ResultadoAvisoEow = { hoy, semana, dry, actua: false, nuevos: [] }
   if (!dry && !d.encendido) return { ...base, motivo: 'EOW_AVISO no está en «encendido»: no se hizo nada.' }
   if (!dry && !esDomingo && !opciones.forzar) return { ...base, motivo: 'Solo actúa los domingos.' }
+  // 0. La semana nueva, siempre (idempotente). En dry solo se informa si se crearía.
+  const existia = !!(await d.leer(semana))
+  const semanaCreada = dry ? !existia : existia ? false : await d.crearSemana(semana)
+  base.semanaCreada = semanaCreada
+  base.actua = !dry
   const lanzados = await d.lanzados()
-  if (!lanzados) return { ...base, motivo: 'No se pudo leer Meta: se reintenta mañana (o con ?forzar=1).' }
+  if (!lanzados) return { ...base, motivo: 'No se pudo leer Meta: la semana quedó creada, pero sin los recién lanzados (se reintenta con ?forzar=1).' }
   const datos = (await d.leer(semana)) ?? null
   const anterior = await d.semanaAnterior(semana)
   const v = ventana(hoy, anterior)
   // Sin reporte de la semana todavía: se compara contra la copia de la anterior (lo que quedaría al crearla)
   const comparar = datos ?? (anterior ? await d.leer(anterior) : null) ?? { filas: [], tarjetas: {} as DatosEow['tarjetas'] }
   const nuevos = recienLanzados(lanzados, { filas: comparar.filas, tarjetas: Object.fromEntries(TARJETAS.map((k) => [k, comparar.tarjetas?.[k] ?? []])) as DatosEow['tarjetas'] }, v)
-  const res: ResultadoAvisoEow = { ...base, actua: !dry, ventana: v, nuevos: nuevos.map((c) => ({ nombre: c.nombre, lanzado: c.lanzado })) }
+  const res: ResultadoAvisoEow = { ...base, ventana: v, nuevos: nuevos.map((c) => ({ nombre: c.nombre, lanzado: c.lanzado })) }
   if (dry || !nuevos.length) return { ...res, motivo: nuevos.length ? undefined : 'No hay recién lanzados nuevos esta semana.' }
   const ag = await d.agregar(semana, nuevos)
   res.agregados = ag.ok
