@@ -1,4 +1,4 @@
-import { cache, Suspense } from 'react'
+import { cache, Suspense, type ReactNode } from 'react'
 import { Bloque } from '@/components/ui'
 import { conCache } from '@/lib/anuncios/cache'
 import type { Sesion } from '@/lib/auth/sesion'
@@ -172,42 +172,70 @@ const armarCartera = cache(async (vista: VistaCRM) => {
   return { seguimiento, typeform, errorTypeform, campanaDe, despacho, demoRecorrido, vistaRecorrido, filasRecorrido, avisosRecorrido, filas, hitosPorId, puntajes }
 })
 
-/** La línea de tiempo y, si la URL trae ?cliente=<ID>, la tarjeta abierta de ese cliente. */
-export async function RecorridoEnVivo({ vista, pedido, sesion, accion }: { vista: VistaCRM; pedido: string | null; sesion: Sesion; accion?: string }) {
-  const c = await armarSinCaer(vista)
-  if (!c) return <FallaBloque titulo="Recorrido" />
+type Cartera = NonNullable<Awaited<ReturnType<typeof armarSinCaer>>>
+
+/** La fila del recorrido que pide ?cliente=<ID>, o el aviso si ese ID no abre ninguna tarjeta. */
+function filaPedida(c: Cartera, pedido: string | null, esDemo: boolean) {
   const id = pedido?.toUpperCase() ?? null
   const valido = !!id && ID_CLIENTE_VALIDO.test(id)
   const fila = valido ? c.filasRecorrido.find(f => f.id === id) ?? null : null
   // ?cliente= que no abre nada (ID mal escrito, de Consultora, finalizado sin cobro o inexistente): se avisa en vez de no mostrar nada
   const avisoCliente = id && !fila
-    ? { texto: valido ? `El cliente ${id} no está en la línea de tiempo (puede ser de Consultora, no contar como cliente o no existir).` : `«${pedido}» no es un ID de cliente válido.`, href: valido ? `/clientes/${encodeURIComponent(id)}${vista.esDemo ? '?demo=1' : ''}` : null }
+    ? { texto: valido ? `El cliente ${id} no está en la línea de tiempo (puede ser de Consultora, no contar como cliente o no existir).` : `«${pedido}» no es un ID de cliente válido.`, href: valido ? `/clientes/${encodeURIComponent(id)}${esDemo ? '?demo=1' : ''}` : null }
     : null
+  return { fila, avisoCliente }
+}
+
+/** La tarjeta abierta de un cliente: la misma para el enlace directo (dentro de la página) y para tarjetaDelCliente (sola). */
+function nodoTarjeta(c: Cartera, fila: FilaRecorrido, sesion: Sesion, esDemo: boolean, accion?: string) {
+  return (
+    <LimiteError key={fila.id}>
+      <Suspense fallback={<Esqueleto />}>
+        <DetalleCliente
+          vista={c.vistaRecorrido}
+          fila={fila}
+          quien={sesion}
+          meta={c.demoRecorrido ? metaDemo(c.demoRecorrido.fuentes.get(fila.id)?.meta ?? null) : c.campanaDe(fila.nombre)}
+          kickoff={c.despacho?.kickoffDe(fila.id, fila.nombre)?.tarjeta ?? null}
+          hitos={c.hitosPorId.get(fila.id) ?? []}
+          puntaje={c.puntajes.get(fila.id.toUpperCase()) ?? null}
+          demo={esDemo}
+          accionInicial={accion}
+        />
+      </Suspense>
+    </LimiteError>
+  )
+}
+
+/** La línea de tiempo y, si la URL trae ?cliente=<ID> (enlace directo o recarga), la tarjeta abierta de ese cliente. */
+export async function RecorridoEnVivo({ vista, pedido, sesion, accion }: { vista: VistaCRM; pedido: string | null; sesion: Sesion; accion?: string }) {
+  const c = await armarSinCaer(vista)
+  if (!c) return <FallaBloque titulo="Recorrido" />
+  const { fila, avisoCliente } = filaPedida(c, pedido, vista.esDemo)
   return (
     <LineaTiempo
       filas={c.filasRecorrido}
       abierto={fila?.id ?? null}
       avisos={c.avisosRecorrido}
       avisoCliente={avisoCliente}
-      detalle={fila && (
-        <LimiteError key={fila.id}>
-        <Suspense fallback={<Esqueleto />}>
-          <DetalleCliente
-            vista={c.vistaRecorrido}
-            fila={fila}
-            quien={sesion}
-            meta={c.demoRecorrido ? metaDemo(c.demoRecorrido.fuentes.get(fila.id)?.meta ?? null) : c.campanaDe(fila.nombre)}
-            kickoff={c.despacho?.kickoffDe(fila.id, fila.nombre)?.tarjeta ?? null}
-            hitos={c.hitosPorId.get(fila.id) ?? []}
-            puntaje={c.puntajes.get(fila.id.toUpperCase()) ?? null}
-            demo={vista.esDemo}
-            accionInicial={accion}
-          />
-        </Suspense>
-        </LimiteError>
-      )}
+      detalle={fila && nodoTarjeta(c, fila, sesion, vista.esDemo, accion)}
     />
   )
+}
+
+export type TarjetaSola = { ok: true; nodo: ReactNode } | { ok: false; aviso: string }
+
+/**
+ * Solo la tarjeta de un cliente, sin la línea de tiempo ni la lista (velocidad 3, 13/11/2026): la pide el navegador al
+ * tocar un cliente (tarjetaDelCliente). Arma la cartera igual que la página porque la etapa, los hitos y el puntaje salen
+ * de cruzar todas las fuentes, pero esas fuentes ya tienen caché: lo que se ahorra es dibujar y mandar la cartera entera.
+ */
+export async function tarjetaSola(vista: VistaCRM, pedido: string, sesion: Sesion, accion?: string): Promise<TarjetaSola> {
+  const c = await armarSinCaer(vista)
+  if (!c) return { ok: false, aviso: 'No se pudo armar la tarjeta. Cerrala y probá de nuevo en un minuto; si sigue, avisá.' }
+  const { fila, avisoCliente } = filaPedida(c, pedido, vista.esDemo)
+  if (!fila) return { ok: false, aviso: avisoCliente?.texto ?? 'No se encontró este cliente.' }
+  return { ok: true, nodo: nodoTarjeta(c, fila, sesion, vista.esDemo, accion) }
 }
 
 /** El estado del Typeform y la lista de clientes con sus filtros. */
