@@ -39,7 +39,6 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
       <div className="cj-cristal__fondo" aria-hidden="true">
         <span className="cj-cristal__manchas" />
         <span className="cj-cristal__logo" />
-        <span className="cj-cristal__grano" />
       </div>
       <a href="#cj-contenido" className="cj-saltar">
         Saltar al contenido
