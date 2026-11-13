@@ -42,7 +42,7 @@ export interface ClienteBase { id: string; nombre: string; closer: string; estad
 export interface GuionesPlanilla { ultimoGuion: Ymd | null; fechasGuiones: Ymd[]; grabado: boolean; ultimaGrabacion: Ymd | null }
 
 // ── Cruce por nombre (CRM ↔ ClickUp / Meta) ──
-// Sin apóstrofos antes de normalizar: «D’Arcangelo» = «DArcangelo» (lib/nombresPersona.ts)
+// Sin apóstrofos antes de normalizar: «D’Ambrosio» = «DAmbrosio» (lib/nombresPersona.ts)
 const norm = (s: string) => normNombre(s)
 const GENERICAS = new Set(['estudio', 'juridico', 'juridica', 'abogado', 'abogada', 'abogados', 'asociados', 'legal', 'del', 'los', 'las', 'con', 'dm', 'fm', 'usd', 'ars'])
 const palabras = (s: string) => norm(s).split(' ').filter(w => w.length >= 3 && !GENERICAS.has(w))

@@ -11,7 +11,7 @@ import type { ClienteCRM, DatosSheets, FilaGuion } from './sheets'
 import { cargarCuentas } from './cuentas'
 import { normNombre, sinApostrofos } from '../nombresPersona'
 
-// Sin apóstrofos antes de normalizar: «D’Arcangelo» = «DArcangelo» (lib/nombresPersona.ts, 13/11/2026)
+// Sin apóstrofos antes de normalizar: «D’Ambrosio» = «DAmbrosio» (lib/nombresPersona.ts, 13/11/2026)
 export const normTxt = normNombre
 const pegado = (x: string) => normTxt(x).replace(/ /g, '')
 const esVigente = (estado: string) => estado === 'ACTIVO' || estado === 'PAUSADO'

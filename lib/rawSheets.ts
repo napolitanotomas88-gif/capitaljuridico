@@ -934,7 +934,7 @@ async function leerSheets(sheets: ReturnType<typeof google.sheets>, lecturas: Le
 // Nombres normalizados (sin acentos ni puntuación). Ante nombres duplicados (ej. un cliente que
 // volvió: una fila INACTIVO y otra ACTIVO) gana la fila vigente (ACTIVO/PAUSADO).
 interface ClienteCRM { nombre: string; estado: string; telefono: string; email: string; tokens: string[] }
-// Sin apóstrofos antes de normalizar: «D’Arcangelo» = «DArcangelo» (lib/nombresPersona.ts, 13/11/2026)
+// Sin apóstrofos antes de normalizar: «D’Ambrosio» = «DAmbrosio» (lib/nombresPersona.ts, 13/11/2026)
 const normTxt = normNombre
 const esVigente = (estado: string) => estado === 'ACTIVO' || estado === 'PAUSADO'
 // Palabras genéricas de nombres de cuentas/estudios que no identifican a nadie

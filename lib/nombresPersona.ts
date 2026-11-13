@@ -1,6 +1,6 @@
 // ── Nombres de personas para los cruces por nombre (puro: sin red; lo prueba scripts/test-anuncios-vinculos.mjs) ──────────
 // Pedido de Tomás (13/11/2026): el cruce cuenta de Meta ↔ cliente fallaba por dos cosas que se resuelven acá, en un solo lugar:
-//   · Apóstrofos y comillas: «D’Arcangelo», «D'Arcangelo» y «DArcangelo» son el mismo apellido. Las normalizaciones de antes
+//   · Apóstrofos y comillas: «D’Ambrosio», «D'Ambrosio» y «DAmbrosio» son el mismo apellido. Las normalizaciones de antes
 //     cambiaban el apóstrofo por un espacio («d arcangelo» ≠ «darcangelo»): ahora se saca antes de normalizar.
 //   · Nombres de pila: un nombre de pila solo («Rodrigo») no identifica a nadie. Había tres listas distintas y «rodrigo» faltaba
 //     en la de las sugerencias de «Por lanzar»: esta es la lista común (la unión de las tres).
