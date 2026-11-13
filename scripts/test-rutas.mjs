@@ -406,6 +406,11 @@ describe('proxy: rutas /api de datos (401/403 en JSON, nunca redirección)', () 
 describe('proxy: lo que usan cron, webhooks, Make y el video sigue pasando SIN credenciales', () => {
   const vercel = JSON.parse(readFileSync(join(RAIZ, 'vercel.json'), 'utf8'))
   test('vercel.json tiene crons', () => assert.ok(vercel.crons.length >= 8))
+  test('crons escalonados (velocidad, tanda 2): a las 13:00 UTC quedan solo los de horario pactado', () => {
+    const a13 = vercel.crons.filter((c) => /^0 13 /.test(c.schedule)).map((c) => c.path).sort()
+    // EOW del domingo 10:00 AR y la encuesta (Éxito el día 1, recordatorio de la encuesta) no se mueven
+    assert.deepEqual(a13, ['/api/bot/exito', '/api/clientes/encuesta/cron', '/api/eow/aviso'])
+  })
   for (const { path } of vercel.crons) {
     // Un cron puede traer query (ej. "/api/resumen-diario?soloFoto=1"): Vercel la manda, pero el matcher y la tabla miran solo el pathname
     const pathname = path.split('?')[0]

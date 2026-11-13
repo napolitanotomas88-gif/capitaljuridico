@@ -5,6 +5,7 @@
 import { neon } from '@neondatabase/serverless'
 import { ID_PORTAL } from '@/lib/auth/portal'
 import { leerDatosGuardados, PORTAL_VACIO, type DatosPortal, type PortalGuardado } from './modelo'
+import { conCache, invalidarClave } from '@/lib/anuncios/cache'
 
 type Sql = (partes: TemplateStringsArray, ...valores: unknown[]) => Promise<Record<string, unknown>[]>
 const TOPE_MS = 10_000
@@ -16,6 +17,9 @@ export const basePortalConfigurada = (): boolean => !!inyectado || !!process.env
 const sql = (): Sql => inyectado ?? (neon(process.env.DATABASE_URL!.trim(), { fetchOptions: { signal: AbortSignal.timeout(TOPE_MS) } }) as unknown as Sql)
 const faltaTabla = (e: unknown) => (e as { code?: string })?.code === '42P01' || /cj_portal_cliente" does not exist/i.test((e as Error)?.message ?? '')
 const yaExiste = (e: unknown) => ['23505', '42P07'].includes((e as { code?: string })?.code ?? '')
+// Caché compartida de las pestañas de portal del hub (portalesArmadosRapido); guardarPortal la invalida.
+const CLAVE_PORTALES = 'portales-armados-v1'
+const CACHE_PORTALES_SEG = 300
 const fechaIso = (x: unknown): string | null => (x instanceof Date ? x.toISOString() : typeof x === 'string' && x ? x : null)
 
 const idValido = (id: string): string => {
@@ -78,21 +82,57 @@ export async function guardarPortal(idCrudo: string, datos: DatosPortal, version
         ON CONFLICT (id_crm) DO NOTHING RETURNING version, actualizado`
     : await q`UPDATE cj_portal_cliente SET datos = ${json}::jsonb, version = version + 1, quien = ${nombre}, actualizado = now()
         WHERE id_crm = ${id} AND version = ${versionLeida} RETURNING version, actualizado`
-  if (filas[0]) return { ok: true, version: Number(filas[0].version), actualizado: fechaIso(filas[0].actualizado) }
+  if (filas[0]) {
+    invalidarClave(CLAVE_PORTALES)   // la pestaña del hub (título nuevo o portal nuevo) se ve al instante
+    return { ok: true, version: Number(filas[0].version), actualizado: fechaIso(filas[0].actualizado) }
+  }
   const actual = await q`SELECT version FROM cj_portal_cliente WHERE id_crm = ${id}`
   return { ok: false, conflicto: true, version: Number(actual[0]?.version) || 0 }
+}
+
+type PortalArmado = { id: string; titulo: string }
+
+/** La consulta, sin atrapar errores (la caché no guarda una falla como «ninguno»). Sin tabla: ninguno. */
+async function consultarPortalesArmados(): Promise<PortalArmado[]> {
+  try {
+    const filas = await sql()`SELECT id_crm, COALESCE(datos->>'nombre', '') AS titulo FROM cj_portal_cliente ORDER BY creado, id_crm`
+    return filas.map(f => ({ id: String(f.id_crm).toUpperCase(), titulo: String(f.titulo ?? '').trim().slice(0, 80) }))
+  } catch (e) {
+    if (faltaTabla(e)) return []
+    throw e
+  }
 }
 
 /**
  * Portales armados con su título (datos.nombre; vacío si no tiene), para las pestañas del hub Clientes (2/11/2026). Ordenados por
  * creación. Nunca lanza: ante una falla, ninguno (las pestañas de siempre salen igual).
  */
-export async function portalesArmados(): Promise<{ id: string; titulo: string }[]> {
+export async function portalesArmados(): Promise<PortalArmado[]> {
   if (!basePortalConfigurada()) return []
   try {
-    const filas = await sql()`SELECT id_crm, COALESCE(datos->>'nombre', '') AS titulo FROM cj_portal_cliente ORDER BY creado, id_crm`
-    return filas.map(f => ({ id: String(f.id_crm).toUpperCase(), titulo: String(f.titulo ?? '').trim().slice(0, 80) }))
+    return await consultarPortalesArmados()
   } catch {
     return []
+  }
+}
+
+/**
+ * Lo mismo para el layout del hub (velocidad, tanda 2): corre en cada pantalla de /clientes ANTES del loading.tsx, así que
+ * sale de la caché compartida (5 min, invalidada al guardar un portal) y no espera más de `topeMs`. Si la base tarda, sin
+ * pestañas de portal esta vez (la lectura sigue de fondo y llena la caché). Nunca lanza.
+ */
+export async function portalesArmadosRapido(topeMs = 1_500): Promise<PortalArmado[]> {
+  if (!basePortalConfigurada()) return []
+  let reloj: ReturnType<typeof setTimeout> | undefined
+  try {
+    const r = await Promise.race([
+      conCache(CLAVE_PORTALES, CACHE_PORTALES_SEG, consultarPortalesArmados),
+      new Promise<null>(res => { reloj = setTimeout(() => res(null), topeMs) }),
+    ])
+    return r && Array.isArray(r.data) ? r.data : []
+  } catch {
+    return []
+  } finally {
+    if (reloj) clearTimeout(reloj)
   }
 }

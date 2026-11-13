@@ -46,7 +46,7 @@ export type DatosMiDia = {
 
 /**
  * Todo lo de la pantalla "Mi día" con una sola lectura de la hoja y una del log (las dos con su
- * caché de 30 s, que se invalida al escribir): la lista del día, la tira de calls de hoy y
+ * caché: 30 s en memoria y 60 s compartida, que se invalida al escribir): la lista del día, la tira de calls de hoy y
  * "Hechas hoy" (progreso del día y Deshacer).
  */
 export async function datosMiDia(hoja: string, ahora: Date): Promise<DatosMiDia> {

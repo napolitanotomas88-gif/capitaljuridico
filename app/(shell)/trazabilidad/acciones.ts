@@ -113,7 +113,7 @@ export async function asignarPieza(_: Estado, f: FormData): Promise<Estado> {
     const angulo = String(f.get('angulo') ?? '') || null
     const tipo = String(f.get('tipo') ?? 'otro') as TipoPieza
     if (!etiqueta) return { error: 'Falta la pieza.' }
-    const ids = new Set((await db.listarAngulos()).map((a) => a.id))
+    const ids = new Set((await db.listarAngulos({ alDia: true })).map((a) => a.id))
     if (angulo && !ids.has(angulo)) return { error: 'Ese ángulo no existe.' }
     await db.asignarPieza(etiqueta, angulo, TIPOS.includes(tipo) ? tipo : 'otro')
     revalidatePath('/trazabilidad', 'layout')

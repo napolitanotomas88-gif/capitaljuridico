@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 // Aviso diario de las cuotas que cobra Administración (12/11/2026, lib/crm/cuotas/avisoAdmin.ts). Solo máquina:
 // Authorization: Bearer <CRON_SECRET> (el cron de Vercel lo manda solo; nunca ?key=).
-//   · GET        → cron "0 13 * * *" (10:00 AR): un mensaje en 🛠️-operaciones y los textos «para enviar» (k01).
+//   · GET        → cron "5 13 * * *" (10:05 AR): un mensaje en 🛠️-operaciones y los textos «para enviar» (k01).
 //                  Encendido con AVISO_CUOTAS_ADMIN=encendido (apagado por defecto: no hace nada).
 //   · GET ?dry=1 → lo que avisaría, sin escribir ni mandar nada (anda aunque esté apagado).
 const headers = { 'cache-control': 'no-store' }

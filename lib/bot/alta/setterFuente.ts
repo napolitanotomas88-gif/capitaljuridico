@@ -15,7 +15,7 @@
 // Ojo: los encabezados engañan. La columna "Fuente" del CRM NO es la fuente de Finanzas (es utm_medium) y "Setter" es
 // utm_source.
 //   · Puro: setterAOpcion, fuenteDeUtm (la regla UTM → fuente), fuenteAOpcion (texto libre → fuente) y elegirFila.
-//   · Servidor: buscarSetterFuente lee las pestañas de los closers con leerHojas (lib/crm/sheets/leer.ts: caché de 30 s,
+//   · Servidor: buscarSetterFuente lee las pestañas de los closers con leerHojas (lib/crm/sheets/leer.ts, al día: sin caché,
 //     solo lectura). Se importa adentro de la función para que el motor y los tests no carguen googleapis.
 import { OPCIONES_FUENTE, OPCIONES_SETTER } from './finanzas'
 
@@ -160,7 +160,7 @@ export async function buscarSetterFuente(telefono: string, op: { correo?: string
   const leer = op.leer ?? (async () => {
     const { leerHojas } = await import('../../crm/sheets/leer')
     const { hojasClosers } = await import('../../crm/config')
-    const hojas = await leerHojas(hojasClosers())
+    const hojas = await leerHojas(hojasClosers(), { alDia: true })   // decide qué se escribe en el alta: sin cachés
     return [...hojas.values()].flat().map((f) => ({
       hoja: f.hoja, numeroFila: f.numeroFila, telefono: f.valores.telefono, setter: f.valores.setter, fuente: f.valores.fuente,
       campania: f.valores.campania, email: f.valores.email,

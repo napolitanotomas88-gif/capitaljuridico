@@ -9,6 +9,10 @@ import { actualizarFilaEnCache, invalidarCache, leerHojas } from "@/lib/crm/shee
 
 const respuesta = (nombre: string) => ({ data: { valueRanges: [{ values: [[nombre, "+54 9 11 5555-1234", "", "24/09/2026 10:00:00"]] }] } });
 
+// La lectura pasa por la caché compartida (conCache), que llama a la API recién en una vuelta posterior del bucle: se espera
+// a que el pedido llegue a la API antes de contestarlo.
+const llegaALaApi = (responder: () => unknown) => vi.waitFor(() => { if (!responder()) throw new Error("todavía no"); });
+
 beforeEach(() => {
   vi.clearAllMocks();
   invalidarCache();
@@ -27,11 +31,12 @@ describe("leerHojas: caché", () => {
   });
 
   it("una lectura en vuelo durante una escritura no repuebla la caché con datos viejos", async () => {
-    let responder: (v: unknown) => void = () => {};
+    let responder: ((v: unknown) => void) | null = null;
     api.spreadsheets.values.batchGet.mockImplementationOnce(() => new Promise((r) => (responder = r)));
     const enVuelo = leerHojas(["Gero-Xavi Rejunte"]);
     invalidarCache("Gero-Xavi Rejunte"); // la escritura terminó mientras la lectura viajaba
-    responder(respuesta("Viejo"));
+    await llegaALaApi(() => responder);
+    responder!(respuesta("Viejo"));
     expect((await enVuelo).get("Gero-Xavi Rejunte")?.[0].valores.nombre).toBe("Viejo");
 
     api.spreadsheets.values.batchGet.mockResolvedValue(respuesta("Nuevo"));
@@ -43,18 +48,41 @@ describe("leerHojas: caché", () => {
     api.spreadsheets.values.batchGet.mockResolvedValue(respuesta("Ana"));
     const [ana] = (await leerHojas(["Gero-Xavi Rejunte"])).get("Gero-Xavi Rejunte")!;
 
-    let responder: (v: unknown) => void = () => {};
+    let responder: ((v: unknown) => void) | null = null;
     api.spreadsheets.values.batchGet.mockImplementationOnce(() => new Promise((r) => (responder = r)));
     invalidarCache("Closer 2");
     const enVuelo = leerHojas(["Closer 2"]);
     actualizarFilaEnCache({ ...ana, valores: { ...ana.valores, fupsNoShow: "S2" } });
-    responder({ data: { valueRanges: [{ values: [["Bea"]] }] } });
+    await llegaALaApi(() => responder);
+    responder!({ data: { valueRanges: [{ values: [["Bea"]] }] } });
     await enVuelo;
 
     expect((await leerHojas(["Gero-Xavi Rejunte"])).get("Gero-Xavi Rejunte")?.[0].valores.fupsNoShow).toBe("S2");
     expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(2);
     // "Closer 2" se leyó antes de la escritura: no quedó en la caché.
     api.spreadsheets.values.batchGet.mockResolvedValue({ data: { valueRanges: [{ values: [["Bea"]] }] } });
+    await leerHojas(["Closer 2"]);
+    expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(3);
+  });
+
+  it("alDia lee directo de la API aunque haya caché (lo que decide o escribe)", async () => {
+    api.spreadsheets.values.batchGet.mockResolvedValue(respuesta("Ana"));
+    await leerHojas(["Gero-Xavi Rejunte"]);
+    api.spreadsheets.values.batchGet.mockResolvedValue(respuesta("Nueva"));
+    expect((await leerHojas(["Gero-Xavi Rejunte"], { alDia: true })).get("Gero-Xavi Rejunte")?.[0].valores.nombre).toBe("Nueva");
+    expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(2);
+    // Lo leído al día queda en la memoria: la próxima lectura normal ya ve la fila nueva
+    expect((await leerHojas(["Gero-Xavi Rejunte"])).get("Gero-Xavi Rejunte")?.[0].valores.nombre).toBe("Nueva");
+    expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidar una hoja no tira la caché de las otras", async () => {
+    api.spreadsheets.values.batchGet.mockResolvedValue(respuesta("Ana"));
+    await leerHojas(["Closer 2"]);
+    await leerHojas(["Gero-Xavi Rejunte"]);
+    invalidarCache("Closer 2");
+    await leerHojas(["Gero-Xavi Rejunte"]);
+    expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(2);
     await leerHojas(["Closer 2"]);
     expect(api.spreadsheets.values.batchGet).toHaveBeenCalledTimes(3);
   });

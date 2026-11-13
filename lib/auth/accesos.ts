@@ -3,11 +3,18 @@
 // AUTH_USUARIOS de Vercel manda siempre y sigue siendo el "seguro": aunque la planilla falle o se rompa, esos
 // administradores entran. Las personas de la planilla se leen con caché de 60 s; si Google falla se sigue con lo último
 // que se leyó (y sin eso, solo entran los de la lista fija: falla cerrado para los de la planilla).
+// Sin bloquear (velocidad, tanda 2): vencidos los 60 s, la petición sigue con la lista anterior y la relectura corre de
+// fondo; solo espera si no hay lista o si la que hay pasó los 120 s (ahí espera como antes). Un acceso quitado en la
+// planilla deja de valer, como mucho, 60 s más lo que tarde la relectura (igual que antes). Guardar o quitar desde
+// Configuración relee al instante (invalidarAccesos + filasDeLaPlanilla).
 import { ENCABEZADOS, ENCABEZADOS_HISTORIAL, aCeldas, leerFilasNumeradas, ultimaFilaDe, validarEntrada, type EntradaAcceso, type FilaAcceso, type FilaNumerada } from './accesosModelo'
 import { googleConfigurado, googleJson, sheetsBase } from './googleRest'
 import { fijarAccesosDePlanilla, accesoDePlanilla, buscarUsuario } from './usuarios'
+import { enSegundoPlano } from '../segundoPlano'
 
 const FRESCO_MS = 60_000
+/** Más vieja que esto, la lista ya no se sirve mientras se relee: se espera la relectura (como antes de la tanda 2). */
+const VIEJO_MAX_MS = 120_000
 let cache: { en: number; filas: FilaAcceso[] } | null = null
 let enVuelo: Promise<void> | null = null
 
@@ -29,17 +36,29 @@ function aplicar(filas: FilaAcceso[]) {
   fijarAccesosDePlanilla([...porMail.values()].map(accesoDePlanilla))
 }
 
-/** Renueva la lista de la planilla si pasó más de un minuto. Nunca lanza: ante un error deja lo último que se leyó. */
+/** Lanza la relectura (una sola a la vez). Nunca rechaza: ante un error deja lo último que se leyó. */
+function releer(): Promise<void> {
+  enVuelo ??= leerFilas()
+    .then(aplicar)
+    .catch(() => { console.warn('[accesos] no se pudo leer la planilla de Accesos: se usa lo último leído') })
+    .finally(() => { enVuelo = null })
+  return enVuelo
+}
+
+/**
+ * Renueva la lista de la planilla si pasó más de un minuto. Con una lista de hace menos de dos minutos no espera: la
+ * relee de fondo y sigue con la anterior. Sin lista (o más vieja), espera la relectura. Nunca lanza.
+ */
 export async function asegurarUsuarios(): Promise<void> {
   if (!planillaConfigurada()) return
-  if (cache && Date.now() - cache.en < FRESCO_MS) return
-  if (!enVuelo) {
-    enVuelo = leerFilas()
-      .then(aplicar)
-      .catch(() => { console.warn('[accesos] no se pudo leer la planilla de Accesos: se usa lo último leído') })
-      .finally(() => { enVuelo = null })
+  const edad = cache ? Date.now() - cache.en : Infinity
+  if (edad < FRESCO_MS) return
+  const lectura = releer()
+  if (edad < VIEJO_MAX_MS) {
+    enSegundoPlano(lectura)   // en Vercel, after() deja terminar la relectura aunque la respuesta ya haya salido
+    return
   }
-  await enVuelo
+  await lectura
 }
 
 export function invalidarAccesos() { cache = null }

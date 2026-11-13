@@ -20,7 +20,7 @@ import { hojasClosers } from "@/lib/crm/config";
 import type { Cambios } from "@/lib/crm/contratos";
 import { formatearFechaSheet, parsearFechaReagenda, parsearFechaSheet, partesFecha } from "@/lib/crm/fechas";
 import { aplicarCambios } from "@/lib/crm/sheets/escribir";
-import { invalidarCache, leerHojas } from "@/lib/crm/sheets/leer";
+import { leerHojas } from "@/lib/crm/sheets/leer";
 import type { FilaLead } from "@/lib/crm/sheets/columnas";
 
 const API = "https://api.calendly.com";
@@ -333,8 +333,8 @@ export async function aplicarReprogramacion(p: {
   const viejo = ev.resource?.start_time ? new Date(ev.resource.start_time) : null;
   if (!viejo || isNaN(viejo.getTime())) return { ok: false, motivo: "no se pudo leer la reunión anterior en Calendly" };
 
-  invalidarCache();
-  const hojas = await leerHojas(hojasClosers());
+  // Decide qué fila escribir: directo de la API, sin cachés
+  const hojas = await leerHojas(hojasClosers(), { alDia: true });
   const candidatas = [...hojas.values()].flatMap((filas) => filasDeLaReunion(filas, { email: p.email ?? "", telefono: p.telefono ?? "" }, viejo, nuevo));
   if (candidatas.length === 0) return { ok: false, motivo: `no encontré en el CRM el lead ${p.email ?? ""} con reunión el ${corto(viejo)}` };
   if (candidatas.length > 1) return { ok: false, motivo: `hay ${candidatas.length} filas posibles para ${p.email ?? ""} (${corto(viejo)}): no se tocó ninguna` };
@@ -457,8 +457,8 @@ export async function aplicarReagendaNueva(p: {
     return corto(reemplazada.inicio);
   };
 
-  invalidarCache();
-  const hojas = await leerHojas(hojasClosers());
+  // Decide qué fila escribir: directo de la API, sin cachés
+  const hojas = await leerHojas(hojasClosers(), { alDia: true });
   const elegida = filaDeLaReagendaNueva([...hojas.values()].flat(), lead, nuevo, reemplazada?.inicio ?? null);
   if ("motivo" in elegida) {
     // Reintento de Calendly con la fecha ya cargada: falta solo cancelar la vieja (si sigue activa)

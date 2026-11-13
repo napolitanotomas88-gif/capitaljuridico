@@ -4,8 +4,11 @@
 // últimos 2 minutos. La lista la ve todo el equipo (decisión de Tomás, 27/10/2026). No se guarda historial: cada aviso pisa
 // el anterior de esa persona.
 import { neon } from '@neondatabase/serverless'
+// La sección sale de la ruta con la misma tabla que usa el latido del navegador (intervalo.ts no importa la base)
+import { seccionDeRuta } from './intervalo'
 
 export { INTERVALO_LATIDO_MS } from './intervalo'
+export { seccionDeRuta }
 export const VENTANA_CONECTADO_MS = 120_000
 const TOPE_CONSULTA_MS = 8_000
 const LARGO_RUTA = 120
@@ -19,26 +22,6 @@ export function rutaLimpia(crudo: unknown): string {
   const s = typeof crudo === 'string' ? crudo : ''
   const ruta = s.split(/[?#]/)[0].replace(/[^\w\-./%~]/g, '')
   return (ruta.startsWith('/') ? ruta : '/').slice(0, LARGO_RUTA)
-}
-
-const SECCION_POR_PREFIJO: readonly [string, string][] = [
-  ['/ventas', 'Ventas'],
-  ['/cuotas', 'Cobro de cuotas'],
-  ['/clientes/edicion', 'Edición'],
-  ['/clientes/referidos', 'Referidos'],
-  ['/clientes/altas', 'Altas'],
-  ['/clientes', 'Clientes'],
-  ['/guiones', 'Guiones'],
-  ['/anuncios', 'Anuncios'],
-  ['/finanzas', 'Finanzas'],
-  ['/trazabilidad', 'Trazabilidad'],
-  ['/configuracion', 'Configuración'],
-]
-
-/** Nombre de la sección en la que está, a partir de la ruta ("/" = Resumen). */
-export function seccionDeRuta(ruta: string): string {
-  if (ruta === '/' || ruta === '') return 'Resumen'
-  return SECCION_POR_PREFIJO.find(([p]) => ruta === p || ruta.startsWith(`${p}/`))?.[1] ?? 'Despacho'
 }
 
 /** Los que avisaron dentro de la ventana, el más reciente primero. Función pura (se prueba sin base). */

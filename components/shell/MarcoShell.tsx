@@ -4,6 +4,7 @@ import { Aviso } from '@/components/shell/Aviso'
 import { Entrada } from '@/components/shell/Entrada'
 import { Latido } from '@/components/shell/Latido'
 import { Navegacion } from '@/components/shell/Navegacion'
+import { SincronizarNoche } from '@/components/shell/SincronizarNoche'
 import { menuDe, type ItemNavegacion } from '@/components/shell/secciones'
 import { COOKIE_NAV, anchoVisible, leerPreferencia } from '@/components/shell/preferenciaNav'
 import { ETIQUETA_ROL, rutaInicial } from '@/lib/auth/roles'
@@ -29,7 +30,12 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
   const nav = leerPreferencia(galletas.get(COOKIE_NAV)?.value)
   // Cristal (2/11/2026, «todo el tema nuevo»): el mismo de Finanzas en todo el Despacho. Modo nocturno por defecto; lo que la
   // cuenta eligió (Neon, la misma tabla que Finanzas) manda sobre la cookie de este navegador, que queda como caché.
-  const { noche } = resolverPreferencias(sesion.esDePrueba ? null : await leerPreferenciasSinDemora(sesion.email), { noche: galletas.get(COOKIE_NOCHE)?.value })
+  // Con la cookie puesta no se espera a la base (velocidad, tanda 2): SincronizarNoche trae lo de la cuenta después y la
+  // corrige si hace falta. Sin cookie (primera vez en este navegador) se espera, con un tope corto.
+  const cookieNoche = galletas.get(COOKIE_NOCHE)?.value
+  const conCookie = cookieNoche === '0' || cookieNoche === '1'
+  const cuenta = sesion.esDePrueba || conCookie ? null : await leerPreferenciasSinDemora(sesion.email, 500)
+  const { noche } = resolverPreferencias(cuenta, { noche: cookieNoche })
   // "Clientes" agrupa Cartera, Guiones, Edición, Anuncios y Referidos: aparece con una sola de ellas (components/shell/secciones.ts)
   const items = menuDe(sesion)
   const aparte = process.env.NODE_ENV !== 'production' && sesion.rol === 'socio' ? [SISTEMA] : []
@@ -59,6 +65,7 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
         noche={noche}
       />
       <Latido />
+      {!sesion.esDePrueba && <SincronizarNoche noche={noche} />}
       <Aviso />
       <ArrastrarParaActualizar />
       <main id="cj-contenido" className="cj-contenido">

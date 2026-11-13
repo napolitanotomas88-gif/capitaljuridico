@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { COOKIE_NOCHE } from './preferenciaNav'
+import { useEffect, useState } from 'react'
+import { COOKIE_NOCHE, EVENTO_NOCHE } from './preferenciaNav'
 
 // Interruptor del modo nocturno del cristal (2/11/2026). Cambia data-noche en .cj-raiz al instante (el CSS de
 // components/shell/cristal.css hace el resto, también en la tarjeta del cliente, que va en un portal), lo deja en la cookie
@@ -9,6 +9,12 @@ import { COOKIE_NOCHE } from './preferenciaNav'
 // que es lo que manda en cualquier navegador. Mismo dato que el «Modo nocturno» de Finanzas.
 export function ModoNocturno({ inicial, compacto = false }: { inicial: boolean; compacto?: boolean }) {
   const [noche, setNoche] = useState(inicial)
+  // Si la cuenta trae otro modo (SincronizarNoche), el interruptor lo acompaña
+  useEffect(() => {
+    const alCambiar = (e: Event) => { if (typeof (e as CustomEvent).detail === 'boolean') setNoche((e as CustomEvent<boolean>).detail) }
+    window.addEventListener(EVENTO_NOCHE, alCambiar)
+    return () => window.removeEventListener(EVENTO_NOCHE, alCambiar)
+  }, [])
   const alternar = () => {
     const nuevo = !noche
     setNoche(nuevo)

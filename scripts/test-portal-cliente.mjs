@@ -348,6 +348,41 @@ describe('pestañas de los portales en el hub Clientes (2/11/2026)', () => {
     assert.deepEqual(await base.portalesArmados(), [{ id: 'X1', titulo: 'Plan' }, { id: 'Y2', titulo: '' }])
     base.usarSqlDePrueba(null)
   })
+  test('layout del hub: portales desde la caché, con tope de espera; guardar un portal la invalida', async () => {
+    const base = await import('../lib/clientes/portal/base.ts')
+    let consultas = 0
+    let titulo = 'Plan'
+    base.usarSqlDePrueba(async (partes) => {
+      const texto = partes.join('$')
+      if (/SELECT id_crm, COALESCE/.test(texto)) { consultas++; return [{ id_crm: 'x1', titulo }] }
+      if (/UPDATE cj_portal_cliente/.test(texto)) return [{ version: 2, actualizado: '2026-11-13T00:00:00Z' }]
+      return []
+    })
+    assert.deepEqual(await base.portalesArmadosRapido(), [{ id: 'X1', titulo: 'Plan' }])
+    assert.deepEqual(await base.portalesArmadosRapido(), [{ id: 'X1', titulo: 'Plan' }])
+    assert.equal(consultas, 1)                                   // la segunda sale de la caché
+    titulo = 'Plan nuevo'
+    const r = await base.guardarPortal('X1', PORTAL_VACIO, 1, 'prueba')
+    assert.equal(r.ok, true)
+    assert.deepEqual(await base.portalesArmadosRapido(), [{ id: 'X1', titulo: 'Plan nuevo' }])   // al instante
+    assert.equal(consultas, 2)
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync(new URL('../app/(shell)/clientes/layout.tsx', import.meta.url), 'utf8')
+    assert.match(src, /await portalesArmadosRapido\(\)/)
+    base.usarSqlDePrueba(null)
+  })
+  test('layout del hub: si la base tarda más que el tope, sale sin pestañas de portal', async () => {
+    const base = await import('../lib/clientes/portal/base.ts')
+    const { invalidarClave } = await import('../lib/anuncios/cache.ts')
+    invalidarClave('portales-armados-v1')
+    base.usarSqlDePrueba(() => new Promise((r) => setTimeout(() => r([{ id_crm: 'Z9', titulo: '' }]), 200)))
+    const t0 = Date.now()
+    assert.deepEqual(await base.portalesArmadosRapido(20), [])
+    assert.ok(Date.now() - t0 < 150)
+    await new Promise((r) => setTimeout(r, 250))                 // la lectura terminó de fondo y llenó la caché
+    assert.deepEqual(await base.portalesArmadosRapido(20), [{ id: 'Z9', titulo: '' }])
+    base.usarSqlDePrueba(null)
+  })
 })
 
 describe('secciones visibles por portal (2/11/2026)', () => {

@@ -30,10 +30,18 @@ const ultimoBueno = new Map<string, Cacheado<unknown>>()
 // sola con cada deploy. Si cambia una sola fuente, alcanza con subir el sufijo de su clave («drive-clientes-v2» → v3).
 export const ESQUEMA_CACHE = 'e1'
 
-async function capaDatos<T>(clave: string, segundos: number, fn: () => Promise<T>): Promise<Cacheado<T>> {
+/** Opciones de conCache. `etiquetas`: grupos con los que se invalida la clave junto con otras (invalidarEtiqueta). */
+export interface OpcionesCache { etiquetas?: string[] }
+// Etiqueta → claves de ESTE proceso que la llevan: invalidarEtiqueta borra su memoria (las otras instancias la pierden por
+// el tag del Data Cache, y su memoria vence sola en el plazo de la clave).
+const clavesPorEtiqueta = new Map<string, Set<string>>()
+const tagEtiqueta = (etiqueta: string) => `cc-${etiqueta}`
+
+async function capaDatos<T>(clave: string, segundos: number, fn: () => Promise<T>, etiquetas: string[] = []): Promise<Cacheado<T>> {
   const envuelta = async (): Promise<Cacheado<T>> => ({ at: Date.now(), data: await fn() })
   try {
-    const cacheada = unstable_cache(envuelta, ['anuncios-v1', ESQUEMA_CACHE, clave], { revalidate: segundos, tags: ['anuncios', `anuncios-${clave}`] })
+    const tags = ['anuncios', `anuncios-${clave}`, ...etiquetas.map(tagEtiqueta)]
+    const cacheada = unstable_cache(envuelta, ['anuncios-v1', ESQUEMA_CACHE, clave], { revalidate: segundos, tags })
     return await cacheada()
   } catch (e) {
     // Fuera de un request de Next no hay incrementalCache: se sigue sin la capa compartida
@@ -43,13 +51,19 @@ async function capaDatos<T>(clave: string, segundos: number, fn: () => Promise<T
 }
 
 // segundos = cada cuánto se refresca de verdad la fuente (Meta, Sheets…)
-export async function conCache<T>(clave: string, segundos: number, fn: () => Promise<T>): Promise<ResultadoCache<T>> {
+export async function conCache<T>(clave: string, segundos: number, fn: () => Promise<T>, opciones: OpcionesCache = {}): Promise<ResultadoCache<T>> {
+  const etiquetas = opciones.etiquetas ?? []
+  for (const e of etiquetas) {
+    const claves = clavesPorEtiqueta.get(e) ?? new Set<string>()
+    claves.add(clave)
+    clavesPorEtiqueta.set(e, claves)
+  }
   const m = memoria.get(clave)
   if (m && m.hasta > Date.now()) return m.valor as Cacheado<T>
   const vuelo = enVuelo.get(clave)
   // Quien se suma a una lectura en curso también la registra: el pedido que la lanzó pudo haber terminado ya
   if (vuelo) { enSegundoPlano(vuelo); return vuelo as Promise<Cacheado<T>> }
-  const p = capaDatos(clave, segundos, fn)
+  const p = capaDatos(clave, segundos, fn, etiquetas)
     .then(valor => {
       // En memoria hasta que el dato venza (mínimo 15 s): mientras está fresco no hace falta ni
       // consultar la capa compartida; vencido, se vuelve a ella (que devuelve el anterior y refresca).
@@ -94,3 +108,11 @@ export function invalidarClave(clave: string): void {
   try { revalidateTag(`anuncios-${clave}`, { expire: 0 }) } catch { /* sin incrementalCache (scripts): alcanza con la memoria */ }
 }
 
+
+/** Invalida todas las claves que llevan esa etiqueta (conCache(..., { etiquetas })): en todas las instancias por el tag del
+ *  Data Cache, y en la memoria de esta. La próxima lectura espera el dato nuevo (no sirve el viejo). Fuera de un pedido de
+ *  Next (scripts, pruebas) o durante un render, revalidateTag no está disponible: alcanza con la memoria. */
+export function invalidarEtiqueta(etiqueta: string): void {
+  for (const clave of clavesPorEtiqueta.get(etiqueta) ?? []) memoria.delete(clave)
+  try { revalidateTag(tagEtiqueta(etiqueta), { expire: 0 }) } catch { /* sin incrementalCache (scripts) o en un render */ }
+}

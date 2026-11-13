@@ -1,6 +1,7 @@
 import { google } from 'googleapis'
 import { clientesSinFin, esSinFin } from './clientes/sinFin'
 import { normNombre, NOMBRES_DE_PILA as NOMBRES_DE_PILA_COMUNES, sinApostrofos } from './nombresPersona'
+import { invalidarEtiqueta } from './anuncios/cache'
 
 function getAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
@@ -1076,12 +1077,18 @@ export async function fetchRawData(opciones?: { ligero?: boolean }): Promise<Raw
   return lanzar()
 }
 
+// /api/raw guarda su respuesta en la caché compartida entre instancias (conCache) con esta clave y etiqueta.
+export const CLAVE_RAW_COMPARTIDA = 'resumen-raw-v1'
+export const ETIQUETA_RAW = 'resumen-raw'
+
 // Después de escribir en un sheet que lee este módulo (ej. la foto del Historial operativo):
-// descarta la caché de 60 s y el "no existe" de las pestañas para que la próxima carga la vea.
+// descarta la caché de 60 s (la de esta instancia y la compartida de /api/raw) y el "no existe" de las pestañas para que la
+// próxima carga la vea.
 export function invalidarCacheRaw() {
   rawCache = null
   rawLigeroCache = null
   rangosInexistentes.clear()
+  invalidarEtiqueta(ETIQUETA_RAW)
 }
 
 async function construirRawData(ligero = false): Promise<RawData> {

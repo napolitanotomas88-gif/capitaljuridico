@@ -9,6 +9,7 @@
 //   cj_traz_anuncios  nombre de anuncio normalizado (claveAnuncio) o id de Meta → concepto: cruza la columna Video del CRM.
 import 'server-only'
 import { neon } from '@neondatabase/serverless'
+import { conCache, invalidarEtiqueta } from '../anuncios/cache'
 import { ANGULOS_SEMILLA, type Angulo, type Bolsa } from './catalogo'
 import type { AnalisisLlamada, AnalisisSetting, FilaLlamada, FilaSetting, TipoPieza } from './modelo'
 
@@ -103,6 +104,25 @@ export function asegurarTablas(): Promise<void> {
   return lista
 }
 
+// ── Caché de las lecturas (velocidad, tanda 2) ───────────────────────────────────────────────────────────────────
+// Las 8 pantallas de /trazabilidad releían las tablas completas en cada navegación. Las listas pasan por la caché
+// compartida entre instancias (conCache) por 90 s; TODA escritura de este archivo la invalida (invalidarTrazabilidad), así
+// que quien guarda ve su cambio al instante. Lo que decide qué procesar (procesarPendientes, ManyChat) lee con `alDia`.
+// Lo que se guarda es JSON: los Map se guardan como pares.
+const CACHE_SEG = 90
+const ETIQUETA = 'trazabilidad'
+export type Lectura = { alDia?: boolean }
+
+async function cacheado<T>(nombre: string, o: Lectura, fn: () => Promise<T>): Promise<T> {
+  if (o.alDia) return fn()
+  return (await conCache(`traz-${nombre}-v1`, CACHE_SEG, fn, { etiquetas: [ETIQUETA] })).data
+}
+
+/** Después de escribir en cualquier tabla de Trazabilidad: la próxima lectura (en cualquier instancia) va a la base. */
+export function invalidarTrazabilidad(): void {
+  invalidarEtiqueta(ETIQUETA)
+}
+
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v ?? ''))
 
 // ── Setting ───────────────────────────────────────────────────────────────────────────────
@@ -115,10 +135,12 @@ const filaSetting = (r: Row): FilaSetting => ({
   enviadoPor: String(r.enviado_por ?? ''), creado: iso(r.creado), actualizado: iso(r.actualizado),
 })
 
-export async function listarSetting(): Promise<FilaSetting[]> {
-  await asegurarTablas()
-  const filas = await sql()`SELECT subscriber_id, nombre, ig_usuario, telefono, email, etiquetas, resumen, analisis, error, enviado_por, creado, actualizado FROM cj_traz_setting ORDER BY actualizado DESC`
-  return filas.map(filaSetting)
+export function listarSetting(o: Lectura = {}): Promise<FilaSetting[]> {
+  return cacheado('setting', o, async () => {
+    await asegurarTablas()
+    const filas = await sql()`SELECT subscriber_id, nombre, ig_usuario, telefono, email, etiquetas, resumen, analisis, error, enviado_por, creado, actualizado FROM cj_traz_setting ORDER BY actualizado DESC`
+    return filas.map(filaSetting)
+  })
 }
 
 export async function obtenerSetting(id: string): Promise<(FilaSetting & { transcript: string; campos: Record<string, unknown> }) | null> {
@@ -138,10 +160,12 @@ export async function guardarSetting(e: EnvioBotonera): Promise<void> {
     ON CONFLICT (subscriber_id) DO UPDATE SET nombre = EXCLUDED.nombre, ig_usuario = EXCLUDED.ig_usuario, telefono = EXCLUDED.telefono, email = EXCLUDED.email,
       etiquetas = EXCLUDED.etiquetas, campos = EXCLUDED.campos, resumen = EXCLUDED.resumen, transcript = EXCLUDED.transcript, enviado_por = EXCLUDED.enviado_por,
       analisis = NULL, error = NULL, actualizado = now()`
+  invalidarTrazabilidad()
 }
 
 export async function guardarAnalisisSetting(id: string, analisis: AnalisisSetting | null, error: string | null): Promise<void> {
   await sql()`UPDATE cj_traz_setting SET analisis = ${analisis ? JSON.stringify(analisis) : null}::jsonb, error = ${error}, actualizado = now() WHERE subscriber_id = ${id}`
+  invalidarTrazabilidad()
 }
 
 // ── Llamadas ──────────────────────────────────────────────────────────────────────────────
@@ -149,14 +173,17 @@ const filaLlamada = (r: Row): FilaLlamada => ({
   clave: String(r.clave), url: String(r.url ?? ''), resumen: String(r.resumen ?? ''),
   analisis: (r.analisis as AnalisisLlamada | null) ?? null, error: (r.error as string | null) ?? null, actualizado: iso(r.actualizado),
 })
-export async function listarLlamadas(): Promise<FilaLlamada[]> {
-  await asegurarTablas()
-  return (await sql()`SELECT clave, url, resumen, analisis, error, actualizado FROM cj_traz_llamada`).map(filaLlamada)
+export function listarLlamadas(o: Lectura = {}): Promise<FilaLlamada[]> {
+  return cacheado('llamadas', o, async () => {
+    await asegurarTablas()
+    return (await sql()`SELECT clave, url, resumen, analisis, error, actualizado FROM cj_traz_llamada`).map(filaLlamada)
+  })
 }
 export async function guardarLlamada(clave: string, datos: { url: string; resumen: string; transcript: string; analisis: AnalisisLlamada | null; error: string | null }): Promise<void> {
   await asegurarTablas()
   await sql()`INSERT INTO cj_traz_llamada (clave, url, resumen, transcript, analisis, error) VALUES (${clave}, ${datos.url}, ${datos.resumen}, ${datos.transcript}, ${datos.analisis ? JSON.stringify(datos.analisis) : null}::jsonb, ${datos.error})
     ON CONFLICT (clave) DO UPDATE SET url = EXCLUDED.url, resumen = EXCLUDED.resumen, transcript = EXCLUDED.transcript, analisis = EXCLUDED.analisis, error = EXCLUDED.error, actualizado = now()`
+  invalidarTrazabilidad()
 }
 export async function obtenerLlamada(clave: string): Promise<(FilaLlamada & { transcript: string }) | null> {
   await asegurarTablas()
@@ -165,46 +192,58 @@ export async function obtenerLlamada(clave: string): Promise<(FilaLlamada & { tr
 }
 
 // ── Vínculos manuales ─────────────────────────────────────────────────────────────────────
-export async function listarVinculos(): Promise<Map<string, string>> {
-  await asegurarTablas()
-  return new Map((await sql()`SELECT clave, subscriber_id FROM cj_traz_vinculo`).map((r) => [String(r.clave), String(r.subscriber_id)]))
+export async function listarVinculos(o: Lectura = {}): Promise<Map<string, string>> {
+  const pares = await cacheado('vinculos', o, async () => {
+    await asegurarTablas()
+    return (await sql()`SELECT clave, subscriber_id FROM cj_traz_vinculo`).map((r): [string, string] => [String(r.clave), String(r.subscriber_id)])
+  })
+  return new Map(pares)
 }
 export async function guardarVinculo(clave: string, subscriberId: string | null, por: string): Promise<void> {
   await asegurarTablas()
   if (subscriberId === null) await sql()`DELETE FROM cj_traz_vinculo WHERE clave = ${clave}`
   else await sql()`INSERT INTO cj_traz_vinculo (clave, subscriber_id, por) VALUES (${clave}, ${subscriberId}, ${por}) ON CONFLICT (clave) DO UPDATE SET subscriber_id = EXCLUDED.subscriber_id, por = EXCLUDED.por, actualizado = now()`
+  invalidarTrazabilidad()
 }
 
 // ── Catálogo ──────────────────────────────────────────────────────────────────────────────
-export async function listarAngulos(): Promise<Angulo[]> {
-  await asegurarTablas()
-  return (await sql()`SELECT id, nombre, descripcion, bolsa, descartado FROM cj_traz_angulos ORDER BY orden, nombre`).map((r) => ({
-    id: String(r.id), nombre: String(r.nombre), descripcion: String(r.descripcion ?? ''), bolsa: (r.bolsa as Bolsa | null) ?? null, descartado: !!r.descartado,
-  }))
+export function listarAngulos(o: Lectura = {}): Promise<Angulo[]> {
+  return cacheado('angulos', o, async () => {
+    await asegurarTablas()
+    return (await sql()`SELECT id, nombre, descripcion, bolsa, descartado FROM cj_traz_angulos ORDER BY orden, nombre`).map((r) => ({
+      id: String(r.id), nombre: String(r.nombre), descripcion: String(r.descripcion ?? ''), bolsa: (r.bolsa as Bolsa | null) ?? null, descartado: !!r.descartado,
+    }))
+  })
 }
 export async function guardarAngulo(a: Angulo): Promise<void> {
   await asegurarTablas()
   await sql()`INSERT INTO cj_traz_angulos (id, nombre, descripcion, bolsa, descartado, orden) VALUES (${a.id}, ${a.nombre}, ${a.descripcion}, ${a.bolsa}, ${a.descartado}, 999)
     ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, descripcion = EXCLUDED.descripcion, bolsa = EXCLUDED.bolsa, descartado = EXCLUDED.descartado`
+  invalidarTrazabilidad()
 }
 
 export interface Pieza { etiqueta: string; angulo: string | null; tipo: TipoPieza; origen: 'ia' | 'manual' }
-export async function listarPiezas(): Promise<Map<string, Pieza>> {
-  await asegurarTablas()
-  return new Map((await sql()`SELECT etiqueta, angulo, tipo, origen FROM cj_traz_piezas`).map((r) => [String(r.etiqueta), {
-    etiqueta: String(r.etiqueta), angulo: (r.angulo as string | null) ?? null, tipo: String(r.tipo) as TipoPieza, origen: r.origen === 'manual' ? 'manual' : 'ia',
-  }]))
+export async function listarPiezas(o: Lectura = {}): Promise<Map<string, Pieza>> {
+  const pares = await cacheado('piezas', o, async () => {
+    await asegurarTablas()
+    return (await sql()`SELECT etiqueta, angulo, tipo, origen FROM cj_traz_piezas`).map((r): [string, Pieza] => [String(r.etiqueta), {
+      etiqueta: String(r.etiqueta), angulo: (r.angulo as string | null) ?? null, tipo: String(r.tipo) as TipoPieza, origen: r.origen === 'manual' ? 'manual' : 'ia',
+    }])
+  })
+  return new Map(pares)
 }
 /** La IA solo propone: nunca pisa una pieza que alguien asignó a mano */
 export async function proponerPieza(p: Omit<Pieza, 'origen'>): Promise<void> {
   await asegurarTablas()
   await sql()`INSERT INTO cj_traz_piezas (etiqueta, angulo, tipo, origen) VALUES (${p.etiqueta}, ${p.angulo}, ${p.tipo}, 'ia')
     ON CONFLICT (etiqueta) DO UPDATE SET angulo = EXCLUDED.angulo, tipo = EXCLUDED.tipo, actualizado = now() WHERE cj_traz_piezas.origen = 'ia' AND cj_traz_piezas.angulo IS NULL`
+  invalidarTrazabilidad()
 }
 export async function asignarPieza(etiqueta: string, angulo: string | null, tipo: TipoPieza): Promise<void> {
   await asegurarTablas()
   await sql()`INSERT INTO cj_traz_piezas (etiqueta, angulo, tipo, origen) VALUES (${etiqueta}, ${angulo}, ${tipo}, 'manual')
     ON CONFLICT (etiqueta) DO UPDATE SET angulo = EXCLUDED.angulo, tipo = EXCLUDED.tipo, origen = 'manual', actualizado = now()`
+  invalidarTrazabilidad()
 }
 
 // ── Conceptos de anuncios (formato × ángulo) ──────────────────────────────────────────────
@@ -212,15 +251,18 @@ export interface ConceptoAnuncio {
   clave: string; formato: string; angulo: string | null; anguloSecundario: string | null; casoNombrado: boolean
   quienHabla: string | null; gancho: string; certeza: string; acuerdo: number; ligas: string[]; gasto: number; gastoAl: string | null
 }
-export async function listarConceptos(): Promise<{ conceptos: ConceptoAnuncio[]; anuncios: Map<string, string> }> {
-  await asegurarTablas()
-  const [c, a] = await Promise.all([sql()`SELECT * FROM cj_traz_conceptos`, sql()`SELECT clave_anuncio, concepto FROM cj_traz_anuncios`])
-  return {
-    conceptos: c.map((r) => ({
-      clave: String(r.clave), formato: String(r.formato), angulo: (r.angulo as string | null) ?? null, anguloSecundario: (r.angulo_secundario as string | null) ?? null,
-      casoNombrado: !!r.caso_nombrado, quienHabla: (r.quien_habla as string | null) ?? null, gancho: String(r.gancho ?? ''), certeza: String(r.certeza ?? ''),
-      acuerdo: Number(r.acuerdo ?? 0), ligas: (r.ligas as string[]) ?? [], gasto: Number(r.gasto ?? 0), gastoAl: r.gasto_al ? iso(r.gasto_al).slice(0, 10) : null,
-    })),
-    anuncios: new Map(a.map((r) => [String(r.clave_anuncio), String(r.concepto)])),
-  }
+export async function listarConceptos(o: Lectura = {}): Promise<{ conceptos: ConceptoAnuncio[]; anuncios: Map<string, string> }> {
+  const r = await cacheado('conceptos', o, async () => {
+    await asegurarTablas()
+    const [c, a] = await Promise.all([sql()`SELECT * FROM cj_traz_conceptos`, sql()`SELECT clave_anuncio, concepto FROM cj_traz_anuncios`])
+    return {
+      conceptos: c.map((r): ConceptoAnuncio => ({
+        clave: String(r.clave), formato: String(r.formato), angulo: (r.angulo as string | null) ?? null, anguloSecundario: (r.angulo_secundario as string | null) ?? null,
+        casoNombrado: !!r.caso_nombrado, quienHabla: (r.quien_habla as string | null) ?? null, gancho: String(r.gancho ?? ''), certeza: String(r.certeza ?? ''),
+        acuerdo: Number(r.acuerdo ?? 0), ligas: (r.ligas as string[]) ?? [], gasto: Number(r.gasto ?? 0), gastoAl: r.gasto_al ? iso(r.gasto_al).slice(0, 10) : null,
+      })),
+      anuncios: a.map((r): [string, string] => [String(r.clave_anuncio), String(r.concepto)]),
+    }
+  })
+  return { conceptos: r.conceptos, anuncios: new Map(r.anuncios) }
 }

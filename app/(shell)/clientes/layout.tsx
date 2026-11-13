@@ -7,7 +7,7 @@ import { pestanasVisibles } from '@/lib/auth/hubClientes'
 import { rutaInicial } from '@/lib/auth/roles'
 import { obtenerSesion } from '@/lib/auth/sesion'
 import { rutaPortal } from '@/lib/auth/portal'
-import { portalesArmados } from '@/lib/clientes/portal/base'
+import { portalesArmadosRapido } from '@/lib/clientes/portal/base'
 import { cargarVista } from '@/lib/clientes/vista'
 
 // Clientes como hub (25/10/2026): arriba las pestañas que la persona puede ver (Cartera, Guiones, Edición, Anuncios,
@@ -35,7 +35,8 @@ export default async function ClientesHubLayout({ children }: { children: React.
 }
 
 async function pestanasDePortal(): Promise<{ href: string; etiqueta: string }[]> {
-  const armados = await portalesArmados()
+  // Caché compartida de 5 min con tope de 1,5 s: este layout corre antes del loading.tsx de cada pestaña
+  const armados = await portalesArmadosRapido()
   if (armados.length === 0) return []
   // El CRM solo se lee si algún portal no tiene título (misma lectura memorizada que usa la página)
   const sinTitulo = armados.some(p => !p.titulo)
