@@ -109,7 +109,7 @@
     /* Roles que no se invierten (globals.css): barras oscuras opacas con texto marfil, botón principal marfil como
        .cj-boton--primario y borde de control como .cj-boton--secundario */
     --color-barra: color-mix(in srgb, #fff 9%, #04201a);
-    --color-barra-alerta: color-mix(in srgb, #f0b1b8 18%, #04201a);
+    --color-barra-alerta: color-mix(in srgb, #7f202c 60%, #04201a);
     --color-sobre-barra: #fbf8f2;
     --color-accion: #f2eadc;
     --color-accion-hover: #fff;
@@ -142,7 +142,7 @@
     --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), var(--cjc-panel-liso);
     --card: rgba(3, 18, 14, 0.8);
     --color-barra: color-mix(in srgb, #fff 7%, #031410);
-    --color-barra-alerta: color-mix(in srgb, #f0b1b8 16%, #031410);
+    --color-barra-alerta: color-mix(in srgb, #7f202c 55%, #031410);
     background: #021b16;
   }
   body:has(.cj-cristal) { background: #03221c; color: var(--cj-hueso); }

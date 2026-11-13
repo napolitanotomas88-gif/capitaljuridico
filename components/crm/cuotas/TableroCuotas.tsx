@@ -929,7 +929,7 @@ export function TableroCuotas({
                       {c.inicial ? "Pagado" : `Cuota ${numeroDeCuota(actual.plan, c)} de ${cuotasAPagar(actual.plan)}`} ·{" "}
                       {dolares(c.inicial ? cobrado(c) : c.centavos)}{" "}
                       <span className="text-sm font-normal text-gris-texto">
-                        · {ETIQUETA_CONCEPTO_CUOTA[c.concepto ?? (c.inicial ? "reserva" : "cuota")]}
+                        ({ETIQUETA_CONCEPTO_CUOTA[c.concepto ?? (c.inicial ? "reserva" : "cuota")]})
                       </span>
                     </h4>
                     {c.inicial ? (
@@ -969,7 +969,7 @@ export function TableroCuotas({
                         className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gris-linea pt-2 text-sm"
                       >
                         <span>
-                          {fechaCorta(p.fecha)} · {dolares(p.centavos)} ·{" "}
+                          {fechaCorta(p.fecha)}: {dolares(p.centavos)} ·{" "}
                           {p.anulado ? "Anulado" : `Recibido por ${p.actor}`}
                         </span>
                         {/* Lo ya pagado (el pago inicial de la fila Pagado) no se anula: se corrige (o se vacía) en Editar plan.
@@ -1142,8 +1142,7 @@ function Tarjeta({
         {plan.nombre}
       </button>
       <p className="text-xs text-gris-texto">
-        {responsable} · {plan.concepto === "venta" ? "Venta" : "Renovación"} ·
-        Cuota {numero} de {cuotasAPagar(plan)} · {ETIQUETA_CONCEPTO_CUOTA[cuota.concepto ?? "cuota"]}
+        {responsable}, {plan.concepto === "venta" ? "venta" : "renovación"} · Cuota {numero} de {cuotasAPagar(plan)} ({ETIQUETA_CONCEPTO_CUOTA[cuota.concepto ?? "cuota"].toLowerCase()})
       </p>
       <p className="mt-3 text-2xl font-bold tabular-nums">{dolares(saldo(cuota))}</p>
       <p className="text-sm">
@@ -1623,7 +1622,7 @@ function Editor({
           Total del plan: {dolares(total)}
           <span className="font-normal text-gris-texto">
             {" "}
-            · Ya pagado {dolares(pagado)} · A cobrar {dolares(total - pagado)}
+            · Ya pagado {dolares(pagado)}, a cobrar {dolares(total - pagado)}
           </span>
         </p>
         {avisoAnulado && (
