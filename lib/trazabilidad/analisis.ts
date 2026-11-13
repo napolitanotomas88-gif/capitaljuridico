@@ -15,7 +15,7 @@ const TOPE_MS = 200_000
 const textoONull = { type: ['string', 'null'] }
 const fechaONull = { type: ['string', 'null'], description: 'YYYY-MM-DD o null' }
 
-async function claudeJSON<T>(system: string, user: string, schema: Record<string, unknown>): Promise<T> {
+export async function claudeJSON<T>(system: string, user: string, schema: Record<string, unknown>): Promise<T> {
   if (!viaMac() && !process.env.ANTHROPIC_API_KEY?.trim()) throw new Error('falta ANTHROPIC_API_KEY')
   const client = crearClienteClaude({ maxRetries: 1, timeout: TOPE_MS, origen: 'trazabilidad' })
   const stream = client.beta.messages.stream(

@@ -30,7 +30,7 @@ export async function leerCierres(): Promise<Lectura> {
       if (!String(cab[21] ?? '').includes('Situación') || !String(cab[24] ?? '').includes('Cash')) throw new Error(`Cambió el esquema de Ventas en "${p}": revisar columnas`)
       return filas.slice(1).flatMap((r, j) => {
         const c = cierreDeFila(p, j + 2, r, u)
-        const a = agendaDeFila(r, c)
+        const a = agendaDeFila(r, c, p)
         if (a) agendas.push(a)
         return c ? [c] : []
       })

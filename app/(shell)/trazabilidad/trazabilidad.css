@@ -55,3 +55,9 @@
 .traz-ol code { font-size: 13px; padding: 1px 5px; border: 1px solid var(--cj-filete); border-radius: 4px; overflow-wrap: anywhere; }
 .traz-link { color: var(--cj-hueso); text-decoration: none; border-bottom: 1px solid var(--cj-filete-fuerte); }
 .traz-link:hover { border-bottom-color: var(--cj-laton); }
+
+/* Llamadas de closers */
+.traz-llamada-cab { gap: 10px 14px; }
+.traz-llamada-cab .cj-enlace { margin-left: auto; }
+.traz-revisada { opacity: 0.72; }
+.traz-nota-campo { min-height: 70px !important; }

@@ -4,6 +4,7 @@ import { cierreDeFila, numero, fechaDeCelda, mejorVinculo, puntajeVinculo, tramo
 import { armarReporte, lectura } from '../lib/trazabilidad/reporte.ts'
 import { ANGULOS_SEMILLA } from '../lib/trazabilidad/catalogo.ts'
 import { textoSemanal } from '../lib/trazabilidad/semanalTexto.ts'
+import { agendaDeLlamada, duracionTexto, leadDeLlamada, llamadaDeApi } from '../lib/trazabilidad/llamadasCloserCalc.ts'
 import { agruparFormatos, conceptoDeVideo } from '../lib/trazabilidad/formatosCalc.ts'
 import { claveAnuncio } from '../lib/trazabilidad/modelo.ts'
 let n = 0; const ok = (nombre, fn) => { try { fn(); n++ } catch (e) { console.error('✖', nombre); throw e } }
@@ -130,5 +131,18 @@ ok('formatos: cruce de la columna Video y agrupación', () => {
   const acting = r.filas.find((f) => f.grupo === 'acting'); assert.equal(acting.agendas, 2); assert.equal(acting.pagadores, 1); assert.equal(acting.cashPorDolar, 2.6); assert.equal(acting.cashPorAgenda, 1300)
   const piz = r.filas.find((f) => f.grupo === 'pizarra'); assert.equal(piz.ventas, 1); assert.equal(piz.pagadores, 0)
   assert.ok(r.filas.find((f) => f.grupo === 'testimonio_directo'), 'aparece aunque no tenga agendas')
+})
+ok('llamadas de closers: API de Fathom → fila y cruce con el CRM', () => {
+  const l = llamadaDeApi({ recording_id: 123, title: 'Lucía Pérez y Closer', share_url: 'https://fathom.video/share/x', recording_start_time: '2026-11-10T15:00:00Z', recording_end_time: '2026-11-10T15:42:30Z',
+    calendar_invitees_domains_type: 'one_or_more_external', calendar_invitees: [{ name: 'Closer', email: 'closer@equipo.com', is_external: false }, { name: 'Lucía Pérez', email: 'LUCIA@x.com', is_external: true }],
+    default_summary: { markdown_formatted: '## Resumen' } }, 'Carlos')
+  assert.equal(l.recordingId, 123); assert.equal(l.closer, 'Carlos'); assert.equal(l.duracionS, 2550); assert.equal(l.externa, true); assert.equal(l.resumenFathom, '## Resumen')
+  assert.equal(leadDeLlamada(l), 'Lucía Pérez'); assert.equal(duracionTexto(2550), '43 min'); assert.equal(duracionTexto(null), '—')
+  const ag = (nombre, email, fecha) => ({ fecha, video: '', fuente: '', presento: true, closed: false, cobrado: 0, grupo: 'no_cierre', nombre, email, telefono: '', situacion: 'Seguimiento', pestana: 'Closer 1' })
+  assert.equal(agendaDeLlamada(l, [ag('Otra', 'otra@x.com', '2026-11-10'), ag('L P', 'lucia@x.com', '2026-11-09')]).email, 'lucia@x.com')
+  assert.equal(agendaDeLlamada(l, [ag('Lucía Pérez Gómez', '', '2026-11-11')]).nombre, 'Lucía Pérez Gómez')
+  assert.equal(agendaDeLlamada(l, [ag('Lucía Pérez', '', '2026-11-20')]), null, 'fuera de ±3 días')
+  const interna = llamadaDeApi({ recording_id: 9, title: 'Daily', calendar_invitees_domains_type: 'only_internal', calendar_invitees: [] }, 'Marcos')
+  assert.equal(interna.externa, false); assert.equal(interna.duracionS, null)
 })
 console.log(`✔ ${n} pruebas de trazabilidad`)
