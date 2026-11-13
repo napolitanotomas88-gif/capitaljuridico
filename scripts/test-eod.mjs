@@ -44,6 +44,10 @@ ok('campo nuevo: antes del 8/10 sin dato (no 0); del 8 al 19 nota de cifra míni
   const e3 = calc({ outboundHistoria: [] }, '2026-10-20', '2026-10-21'); assert.equal(e3.aperturasHistorias, 0); assert.equal(e3.aperturasNota, undefined)
   assert.match(textoEOD(e1).join('\n'), /sin dato/)
 })
+ok('el EOD lleva la meta de bandeja (90 % contestada, < 1 h) para cruzar con Business Suite', () => {
+  const tx = textoEOD(calc({}, '2026-11-12', '2026-11-13')).join('\n')
+  assert.match(tx, /Meta de bandeja/); assert.match(tx, /90 % de la bandeja contestada/); assert.match(tx, /menor a 1 h/); assert.match(tx, /Business Suite/)
+})
 ok('fechas: texto ISO / DD/MM, inexistentes y futuras', () => {
   assert.equal(ymdDeCelda('2026-02-30'), null); assert.equal(ymdDeCelda('31/04/2026'), null); assert.equal(ymdDeCelda('03/10/2026'), '2026-10-03')
   const e = calc({ calendarios: [['2026-10-03 21:15:00', 'A', 'a', 1], ['03/10/2026', 'B', 'b', 2], ['', 'C', 'c', 3], ['2026-02-30', 'D', 'd', 4], ['2026-10-09', 'E', 'e', 5]] }, '2026-10-03', '2026-10-04')
