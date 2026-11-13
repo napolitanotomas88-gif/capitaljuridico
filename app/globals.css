@@ -306,6 +306,12 @@ body {
 @media (min-width: 769px) {
   .dashboard-header { position: sticky; top: 0; }
 }
+/* Título, fecha y filtros un 25 % más chicos en escritorio (pedido de Tomás, 13/11/2026). En el celular quedan igual:
+   el encabezado no es fijo y los botones tienen que seguir siendo cómodos de tocar. */
+@media (min-width: 769px) {
+  .dashboard-header .dashboard-header__achicar { zoom: 0.75; }
+  .dashboard-header .dashboard-header__marco { padding-top: 9px !important; padding-bottom: 10px !important; }
+}
 
 /* ── Date input ──────────────────────────── */
 input[type="date"] {

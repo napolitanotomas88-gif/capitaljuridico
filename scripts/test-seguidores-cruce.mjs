@@ -57,8 +57,8 @@ describe('calcularCruce', () => {
     const c = calcularCruce(validarFoto(foto()).foto)
     const p = c.posteos[0]
     assert.equal(p.costoAtribuido, 10)
-    assert.equal(p.costoReal, 2)
-    assert.equal(p.costoSoloAnuncios, 2.5)
+    assert.equal(p.costoReal, 2.5)            // solo seguidores de anuncios (40)
+    assert.equal(p.costoConOrganicos, 2)      // con los orgánicos (50), como referencia
     assert.equal(p.costoAtribuidoAyer, 10)
     assert.equal(p.bsNuevos, null)
     assert.equal(p.costoRealAyer, null)
@@ -75,7 +75,7 @@ describe('calcularCruce', () => {
     assert.equal(c.diaAnterior, '2026-01-09')
     assert.equal(c.posteos[0].bsNuevos, 10)
     assert.equal(c.posteos[0].bsAnunciosNuevos, 8)
-    assert.equal(c.posteos[0].costoRealAyer, 2)
+    assert.equal(c.posteos[0].costoRealAyer, 2.5)   // 20 ÷ 8 de anuncios: los 2 orgánicos del día no cuentan
     assert.equal(c.perfiles[0].nuevosAyer, 5)
     assert.equal(c.perfiles[0].costoRealAyer, 2)
   })
@@ -95,7 +95,46 @@ describe('calcularCruce', () => {
     const ayer = validarFoto(foto({ dia: '2026-01-09', posteos: [posteo({ bsTotal: 60, bsAnuncios: 45 })] })).foto
     const c = calcularCruce(validarFoto(foto()).foto, ayer)
     assert.equal(c.posteos[0].bsNuevos, 0)
+    assert.equal(c.posteos[0].bsAnunciosNuevos, 0)
     assert.equal(c.posteos[0].costoRealAyer, null)
+  })
+
+  test('perfil: al crecimiento se le restan los orgánicos de sus posteos (acumulado y del día)', () => {
+    const ayer = validarFoto(foto({ dia: '2026-01-09', perfiles: [perfil({ seguidores: 50, organicosAcum: 2 })] })).foto
+    const hoy = validarFoto(foto({ perfiles: [perfil({ seguidores: 60, organicosAcum: 5 })] })).foto
+    const pf = calcularCruce(hoy, ayer).perfiles[0]
+    assert.equal(pf.crecimientoAcum, 40)
+    assert.equal(pf.organicosAcum, 5)
+    assert.equal(pf.nuevosAcum, 35)
+    assert.ok(Math.abs(pf.costoRealAcum - 40 / 35) < 1e-9)
+    assert.equal(pf.nuevosAyer, 7)            // creció 10, 3 fueron orgánicos
+    assert.ok(Math.abs(pf.costoRealAyer - 10 / 7) < 1e-9)
+  })
+
+  test('rechaza organicosAcum negativo', () => {
+    assert.equal(validarFoto(foto({ perfiles: [perfil({ organicosAcum: -1 })] })).ok, false)
+  })
+
+  test('totales por cuenta: principal primero, cada una con lo suyo, y el total suma las dos', () => {
+    const f = validarFoto(foto({ posteos: [posteo(), posteo({ clave: 'BETA', cuenta: 'secundaria', gastoAcum: 30, atribuidosAcum: 1, bsTotal: 12, bsAnuncios: 10 })] })).foto
+    const c = calcularCruce(f)
+    assert.deepEqual(c.porCuenta.map(x => x.cuenta), ['principal', 'secundaria'])
+    const [pri, sec] = c.porCuenta.map(x => x.totales)
+    assert.equal(pri.gastoAcum, 100)
+    assert.equal(pri.seguidoresReales, 40)
+    assert.equal(sec.gastoAcum, 70)               // posteo BETA 30 + perfil 40
+    assert.equal(sec.seguidoresReales, 50)        // 10 de anuncios + 40 de crecimiento del perfil
+    assert.equal(c.totales.gastoAcum, pri.gastoAcum + sec.gastoAcum)
+    assert.equal(c.totales.seguidoresReales, 90)
+  })
+
+  test('costo real del día: solo con foto anterior y solo sobre lo que tiene dato', () => {
+    const ayer = validarFoto(foto({ dia: '2026-01-09', posteos: [posteo({ bsTotal: 40, bsAnuncios: 32 })], perfiles: [perfil({ seguidores: 55 })] })).foto
+    const t = calcularCruce(validarFoto(foto()).foto, ayer).totales
+    assert.equal(t.seguidoresRealesAyer, 13)      // 8 del posteo + 5 del perfil
+    assert.equal(t.gastoAyerConDato, 30)
+    assert.ok(Math.abs(t.costoRealAyer - 30 / 13) < 1e-9)
+    assert.equal(calcularCruce(validarFoto(foto()).foto).totales.costoRealAyer, null)
   })
 
   test('totales: el costo real solo usa lo que tiene dato real', () => {
@@ -103,9 +142,10 @@ describe('calcularCruce', () => {
     const t = calcularCruce(f).totales
     assert.equal(t.gastoAcum, 440)
     assert.equal(t.atribuidosAcum, 21)
-    assert.equal(t.seguidoresReales, 90)        // 50 del posteo con dato + 40 del perfil
+    assert.equal(t.seguidoresReales, 80)        // 40 de anuncios del posteo con dato + 40 del perfil
+    assert.equal(t.seguidoresConOrganicos, 90)  // 50 totales del posteo + 40 del perfil
     assert.equal(t.gastoConDato, 140)           // 100 + 40: el posteo sin dato queda afuera
-    assert.ok(Math.abs(t.costoReal - 140 / 90) < 1e-9)
+    assert.ok(Math.abs(t.costoReal - 140 / 80) < 1e-9)
   })
 
   test('ordena por gasto del día y después por acumulado', () => {
