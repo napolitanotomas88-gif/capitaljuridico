@@ -17,7 +17,7 @@ export function ComoLeVa({ idCliente, nombre, estado }: { idCliente: string; nom
             {estado.historial.slice(0, 12).map((p, i) => (
               <li key={`${p.fecha}-${i}`}>
                 <strong className="cj-num">{p.valor}/10</strong> · {p.dia.split('-').reverse().join('/')} · {p.fuente === 'typeform' ? 'Typeform' : p.quien || 'a mano'}
-                {p.nota && p.fuente === 'manual' && <span className="cj-texto-2"> — {p.nota}</span>}
+                {p.nota && p.fuente === 'manual' && <span className="cj-texto-2">: {p.nota}</span>}
               </li>
             ))}
           </ol>

@@ -53,7 +53,7 @@ export function MarcarEnvio({ activos, hoy, minimo }: { activos: ActivoVista[]; 
             <li key={a.id}>
               <label>
                 <input type="checkbox" checked={elegidos.has(a.id)} onChange={() => alternar(a.id)} /> {a.id} · {a.nombre}
-                <span className="cj-texto-2"> · {a.responsable}{a.ultimoEnvio ? ` · último envío ${a.ultimoEnvio}` : ''}</span>
+                <span className="cj-texto-2"> · {a.responsable}{a.ultimoEnvio ? `, último envío ${a.ultimoEnvio}` : ''}</span>
               </label>
             </li>
           ))}

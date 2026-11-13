@@ -33,7 +33,7 @@ export function ItemAprobacion({ item, puede }: { item: Item; puede: boolean }) 
     <section id={`${item.fuente}-${item.id}`} className="cj-panel cj-altas__tarjeta" aria-label={`${item.titulo}: ${item.cliente}`}>
       <div className="cj-altas__cabeza">
         <h2 className="cj-altas__nombre">{item.cliente}</h2>
-        <span className="cj-texto-2">{item.titulo} · {item.desde}{item.idCrm ? <> · <Link href={`/clientes/${item.idCrm}`} className="cj-enlace">{item.idCrm}</Link></> : null}</span>
+        <span className="cj-texto-2">{item.titulo} · {item.desde}{item.idCrm ? <> (<Link href={`/clientes/${item.idCrm}`} className="cj-enlace">{item.idCrm}</Link>)</> : null}</span>
       </div>
       <pre className="cj-altas__texto">{item.texto}</pre>
       {puede && (

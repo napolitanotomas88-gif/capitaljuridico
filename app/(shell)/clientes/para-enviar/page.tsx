@@ -39,7 +39,7 @@ export default async function ParaEnviarPage() {
           <SeccionTitulo etiqueta="Historial" titulo="Últimos resueltos" nivel={2} />
           <ul className="cj-altas__historial">
             {datos.resueltos.map((m) => (
-              <li key={m.id}><strong>{m.cliente}</strong> · {NOMBRE_PIEZA[m.pieza] ?? m.pieza} · {m.estado === 'enviado' ? 'Enviado' : `No corresponde${m.motivo ? ` (${m.motivo})` : ''}`} · {m.por ?? ''} {hora(m.cuando)}</li>
+              <li key={m.id}><strong>{m.cliente}</strong> · {NOMBRE_PIEZA[m.pieza] ?? m.pieza}: {m.estado === 'enviado' ? 'enviado' : `no corresponde${m.motivo ? ` (${m.motivo})` : ''}`}, {m.por ?? ''} {hora(m.cuando)}</li>
             ))}
           </ul>
         </section>

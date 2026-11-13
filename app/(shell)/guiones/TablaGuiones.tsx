@@ -25,7 +25,7 @@ export function TablaGuiones({ filas, avisos }: { filas: FilaGuiones[]; avisos: 
     <section className="cj-pila cj-pila--chica" aria-labelledby="h-tabla-guiones">
       <h2 id="h-tabla-guiones" className="cj-titulo cj-titulo--seccion">Guiones por cliente</h2>
       <p className="cj-texto-2 gs-sub">
-        Prioridad 5 = onboarding (guiones desde cero) · 4 = optimización urgente (fue mal o no hay nada rindiendo) · 3 = optimización con variables · 1 = variaciones de lo que funciona, para que no se queme.
+        Prioridad 5 = onboarding (guiones desde cero); 4 = optimización urgente (fue mal o no hay nada rindiendo); 3 = optimización con variables; 1 = variaciones de lo que funciona, para que no se queme.
         Los datos de guiones y grabaciones salen de la carpeta de cada cliente en Drive: el documento “Guiones” (última modificación) y los videos de “Crudos” (se grabó).
       </p>
       {avisos.map(a => <p key={a} className="pr-aviso" role="status">{a}</p>)}

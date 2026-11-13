@@ -65,7 +65,7 @@ export default async function AltasPage({ searchParams }: Props) {
           <SeccionTitulo etiqueta="Historial" titulo="Últimas terminadas" nivel={2} />
           <ul className="cj-altas__historial">
             {terminadas.map((a) => (
-              <li key={a.id}><strong>{a.cliente}</strong>{a.closer ? ` · ${a.closer}` : ''} · {a.estadoTexto} · {a.origen === 'despacho' ? 'Despacho' : 'WhatsApp'}</li>
+              <li key={a.id}><strong>{a.cliente}</strong>{a.closer ? ` (${a.closer})` : ''} · {a.estadoTexto}, por {a.origen === 'despacho' ? 'el Despacho' : 'WhatsApp'}</li>
             ))}
           </ul>
         </section>

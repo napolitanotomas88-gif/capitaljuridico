@@ -123,8 +123,8 @@ export default async function EdicionClientePage({ params, searchParams }: Props
       </p>
       {v.seguimiento && (
         <p className={v.seguimiento.frenado ? 'ed-interno' : 'ed-modo'} role="note">
-          <strong>Seguimiento</strong> {v.seguimiento.escalon} · a cargo de {v.seguimiento.responsable} · para el {v.seguimiento.debido.split('-').reverse().slice(0, 2).join('/')}
-          {v.seguimiento.frenado ? ' · frenado: hay crudos sin ubicar' : ''} · <Link href={conSufijo('/clientes/edicion/pendientes', c.sufijo)} className="ed-link">Grabaciones pendientes</Link>
+          <strong>Seguimiento</strong> {v.seguimiento.escalon}, a cargo de {v.seguimiento.responsable}, para el {v.seguimiento.debido.split('-').reverse().slice(0, 2).join('/')}
+          {v.seguimiento.frenado ? ' · frenado: hay crudos sin ubicar' : ''}<br /><Link href={conSufijo('/clientes/edicion/pendientes', c.sufijo)} className="ed-link">Grabaciones pendientes</Link>
         </p>
       )}
       {v.doc && v.doc.avisos.length > 0 && <ul className="ed-guia" aria-label="Avisos del doc de guiones">{v.doc.avisos.map(a => <li key={a} className="ed-sub">{a}</li>)}</ul>}
@@ -168,7 +168,7 @@ export default async function EdicionClientePage({ params, searchParams }: Props
                     {g.video ? (
                       <p className="ed-sub">
                         <Link href={conSufijo(g.video.href, c.sufijo)} className="ed-link">{g.video.clave} · {g.video.etiqueta}</Link>
-                        {` · ${g.video.crudos} crudo${g.video.crudos === 1 ? '' : 's'}`}{g.video.motivo ? ` · regrabar: ${g.video.motivo}` : ''}
+                        {`, ${g.video.crudos} crudo${g.video.crudos === 1 ? '' : 's'}`}{g.video.motivo ? `; regrabar: ${g.video.motivo}` : ''}
                       </p>
                     ) : <p className="ed-sub">Sin video todavía</p>}
                     {g.video?.bloqueo && <span className="ed-marca ed-marca--alerta">{g.video.bloqueo}</span>}
@@ -202,7 +202,7 @@ export default async function EdicionClientePage({ params, searchParams }: Props
           <h2 id="ed-subidas">Subidas</h2>
           <ul className="ed-historial">
             {v.subidas.map(s => (
-              <li key={s.id}><time>{s.desde}</time><span><strong>{s.tipo}</strong> · {s.archivos} archivo{s.archivos === 1 ? '' : 's'} · {s.subio} · {s.estado}{s.resumen ? ` · ${s.resumen}` : ''}</span></li>
+              <li key={s.id}><time>{s.desde}</time><span><strong>{s.tipo}</strong> · {s.archivos} archivo{s.archivos === 1 ? '' : 's'}, {s.subio}, {s.estado}{s.resumen ? `: ${s.resumen}` : ''}</span></li>
             ))}
           </ul>
         </section>

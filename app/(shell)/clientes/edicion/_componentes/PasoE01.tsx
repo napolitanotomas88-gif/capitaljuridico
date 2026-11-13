@@ -23,13 +23,13 @@ export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; d
         <span className={p.vencido && !p.hecho ? 'ed-marca ed-marca--alerta' : 'ed-marca'}>{p.vencido ? 'Vencido' : 'Para'} el {p.debido.split('-').reverse().slice(0, 2).join('/')}</span>
       </div>
       <p className="ed-sub">
-        A cargo de <strong>{p.responsable}</strong> · {p.videos} video{p.videos === 1 ? '' : 's'} esperando · {p.diasHabiles} día{p.diasHabiles === 1 ? '' : 's'} hábil{p.diasHabiles === 1 ? '' : 'es'} · por {p.motivo}
+        A cargo de <strong>{p.responsable}</strong> · {p.videos} video{p.videos === 1 ? '' : 's'} esperando, {p.diasHabiles} día{p.diasHabiles === 1 ? '' : 's'} hábil{p.diasHabiles === 1 ? '' : 'es'}, por {p.motivo}
       </p>
       {p.frenado && <p className="ed-interno"><strong>Frenado</strong>Llegaron crudos del cliente que todavía no están ubicados: ubicalos en la ficha del cliente antes de seguir con el escalón.</p>}
 
       {p.noSalio && <p className="ed-interno"><strong>No salió por WhatsApp</strong>{p.noSalio.replace(/^No salió por WhatsApp:\s*/, '')}</p>}
       {p.hecho ? (
-        <p className="ed-constancia">Hecho por {p.hecho.quien || 'alguien'} · {p.hecho.cuando}{p.hecho.nota ? ` · ${p.hecho.nota}` : ''}</p>
+        <p className="ed-constancia">Hecho por {p.hecho.quien || 'alguien'} · {p.hecho.cuando}{p.hecho.nota ? `: ${p.hecho.nota}` : ''}</p>
       ) : p.bot && p.texto.para === 'grupo_contenido' ? (
         <p className="ed-sub">Lo manda el bot por WhatsApp al grupo Contenido (días hábiles, de 10 a 19). No lo mandes a mano: cuando salga, queda acá como hecho.</p>
       ) : p.texto.para === 'grupo_contenido' ? (

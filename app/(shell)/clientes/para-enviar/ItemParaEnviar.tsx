@@ -42,7 +42,7 @@ export function ItemParaEnviar({ m }: { m: MensajeVista }) {
     <section id={`m-${m.id}`} className="cj-panel cj-altas__tarjeta" aria-label={`${m.titulo} para ${m.cliente}`}>
       <div className="cj-altas__cabeza">
         <h2 className="cj-altas__nombre">{m.cliente}</h2>
-        <span className="cj-texto-2">{m.titulo} · grupo {m.grupo} · {m.desde}{m.responsables ? ` · ${m.responsables}` : ''}</span>
+        <span className="cj-texto-2">{m.titulo}, grupo {m.grupo}<br />{m.desde}{m.responsables ? ` · ${m.responsables}` : ''}</span>
       </div>
       <pre className="cj-altas__texto">{m.texto}</pre>
       {m.adjuntos.length > 0 && <ul className="cj-altas__lista">{m.adjuntos.map((a) => <li key={a}>Adjuntá: <a href={a} target="_blank" rel="noreferrer" className="cj-enlace">{a}</a></li>)}</ul>}

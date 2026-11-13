@@ -40,7 +40,7 @@ export function RegistroHitos({ idCrm, hitos, hoy, demo }: Props) {
               <p className="rc-hito__fuente">
                 {h.fuente ? NOMBRE_FUENTE_HITO[h.fuente] : ''}
                 {h.detalle && h.fuente !== 'manual' ? ` · ${h.detalle}` : ''}
-                {h.manual && <> · {h.manual.nota ? `«${h.manual.nota}» · ` : ''}{h.manual.quien}</>}
+                {h.manual && <>{h.detalle && h.fuente !== 'manual' ? ', ' : ' · '}{h.manual.nota ? `«${h.manual.nota}», ` : ''}{h.manual.quien}</>}
               </p>
             )}
             {editando === h.clave ? (

@@ -142,7 +142,7 @@ export default async function EdicionVideoPage({ params, searchParams }: Props) 
             {v.editado ? <p><a className="ed-link" href={v.editado.url} target="_blank" rel="noopener noreferrer">{v.editado.nombre ?? 'Abrir el editado en Drive'}</a></p> : <p className="ed-vacio">Todavía no hay editado vinculado.</p>}
             {v.propuestas.map(a => (
               <div key={a.id} className="ed-panel-accion">
-                <p className="ed-sub">El bot vio un archivo nuevo en «Editados»: <strong>{a.nombre}</strong> · {a.creado} · <a className="ed-link" href={a.drive} target="_blank" rel="noopener noreferrer">Ver</a></p>
+                <p className="ed-sub">El bot vio un archivo nuevo en «Editados»: <strong>{a.nombre}</strong> ({a.creado}) · <a className="ed-link" href={a.drive} target="_blank" rel="noopener noreferrer">Ver</a></p>
                 {v.permisos.aceptarEditado && (
                   <BotonAccion demo={c.demo} variante="primario" etiqueta={v.estado === 'para_editar' ? `Es este: vincular ${a.nombre} y marcar listo` : `Es este: vincular ${a.nombre}`}
                     cuerpo={{ accion: 'aceptar_editado', archivo_id: a.id, video_id: v.id, version: v.version }} />

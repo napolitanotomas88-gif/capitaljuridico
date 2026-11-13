@@ -70,7 +70,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
           <ul className="ed-vinculos">
             {v.vinculadas.map(k => (
               <li key={k.drive_id} className="ed-vinculo">
-                <p><strong>{k.nombre}</strong> → {k.id_crm} · por {k.por}{k.revisar ? <> · <span className="ed-marca ed-marca--laton">revisar</span></> : null} · <a className="ed-link" href={k.link} target="_blank" rel="noopener noreferrer">Abrir en Drive</a></p>
+                <p><strong>{k.nombre}</strong> → {k.id_crm}, por {k.por}{k.revisar ? <> <span className="ed-marca ed-marca--laton">revisar</span></> : null} · <a className="ed-link" href={k.link} target="_blank" rel="noopener noreferrer">Abrir en Drive</a></p>
                 {v.puedeConfirmar && (
                   <details className="cj-detalles">
                     <summary className="cj-etiqueta">Corregir el cliente</summary>

@@ -31,7 +31,7 @@ function Propuesto({ p, demo, seriaTercera, esTomas }: { p: VistaPedido; demo: b
   const alternar = (i: number) => setElegidas(xs => (xs.includes(i) ? xs.filter(x => x !== i) : [...xs, i].sort((a, b) => a - b)))
   return (
     <div className="ed-pedido">
-      <p className="cj-etiqueta cj-etiqueta--laton">Pedido del cliente · {p.creado}{p.creadoPor ? ` · lo cargó ${p.creadoPor}` : ''}</p>
+      <p className="cj-etiqueta cj-etiqueta--laton">Pedido del cliente · {p.creado}{p.creadoPor ? `, lo cargó ${p.creadoPor}` : ''}</p>
       <p className="ed-cita">{p.texto}</p>
       {p.propuesta.length ? (
         <ul className="ed-propuesta">

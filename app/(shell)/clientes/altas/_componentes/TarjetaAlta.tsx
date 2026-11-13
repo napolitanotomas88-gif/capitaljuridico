@@ -99,7 +99,7 @@ function DatosCloser({ alta, espera, opcion }: { alta: string; espera: EsperaVis
   const [archivos, setArchivos] = useState<FileList | null>(null)
   return (
     <div className="cj-formulario">
-      <label className="cj-etiqueta" htmlFor={`datos-${alta}-${espera.id}`}>Una línea por dato (por ejemplo "Inicio del servicio: 26/10/2026")</label>
+      <label className="cj-etiqueta" htmlFor={`datos-${alta}-${espera.id}`}>Una línea por dato (por ejemplo «Inicio del servicio: 26/10/2026»)</label>
       <textarea id={`datos-${alta}-${espera.id}`} className="cj-campo__entrada" rows={Math.max(3, opcion.plantilla.split('\n').length + 1)} value={texto} onChange={(e) => setTexto(e.target.value)} />
       {opcion.conArchivos && <input type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="cj-campo__entrada" aria-label="Comprobante" onChange={(e) => setArchivos(e.target.files)} />}
       <div className="cj-altas__botones">
@@ -115,7 +115,7 @@ function AMano({ alta, item, puede }: { alta: string; item: AltaVista['aMano'][n
   const [confirmar, dialogo] = useConfirmacion()
   return (
     <div className="cj-altas__amano">
-      <p><strong>{item.titulo}</strong> <span className="cj-texto-2">· {item.estado}{item.motivo ? ` · ${item.motivo}` : ''}</span></p>
+      <p><strong>{item.titulo}</strong> <span className="cj-texto-2">· {item.estado}{item.motivo ? `: ${item.motivo}` : ''}</span></p>
       <ul className="cj-altas__lista">{item.detalle.map((d, i) => <li key={i}>{d}</li>)}</ul>
       {item.copiar && <details><summary>Texto para copiar</summary><pre className="cj-altas__texto">{item.copiar}</pre></details>}
       {puede ? (
@@ -138,9 +138,9 @@ export function TarjetaAlta({ alta, foco, aprobador, aMano, closerPropio }: Prop
     <article id={`alta-${alta.id}`} className={`cj-panel cj-altas__tarjeta${foco ? ' cj-altas__tarjeta--foco' : ''}`}>
       <header className="cj-altas__cabeza">
         <h3 className="cj-altas__nombre">{alta.cliente}</h3>
-        <span className="cj-texto-2">{alta.closer ? `Closer ${alta.closer} · ` : ''}{alta.origen === 'despacho' ? 'cargada en el Despacho' : 'por WhatsApp'} · {hora(alta.creado)}</span>
+        <span className="cj-texto-2">{alta.closer ? `Closer ${alta.closer}, ` : ''}{alta.origen === 'despacho' ? 'cargada en el Despacho' : 'por WhatsApp'} · {hora(alta.creado)}</span>
       </header>
-      <p><span className="cj-etiqueta cj-etiqueta--laton">{alta.estadoTexto}</span>{alta.modo !== 'real' ? <span className="cj-texto-2"> · modo {alta.modo}</span> : null}{alta.comprobantes ? <span className="cj-texto-2"> · {alta.comprobantes} comprobante(s)</span> : null}</p>
+      <p><span className="cj-etiqueta cj-etiqueta--laton">{alta.estadoTexto}</span>{alta.modo !== 'real' ? <span className="cj-texto-2"> · modo {alta.modo}</span> : null}{alta.comprobantes ? <span className="cj-texto-2">{alta.modo !== 'real' ? ', ' : ' · '}{alta.comprobantes} comprobante(s)</span> : null}</p>
       {alta.error && <p className="cj-texto-2">Último error: {alta.error}</p>}
       <ul className="cj-altas__pasos" aria-label="Pasos">
         {alta.pasos.map((p) => <li key={p.id} className={`cj-altas__paso cj-altas__paso--${p.estado}`} title={p.error ?? undefined}>{p.titulo}: {p.estadoTexto}</li>)}
@@ -148,7 +148,7 @@ export function TarjetaAlta({ alta, foco, aprobador, aMano, closerPropio }: Prop
 
       {alta.esperas.map((e) => (
         <section key={e.id} id={ancla(e)} className="cj-altas__espera" aria-label={`${e.quienTexto} (${e.id})`}>
-          <p><strong>{e.quienTexto}</strong> <span className="cj-texto-2">· desde {hora(e.desde)}{e.avisada ? ' · avisado en Discord' : ''}{e.estado === 'simulada' ? ' · simulación' : ''}</span></p>
+          <p><strong>{e.quienTexto}</strong> <span className="cj-texto-2">· desde {hora(e.desde)}{e.avisada ? ', avisado en Discord' : ''}{e.estado === 'simulada' ? ' (simulación)' : ''}</span></p>
           <pre className="cj-altas__texto">{e.texto}</pre>
           {e.estado === 'abierta' && (e.quien === 'closer'
             ? (puedeDatos ? e.opciones.map((o, i) => (o.tipo === 'datos' ? <DatosCloser key={i} alta={alta.id} espera={e} opcion={o} /> : null)) : null)

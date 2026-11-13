@@ -29,7 +29,7 @@ export function EstadoTypeform({ resultado, error }: { resultado: ResultadoTypef
               <strong>{r.nombre || r.mail || r.telefono || 'Sin datos'}</strong>
               {r.valor !== null && <> · {r.valor}/10</>}
               {r.fecha && <> · {r.fecha.split('-').reverse().join('/')}</>}
-              <span className="cj-texto-2"> — {r.motivo}</span>
+              <span className="cj-texto-2">: {r.motivo}</span>
             </li>
           ))}
         </ul>

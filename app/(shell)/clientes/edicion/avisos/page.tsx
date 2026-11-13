@@ -44,7 +44,7 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
         <ul className="ed-avisos">
           {filas.map(a => (
             <li key={a.id} className="ed-aviso">
-              <p className="ed-barra"><ChipSemaforo estado={a.tono}>{a.estado}</ChipSemaforo><span className="ed-sub">{a.tipo} · {a.canal} · {a.creado}</span></p>
+              <p className="ed-barra"><ChipSemaforo estado={a.tono}>{a.estado}</ChipSemaforo><span className="ed-sub">{a.tipo}, {a.canal} · {a.creado}</span></p>
               <p className="ed-aviso__texto">{a.texto}</p>
               {a.error && <p className="ed-sub" style={{ color: 'var(--cj-error)' }}>{a.error}</p>}
             </li>

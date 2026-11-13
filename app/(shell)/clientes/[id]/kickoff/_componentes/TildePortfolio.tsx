@@ -78,7 +78,7 @@ export function TildePortfolio({ idCliente, recordingId, item, nombre, actual, d
       </label>
       <p className="ko-sub">
         {tilde
-          ? `Tildado «${NOMBRE_VALOR_CHECK[tilde.valor].toLowerCase()}» por ${tilde.quien || 'alguien'}${tilde.cuandoTexto ? ` · ${tilde.cuandoTexto}` : ''}${tilde.nota ? ` — ${tilde.nota}` : ''}`
+          ? `Tildado «${NOMBRE_VALOR_CHECK[tilde.valor].toLowerCase()}» por ${tilde.quien || 'alguien'}${tilde.cuandoTexto ? ` · ${tilde.cuandoTexto}` : ''}${tilde.nota ? `: ${tilde.nota}` : ''}`
           : 'Sin tildar.'}
       </p>
       <p role="status" aria-live="polite" className={msj?.error ? 'ko-msj ko-msj--error' : 'ko-msj'}>{enviando ? 'Guardando…' : msj?.texto ?? ''}</p>

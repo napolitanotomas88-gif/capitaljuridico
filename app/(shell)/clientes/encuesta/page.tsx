@@ -44,7 +44,7 @@ export default async function EncuestaPage() {
 
       <section className="cj-pila cj-pila--chica" aria-label="Historial por mes">
         <SeccionTitulo etiqueta="Historial" titulo="Por mes" nivel={2} />
-        <p className="cj-texto-2">✓ respondió ese mes · ✗ se le marcó la ronda y no respondió · — no hubo ronda. Arriba, los que no completaron.</p>
+        <p className="cj-texto-2">✓ respondió ese mes. ✗ se le marcó la ronda y no respondió. — no hubo ronda. Arriba, los que no completaron.</p>
         <Tracker tracker={d.tracker} />
       </section>
 

@@ -256,7 +256,7 @@ function CeldaCartera({ fila, vinculo, cartera, alVincular }: { fila: FilaEow; v
         }}>
           <option value="auto">Automático (por nombre)</option>
           <option value="ninguno">No vincular</option>
-          {[...cartera].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.id} · {NOMBRE_ESTADO_CARTERA[c.estado]}</option>)}
+          {[...cartera].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((c) => <option key={c.id} value={c.id}>{c.nombre} ({c.id}) · {NOMBRE_ESTADO_CARTERA[c.estado]}</option>)}
         </select>
       </label>
     )
