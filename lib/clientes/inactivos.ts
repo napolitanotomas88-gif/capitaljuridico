@@ -64,7 +64,7 @@ export async function leerContactosInactivos(): Promise<ContactoSeguimiento[]> {
 export async function procesarInactivos(op: { dry?: boolean; ahora?: number } = {}): Promise<{ candidatos: AlertaInactivo[]; creadas: number; whatsapp: 'no_habilitado' }> {
   const contactos = await leerContactosInactivos()
   if (!contactos.length) return { candidatos: [], creadas: 0, whatsapp: 'no_habilitado' }
-  const { datos } = await cargarVista(false)
+  const { datos } = await cargarVista(false, 'cache', true)
   // Un snapshot viejo no debe crear recordatorios de clientes que tal vez ya respondieron o fueron pausados.
   if (datos.fuente === 'snapshot_viejo') throw new Error('No se pudo comprobar el estado actual de los clientes')
   const candidatos = alertasInactivos(datos.clientes, contactos, op.ahora)

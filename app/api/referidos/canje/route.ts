@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       const datos = await leerClientes({ forzar: true })
       if (datos.fuente === 'snapshot_viejo') throw new Error('datos guardados')
       vista = { datos, creditos: calcularCreditosDeDatos(datos), esDemo: false }
-    } else vista = await cargarVista(demo)
+    } else vista = await cargarVista(demo, 'cache', true)
   } catch {
     return responder({ ok: false, codigo: 'planilla_no_disponible', mensaje: 'No se pudo leer el CRM. No se calculó nada.' }, 503)
   }

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   let vista
   try {
-    vista = await cargarVista(false, verMontos ? 'cache' : 'omitir')
+    vista = await cargarVista(false, verMontos ? 'cache' : 'omitir', true)
   } catch (e) {
     console.error('API clientes: no se pudo leer el CRM:', (e as Error).message?.slice(0, 200))
     return json({ error: 'No se pudo leer la planilla de clientes' }, 503)

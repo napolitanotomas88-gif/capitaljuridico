@@ -181,7 +181,7 @@ export function depsDocumentoReales(hasta: number, consultaParaPruebas?: () => N
     }),
     async nombreUnico(idCrm, nombre) {
       const { cargarVista } = await import('@/lib/clientes/vista')
-      const { datos } = await cargarVista(false)
+      const { datos } = await cargarVista(false, 'cache', true)
       const normal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
       const clientes = datos.clientes.filter(c => c.linea === 'agencia' && normal(c.nombre) === normal(nombre))
       return clientes.length === 1 && clientes[0].id.toUpperCase() === idCrm
