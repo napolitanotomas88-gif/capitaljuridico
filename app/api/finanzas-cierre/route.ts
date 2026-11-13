@@ -7,7 +7,7 @@ import { sendDiscord } from '@/lib/discord'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// Automatización de fin de mes de Finanzas. Cron diario de Vercel (10:00 AR) que SOLO actúa cuando
+// Automatización de fin de mes de Finanzas. Cron diario de Vercel (10:10 AR) que SOLO actúa cuando
 // mañana (hora AR) es el último día del mes:
 //   1) carga en Gastos el gasto de Meta del mes como estimado (sin duplicar; si ya hay anuncios reales, no carga);
 //      desde el 1/11/2026 («pasa todo a la app», Tomás) también en la app de Finanzas (finanzas.gastos, fila web firmada

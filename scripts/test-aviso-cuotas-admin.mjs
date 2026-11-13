@@ -155,11 +155,11 @@ test('pieza k01 (Pedido de pago de cuota) para Tomás, grupo General', () => {
   assert.deepEqual(P.responsablesDe('k01', {}), ['tomas'])
 })
 
-test('ruta, cron y proxy: solo Bearer CRON_SECRET, 10:00 AR', () => {
+test('ruta, cron y proxy: solo Bearer CRON_SECRET, 10:05 AR', () => {
   const regla = RUTAS.REGLAS.find((r) => r.patron === '/api/cuotas/aviso-admin')
   assert.equal(regla?.quien, 'propio')
   const crons = JSON.parse(readFileSync(join(RAIZ, 'vercel.json'), 'utf8')).crons
-  assert.ok(crons.some((c) => c.path === '/api/cuotas/aviso-admin' && c.schedule === '0 13 * * *'))
+  assert.ok(crons.some((c) => c.path === '/api/cuotas/aviso-admin' && c.schedule === '5 13 * * *'))
   const ruta = readFileSync(join(RAIZ, 'app/api/cuotas/aviso-admin/route.ts'), 'utf8')
   assert.match(ruta, /accesoMaquina\(req\.headers\)/)
   assert.doesNotMatch(ruta, /searchParams\.get\('key'\)/)

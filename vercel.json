@@ -38,7 +38,7 @@
     },
     {
       "path": "/api/finanzas-cierre",
-      "schedule": "0 13 * * *"
+      "schedule": "10 13 * * *"
     },
     {
       "path": "/api/reporte-anuncios",
@@ -98,15 +98,15 @@
     },
     {
       "path": "/api/clientes/controles",
-      "schedule": "0 13 * * *"
+      "schedule": "15 13 * * *"
     },
     {
       "path": "/api/clientes/controles?semanal=1",
-      "schedule": "0 13 * * 1"
+      "schedule": "20 13 * * 1"
     },
     {
       "path": "/api/cuotas/aviso-admin",
-      "schedule": "0 13 * * *"
+      "schedule": "5 13 * * *"
     },
     {
       "path": "/api/eow/aviso",

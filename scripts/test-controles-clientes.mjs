@@ -351,8 +351,8 @@ test('ruta y crons: máquina con CRON_SECRET, 10:00 AR todos los días y lunes',
   const ruta = readFileSync(join(RAIZ, 'app', 'api', 'clientes', 'controles', 'route.ts'), 'utf8')
   assert.equal((ruta.match(/if \(!accesoMaquina\(req\.headers\)\)/g) ?? []).length, 2, 'GET y POST exigen el Bearer')
   const crons = JSON.parse(readFileSync(join(RAIZ, 'vercel.json'), 'utf8')).crons
-  assert.ok(crons.some((c) => c.path === '/api/clientes/controles' && c.schedule === '0 13 * * *'))
-  assert.ok(crons.some((c) => c.path === '/api/clientes/controles?semanal=1' && c.schedule === '0 13 * * 1'))
+  assert.ok(crons.some((c) => c.path === '/api/clientes/controles' && c.schedule === '15 13 * * *'))
+  assert.ok(crons.some((c) => c.path === '/api/clientes/controles?semanal=1' && c.schedule === '20 13 * * 1'))
   // «Es incumplimiento» / «No corresponde»: sesión de Clientes, mismo origen (pasa por el proxy)
   assert.equal(RUTAS.resolverRegla('/api/clientes/controles/12').regla.patron, '/api/clientes/*')
   const verif = readFileSync(join(RAIZ, 'app', 'api', 'clientes', 'controles', '[id]', 'route.ts'), 'utf8')

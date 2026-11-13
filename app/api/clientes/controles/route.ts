@@ -7,8 +7,8 @@ export const runtime = 'nodejs'
 
 // Controles de cumplimiento del cliente (11/11/2026, lib/clientes/controles). Solo máquina: Authorization: Bearer <CRON_SECRET>
 // (el cron de Vercel lo manda solo; nunca ?key=). Encendido con CONTROLES_CLIENTES=encendido (apagado por defecto).
-//   · GET            → corrida diaria (cron "0 13 * * *" = 10:00 AR): Meta, cierre del Período Mensual, entregas y capturas.
-//   · GET ?semanal=1 → resumen de la semana cerrada (cron de los lunes "0 13 * * 1").
+//   · GET            → corrida diaria (cron "15 13 * * *" = 10:15 AR): Meta, cierre del Período Mensual, entregas y capturas.
+//   · GET ?semanal=1 → resumen de la semana cerrada (cron de los lunes "20 13 * * 1").
 //   · ?dry=1         → lo que haría, sin escribir, crear carpetas ni avisar (anda aunque esté apagado).
 //   · GET ?config=1  → las configuraciones cargadas.
 //   · POST {idCrm, cliente, cuentaMeta, presupuestoDiarioUsd, carpetaCliente?, carpetaCapturas?, desde?, plazos?, clausulas?, activo?}
