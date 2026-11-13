@@ -22,7 +22,7 @@ export function CashChart({ labels, cash }: Props) {
 
   return (
     <div className="card p-5">
-      <p className="section-title">Cash Collected — Evolución mensual</p>
+      <p className="section-title">Cash Collected: evolución mensual</p>
       <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
           <defs>
@@ -32,8 +32,8 @@ export function CashChart({ labels, cash }: Props) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} width={48} />
+          <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={formatK} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} width={48} />
           <Tooltip
             formatter={(v) => [`$${Number(v).toLocaleString('en-US')}`, 'Cash Collected']}
             labelStyle={{ color: 'var(--text)', fontWeight: 600 }}

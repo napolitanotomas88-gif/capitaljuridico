@@ -15,7 +15,7 @@ function StatusDot({ active }: { active: boolean }) {
   return (
     <span role="img" aria-label={active ? 'Activo' : 'Apagado'} title={active ? 'Activo' : 'Apagado'} style={{
       display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 7, flexShrink: 0,
-      background: active ? 'var(--tono-bueno)' : 'transparent', border: active ? 'none' : '1.5px solid var(--text-muted)', boxShadow: active ? '0 0 4px color-mix(in srgb, var(--tono-bueno) 60%, transparent)' : 'none',
+      background: active ? 'var(--tono-bueno)' : 'transparent', border: active ? 'none' : '1.5px solid var(--text-muted)',
     }} />
   )
 }
@@ -47,7 +47,7 @@ const fmtUSD = fmtMoneda
 // Semáforo del CPL definido por el usuario (costo por seguidor, campañas FM)
 function cpsVerdict(cps: number): { label: string; color: string } {
   if (cps <= 2.2) return { label: 'Winner (1.5–2.2)', color: 'var(--tono-bueno)' }
-  if (cps <= 3.0) return { label: 'Escalar — posible winner (2.2–3)', color: 'var(--tono-bueno)' }
+  if (cps <= 3.0) return { label: 'Escalar: posible winner (2.2–3)', color: 'var(--tono-bueno)' }
   if (cps <= 5.0) return { label: 'Regular (3–5)', color: 'var(--brand-texto)' }
   return { label: 'Rendimiento bajo (5+)', color: 'var(--tono-malo)' }
 }
@@ -109,50 +109,50 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
   return (
     <div className="card p-5">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <p className="section-title" style={{ margin: 0 }}>Anuncios — Campañas activas</p>
-        {monthLabel && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-texto)' }}>{monthLabel}</span>}
+        <p className="section-title" style={{ margin: 0 }}>Anuncios: campañas activas</p>
+        {monthLabel && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-texto)' }}>{monthLabel}</span>}
       </div>
 
       {/* ── KPIs del mes: CPA (VSL) y CPS (FM) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, margin: '14px 0' }}>
-        <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px' }}>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-            CPA VSL — costo por agenda
+        <div className="resumen-anidado">
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            CPA VSL: costo por agenda
           </p>
           <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand-red)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {cpaVSL != null ? fmtUSD(cpaVSL) : '—'}
           </p>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-            {agendasVSLMes} agendas VSL en el mes {cpaVSL == null ? '· faltan ads' : ''}
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            {agendasVSLMes} agendas VSL en el mes {cpaVSL == null ? '(faltan ads)' : ''}
           </p>
         </div>
         {/* CPA Retargeting: embudo propio (ads 'retarget' ÷ agendas con campaña RETARGETING) */}
         {mostrarCpaRet && (
-          <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px' }}>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-              CPA Retargeting — costo por agenda
+          <div className="resumen-anidado">
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+              CPA Retargeting: costo por agenda
             </p>
             <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand-texto)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
               {cpaRetargeting != null ? fmtUSD(cpaRetargeting) : '—'}
             </p>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               {agendasRetargetingMes} agendas retargeting en el mes
               {(adsRetargetingMes ?? 0) > 0 ? ` · ${fmtUSD(adsRetargetingMes as number)} de ads` : ' · sin gasto de retargeting'}
             </p>
           </div>
         )}
-        <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px' }}>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-            CPL Instagram — costo por seguidor
+        <div className="resumen-anidado">
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            CPL Instagram: costo por seguidor
           </p>
           <p style={{ fontSize: 24, fontWeight: 800, color: cps != null ? cpsVerdict(cps).color : 'var(--text-muted)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {cps != null ? `$${cps.toFixed(2)}` : '—'}
           </p>
-          <p style={{ fontSize: 10, color: cps != null ? cpsVerdict(cps).color : 'var(--text-muted)', marginTop: 2, fontWeight: 600 }}>
+          <p style={{ fontSize: 12, color: cps != null ? cpsVerdict(cps).color : 'var(--text-muted)', marginTop: 2, fontWeight: 600 }}>
             {cps != null ? cpsVerdict(cps).label : 'sin gasto FM ni datos de Meta este mes'}
           </p>
           {cps != null && cpsEstimado && (
-            <p style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 2 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               estimado Meta · falta cargar seguimientos del mes
             </p>
           )}
@@ -163,9 +163,9 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -18 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} interval={4} />
-          <YAxis yAxisId="usd" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-          <YAxis yAxisId="ag" orientation="right" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} width={28} />
+          <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} interval={4} />
+          <YAxis yAxisId="usd" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+          <YAxis yAxisId="ag" orientation="right" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} width={28} />
           <Tooltip
             contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', fontSize: 12 }}
             itemStyle={{ color: 'var(--text)' }}
@@ -174,7 +174,7 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
               return [label.startsWith('Ads') ? fmtUSD(Number(v)) : String(v), label]
             }}
           />
-          <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v) => <span style={{ color: 'var(--text-muted)' }}>{v}</span>} />
+          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v) => <span style={{ color: 'var(--text-muted)' }}>{v}</span>} />
           <Bar yAxisId="usd" dataKey="Ads VSL" stackId="ads" fill="var(--s-bordo)" radius={[0, 0, 0, 0]} />
           {hayRetargeting && <Bar yAxisId="usd" dataKey="Ads Retargeting" stackId="ads" fill="var(--s-dorado-osc)" radius={[0, 0, 0, 0]} />}
           <Bar yAxisId="usd" dataKey="Ads FM" stackId="ads" fill="var(--s-dorado)" radius={[0, 0, 0, 0]} />
@@ -184,8 +184,8 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
           {hayRetargeting && <Line yAxisId="ag" type="monotone" dataKey="Agendas Retargeting" stroke="var(--s-gris)" strokeWidth={2} strokeDasharray="2 2" dot={false} />}
         </ComposedChart>
       </ResponsiveContainer>
-      <p style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'right', marginTop: 2 }}>
-        Barras: gasto diario total (USD, eje izq.: VSL + Retargeting + FM + otros = webinar/Uruguay/pre-call) · Líneas: llamadas programadas ese día (eje der.) · {isMonthView ? adsPeriodLabel : 'últimos 35 días'}
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'right', marginTop: 2 }}>
+        Barras: gasto diario total (USD, eje izq.: VSL + Retargeting + FM + otros = webinar/Uruguay/pre-call). Líneas: llamadas programadas ese día (eje der.). Período: {isMonthView ? adsPeriodLabel : 'últimos 35 días'}
       </p>
 
       {/* ── Tabla de campañas activas ── */}
@@ -194,10 +194,10 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>CAMPAÑA</th>
-                <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)' }}>EMBUDO</th>
-                <th style={{ textAlign: 'right', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)' }}>{isMonthView ? `GASTO ${adsPeriodLabel.toUpperCase()}` : 'ÚLT. 7 DÍAS'}</th>
-                {!isMonthView && <th style={{ textAlign: 'right', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)' }}>MES ACTUAL</th>}
+                <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>CAMPAÑA</th>
+                <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)' }}>EMBUDO</th>
+                <th style={{ textAlign: 'right', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)' }}>{isMonthView ? `GASTO ${adsPeriodLabel.toUpperCase()}` : 'ÚLT. 7 DÍAS'}</th>
+                {!isMonthView && <th style={{ textAlign: 'right', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)' }}>MES ACTUAL</th>}
               </tr>
             </thead>
             <tbody>
@@ -206,7 +206,7 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
                   <td style={{ padding: '7px 4px', color: 'var(--text)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><StatusDot active={c.active} />{c.name}</td>
                   <td style={{ padding: '7px 4px' }}>
                     <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                      fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                       background: FUNNEL_COLOR[c.funnel] ?? '#605747',
                       color: FUNNEL_INK[c.funnel] ?? '#fff',
                     }}>{c.funnel}</span>
@@ -224,31 +224,16 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
       {adsIndividuales.length > 0 && (
         <div style={{ marginTop: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', margin: 0 }}>
-              ANUNCIOS — {adsPeriodLabel.toUpperCase()} (leads/CPL según Meta, solo para comparar entre anuncios)
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', margin: 0 }}>
+              ANUNCIOS DE {adsPeriodLabel.toUpperCase()}: leads y CPL según Meta, solo para comparar entre anuncios
             </p>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Estado: activos (default) vs todos los que gastaron en el período */}
-              <button onClick={() => setSoloActivos(true)} style={{
-                padding: '2px 9px', borderRadius: 999, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                border: `1.5px solid ${soloActivos ? '#1f6b52' : 'var(--border)'}`,
-                background: soloActivos ? '#1f6b52' : 'transparent',
-                color: soloActivos ? '#fff' : 'var(--text-muted)',
-              }}>Activos</button>
-              <button onClick={() => setSoloActivos(false)} style={{
-                padding: '2px 9px', borderRadius: 999, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                border: `1.5px solid ${!soloActivos ? 'var(--brand-orange)' : 'var(--border)'}`,
-                background: !soloActivos ? 'var(--brand-orange)' : 'transparent',
-                color: !soloActivos ? 'var(--on-brand)' : 'var(--text-muted)',
-              }}>Historial</button>
+              <button type="button" onClick={() => setSoloActivos(true)} aria-pressed={soloActivos} className={`filter-pill ${soloActivos ? 'active' : ''}`}>Activos</button>
+              <button type="button" onClick={() => setSoloActivos(false)} aria-pressed={!soloActivos} className={`filter-pill ${!soloActivos ? 'active' : ''}`}>Historial</button>
               <span style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 4px' }} />
               {funnelsPresentes.map(f => (
-                <button key={f} onClick={() => setFunnelFilter(f)} style={{
-                  padding: '2px 9px', borderRadius: 999, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                  border: `1.5px solid ${funnelFilter === f ? 'var(--brand-orange)' : 'var(--border)'}`,
-                  background: funnelFilter === f ? 'var(--brand-orange)' : 'transparent',
-                  color: funnelFilter === f ? 'var(--on-brand)' : 'var(--text-muted)',
-                }}>{f}</button>
+                <button key={f} type="button" onClick={() => setFunnelFilter(f)} aria-pressed={funnelFilter === f} className={`filter-pill ${funnelFilter === f ? 'active' : ''}`}>{f}</button>
               ))}
             </div>
           </div>
@@ -256,11 +241,11 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>ANUNCIO</th>
-                  <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 10, color: 'var(--text-muted)' }}>EMBUDO</th>
-                  <th onClick={() => toggleSort('spend')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 10, color: sortKey === 'spend' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>GASTO{arrow('spend')}</th>
-                  <th onClick={() => toggleSort('leads')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 10, color: sortKey === 'leads' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>LEADS (META){arrow('leads')}</th>
-                  <th onClick={() => toggleSort('cpl')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 10, color: sortKey === 'cpl' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>CPL (META){arrow('cpl')}</th>
+                  <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>ANUNCIO</th>
+                  <th style={{ textAlign: 'left', padding: '6px 4px', fontSize: 12, color: 'var(--text-muted)' }}>EMBUDO</th>
+                  <th onClick={() => toggleSort('spend')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 12, color: sortKey === 'spend' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>GASTO{arrow('spend')}</th>
+                  <th onClick={() => toggleSort('leads')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 12, color: sortKey === 'leads' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>LEADS (META){arrow('leads')}</th>
+                  <th onClick={() => toggleSort('cpl')} style={{ textAlign: 'right', padding: '6px 4px', fontSize: 12, color: sortKey === 'cpl' ? 'var(--brand-texto)' : 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>CPL (META){arrow('cpl')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,7 +254,7 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
                     <td style={{ padding: '7px 4px', color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><StatusDot active={a.active} />{a.name}</td>
                     <td style={{ padding: '7px 4px' }}>
                       <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                        fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                         background: FUNNEL_COLOR[a.funnel] ?? '#605747', color: FUNNEL_INK[a.funnel] ?? '#fff',
                       }}>{a.funnel}</span>
                     </td>
@@ -284,8 +269,8 @@ export function AdsReport({ daily, campaigns, adsIndividuales, adsPeriodLabel, i
               </tbody>
             </table>
             {adsFiltrados.length === 0 && (
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0 2px' }}>
-                {soloActivos ? 'Sin anuncios activos hoy con este filtro — tocá "Historial" para ver los que gastaron en el período' : 'Sin anuncios con este filtro'}
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0 2px' }}>
+                {soloActivos ? 'Sin anuncios activos hoy con este filtro. Tocá "Historial" para ver los que gastaron en el período' : 'Sin anuncios con este filtro'}
               </p>
             )}
           </div>

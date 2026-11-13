@@ -107,7 +107,7 @@ export function LeadSourceChart({ sources }: Props) {
           transform: 'translate(-50%, -50%)',
           textAlign: 'center', pointerEvents: 'none',
         }}>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>Cierres FECCU</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1 }}>Cierres FECCU</p>
           <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1.4 }}>{totalCount}</p>
         </div>
       </div>
@@ -115,18 +115,18 @@ export function LeadSourceChart({ sources }: Props) {
         {data.map(d => (
           <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>{d.name}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.count} {d.count === 1 ? 'cierre' : 'cierres'}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', width: 38, textAlign: 'right' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{d.name}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.count} {d.count === 1 ? 'cierre' : 'cierres'}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', width: 38, textAlign: 'right' }}>
               {((d.count / totalCount) * 100).toFixed(0)}%
             </span>
           </div>
         ))}
       </div>
-      <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 10, textAlign: 'right' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10, textAlign: 'right' }}>
         Total FECCU: <span style={{ fontWeight: 700, color: 'var(--text)' }}>{fmtUSD(totalCash)}</span>
       </p>
-      <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, textAlign: 'right' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, textAlign: 'right' }}>
         cierre = primer pago FECCU del cliente en el año
       </p>
     </div>

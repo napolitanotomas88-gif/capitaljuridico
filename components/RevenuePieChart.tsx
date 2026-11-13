@@ -69,7 +69,7 @@ export function RevenuePieChart({ feccu, feccp, becc }: Props) {
           transform: 'translate(-50%, -50%)',
           textAlign: 'center', pointerEvents: 'none',
         }}>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>Total</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1 }}>Total</p>
           <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3 }}>{fmtUSD(total)}</p>
         </div>
       </div>
@@ -77,8 +77,8 @@ export function RevenuePieChart({ feccu, feccp, becc }: Props) {
         {data.map(d => (
           <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.name}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.name}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginLeft: 'auto' }}>
               {((d.value / total) * 100).toFixed(0)}%
             </span>
           </div>

@@ -41,7 +41,7 @@ export function CuotasCard({ pendiente, cobradas, noPaga }: Props) {
       </div>
       {ok && (
         <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-          {pct.toFixed(1)}% cobrado · cobrado ÷ (cobrado + pendiente)
+          {pct.toFixed(1)}% cobrado (cobrado ÷ (cobrado + pendiente))
           {noPaga != null && noPaga > 0 ? ` · el pendiente incluye ${fmtUSD(noPaga)} marcados "No Paga"` : ''}
         </p>
       )}

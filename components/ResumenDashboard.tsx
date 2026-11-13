@@ -411,7 +411,7 @@ export default function Dashboard() {
   const subMuestraChica = (valor: number | null, gasto: number, normal: string) =>
     valor == null && gasto > 0 && gasto < 300 ? 'gasto < $300: muestra chica' : normal
   // Con filtro de persona estos grupos siguen siendo de toda la empresa → se rotulan
-  const sufEmpresa = person !== '' ? ' · total empresa' : ''
+  const sufEmpresa = person !== '' ? ' (total empresa)' : ''
 
   const closerNames = raw?.closerNames ?? []
   const hasData = raw !== null
@@ -465,12 +465,12 @@ export default function Dashboard() {
       }
       const prom3 = cerrados.length ? cerrados.reduce((s, v) => s + v, 0) / cerrados.length : null
       churnSub = churn != null
-        ? `${bajas} bajas de ${inicio} activos al 1/${m + 1}${esMesEnCurso ? ' · en curso' : ''}${prom3 != null ? ` · prom 3m ${prom3.toFixed(1)}%` : ''}`
+        ? `${bajas} bajas de ${inicio} activos al 1/${m + 1}${esMesEnCurso ? ' (en curso)' : ''}${prom3 != null ? ` · prom 3m ${prom3.toFixed(1)}%` : ''}`
         : inicio < 3 ? 'menos de 3 activos al inicio del mes' : 'sin datos del mes'
     } else {
       // Sin CRM conectado: aproximado por pagos
       churn = raw.backend.churn[m] ?? null
-      churnSub = churn != null ? 'aprox. por pagos (CRM no conectado)' : 'aprox. por pagos — sin datos'
+      churnSub = churn != null ? 'aprox. por pagos (CRM no conectado)' : 'aprox. por pagos: sin datos'
     }
     const tasaRenov = crmOk ? en(bm?.tasaRenovacion) : null
     // Clientes activos: mes en curso = estado ACTIVO del CRM hoy (backend.crm.activos, el mismo
@@ -483,7 +483,7 @@ export default function Dashboard() {
     const bajasSinFechaFuera = !esMesEnCurso && crmOk && m < currentMonthIdx ? (crmX.bajasSinFecha ?? 0) : 0
     // Los que pagaron solo el fee (< $400) y nunca avanzaron no cuentan como clientes
     const noClientes = crmOk ? (crmX.noClientes ?? 0) : 0
-    const sufNoClientes = noClientes > 0 ? ` · sin contar ${noClientes} que solo pagaron el fee` : ''
+    const sufNoClientes = noClientes > 0 ? ` (sin contar ${noClientes} que solo pagaron el fee)` : ''
     return {
       mes, clickup, pausadosHoy, bajasSinFecha, bajasSinFechaFuera, noClientes, sufNoClientes,
       activosFin: !crmOk ? null : esMesEnCurso ? raw.backend.crm.activos : en(bm?.activosFin),
@@ -582,15 +582,10 @@ export default function Dashboard() {
                 {darkMode ? 'Modo claro' : 'Modo oscuro'}
               </button>
               <button
+                type="button"
+                className="resumen-boton"
                 onClick={descargarPdf}
                 disabled={loading || !hasData}
-                style={{
-                  padding: '5px 14px', borderRadius: 8, border: 'none',
-                  background: 'var(--brand-orange)', color: 'var(--on-brand)',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
               >
                 Descargar PDF
               </button>
@@ -643,23 +638,23 @@ export default function Dashboard() {
               periodLabel={leadQualityPeriodLabel}
               groups={[
                 { title: 'Volumen', items: [
-                  { label: 'Leads — VSL', value: leadsVSL, format: 'number', sub: 'visitas GA4' },
-                  { label: 'Leads — Inbound', value: leadsIG, format: 'number', sub: 'conversaciones IG (orgánico + pago)' },
+                  { label: 'Leads: VSL', value: leadsVSL, format: 'number', sub: 'visitas GA4' },
+                  { label: 'Leads: Inbound', value: leadsIG, format: 'number', sub: 'conversaciones IG (orgánico + pago)' },
                   // Setter (Maite): agendas propias (col K "mai") y % sobre TODOS los leads IG del mes (es la única setter)
                   { label: 'Agendas del setter', value: raw?.monthlyAgendasSetter[activeMonthIdx] ?? null, format: 'number',
-                    sub: 'Maite · col K "mai" en closers' + sufEmpresa },
+                    sub: 'Maite, col K "mai" en closers' + sufEmpresa },
                   // null = mes sin leads IG medidos → "—"
                   { label: '% Agenda del setter', value: raw?.monthlyTasaAgendaSetter[activeMonthIdx] != null ? (raw!.monthlyTasaAgendaSetter[activeMonthIdx] as number) * 100 : null, format: 'percent',
                     sub: (raw?.monthlyTasaAgendaSetter[activeMonthIdx] != null ? 'agendas de Maite ÷ leads IG del mes' : 'sin leads IG medidos ese mes') + sufEmpresa },
                   // CPL de IG = gasto FM ÷ seguimientos; mientras no se carguen, estimado de Meta
                   { label: 'CPL Instagram', value: cplIG, format: 'currency',
                     sub: (cplIG == null ? 'sin gasto FM ni datos de Meta'
-                      : cplIGEstimado ? `estimado Meta${rx?.igTasaFuente ? ` · tasa ${rx.igTasaFuente}` : ''} · falta cargar seguimientos del mes` : 'gasto FM ÷ seguimientos') + sufEmpresa },
+                      : cplIGEstimado ? `estimado Meta${rx?.igTasaFuente ? ` (tasa ${rx.igTasaFuente})` : ''} · falta cargar seguimientos del mes` : 'gasto FM ÷ seguimientos') + sufEmpresa },
                   // Clicks en "Agendar" (lead real BECC): evento click_agendar de GA4 (snippet en Framer)
                   { label: 'Clicks en Agendar', value: raw?.monthlyClicksAgendar[activeMonthIdx] ?? null, format: 'number',
                     sub: (raw?.monthlyClicksAgendar[activeMonthIdx] != null ? 'botón #agendarpr (GA4)' : 'falta el snippet en Framer') + sufEmpresa },
                   // Agendas medidas en la landing de Framer (thank-you /typ vía GA4)
-                  { label: 'Agendas — Web', value: raw?.monthlyAgendasWeb[activeMonthIdx] ?? null, format: 'number',
+                  { label: 'Agendas: Web', value: raw?.monthlyAgendasWeb[activeMonthIdx] ?? null, format: 'number',
                     sub: ((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) && leadsVSL ? `${(((raw?.monthlyAgendasWeb[activeMonthIdx] ?? 0) / leadsVSL) * 100).toFixed(1)}% de visitas · /typ` : '/typ (GA4)') + sufEmpresa },
                   { label: 'Llamadas Agendadas', value: llamadasAg, format: 'number' },
                   { label: 'Llamadas Canceladas', value: null, format: 'number', sub: 'no se registra en el CRM' },
@@ -702,14 +697,14 @@ export default function Dashboard() {
               title="Operativo · Backend"
               periodLabel={leadQualityPeriodLabel + sufEmpresa}
               groups={[
-                { title: `Salud de clientes · ClickUp · ${operativo.mes}${esMesEnCurso ? ' (hoy)' : ''}`, items: [
+                { title: `Salud de clientes (ClickUp) · ${operativo.mes}${esMesEnCurso ? ' (hoy)' : ''}`, items: [
                   { label: 'Rojo', value: operativo.clickup.disponible ? operativo.clickup.rojo : null, format: 'number', tone: 'bad',
                     sub: !operativo.clickup.conNombres ? operativo.clickup.fuente
-                      : raw.clickup.nombresRojo.length ? raw.clickup.nombresRojo.slice(0, 3).join(' · ') + (raw.clickup.nombresRojo.length > 3 ? ` +${raw.clickup.nombresRojo.length - 3}` : '') + ` · ${operativo.clickup.fuente}`
+                      : raw.clickup.nombresRojo.length ? raw.clickup.nombresRojo.slice(0, 3).join(', ') + (raw.clickup.nombresRojo.length > 3 ? ` +${raw.clickup.nombresRojo.length - 3}` : '') + ` · ${operativo.clickup.fuente}`
                       : `ninguno · ${operativo.clickup.fuente}` },
                   { label: 'Amarillo', value: operativo.clickup.disponible ? operativo.clickup.amarillo : null, format: 'number', tone: 'warn',
                     sub: !operativo.clickup.conNombres ? operativo.clickup.fuente
-                      : raw.clickup.nombresAmarillo.length ? raw.clickup.nombresAmarillo.slice(0, 3).join(' · ') + (raw.clickup.nombresAmarillo.length > 3 ? ` +${raw.clickup.nombresAmarillo.length - 3}` : '') + ` · ${operativo.clickup.fuente}`
+                      : raw.clickup.nombresAmarillo.length ? raw.clickup.nombresAmarillo.slice(0, 3).join(', ') + (raw.clickup.nombresAmarillo.length > 3 ? ` +${raw.clickup.nombresAmarillo.length - 3}` : '') + ` · ${operativo.clickup.fuente}`
                       : `ninguno · ${operativo.clickup.fuente}` },
                   { label: 'Verde', value: operativo.clickup.disponible ? operativo.clickup.verde : null, format: 'number', tone: 'good', sub: `saludables · ${operativo.clickup.fuente}` },
                   { label: 'En pausa', value: operativo.clickup.disponible ? operativo.clickup.pausa : null, format: 'number', sub: `servicio pausado · ${operativo.clickup.fuente}` },
@@ -723,7 +718,7 @@ export default function Dashboard() {
                   { label: 'Clientes Activos', value: operativo.activosFin, format: 'number',
                     sub: !raw.backend.crm.disponible ? 'CRM Clientes no conectado'
                       : (esMesEnCurso
-                        ? `hoy · estado ACTIVO (CRM)${operativo.pausadosHoy ? ` · ${operativo.pausadosHoy} en pausa` : ''} · ${operativo.activosInicio} al 1/${activeMonthIdx + 1}`
+                        ? `hoy, estado ACTIVO (CRM)${operativo.pausadosHoy ? `, ${operativo.pausadosHoy} en pausa` : ''} · ${operativo.activosInicio} al 1/${activeMonthIdx + 1}`
                         : `al cierre del mes · ${operativo.activosInicio} al 1/${activeMonthIdx + 1}`) + operativo.sufNoClientes },
                   { label: 'Clientes nuevos', value: operativo.nuevos, format: 'number', sub: '"Día 1" en el mes (CRM Agencia)' + operativo.sufNoClientes },
                   { label: 'Bajas', value: operativo.bajas, format: 'number',
@@ -742,7 +737,7 @@ export default function Dashboard() {
                 ]},
                 { title: 'Stock acumulado · hoy (sin historia por mes)', items: [
                   { label: 'LTV cobrado (real)', value: raw.backend.crm.ltvCobrado ?? raw.backend.ltv ?? null, format: 'currency',
-                    sub: (raw.backend.crm.ltvCobrado != null ? 'hoy · CRM Clientes × Registro' : `hoy · ${raw.backend.clientes} clientes · Registro de Pagos`) + operativo.sufNoClientes },
+                    sub: (raw.backend.crm.ltvCobrado != null ? 'hoy · CRM Clientes × Registro' : `hoy · ${raw.backend.clientes} clientes (Registro de Pagos)`) + operativo.sufNoClientes },
                   { label: 'LTV contratado', value: raw.backend.crm.ltvContratado ?? null, format: 'currency',
                     sub: raw.backend.crm.disponible ? 'hoy · lo que deberían pagar (CRM)' + operativo.sufNoClientes : 'CRM Clientes no conectado' },
                   { label: 'LTGP', value: raw.backend.ltgp ?? null, format: 'currency',
@@ -750,7 +745,7 @@ export default function Dashboard() {
                   // Promesa alcanzada: Sí ÷ cargados ("Parcial" cuenta como no). La satisfacción solo si hay dato.
                   { label: 'Tasa de Éxito', value: raw.backend.crm.tasaExito ?? null, format: 'percent',
                     sub: raw.backend.crm.tasaExito != null
-                      ? `hoy · Sí ÷ cargados (Parcial cuenta como no)${raw.backend.crm.satisfaccion != null ? ` · satisfacción ${raw.backend.crm.satisfaccion.toFixed(1)}/10` : ''}`
+                      ? `hoy, Sí ÷ cargados (Parcial cuenta como no)${raw.backend.crm.satisfaccion != null ? ` · satisfacción ${raw.backend.crm.satisfaccion.toFixed(1)}/10` : ''}`
                       : 'cargar "Promesa alcanzada" en el CRM (1 vez al mes)' },
                 ]},
               ]}
@@ -915,14 +910,14 @@ export default function Dashboard() {
                 <p className="sm-value" style={{ color: m.value === null ? 'var(--text-muted)' : 'var(--text)' }}>
                   {fmt(m.value, m.format)}
                 </p>
-                {m.sub && <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{m.sub}</p>}
+                {m.sub && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{m.sub}</p>}
               </div>
             ))}
           </div>
         </section>
 
         <footer className="text-center text-xs py-4" style={{ color: 'var(--text-muted)' }}>
-          Auto-refresh 2 min (solo con la pestaña abierta) · Despacho · Capital Jurídico
+          Auto-refresh 2 min (solo con la pestaña abierta) · Despacho Capital Jurídico
         </footer>
       </div>
     </div>
