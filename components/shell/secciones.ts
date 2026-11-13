@@ -4,6 +4,7 @@
 // (lib/auth/hubClientes.ts). Las secciones y sus permisos siguen siendo los mismos: solo cambió dónde se muestran.
 import { RUTA_SECCION, puedeVer, type Quien, type Seccion } from '@/lib/auth/roles'
 import { PREFIJOS_HUB, rutaClientes } from '@/lib/auth/hubClientes'
+import { correoPermitido } from '@/lib/auth/correos'
 
 export type ItemNavegacion = { clave: string; etiqueta: string; href: string; prefijos?: readonly string[] }
 
@@ -47,10 +48,19 @@ export const SECCIONES_NAV: (ItemNavegacion & { clave: Seccion })[] = SECCIONES_
  * El menú de quien pide. "Clientes" aparece si tiene al menos una pestaña del hub y lleva a la primera que puede ver
  * (René, con solo Edición, va directo a /clientes/edicion; nunca a la Cartera si no la tiene).
  */
-export function menuDe(quien: Quien): ItemNavegacion[] {
-  return SECCIONES_NAV.flatMap((it) => {
+export function menuDe(quien: Quien, env: Record<string, string | undefined> = process.env): ItemNavegacion[] {
+  const items: ItemNavegacion[] = SECCIONES_NAV.flatMap((it) => {
     if (it.clave !== 'clientes') return puedeVer(quien, it.clave) ? [it] : []
     const href = rutaClientes(quien)
     return href ? [{ ...it, href }] : []
   })
+  // EOW (13/11/2026): solo para los mails de EOW_CORREOS (ningún rol lo abre). Va después de Finanzas, antes de Configuración.
+  const email = typeof quien === 'string' ? null : ((quien as { email?: string | null }).email ?? null)
+  if (!correoPermitido('eow', email, env)) return items
+  const conf = items.findIndex((it) => it.clave === 'configuracion')
+  items.splice(conf >= 0 ? conf : items.length, 0, ITEM_EOW)
+  return items
 }
+
+/** Reporte EOW (End of Week): por mail, no por rol (lib/auth/correos.ts). */
+export const ITEM_EOW: ItemNavegacion = { clave: 'eow', etiqueta: 'EOW', href: '/eow' }

@@ -15,6 +15,7 @@ import { COOKIE_SESION } from './cookie'
 import { esSesionCliente, sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
 import { destinoSinPermiso } from './hubClientes'
 import { puedeVer, rutaInicial, type Seccion } from './roles'
+import { correoPermitido, type ListaCorreos } from './correos'
 
 export type { Sesion }
 
@@ -45,5 +46,17 @@ export async function exigirAcceso(seccion: Seccion): Promise<Sesion> {
   const sesion = await obtenerSesion()
   if (!sesion) redirect('/entrar')
   if (!puedeVer(sesion, seccion)) redirect(destinoSinPermiso(sesion, seccion, rutaInicial))
+  return sesion
+}
+
+/**
+ * Barrera de las páginas que se abren por MAIL (lib/auth/correos.ts, 13/11/2026: EOW). Sin sesión, a /entrar; con sesión
+ * pero sin el mail en la lista, a su sección inicial (como el proxy). El usuario de prueba de desarrollo entra solo si su
+ * mail (dev@localhost) figura en la lista.
+ */
+export async function exigirCorreos(lista: ListaCorreos): Promise<Sesion> {
+  const sesion = await obtenerSesion()
+  if (!sesion) redirect('/entrar')
+  if (!correoPermitido(lista, sesion.email)) redirect(rutaInicial(sesion))
   return sesion
 }

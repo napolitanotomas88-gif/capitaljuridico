@@ -1,0 +1,110 @@
+/* Reporte EOW (13/11/2026). Sobrio, con los tokens del Despacho: anda en el cristal nocturno y en el claro. */
+.eow { --eow-azul: #5b7fa3; --eow-gris: #8a8478; }
+.eow-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.eow-error { color: var(--cj-error); }
+.eow-vacio { color: var(--cj-humo); font-size: 14px; margin: 4px 0; }
+.eow-cuenta { font-size: 0.8em; color: var(--cj-humo); font-weight: 400; margin-left: 4px; }
+
+.eow-semanas { display: flex; flex-wrap: wrap; gap: 8px; }
+.eow-chip {
+  padding: 6px 12px; border: 1px solid var(--cj-filete-fuerte); border-radius: 999px; font-size: 13px;
+  color: var(--cj-hueso); text-decoration: none; min-height: 32px; display: inline-flex; align-items: center;
+}
+.eow-chip:hover { border-color: var(--cj-dorado); }
+.eow-chip[aria-current='page'] { background: var(--cj-borgona); border-color: var(--cj-borgona); color: #f2eadc; }
+
+.eow-contadores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.eow-contador {
+  background: var(--cj-sala); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-m);
+  padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; border-top: 3px solid var(--eow-tono);
+}
+.eow-contador--rojo { --eow-tono: var(--cj-error); }
+.eow-contador--amarillo { --eow-tono: var(--cj-atencion); }
+.eow-contador--verde { --eow-tono: var(--cj-ok); }
+.eow-contador__rotulo { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cj-humo); }
+.eow-contador__numero { font-family: var(--cj-fuente-titulo); font-size: 36px; line-height: 1.1; color: var(--cj-hueso); }
+.eow-contador__pie { font-size: 12px; color: var(--cj-humo); }
+
+.eow-lanzados {
+  border: 1px solid color-mix(in srgb, var(--eow-azul) 60%, transparent); border-radius: var(--cj-radio-m);
+  background: color-mix(in srgb, var(--eow-azul) 14%, transparent); padding: 14px 18px;
+}
+.eow-lanzados__titulo, .eow-color__titulo { font-family: var(--cj-fuente-titulo); font-size: 20px; margin: 0 0 8px; color: var(--cj-hueso); font-weight: 500; }
+
+.eow-color { background: var(--cj-sala); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-m); padding: 14px 18px; }
+.eow-punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--eow-tono); vertical-align: middle; }
+.eow-color--rojo { --eow-tono: var(--cj-error); }
+.eow-color--amarillo { --eow-tono: var(--cj-atencion); }
+.eow-color--verde { --eow-tono: var(--cj-ok); }
+
+.eow-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.eow-fila {
+  display: grid; grid-template-columns: minmax(140px, 0.9fr) minmax(0, 2.4fr) auto auto auto; gap: 8px; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--cj-filete);
+}
+.eow-fila:last-child { border-bottom: 0; }
+.eow-fila--lanzado { grid-template-columns: minmax(140px, 1fr) auto auto; }
+.eow-fila__cliente { font-weight: 600; }
+.eow-fila__dato { font-size: 13px; color: var(--cj-humo); }
+
+.eow-input {
+  width: 100%; min-width: 0; font: inherit; font-size: 14px; color: var(--cj-hueso); background: transparent;
+  border: 1px solid transparent; border-radius: var(--cj-radio-s); padding: 6px 8px; min-height: 34px;
+}
+.eow-input:hover { border-color: var(--cj-filete); }
+.eow-input:focus { outline: none; border-color: var(--cj-dorado); background: var(--cjc-campo, rgba(255, 255, 255, 0.5)); }
+.eow-fila__cliente.eow-input { font-weight: 600; }
+
+.eow select {
+  font: inherit; font-size: 13px; color: var(--cj-hueso); background: var(--cjc-campo, transparent);
+  border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio-s); padding: 5px 8px; min-height: 32px;
+}
+.eow select option { color: #1d1d1b; }
+
+.eow-pill {
+  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; border-radius: 999px; padding: 4px 12px; min-height: 28px;
+  border: 1px solid var(--eow-pill); color: var(--eow-pill); background: color-mix(in srgb, var(--eow-pill) 14%, transparent); cursor: pointer;
+}
+.eow-pill--rojo { --eow-pill: var(--cj-error); }
+.eow-pill--amarillo { --eow-pill: var(--cj-atencion); }
+.eow-pill--verde { --eow-pill: var(--cj-ok); }
+.eow-pill--pausado { --eow-pill: var(--eow-gris); }
+
+.eow-quitar {
+  font-size: 18px; line-height: 1; width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent;
+  color: var(--cj-humo); cursor: pointer;
+}
+.eow-quitar:hover { color: var(--cj-error); background: var(--cj-filete); }
+.eow-agregar {
+  margin-top: 8px; font: inherit; font-size: 13px; color: var(--cj-laton); background: transparent; border: 1px dashed var(--cj-filete-fuerte);
+  border-radius: var(--cj-radio-s); padding: 6px 12px; cursor: pointer; min-height: 32px;
+}
+.eow-agregar:hover { border-color: var(--cj-dorado); }
+
+.eow-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.eow-tarjeta { background: var(--cj-sala); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-m); padding: 12px 14px; }
+.eow-tarjeta__titulo { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-laton); margin: 0 0 6px; font-weight: 600; }
+.eow-tarjeta__lista { list-style: none; margin: 0; padding: 0; }
+.eow-tarjeta__lista li, .eow-tarjeta__nuevo { display: flex; gap: 4px; align-items: center; }
+.eow-tarjeta__nuevo .eow-agregar { margin-top: 0; }
+
+.eow-historial { font-size: 13px; color: var(--cj-humo); }
+.eow-historial summary { cursor: pointer; }
+.eow-historial ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+.eow-barra {
+  position: sticky; bottom: 12px; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
+  background: var(--cjc-panel-liso, var(--cj-sala)); border: 1px solid var(--cj-filete); border-radius: var(--cj-radio-m); padding: 10px 14px;
+}
+.eow-estado { font-size: 13px; color: var(--cj-humo); margin-right: auto; }
+.eow-estado--error { color: var(--cj-error); }
+
+@media (max-width: 768px) {
+  .eow-contadores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .eow-contador { padding: 10px 12px; }
+  .eow-contador__numero { font-size: 28px; }
+  .eow-fila { grid-template-columns: 1fr auto auto auto; }
+  .eow-fila__comentario { grid-column: 1 / -1; grid-row: 2; }
+  .eow-fila--lanzado { grid-template-columns: 1fr auto; }
+  .eow-fila--lanzado .eow-fila__dato { grid-column: 1; grid-row: 2; }
+}
