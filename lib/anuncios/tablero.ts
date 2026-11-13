@@ -17,7 +17,7 @@ import { analizarCuenta, DIAS_VENTANA, MOTIVOS_RENDIMIENTO, type Analisis, type 
 import { leerSheets, type DatosSheets } from './sheets'
 import { detectarDiasMeta, type DiaMeta } from './diasMalos'
 import { dolarHoy, monedasPorUSD, type DolarHoy } from './dolar'
-import { clasificarRama, crearCruceRamas, leerTareasClickUp, NOMBRE_RAMA, umbralDe, type Rama } from './ramas'
+import { clasificarRama, crearCruceRamas, elegirRama, leerTareasClickUp, NOMBRE_RAMA, umbralDe, type FuenteRama, type Rama } from './ramas'
 import { leerPresupuestosPrivados } from '../configPrivada'
 import { evaluarPresupuesto, type Presupuesto } from './presupuestos'
 import { causaSinGasto, type CausaSinGasto } from './sinGasto'
@@ -59,7 +59,7 @@ export interface FilaAnuncio extends Analisis {
   sinAcceso: boolean             // Meta dice que el dueño de la cuenta no nos da permiso (#200): el gasto y el CPL no se actualizan
   estadoSemanal: Pick<Analisis, 'semaforo' | 'motivos' | 'frase' | 'prioridad'> & { nivel: Analisis['cpl']['nivel'] }
   previo: { semaforo: Semaforo; rendimiento: TipoMotivo[]; aGrabar: boolean }   // evaluación "como si fuera ayer" (alerta diaria)
-  rama: { id: Rama; nombre: string; fuente: 'clickup' | 'manual' | 'cuenta'; tarea: string | null; umbral: { ok: number; medio: number } } | null
+  rama: { id: Rama; nombre: string; fuente: FuenteRama; tarea: string | null; umbral: { ok: number; medio: number } } | null
   clickup: { nombre: string; url: string; sinTopicos: boolean } | null
   // Campañas con anuncios nuevos de los últimos 10 días (azul). dia 1 = el día del lanzamiento; al día 4 toca revisión
   lanzamientos: (Lanzamiento & { dia: number; cplUSD: number | null; link: string; fechaOptimizacion: string | null; etapa: 'competencia' | 'ganador' | null; diasCompetencia: number; pendienteRevision: boolean; diasDesdeRevision: number; fechaRevision: string | null })[]
@@ -252,6 +252,7 @@ export async function obtenerTablero(): Promise<Tablero> {
 
   // ── Filas ──
   const filas: FilaAnuncio[] = []
+  const ramasDesconocidas: string[] = []   // col D «Rama» de "Cuentas Meta" con un valor que no es una rama: se ignora y se avisa
   const excluidas: Tablero['excluidas'] = []
   const vinculadasSinGasto: CuentaVinculadaSinGasto[] = []
   for (const id of ids) {
@@ -274,13 +275,13 @@ export async function obtenerTablero(): Promise<Tablero> {
     const guiones = cruce.guionesDe(res.cliente, res.nombreColC, nombre, AJUSTES_CUENTA[id]?.aliasGuiones)
     const moneda = cuenta?.moneda ?? 'USD'
     const usdPor = moneda === 'USD' ? 1 : moneda === 'ARS' ? dolar?.bolsa?.venta ?? dolar?.oficial?.venta ?? null : fx?.[moneda] ?? null
-    // Rama: a mano (cuentas.ts) → ClickUp "Seguimiento de Anuncios" → nombre de la cuenta
+    // Rama: a mano (ajuste privado) → col D «Rama» de "Cuentas Meta" → ClickUp "Seguimiento de Anuncios" → nombre de la cuenta
     const tarea = buscarTarea([res.cliente?.nombre ?? '', res.nombreColC, nombre, negocio?.nombre ?? ''])
-    const ramaManual = AJUSTES_CUENTA[id]?.rama ?? null
-    const ramaCuenta = clasificarRama(`${nombre} ${negocio?.nombre ?? ''}`)
-    const ramaId: Rama | null = ramaManual ?? tarea?.rama ?? ramaCuenta
-    const rama: FilaAnuncio['rama'] = ramaId ? {
-      id: ramaId, nombre: NOMBRE_RAMA[ramaId], fuente: ramaManual ? 'manual' : tarea?.rama ? 'clickup' : 'cuenta', tarea: tarea?.nombre ?? null, umbral: umbralDe(ramaId),
+    const elegida = elegirRama({ manual: AJUSTES_CUENTA[id]?.rama ?? null, planilla: res.ramaPlanilla, clickup: tarea?.rama ?? null, cuenta: clasificarRama(`${nombre} ${negocio?.nombre ?? ''}`) })
+    if (elegida.desconocida) ramasDesconocidas.push(`${nombre}: «${elegida.desconocida}»`)
+    const ramaId: Rama | null = elegida.rama
+    const rama: FilaAnuncio['rama'] = ramaId && elegida.fuente ? {
+      id: ramaId, nombre: NOMBRE_RAMA[ramaId], fuente: elegida.fuente, tarea: tarea?.nombre ?? null, umbral: umbralDe(ramaId),
     } : null
     const lanzamientosCuenta = lanzPorCuenta.get(id) ?? []
     const fechaLanzamiento = lanzamientosCuenta.filter(l => !!!optDe(l)).map(l => l.fecha).sort().at(-1) ?? null
@@ -348,6 +349,7 @@ export async function obtenerTablero(): Promise<Tablero> {
   // Sin acceso (#200): los ex-clientes ya quedaron afuera (excluidas); de los vigentes, quién y qué hacer
   const sinAccesoFilas = filas.filter(f => f.sinAcceso)
   if (sinAccesoFilas.length) avisos.push(avisoSinAcceso(sinAccesoFilas.map(f => f.cliente)))
+  if (ramasDesconocidas.length) avisos.push(`Rama de «Cuentas Meta» (columna D) que no se reconoce, se ignora: ${ramasDesconocidas.slice(0, 5).join(' · ')}${ramasDesconocidas.length > 5 ? ` y ${ramasDesconocidas.length - 5} más` : ''}. Usá el id (laboral, art, transito…) o el nombre de la rama.`)
 
   // ── Por lanzar: clientes ACTIVO del CRM sin fila. Se cruzan con las cuentas de Meta visibles (¿hay acceso?), con su ficha
   //    de kickoff del Despacho (lo que hace falta para armar la campaña) y con ClickUp (la etapa, mientras convivan) ──

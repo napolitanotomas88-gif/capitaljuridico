@@ -20,6 +20,8 @@
 .pz-cifra dd { margin: 0; }
 .pz-cifra__n { font-family: var(--cj-fuente-titulo); font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--cj-hueso); }
 .pz-cifra__n small { font-size: 15px; font-weight: 600; color: var(--cj-texto-2); }
+.pz-cifra__sin { font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--cj-hueso); }
+.pz-rama { font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--cj-hueso); overflow-wrap: anywhere; }
 .pz-nivel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--pz-c); }
 .pz-nivel::before { content: ''; width: 10px; height: 10px; border-radius: 999px; background: var(--pz-c); }
 .pz-nota { margin: 0; font-size: 14px; color: var(--cj-texto-2); }

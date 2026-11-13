@@ -4,7 +4,8 @@
 // (lista LISTA_SEGUIMIENTO, solo lectura): campo "c) - Tópicos Objetivos" (o "b) - Avatar Ideal" /
 // descripción si está vacío), clasificado por palabras clave (el tema que aparece PRIMERO gana:
 // "Accidentes laborales" → ART, "Divorcios y Sucesiones" → Familia). Se puede forzar a mano en
-// cuentas.ts → AJUSTES_CUENTA[id].rama.
+// cuentas.ts → AJUSTES_CUENTA[id].rama o, sin deploy, en la columna D «Rama» de la pestaña «Cuentas Meta»
+// del CRM (ramaDeTexto). Orden en el tablero: ajuste privado → «Cuentas Meta» → ClickUp → nombre de la cuenta.
 //
 // CÓMO EDITAR LOS UMBRALES: en USD, "ok" = hasta ahí es verde, "medio" = hasta ahí amarillo, más = rojo.
 // Las ramas sin valores propios usan los generales (UMBRAL_GENERAL).
@@ -44,6 +45,33 @@ export const CALIDAD_RAMA: Record<Rama, number> = {
 const MARGEN_AMARILLO = 1.5
 export const UMBRALES_RAMA: Partial<Record<Rama, { ok: number; medio: number }>> = Object.fromEntries(
   Object.entries(RANGO_NORMAL).map(([r, [, tope]]) => [r, { ok: tope, medio: Math.round(tope * MARGEN_AMARILLO * 100) / 100 }]))
+
+const sinTildes = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+const POR_TEXTO = new Map<string, Rama>((Object.keys(NOMBRE_RAMA) as Rama[]).flatMap(r => [[sinTildes(r), r], [sinTildes(NOMBRE_RAMA[r]), r]]))
+
+/** Columna D «Rama» de «Cuentas Meta»: el id de la rama («laboral», «art»…) o su nombre visible («Accidentes de tránsito»),
+ *  sin distinguir mayúsculas ni tildes. Vacía → null. Lo que no se reconoce → 'desconocida' (se ignora y se avisa). */
+export function ramaDeTexto(texto: string | null | undefined): Rama | null | 'desconocida' {
+  const t = sinTildes(texto ?? '')
+  if (!t) return null
+  return POR_TEXTO.get(t) ?? 'desconocida'
+}
+
+/** De dónde salió la rama de una cuenta: ajuste privado, col D de «Cuentas Meta», ClickUp o el nombre de la cuenta. */
+export type FuenteRama = 'manual' | 'planilla' | 'clickup' | 'cuenta'
+export const NOMBRE_FUENTE_RAMA: Record<FuenteRama, string> = { manual: 'ajuste privado', planilla: 'planilla', clickup: 'ClickUp', cuenta: 'nombre de la cuenta' }
+
+/** La rama de una cuenta, por prioridad: ajuste privado → col D de «Cuentas Meta» → ClickUp → nombre de la cuenta. Un valor de
+ *  la planilla que no se reconoce se ignora (sigue con ClickUp) y vuelve en `desconocida` para avisarlo en el tablero. */
+export function elegirRama(f: { manual?: Rama | null; planilla?: string | null; clickup?: Rama | null; cuenta?: Rama | null }): { rama: Rama | null; fuente: FuenteRama | null; desconocida: string | null } {
+  const p = ramaDeTexto(f.planilla)
+  const desconocida = p === 'desconocida' ? (f.planilla ?? '').trim() : null
+  if (f.manual) return { rama: f.manual, fuente: 'manual', desconocida }
+  if (p && p !== 'desconocida') return { rama: p, fuente: 'planilla', desconocida }
+  if (f.clickup) return { rama: f.clickup, fuente: 'clickup', desconocida }
+  if (f.cuenta) return { rama: f.cuenta, fuente: 'cuenta', desconocida }
+  return { rama: null, fuente: null, desconocida }
+}
 
 export const umbralDe = (rama: Rama | null) => (rama && UMBRALES_RAMA[rama]) || UMBRAL_GENERAL
 

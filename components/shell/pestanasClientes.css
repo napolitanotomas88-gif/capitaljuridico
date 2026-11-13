@@ -36,6 +36,24 @@
   .cj-hub__txt { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cj-hub--oscuro { padding: 12px 16px 0; }
 }
+/* Escritorio: con «Wins» y «Encuesta» las pestañas pasaban a una segunda fila (el contenido lleva zoom 1.1). Ahora van siempre
+   en UNA fila: un poco menos de aire entre ellas y, si igual no entran, la fila se desplaza en horizontal dentro de su lugar
+   (como los saltos de la tarjeta del cliente). La letra no baja y no se esconde ninguna; el menú rápido y los portales quedan
+   fijos a la derecha. El filete de la activa apoya sobre el borde del hub con el margen de la lista (no de cada pestaña),
+   porque el desplazamiento recorta lo que sobresale. */
+@media (min-width: 769px) {
+  .cj-raiz .cj-hub.cj-hub:has(.mr) { flex-wrap: nowrap; }
+  .cj-hub__lista {
+    flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--cj-filete-fuerte) transparent;
+  }
+  .cj-raiz:not(.cj-cristal) .cj-hub__lista { margin-bottom: -1px; }
+  /* Cristal: la píldora elegida lleva un anillo de 1 px por fuera; el aire evita que el desplazamiento lo recorte */
+  .cj-raiz.cj-cristal .cj-hub__lista { padding: 1px; }
+  .cj-hub__lista > li { flex: none; }
+  .cj-raiz a.cj-hub__pestana { padding: 0 14px; gap: 8px; margin-bottom: 0; white-space: nowrap; }
+  .cj-hub__portales, .cj-hub .mr { flex: none; }
+}
 @media (prefers-reduced-motion: reduce) { .cj-raiz a.cj-hub__pestana { transition: none; } }
 
 /* Portales del cliente (2/11/2026): una pestaña más con el título del portal; con varios, «Estrategias ▾» con su menú.

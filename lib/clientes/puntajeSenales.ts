@@ -2,6 +2,11 @@
 // De dónde sale cada señal (especificación v1, 13/11/2026):
 //   · Encuesta del cliente: SOLO las filas de fuente «typeform» (Seguimiento del CRM o la planilla del Typeform cruzada por
 //     lib/seguimiento/typeform.ts). Los puntajes «manual» del botón «Puntuar» son la mirada del equipo y NO cuentan.
+//     También las respuestas del Typeform que el equipo asignó a mano en /clientes/encuesta (cj_encuesta_asignaciones): siguen
+//     siendo lo que respondió el cliente (conAsignadas). Descartar o reasignar una respuesta que el cruce automático ya había
+//     unido a otro cliente se la saca a ese cliente.
+//   · Rama: la del tablero de Anuncios (la que fija el KPI del costo por mensaje y usa la cartera), con su calidad de
+//     CALIDAD_RAMA. Solo informativa.
 //   · Meta: la campaña de la cartera (campanasMetaCartera → lib/clientes/produccion.ts, caché compartida): activa, color del
 //     costo por mensaje, gasto diario real y pactado, semáforo y error de pago. Sin lectura de Meta: todo el bloque sin dato.
 //   · Promesa y renovación: columnas «Promesa» y «Renovó» del CRM (y las renovaciones pagas de la pestaña Renovaciones).
@@ -18,6 +23,8 @@ import { contarWinsDesde } from './wins/modelo'
 import { normalizarNombreCobro, telefonoCobro } from './cobrosFinanzas'
 import { crearVinculador, type ClienteCartera } from '../eow/vinculo'
 import type { DatosEow } from '../eow/modelo'
+import { CALIDAD_RAMA, NOMBRE_RAMA, type FuenteRama, type Rama } from '../anuncios/ramas'
+import type { RamaPuntaje } from './puntaje'
 
 /** Lo mínimo de un puntaje de Seguimiento (lib/seguimiento/modelo.ts) para elegir la respuesta del cliente. */
 export interface PuntajeLeido { valor: number; dia: Ymd; fecha: string; fuente: 'manual' | 'typeform' }
@@ -28,6 +35,55 @@ export function ultimaRespuestaCliente(historial: readonly PuntajeLeido[]): { va
   if (!del.length) return null
   const ultima = [...del].sort((a, b) => (a.dia !== b.dia ? (a.dia < b.dia ? 1 : -1) : a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))[0]
   return { valor: ultima.valor, dia: ultima.dia }
+}
+
+/** Una respuesta del Typeform asignada a mano en /clientes/encuesta: a quién la asignó el equipo (null = descartada) y a quién
+ *  la había unido el cruce automático (null = a nadie). */
+export interface RespuestaAsignada { clave: string; asignado: string | null; auto: string | null; enviadaEn: string; valor: number | null }
+
+/** El día y la hora argentinos (UTC−3, sin horario de verano) de un instante ISO. */
+function enArgentina(iso: string): { dia: Ymd; fecha: string } | null {
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return null
+  const ar = new Date(t - 3 * 3_600_000).toISOString()
+  return { dia: ar.slice(0, 10), fecha: `${ar.slice(0, 10)} ${ar.slice(11, 16)}` }
+}
+
+/**
+ * El historial de cada cliente con las respuestas asignadas a mano: la asignada a otro cliente (o a ninguno) se le suma a ese
+ * cliente como respuesta suya (fuente typeform), y se le saca al que la había unido el cruce automático (misma fecha y valor).
+ * Si el equipo la asignó al mismo cliente que el cruce, no cambia nada (ya estaba).
+ */
+export function conAsignadas(historialDe: (id: string) => readonly PuntajeLeido[], asignadas: readonly RespuestaAsignada[] | null): (id: string) => readonly PuntajeLeido[] {
+  if (!asignadas?.length) return historialDe
+  const suma = new Map<string, PuntajeLeido[]>(), resta = new Map<string, { dia: Ymd; valor: number }[]>()
+  const agregar = <T,>(m: Map<string, T[]>, k: string, v: T) => m.set(k, [...(m.get(k) ?? []), v])
+  for (const a of asignadas) {
+    const asignado = a.asignado?.toUpperCase() ?? null, auto = a.auto?.toUpperCase() ?? null
+    if (asignado === auto) continue
+    const cuando = enArgentina(a.enviadaEn)
+    const valor = a.valor
+    if (!cuando || valor === null || !Number.isFinite(valor) || valor < 0 || valor > 10) continue
+    if (asignado) agregar(suma, asignado, { valor, dia: cuando.dia, fecha: cuando.fecha, fuente: 'typeform' })
+    if (auto) agregar(resta, auto, { dia: cuando.dia, valor })
+  }
+  return (id: string) => {
+    const k = id.toUpperCase()
+    let base = [...historialDe(id)]
+    for (const q of resta.get(k) ?? []) {
+      const i = base.findIndex(p => p.fuente === 'typeform' && p.dia === q.dia && p.valor === q.valor)
+      if (i >= 0) base = [...base.slice(0, i), ...base.slice(i + 1)]
+    }
+    // Sin duplicar: si la planilla ya la trae para este cliente (misma fecha y valor), no se suma de nuevo
+    const nuevas = (suma.get(k) ?? []).filter(n => !base.some(p => p.fuente === 'typeform' && p.dia === n.dia && p.valor === n.valor))
+    return [...base, ...nuevas]
+  }
+}
+
+/** La rama del tablero → el dato informativo del puntaje (con su calidad 1 a 5). */
+export function ramaPuntaje(rama: Rama | null | undefined, fuente: FuenteRama | null | undefined): RamaPuntaje | null {
+  if (!rama || !(rama in CALIDAD_RAMA)) return null
+  return { id: rama, nombre: NOMBRE_RAMA[rama], calidad: CALIDAD_RAMA[rama], fuente: fuente ?? null }
 }
 
 export interface EowCliente { color: ColorSemaforo | null; pesadilla: boolean }
@@ -115,6 +171,7 @@ export function armarSenales(c: Pick<Cliente, 'id' | 'promesa' | 'renovo' | 'ren
     pagos: x.pagos?.get(id) ?? null,
     referido: x.referidos ? x.referidos.some(r => r.idReferidor.toUpperCase() === id && r.estado !== 'Descartado') : null,
     grabaYResponde: null,
+    rama: x.metaLeida ? ramaPuntaje(x.meta?.rama, x.meta?.ramaFuente) : null,
   }
 }
 
@@ -123,6 +180,8 @@ export interface FuentesPuntaje {
   winsFechas: { idCrm: string; fecha: Ymd }[] | null
   eow: Pick<DatosEow, 'filas' | 'tarjetas'> | null
   planes: PlanPagos[] | null
+  /** Respuestas de la encuesta asignadas a mano (cj_encuesta_asignaciones). null o ausente = no se pudieron leer. */
+  asignadas?: RespuestaAsignada[] | null
 }
 export interface EntradaCartera {
   clientes: readonly Cliente[]
@@ -144,11 +203,12 @@ export function puntajesDeCartera(e: EntradaCartera): Map<string, ResultadoPunta
   const cartera: ClienteCartera[] = agencia.map(c => ({ id: c.id.toUpperCase(), nombre: c.nombre, estadoCrm: c.estado, pausaDesde: null, estado: c.estado === 'ACTIVO' ? 'activo' : c.estado === 'PAUSADO' ? 'pausado' : c.estado === 'FINALIZADO' || c.estado === 'INACTIVO' ? 'finalizado' : 'otro' }))
   const eow = e.fuentes.eow ? indiceEow(e.fuentes.eow, cartera) : null
   const pagos = e.fuentes.planes ? estadoPagos(e.fuentes.planes, agencia) : null
+  const historialDe = conAsignadas(e.historialDe, e.fuentes.asignadas ?? null)
   const out = new Map<string, ResultadoPuntaje>()
   for (const c of agencia) {
     const id = c.id.toUpperCase()
     if (out.has(id) || c.esNoCliente || !e.lanzo(c)) continue
-    out.set(id, calcularPuntaje(armarSenales(c, { historial: e.historialDe(c.id), metaLeida: e.metaLeida, meta: e.campanaDe(c), wins, eow, pagos, referidos: e.referidos })))
+    out.set(id, calcularPuntaje(armarSenales(c, { historial: historialDe(c.id), metaLeida: e.metaLeida, meta: e.campanaDe(c), wins, eow, pagos, referidos: e.referidos })))
   }
   return out
 }

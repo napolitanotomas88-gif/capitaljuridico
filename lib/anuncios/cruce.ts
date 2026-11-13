@@ -23,6 +23,7 @@ export interface ClienteResuelto {
   cliente: ClienteCRM | null      // cliente del CRM (match fuerte)
   nombreColC: string              // lo cargado en la col C de "Cuentas Meta" (aunque no matchee el CRM)
   filaCuentasMeta: { actual: boolean; exacta: boolean } | null
+  ramaPlanilla: string            // lo cargado en la col D «Rama» de "Cuentas Meta" (crudo; '' = vacía o sin fila)
   exCliente: string | null        // motivo si el CRM lo marca como ex-cliente
   activo: boolean                 // cliente vigente según CRM o "Cuentas Meta" (col B = SI)
   pausado: boolean
@@ -68,8 +69,8 @@ export function crearCruce(s: DatosSheets, opciones: OpcionesCruceCuentas = {}) 
 
   // ── "Cuentas Meta": fila exacta por nombre/id o difusa (solo filas SI) ──
   const norm = (x: string) => sinApostrofos(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
-  const cuentaInfo = new Map<string, { actual: boolean; clienteCRM: string }>()
-  for (const f of s.cuentasMeta) cuentaInfo.set(norm(f.cuenta), { actual: f.actual, clienteCRM: f.clienteCRM })
+  const cuentaInfo = new Map<string, { actual: boolean; clienteCRM: string; rama: string }>()
+  for (const f of s.cuentasMeta) cuentaInfo.set(norm(f.cuenta), { actual: f.actual, clienteCRM: f.clienteCRM, rama: f.rama ?? '' })
   const IGNORAR = new Set(['usd', 'ars', 'cp', 'ads', 'y', 'de', 'la', 'del'])
   const tokensCuenta = (x: string) => norm(x).split(/[^a-z0-9]+/).filter(t => t.length >= 2 && !IGNORAR.has(t))
   const filasSI = [...cuentaInfo.entries()].filter(([, v]) => v.actual).map(([k, v]) => ({ t: tokensCuenta(k), v })).filter(f => f.t.length >= 2)
@@ -105,6 +106,7 @@ export function crearCruce(s: DatosSheets, opciones: OpcionesCruceCuentas = {}) 
       cliente: cli,
       nombreColC: colC,
       filaCuentasMeta: info ? { actual: info.actual, exacta: info.exacta } : null,
+      ramaPlanilla: info?.rama ?? '',
       exCliente,
       activo: !exCliente && (estado === 'ACTIVO' || (!!info?.actual && estado !== 'PAUSADO')),
       pausado: estado === 'PAUSADO',

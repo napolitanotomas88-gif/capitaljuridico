@@ -34,6 +34,8 @@ function aUSD(f: FilaAnuncio, t: number): FilaVista {
   }
 }
 const CLAVE_VISTA = 'anuncios:vista'
+// De dónde salió la rama (lib/anuncios/ramas.ts → elegirRama); se ve al pasar el mouse por la rama
+const FUENTE_RAMA: Record<NonNullable<FilaAnuncio['rama']>['fuente'], string> = { manual: 'ajuste privado', planilla: 'planilla', clickup: 'ClickUp', cuenta: 'nombre de la cuenta' }
 // Cliente con más ancho (el nombre va completo, con salto de línea) y CPL al ancho de «Obj. … · Real …» en un renglón
 const COLUMNAS_LISTA = 'minmax(210px, 1.4fr) minmax(0, 1.5fr) 200px 105px 110px 60px'
 
@@ -392,7 +394,7 @@ export function TableroAnuncios() {
       <section className="mt-16 grid gap-10 lg:grid-cols-2" style={{ borderTop: '1px solid var(--filete)', paddingTop: 24, fontSize: 14, color: 'var(--humo)' }}>
         <div>
           <p className="etq-laton mb-3">Cómo se lee</p>
-          <p>Todo en USD: los pesos se pasan con el dólar MEP venta del día y las otras monedas con su cotización del día. CPL = gasto ÷ conversaciones de mensajes iniciadas: elegí 7 días completos hasta ayer o sólo el día anterior. El selector cambia el CPL, los estados, los contadores y los filtros: ayer o 7 días completos hasta ayer. En el período elegido, gasto sin mensajes: rojo; sin gasto, clientes pausados o sin anuncios activos: grupo separado «Sin gasto», sin color de rendimiento. Los errores de pago tienen prioridad y quedan en su propio grupo. Las alertas de tendencias y guiones conservan sus períodos de evaluación; las cuentas sin anuncios activos en Meta, sin gasto reciente o en pausa del CRM no generan alertas de rendimiento por gasto histórico. Cada rama del derecho tiene su CPL normal (ej. Laboral hasta USD 1,50, Geriátrico hasta 2,70): verde hasta el tope de su rango, amarillo hasta 50% arriba, rojo más. La rama sale de ClickUp (Seguimiento de Anuncios). Sin rama: verde hasta 2,80 · amarillo hasta 4 · rojo más.</p>
+          <p>Todo en USD: los pesos se pasan con el dólar MEP venta del día y las otras monedas con su cotización del día. CPL = gasto ÷ conversaciones de mensajes iniciadas: elegí 7 días completos hasta ayer o sólo el día anterior. El selector cambia el CPL, los estados, los contadores y los filtros: ayer o 7 días completos hasta ayer. En el período elegido, gasto sin mensajes: rojo; sin gasto, clientes pausados o sin anuncios activos: grupo separado «Sin gasto», sin color de rendimiento. Los errores de pago tienen prioridad y quedan en su propio grupo. Las alertas de tendencias y guiones conservan sus períodos de evaluación; las cuentas sin anuncios activos en Meta, sin gasto reciente o en pausa del CRM no generan alertas de rendimiento por gasto histórico. Cada rama del derecho tiene su CPL normal (ej. Laboral hasta USD 1,50, Geriátrico hasta 2,70): verde hasta el tope de su rango, amarillo hasta 50% arriba, rojo más. La rama sale, en orden, del ajuste privado, de la columna D «Rama» de «Cuentas Meta» (planilla), de ClickUp (Seguimiento de Anuncios) o del nombre de la cuenta. Sin rama: verde hasta 2,80 · amarillo hasta 4 · rojo más.</p>
           <p className="mt-3">Error (con ⚠︎): problema de pago o sin medio de pago; va arriba de todo porque hay que solucionarlo primero.</p>
           <p className="mt-3">Icono ↗ = CPL en aumento por días seguidos (días hábiles; fines de semana, feriados y días malos de Meta no cuentan). No cambia el color, que va por el CPL actual: 3 días &ldquo;subiendo&rdquo; · 4 días &ldquo;revisar nuevos guiones&rdquo;. Se filtra con &ldquo;↗ En aumento&rdquo;. Un día cuenta si su CPL quedó 20% o más arriba de su base. Los que se queman y los que no rinden (primera tanda con 4 días completos malos) van a Guiones a grabar.</p>
           <p className="mt-3">Línea chica: CPL diario de 3 semanas (punto hueco = fin de semana o feriado; marca roja = gastó sin mensajes; raya latón abajo = día malo de Meta).</p>
@@ -451,7 +453,7 @@ function Identidad({ f }: { f: FilaVista }) {
       <div style={{ fontSize: 16, color: 'var(--hueso)', fontWeight: 500, lineHeight: 1.3 }}>{f.cliente}</div>
       <div style={{ fontSize: 12.5, color: 'var(--humo)', marginTop: 2 }}>
         {distinto ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}{f.negocio?.nombre && f.negocio.nombre !== f.cuenta ? ` · ${f.negocio.nombre}` : ''}{f.extra ? ' · sumada por el CRM' : ''}
-        <span style={{ display: 'block', color: f.rama ? 'var(--laton)' : 'var(--humo)' }}>{f.rama ? f.rama.nombre : 'Sin rama'}</span>
+        <span style={{ display: 'block', color: f.rama ? 'var(--laton)' : 'var(--humo)' }} title={f.rama ? `Rama según ${FUENTE_RAMA[f.rama.fuente]}` : undefined}>{f.rama ? f.rama.nombre : 'Sin rama'}</span>
         {f.lanzamientos.length > 0 && <span style={{ display: 'block', marginTop: 4 }}><IconoLanzada f={f} /></span>}
       </div>
     </>

@@ -69,11 +69,33 @@ describe('cálculo del puntaje', () => {
     assert.equal(r.base, 50)
     assert.equal(r.restas, 0)
   })
-  test('Meta leída pero sin campaña del cliente: la campaña no suma; costo y gasto sin dato', () => {
+  test('sin Meta (no respondió): no hay interno ni nivel estimado ni brecha; el del cliente sigue con su nivel', () => {
+    const conCliente = P.calcularPuntaje({ ...TODO_BIEN, encuesta: { valor: 3, dia: '2026-11-02' }, metaLeida: false, meta: null })
+    assert.equal(conCliente.sinMeta, true)
+    assert.equal(conCliente.interno, null)
+    assert.equal(conCliente.total, null)
+    assert.equal(conCliente.cliente, 30)
+    assert.equal(conCliente.nivel, 'atencion')        // sale del cliente
+    assert.equal(conCliente.estimado, false)
+    assert.equal(conCliente.brecha, null)             // con el interno en 50 habría dado brecha: sin interno no se calcula
+    assert.equal(P.textoCompacto(conCliente), 'Cliente 30 · Interno: sin datos de Meta')
+    const sinCliente = P.calcularPuntaje({ ...TODO_BIEN, encuesta: null, metaLeida: false, meta: null })
+    assert.equal(sinCliente.nivel, null)
+    assert.equal(sinCliente.estimado, false)
+    assert.equal(P.textoCompacto(sinCliente), 'Interno: sin datos de Meta')
+    assert.equal(P.sugerencia(sinCliente, 'lanzado'), null)
+    assert.deepEqual(P.compacto(sinCliente), { cliente: null, interno: null, bonus: 15, nivel: null, estimado: false, brecha: null })
+  })
+  test('Meta leída y sin cuenta vinculada con anuncios: ES un dato (0 con su motivo), el interno sí se calcula', () => {
     const r = P.calcularPuntaje({ ...TODO_BIEN, meta: null })
-    assert.equal(renglon(r, 'campana').estado, 'no_suma')
-    assert.equal(renglon(r, 'cpl').estado, 'sin_dato')
+    assert.equal(r.sinMeta, false)
+    for (const k of ['campana', 'cpl', 'gasto']) {
+      assert.equal(renglon(r, k).estado, 'no_suma', k)
+      assert.match(renglon(r, k).motivo, /vinculada/, k)
+    }
     assert.equal(renglon(r, 'rojo_meta').estado, 'no_aplica')
+    assert.equal(r.interno, 50)
+    assert.equal(P.textoCompacto(r), 'Cliente 90 · Interno 50 +15')
   })
   test('sin EOW: el semáforo de Gero M y la pesadilla quedan sin dato', () => {
     const r = P.calcularPuntaje({ ...TODO_BIEN, eowLeido: false, eow: null })
@@ -98,14 +120,17 @@ describe('cálculo del puntaje', () => {
     assert.equal(r.interno, 0)
     assert.deepEqual(r.detalle.filter(x => x.bloque === 'resta').map(x => x.puntos), [-10, -15, -10, -10])
   })
-  test('parciales: amarillo 12, gasto 50–79 % = 8, 1 win = 8, EOW amarillo 10, promesa parcial no suma', () => {
+  test('parciales: amarillo 12, gasto 50–79 % = 8, 1 win = 8, EOW amarillo 10, promesa parcial 7', () => {
     const r = P.calcularPuntaje({ ...TODO_BIEN, meta: { ...META_BIEN, cpl: 'amarillo', gastoRealDiarioUSD: 15 }, wins: 1, eow: { color: 'amarillo', pesadilla: false }, promesa: 'Parcial' })
     assert.equal(renglon(r, 'cpl').puntos, 12)
     assert.equal(renglon(r, 'gasto').puntos, 8)
     assert.equal(renglon(r, 'wins').puntos, 8)
     assert.equal(renglon(r, 'eow').puntos, 10)
-    assert.equal(renglon(r, 'promesa').puntos, 0)
-    assert.equal(r.base, 10 + 12 + 8 + 0 + 8 + 10)
+    assert.equal(renglon(r, 'promesa').puntos, 7)
+    assert.equal(renglon(r, 'promesa').estado, 'parcial')
+    assert.match(renglon(r, 'promesa').motivo, /alcanzada en parte/)
+    assert.equal(r.base, 10 + 12 + 8 + 7 + 8 + 10)
+    assert.equal(renglon(P.calcularPuntaje({ ...TODO_BIEN, promesa: 'parcial ' }), 'promesa').puntos, 7)
     const poco = P.calcularPuntaje({ ...TODO_BIEN, meta: { ...META_BIEN, gastoRealDiarioUSD: 10 } })
     assert.equal(renglon(poco, 'gasto').puntos, 0)
     const sinObjetivo = P.calcularPuntaje({ ...TODO_BIEN, meta: { ...META_BIEN, gastoObjetivoDiarioUSD: null } })
@@ -187,6 +212,52 @@ describe('señales', () => {
     assert.equal(renglon(p, 'graba').estado, 'sin_dato')
     assert.equal(P.yaLanzo({ hitoLanzamiento: false }), false)
     assert.equal(P.yaLanzo({ hitoLanzamiento: false, primerLanzamiento: '2026-10-01' }), true)
+  })
+  test('encuesta asignada a mano: entra como respuesta del cliente; la del equipo («manual») sigue sin contar', () => {
+    const base = { linea: 'agencia', estado: 'ACTIVO', celular: '', promesa: 'Sí', renovo: 'NO', renovacionesPagas: 0, esNoCliente: false }
+    const clientes = [{ ...base, id: 'Z001', nombre: 'Estudio Ejemplo Uno' }, { ...base, id: 'Z002', nombre: 'Estudio Ejemplo Dos' }, { ...base, id: 'Z003', nombre: 'Estudio Ejemplo Tres' }]
+    const historiales = {
+      Z001: [{ valor: 4, dia: '2026-11-05', fecha: '2026-11-05 10:00', fuente: 'manual' }],                       // solo el equipo
+      Z003: [{ valor: 6, dia: '2026-11-02', fecha: '2026-11-02', fuente: 'typeform' }],                            // el cruce automático le dio una ajena
+    }
+    const asignadas = [
+      { clave: 'r-1', asignado: 'z001', auto: null, enviadaEn: '2026-11-03T02:30:00.000Z', valor: 8 },              // 2/11 23:30 en Argentina
+      { clave: 'r-2', asignado: 'Z002', auto: 'Z003', enviadaEn: '2026-11-02T15:00:00.000Z', valor: 6 },            // reasignada: se le saca a Z003
+      { clave: 'r-3', asignado: null, auto: null, enviadaEn: '2026-11-04T15:00:00.000Z', valor: 1 },                // descartada
+      { clave: 'r-4', asignado: 'Z002', auto: null, enviadaEn: '2026-11-01T15:00:00.000Z', valor: 11 },             // fuera de rango: no entra
+    ]
+    const r = S.puntajesDeCartera({
+      clientes, hoy: '2026-11-13', historialDe: id => historiales[id] ?? [], metaLeida: true,
+      campanaDe: () => ({ ...META_BIEN, ultimoLanzamiento: null, lanzamientoAprox: false, aGrabar: null }), lanzo: () => true, referidos: null,
+      fuentes: { winsFechas: null, eow: null, planes: null, asignadas },
+    })
+    assert.equal(r.get('Z001').cliente, 80)
+    assert.equal(r.get('Z001').clienteDia, '2026-11-02')
+    assert.equal(r.get('Z002').cliente, 60)
+    assert.equal(r.get('Z003').cliente, null)
+    const sinAsignadas = S.puntajesDeCartera({
+      clientes, hoy: '2026-11-13', historialDe: id => historiales[id] ?? [], metaLeida: true,
+      campanaDe: () => null, lanzo: () => true, referidos: null, fuentes: { winsFechas: null, eow: null, planes: null },
+    })
+    assert.equal(sinAsignadas.get('Z001').cliente, null)   // el 4 del equipo no es del cliente
+    // Asignada al mismo cliente que el cruce: no se duplica
+    const mismo = S.conAsignadas(id => historiales[id] ?? [], [{ clave: 'r-5', asignado: 'Z003', auto: 'Z003', enviadaEn: '2026-11-02T15:00:00.000Z', valor: 6 }])
+    assert.equal(mismo('Z003').length, 1)
+  })
+  test('rama del cliente: dato informativo con su calidad, no suma ni resta', () => {
+    const conRama = P.calcularPuntaje({ ...TODO_BIEN, rama: S.ramaPuntaje('laboral', 'planilla') })
+    assert.deepEqual(conRama.rama, { id: 'laboral', nombre: 'Laboral (despidos)', calidad: 5, fuente: 'planilla' })
+    assert.equal(conRama.interno, P.calcularPuntaje(TODO_BIEN).interno)
+    assert.equal(S.ramaPuntaje('familia', 'clickup').calidad, 1)
+    assert.equal(S.ramaPuntaje(null, null), null)
+    const senales = S.armarSenales({ id: 'Z001', promesa: 'Sí', renovo: '', renovacionesPagas: 0 }, {
+      historial: [], metaLeida: true, meta: { ...META_BIEN, ultimoLanzamiento: null, lanzamientoAprox: false, aGrabar: null, rama: 'art', ramaFuente: 'manual' },
+      wins: null, eow: null, pagos: null, referidos: null,
+    })
+    assert.deepEqual(senales.rama, { id: 'art', nombre: 'ART / accidentes de trabajo', calidad: 5, fuente: 'manual' })
+    // Sin Meta no se sabe la rama del tablero: no se muestra
+    const sinMeta = S.armarSenales({ id: 'Z001', promesa: 'Sí', renovo: '', renovacionesPagas: 0 }, { historial: [], metaLeida: false, meta: null, wins: null, eow: null, pagos: null, referidos: null })
+    assert.equal(sinMeta.rama, null)
   })
   test('renovó: columna R1 o renovación paga', () => {
     assert.equal(S.renovoDe({ renovo: 'R1 +2 meses', renovacionesPagas: 0 }), true)

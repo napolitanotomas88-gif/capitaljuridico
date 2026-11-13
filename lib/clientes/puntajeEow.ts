@@ -24,7 +24,7 @@ export async function puntajesParaEow(): Promise<Record<string, PuntajeCompacto>
       conCache('typeform-cartera-v1', 300, () => leerTypeform(agencia.map(c => ({ id: c.id, nombre: c.nombre, mail: c.mail, celular: c.celular })))).then(r => r.data, () => null),
       campanasMetaCartera(),
       leerAnotaciones().catch(() => null),
-      leerFuentesPuntaje(),
+      leerFuentesPuntaje(agencia.map(c => ({ id: c.id, nombre: c.nombre, mail: c.mail, celular: c.celular }))),
     ])
     const estados = estadoPorCliente([...seguimiento.puntajes, ...(typeform?.puntajes ?? [])], datos.hoy)
     const campanaDe = (nombre: string) => meta.porCliente.get(claveNombre(nombre)) ?? null

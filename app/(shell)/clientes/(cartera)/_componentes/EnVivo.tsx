@@ -58,8 +58,8 @@ const armarCartera = cache(async (vista: VistaCRM) => {
     }),
     // El OK del bot de Éxito (cj_exito_pedidos, de CONSULTOR): sin tabla todavía, ninguno
     vista.esDemo ? (() => null) : exitosDelBot(),
-    // Puntaje (13/11/2026): wins, último EOW y planes de cuotas, tres consultas para toda la cartera con caché (puntajeFuentes.ts)
-    vista.esDemo ? null : leerFuentesPuntaje(),
+    // Puntaje (13/11/2026): wins, último EOW, planes de cuotas y encuesta asignada a mano, para toda la cartera con caché (puntajeFuentes.ts)
+    vista.esDemo ? null : leerFuentesPuntaje(agencia.map(c => ({ id: c.id, nombre: c.nombre, mail: c.mail, celular: c.celular }))),
   ])
   const { r: typeform, error: errorTypeform } = lecturaTypeform
   const estados = estadoPorCliente([...seguimiento.puntajes, ...(typeform?.puntajes ?? [])], datos.hoy)
