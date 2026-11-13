@@ -194,7 +194,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
               const frenados = xs.filter(x => x.frenado).length
               const abiertaMovil = !!f.etapa || abiertasMovil.has(e)
               return (
-                <section key={e} className={`rc-col rc-col--${e}${abiertaMovil ? ' rc-col--abierta' : ''}`} aria-labelledby={`h-col-${e}`}>
+                <section key={e} className={`rc-col rc-col--${e} rc-e--${e}${abiertaMovil ? ' rc-col--abierta' : ''}`} aria-labelledby={`h-col-${e}`}>
                   <header className="rc-col__cab">
                     <button type="button" className="rc-col__titulo" onClick={() => cambiar({ etapa: f.etapa === e ? null : e })} aria-pressed={f.etapa === e} title={AYUDA_ETAPA[e]}>
                       <span id={`h-col-${e}`}>{NOMBRE_ETAPA[e]}</span>
@@ -264,7 +264,7 @@ function BarraEtapas({ grupos, total, elegida, onElegir }: { grupos: Map<Etapa, 
         const frenados = grupos.get(e)!.filter(x => x.frenado).length
         return (
           <li key={e} className="rc-barra__item" style={{ '--peso': Math.max(n, total ? 0.6 : 1), '--paso': i } as CSSProperties}>
-            <button type="button" className={`rc-barra__btn rc-barra__btn--${e}`} aria-pressed={elegida === e} onClick={() => onElegir(e)} aria-label={`${NOMBRE_ETAPA[e]}: ${plural(n, 'cliente', 'clientes')}${frenados ? `, ${plural(frenados, 'frenado', 'frenados')}` : ''}`}>
+            <button type="button" className={`rc-barra__btn rc-barra__btn--${e} rc-e--${e}`} aria-pressed={elegida === e} onClick={() => onElegir(e)} aria-label={`${NOMBRE_ETAPA[e]}: ${plural(n, 'cliente', 'clientes')}${frenados ? `, ${plural(frenados, 'frenado', 'frenados')}` : ''}`}>
               <span className="rc-barra__n">{n}</span>
               <span className="rc-barra__nombre">{NOMBRE_ETAPA[e]}</span>
               {frenados > 0 && <span className="rc-barra__freno" aria-hidden>{frenados}</span>}
@@ -276,12 +276,9 @@ function BarraEtapas({ grupos, total, elegida, onElegir }: { grupos: Map<Etapa, 
   )
 }
 
-// Familia de color de cada etapa en el eje: producción (latón), lanzado (verde), éxito (verde profundo), renovación, cierre
-const FAMILIA: Record<Etapa, string> = {
-  alta: 'prod', kickoff: 'prod', guiones: 'prod', grabacion: 'prod2', edicion: 'prod2', por_lanzar: 'prod2',
-  lanzado: 'lanza', exito: 'exito', renovacion: 'renov', pausa: 'cierre', baja: 'cierre', sin_dato: 'cierre',
-}
-const LEYENDA: [string, string][] = [['prod', 'Onboard a Guiones'], ['prod2', 'Grabación a Por lanzar'], ['lanza', 'Lanzado'], ['exito', 'Éxito'], ['renov', 'Renovación']]
+// Cada etapa tiene su color (13/11/2026, pedido de Tomás: «que se marque con colores en qué etapa está cada uno»).
+// La clase rc-e--<etapa> fija --rc-c (recorrido.css) y la usan la barra, los puntos, las columnas y cada cliente.
+const LEYENDA: [Etapa, string][] = RECORRIDO.map(e => [e, NOMBRE_ETAPA[e]])
 const POR_TRAMO_CERRADO = 6
 
 /** El eje literal: regla de 0 a 4 meses con un punto por cliente en su día y, debajo, los tramos de 30 días. */
@@ -308,7 +305,7 @@ function EjeTiempo({ filas, abierto, onTramo, idPanel, onAbrir }: {
         <div className="rc-regla__puntos">
           {idx >= 0 && <span className="rc-regla__foco" style={{ left: `${(idx / TRAMOS.length) * 100}%`, width: `${100 / TRAMOS.length}%` }} />}
           {puntos.map(({ x, pos, nivel }) => (
-            <span key={x.clave ?? x.id} className={`rc-pto rc-pto--${FAMILIA[x.etapa]}${x.frenado ? ' rc-pto--freno' : ''}${idPanel === x.id ? ' rc-pto--activo' : ''}${abierto && tramoDe(x.diasCliente) !== abierto ? ' rc-pto--fuera' : ''}`}
+            <span key={x.clave ?? x.id} className={`rc-pto rc-e--${x.etapa}${x.frenado ? ' rc-pto--freno' : ''}${idPanel === x.id ? ' rc-pto--activo' : ''}${abierto && tramoDe(x.diasCliente) !== abierto ? ' rc-pto--fuera' : ''}`}
               style={{ left: `${pos * 100}%`, '--nivel': nivel } as CSSProperties} title={`${x.nombre} · día ${x.diasCliente}`} />
           ))}
         </div>
@@ -318,8 +315,8 @@ function EjeTiempo({ filas, abierto, onTramo, idPanel, onAbrir }: {
         </div>
       </div>
       <ul className="rc-leyenda" aria-label="Colores de las etapas">
-        {LEYENDA.map(([k, t]) => <li key={k}><span className={`rc-pto rc-pto--${k} rc-pto--quieto`} aria-hidden />{t}</li>)}
-        <li><span className="rc-pto rc-pto--prod rc-pto--freno rc-pto--quieto" aria-hidden />Frenado</li>
+        {LEYENDA.map(([k, t]) => <li key={k}><span className={`rc-pto rc-e--${k} rc-pto--quieto`} aria-hidden />{t}</li>)}
+        <li><span className="rc-pto rc-pto--freno rc-pto--quieto" aria-hidden />Frenado (borde rojo)</li>
       </ul>
 
       <div className="rc-tramos">
@@ -340,7 +337,7 @@ function EjeTiempo({ filas, abierto, onTramo, idPanel, onAbrir }: {
                   <ul className="rc-tramo__tarjetas">
                     {xs.map((x, i) => (
                       <li key={x.clave ?? x.id} style={{ '--i': Math.min(i, 14) } as CSSProperties}>
-                        <span className={`rc-tramo__etapa rc-tramo__etapa--${FAMILIA[x.etapa]}`}>{NOMBRE_ETAPA[x.etapa]} · día {x.diasCliente ?? '—'}</span>
+                        <span className={`rc-tramo__etapa rc-e--${x.etapa}`}>{NOMBRE_ETAPA[x.etapa]} · día {x.diasCliente ?? '—'}</span>
                         <Tarjeta x={x} grande activa={idPanel === x.id} onAbrir={onAbrir} />
                       </li>
                     ))}
@@ -350,9 +347,9 @@ function EjeTiempo({ filas, abierto, onTramo, idPanel, onAbrir }: {
                     {xs.slice(0, POR_TRAMO_CERRADO).map(x => (
                       <li key={x.clave ?? x.id}>
                         {/* Tocar el nombre abre la tarjeta completa del cliente (sin abrir el tramo) */}
-                        <button type="button" className={`rc-mini__item${x.frenado ? ' rc-mini__item--freno' : ''}${idPanel === x.id ? ' rc-mini__item--activo' : ''}`}
+                        <button type="button" className={`rc-mini__item rc-e--${x.etapa}${x.frenado ? ' rc-mini__item--freno' : ''}${idPanel === x.id ? ' rc-mini__item--activo' : ''}`}
                           onClick={e => onAbrir(x.id, e.currentTarget)} aria-haspopup="dialog">
-                          <span className={`rc-pto rc-pto--${FAMILIA[x.etapa]} rc-pto--quieto`} aria-hidden />
+                          <span className={`rc-pto rc-e--${x.etapa} rc-pto--quieto`} aria-hidden />
                           <span className="rc-mini__nombre">{x.nombre}</span>
                           <span className="rc-mini__etapa">{NOMBRE_ETAPA[x.etapa]} · día {x.diasCliente ?? '—'}</span>
                         </button>
@@ -387,7 +384,7 @@ function Tarjeta({ x, grande, activa, onAbrir }: { x: FilaRecorrido; grande: boo
   return (
     <button
       type="button"
-      className={`rc-tarjeta${x.frenado ? ' rc-tarjeta--freno' : ''}${activa ? ' rc-tarjeta--activa' : ''}`}
+      className={`rc-tarjeta rc-e--${x.etapa}${x.frenado ? ' rc-tarjeta--freno' : ''}${activa ? ' rc-tarjeta--activa' : ''}`}
       onClick={e => onAbrir(x.id, e.currentTarget)}
       aria-haspopup="dialog"
     >

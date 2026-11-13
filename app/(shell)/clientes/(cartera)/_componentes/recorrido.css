@@ -40,13 +40,6 @@
   transition: transform 200ms var(--rc-entra), border-color 200ms, box-shadow 200ms, opacity 200ms;
 }
 .rc .rc-barra__btn:focus-visible { outline: 2px solid var(--cj-sala); outline-offset: -4px; box-shadow: 0 0 0 2px var(--cj-hueso); }
-.rc-barra__btn--grabacion, .rc-barra__btn--edicion, .rc-barra__btn--por_lanzar { background: linear-gradient(160deg, var(--rc-avance-1), var(--rc-avance-0)); }
-.rc-barra__btn--lanzado, .rc-barra__btn--exito, .rc-barra__btn--renovacion {
-  color: var(--cj-sala);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--rc-exito) 88%, var(--cj-hueso)), var(--rc-exito));
-}
-.rc-barra__btn--exito { background: linear-gradient(160deg, var(--cj-verde), color-mix(in srgb, var(--rc-exito) 70%, var(--cj-verde))); }
-.rc-barra__btn--renovacion { background: linear-gradient(160deg, var(--cj-laton), color-mix(in srgb, var(--cj-laton) 75%, var(--cj-hueso))); }
 .rc-barra__btn:hover { transform: translateY(-2px); box-shadow: var(--cj-sombra-2); }
 .rc-barra__btn[aria-pressed='true'] { border-color: var(--cj-hueso); box-shadow: inset 0 0 0 2px var(--cj-sala), 0 0 0 1px var(--cj-hueso); }
 .rc-barra__n { font-family: var(--cj-fuente-titulo); font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -113,8 +106,6 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--cj-tinta) 70%, var(--cj-sala)), color-mix(in srgb, var(--cj-tinta) 25%, var(--cj-sala)));
   animation: rc-aparece 280ms var(--rc-entra) both;
 }
-.rc-col--lanzado, .rc-col--exito { background: linear-gradient(180deg, color-mix(in srgb, var(--rc-exito) 14%, var(--cj-sala)), var(--cj-sala)); }
-.rc-col--renovacion { background: linear-gradient(180deg, color-mix(in srgb, var(--cj-laton) 18%, var(--cj-sala)), var(--cj-sala)); }
 .rc-col--pausa, .rc-col--baja, .rc-col--sin_dato { background: var(--cj-sala); border-style: dashed; }
 .rc-col__cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
 .rc-col__titulo {
@@ -289,12 +280,6 @@
   position: absolute; bottom: calc(var(--nivel) * 11px); transform: translateX(-50%);
   box-shadow: 0 1px 2px rgba(29, 29, 27, 0.25); animation: rc-cae 650ms var(--rc-entra) both; animation-delay: calc(240ms + var(--nivel) * 60ms);
 }
-.rc-pto--prod { background: color-mix(in srgb, var(--cj-laton) 55%, var(--cj-sala)); }
-.rc-pto--prod2 { background: var(--cj-laton); }
-.rc-pto--lanza { background: var(--cj-ok); }
-.rc-pto--exito { background: var(--cj-verde); }
-.rc-pto--renov { background: color-mix(in srgb, var(--cj-laton) 70%, var(--cj-hueso)); }
-.rc-pto--cierre { background: var(--cj-control); }
 .rc-pto--freno { border-color: var(--rc-freno, var(--cj-error)); }
 .rc-pto--activo { outline: 2px solid var(--cj-hueso); outline-offset: 1px; }
 .rc-pto--quieto { animation: none; }
@@ -348,7 +333,6 @@
 .rc-tramo__tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .rc-tramo__tarjetas > li { display: flex; flex-direction: column; gap: 4px; animation: rc-despliega 560ms var(--rc-entra) both; animation-delay: calc(120ms + var(--i) * 45ms); }
 .rc-tramo__etapa { font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--cj-laton); }
-.rc-tramo__etapa--lanza, .rc-tramo__etapa--exito { color: var(--cj-ok); }
 
 @keyframes rc-traza { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes rc-cae { from { opacity: 0; transform: translate(-50%, -18px); } to { opacity: 1; transform: translate(-50%, 0); } }
@@ -448,3 +432,32 @@
 .rc-hito__estado { margin: 0 0 6px; min-height: 1.4em; font-size: 14px; color: var(--cj-ok); }
 .rc-corregir { display: flex; flex-direction: column; gap: 4px; }
 .rc-corregir__nota { margin: 0; font-size: 14px; color: var(--cj-texto-2); }
+
+/* ── Color por etapa (13/11/2026): cada etapa con su tono mate; la clase rc-e--<etapa> fija --rc-c ── */
+.rc-e--alta { --rc-c: #8b93a1; }
+.rc-e--kickoff { --rc-c: #6f88c2; }
+.rc-e--guiones { --rc-c: #9a7fc2; }
+.rc-e--grabacion { --rc-c: #c9804f; }
+.rc-e--edicion { --rc-c: #c9a24a; }
+.rc-e--por_lanzar { --rc-c: #4fa6ae; }
+.rc-e--lanzado { --rc-c: #6db36f; }
+.rc-e--exito { --rc-c: #2f9468; }
+.rc-e--renovacion { --rc-c: #b8955a; }
+.rc-e--pausa, .rc-e--baja, .rc-e--sin_dato { --rc-c: #6f7470; }
+
+.rc-barra__btn[class*='rc-e--'] {
+  /* Fondo sólido (oscurecido) y texto blanco fijo: se lee igual en el Hub de vidrio y en el tema claro (≥4,5:1) */
+  color: #fffdf8;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--rc-c) 64%, #101410), color-mix(in srgb, var(--rc-c) 52%, #101410));
+  border-top: 3px solid var(--rc-c);
+}
+.rc-pto[class*='rc-e--'] { background: var(--rc-c); }
+.rc-col[class*='rc-e--'] {
+  border-top: 3px solid var(--rc-c);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rc-c) 16%, var(--cj-sala)), var(--cj-sala) 220px);
+}
+.rc-col--pausa, .rc-col--baja, .rc-col--sin_dato { border-style: dashed; }
+.rc-tarjeta[class*='rc-e--'], .rc-mini__item[class*='rc-e--'] { border-left-color: var(--rc-c); }
+.rc-tarjeta--freno, .rc-mini__item--freno { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc-freno) 55%, transparent); }
+.rc-tramo__etapa[class*='rc-e--'] { color: var(--rc-c); font-weight: 600; }
+.rc-mini__etapa { color: var(--cj-texto-2); }
