@@ -12,6 +12,9 @@
 //   3. Lo más avanzado entre el Despacho (videos > tanda > ficha) y ClickUp. ClickUp nunca gana con "campaña activa" si Meta
 //      respondió y no ve anuncios: ahí queda Lanzado con la alerta "sin anuncios activos".
 //   4. Sin nada: Alta si entró hace 45 días o menos; si no, "Sin dato" (no se adivina).
+// Lanzar es un hito (13/11/2026, pedido de Tomás): con «Campaña lanzada» en el registro (guardado solo al ver gasto en Meta, o
+// anotado a mano) el cliente no vuelve a «Por lanzar» aunque la campaña esté en pausa y tenga videos aprobados: queda en
+// Lanzado con «Lanzó el DD/MM; campaña en pausa desde el DD/MM». Pausa y Baja las sigue mandando el CRM.
 // "Frenado": en una etapa de producción (Alta a Por lanzar) sin moverse hace FRENADO_DIAS o más, o con algo que lo traba
 // (semáforo rojo, puntaje bajo, error en la tanda). Éxito es relativo (Tomás, 25/10): se mide por lo contento que está el
 // cliente con los resultados y si se cumple lo prometido, no por un número fijo de casos.
@@ -71,7 +74,7 @@ export interface VideosResumen {
   ultimoGrabacion: Ymd | null; ultimoEdicion: Ymd | null; ultimoAprobado: Ymd | null
   crudoRecibido?: Ymd | null; editado?: Ymd | null   // para el registro: último crudo que llegó y último video editado
 }
-export interface MetaResumen { activa: boolean; ultimoLanzamiento: Ymd | null; semaforo: string | null }
+export interface MetaResumen { activa: boolean; ultimoLanzamiento: Ymd | null; semaforo: string | null; ultimoGasto?: Ymd | null }
 export interface ClickUpResumen { estado: string; actualizada: Ymd | null }
 export interface PuntajeResumen { valor: number; dia: Ymd | null }
 export interface FuentesCliente {
@@ -120,6 +123,17 @@ const TEXTO_TANDA: Record<EstadoTandaResumen, string> = {
   aprobada: 'aprobada', enviada: 'enviada al cliente', con_notas: 'con notas del cliente', corrigiendo: 'corrigiendo', error: 'con error', cerrada: 'cerrada fuera del bot',
 }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+const dm = (f: Ymd) => f.split('-').reverse().slice(0, 2).join('/')
+const diaSiguiente = (f: Ymd): Ymd => new Date(Date.parse(`${f}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+/** «Lanzó el 29/10; campaña en pausa desde el 12/11»: para un cliente que ya lanzó y hoy no tiene campaña activa. */
+function textoLanzoEnPausa(lanzo: Hito | null, meta: MetaResumen | null, metaLeida: boolean, hoy: Ymd): string {
+  const cuando = lanzo?.fecha ? `Lanzó el ${dm(lanzo.fecha)}` : 'Ya lanzó'
+  const pausa = meta?.ultimoGasto && meta.ultimoGasto >= hoy ? 'hoy no tiene anuncios activos'
+    : meta?.ultimoGasto ? `campaña en pausa desde el ${dm(diaSiguiente(meta.ultimoGasto))}`
+    : meta ? 'hoy no tiene anuncios activos'
+      : metaLeida ? 'campaña en pausa (sin gasto en las últimas 5 semanas)' : 'sin el dato de Meta de hoy'
+  return `${cuando}; ${pausa}`
+}
 const maxFecha = (...xs: (Ymd | null | undefined)[]): Ymd | null => xs.filter((x): x is Ymd => !!x).sort().pop() ?? null
 
 /** Contento con los resultados: último puntaje de seguimiento (o, sin puntaje, la satisfacción del CRM) de 8 o más, y la
@@ -180,7 +194,10 @@ export function ubicarCliente(c: ClienteRecorrido, f: FuentesCliente, hoy: Ymd, 
     // (o el Despacho si lo en curso es POSTERIOR al último hito: una tanda nueva después de haber lanzado)
     // Un hito sin fecha (inferido) no le gana a lo que está en curso: no se sabe cuál es más nuevo
     const masNuevo = !!enCurso && !!porHitos && (referencia === null || (!!enCurso.desde && enCurso.desde > referencia))
-    const despacho = enCurso && (!porHitos || ORDEN(enCurso.etapa) >= ORDEN(porHitos.etapa) || masNuevo) ? enCurso : porHitos ?? enCurso
+    const elegido = enCurso && (!porHitos || ORDEN(enCurso.etapa) >= ORDEN(porHitos.etapa) || masNuevo) ? enCurso : porHitos ?? enCurso
+    // Ya lanzó (hito en el registro, que no sea solo respaldo de ClickUp): videos aprobados no lo devuelven a «Por lanzar»
+    const lanzo = f.hitos?.find(h => h.clave === 'lanzamiento' && h.hecho && !h.respaldo) ?? null
+    const despacho = lanzo && elegido?.etapa === 'por_lanzar' && porHitos?.etapa === 'lanzado' ? porHitos : elegido
     const etapaCU = f.clickup ? ETAPA_CLICKUP[f.clickup.estado] ?? null : null
     let cu: Candidata | null = etapaCU && f.clickup ? { etapa: etapaCU, fuente: 'clickup', desde: f.clickup.actualizada, detalle: `En ClickUp: ${f.clickup.estado}` } : null
     // ClickUp dice campaña pero Meta respondió y no ve anuncios activos: lanzó, hoy no corre nada
@@ -191,12 +208,15 @@ export function ubicarCliente(c: ClienteRecorrido, f: FuentesCliente, hoy: Ymd, 
     // (la ficha de kickoff de antes de lanzar no lo devuelve a Kickoff)
     const fichaVieja = despacho?.etapa === 'kickoff' && !!f.meta?.ultimoLanzamiento && (!despacho.desde || despacho.desde <= f.meta.ultimoLanzamiento)
     if (lanzoAntes && (!despacho || fichaVieja || despacho.etapa === 'lanzado')) {
-      cand = { etapa: 'lanzado', fuente: 'meta', desde: f.meta!.ultimoLanzamiento, detalle: 'Lanzó, pero hoy no tiene anuncios activos' }
+      cand = { etapa: 'lanzado', fuente: 'meta', desde: f.meta!.ultimoLanzamiento ?? lanzo?.fecha ?? null, detalle: lanzo ? textoLanzoEnPausa(lanzo, f.meta, lecturas.meta, hoy) : 'Lanzó, pero hoy no tiene anuncios activos' }
       alertas.push('Sin anuncios activos')
     } else if (despacho && (!cu || ORDEN(despacho.etapa) >= ORDEN(cu.etapa) || metaVeSinAnuncios)) {
       cand = despacho
-      // Lanzamiento anotado a mano, pero Meta respondió y no ve anuncios activos
-      if (cand.etapa === 'lanzado' && lecturas.meta && !f.meta?.activa) alertas.push('Sin anuncios activos')
+      // Lanzamiento en el registro (guardado o anotado a mano), pero Meta respondió y no ve anuncios activos
+      if (cand.etapa === 'lanzado' && lecturas.meta && !f.meta?.activa) {
+        alertas.push('Sin anuncios activos')
+        cand = { ...cand, detalle: textoLanzoEnPausa(lanzo, f.meta, lecturas.meta, hoy) }
+      }
     }
     else if (cu) {
       cand = cu

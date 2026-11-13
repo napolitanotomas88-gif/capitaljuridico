@@ -65,6 +65,11 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
       const corriendoDesde = activa && f.corriendo.dias > 0 ? sumarDias(hoy, -f.corriendo.dias) : null
       const lanz = detectado ?? corriendoDesde
       const previo = porCliente.get(k)
+      // Gasto real visto (todas las cuentas del cliente): el primero, si ya gastaba al empezar la ventana, y el último
+      const v = f.gastoVentana
+      const primerGasto = [v?.primero, previo?.primerGasto].filter((x): x is string => !!x).sort()[0] ?? null
+      const gastoAntesDe = (v?.primero && v.primero === v.desde ? v.desde : null) ?? previo?.gastoAntesDe ?? null
+      const ultimoGasto = [v?.ultimo, previo?.ultimoGasto].filter((x): x is string => !!x).sort().pop() ?? null
       const primero = [...f.lanzamientos.map(l => l.fecha).filter(Boolean), corriendoDesde, previo?.primerLanzamiento ?? null].filter((x): x is string => !!x).sort()[0] ?? null
       porCliente.set(k, {
         primerLanzamiento: primero,
@@ -73,6 +78,7 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
         lanzamientoAprox: !detectado && !!corriendoDesde && !(previo && !previo.lanzamientoAprox && previo.ultimoLanzamiento),
         semaforo: previo?.semaforo === 'rojo' ? 'rojo' : f.semaforo ?? previo?.semaforo ?? null,
         aGrabar: f.aGrabar === 'no_rinde' || previo?.aGrabar === 'no_rinde' ? 'no_rinde' : f.aGrabar ?? previo?.aGrabar ?? null,
+        primerGasto, gastoAntesDe, ultimoGasto,
       })
     }
     return { porCliente, aviso: null }

@@ -15,8 +15,11 @@
 //   · Una fecha que es posterior a la de un hito que vino después no es «la primera vez» (el Doc de guiones da su última
 //     edición): se muestra el hito hecho, sin fecha.
 //   · etapaPorHitos: la etapa que sale del último hito hecho (la usa recorrido.ts junto con el resto de las reglas).
+//   · «Campaña lanzada» guardada por el sistema (13/11/2026, lanzamientoAuto.ts): está en cj_hitos, pero firmada como
+//     automática. Se lee como un dato de Meta (no como anotado a mano): así lo que se anote a mano la sigue pisando.
 import type { Etapa } from './recorrido'
 import type { Ymd } from './fechas'
+import { esHitoAutomatico } from './lanzamientoAuto'
 
 export const HITOS = ['alta', 'kickoff', 'guiones', 'revision', 'grabacion', 'edicion', 'lanzamiento', 'exito', 'renovacion'] as const
 export type ClaveHito = (typeof HITOS)[number]
@@ -56,6 +59,7 @@ export interface EvidenciaHitos {
   clickupGuiones: Ymd | null                       // primera subtarea "Guion N" hecha
   clickupEstado?: string | null                    // estado de la tarea del cliente en ClickUp, en minúsculas ('verde', 'edición'…)
   lanzamiento: Ymd | null                          // Meta: el PRIMER lanzamiento que se conoce (la etapa usa el último, aparte)
+  lanzamientoSinFecha?: string | null              // Meta ve gasto, pero desde antes de lo que lee (texto para el registro)
   campanaActiva: boolean
   exito: Ymd | null                                // día del PRIMER puntaje de 8 o más (con la promesa no incumplida)
   exitoBot?: { fecha: Ymd | null; testimonio: Ymd | null; por: string | null } | null   // OK del bot de Éxito (cj_exito_pedidos)
@@ -80,6 +84,12 @@ const CADENA: ClaveHito[] = ['alta', 'kickoff', 'guiones', 'revision', 'grabacio
 /** Lo que dicen las fuentes de cada hito (sin lo manual ni lo inferido). */
 function automatico(e: EvidenciaHitos): Record<ClaveHito, Auto> {
   const t = e.tanda, d = e.drive, v = e.videos
+  // El lanzamiento que guardó el sistema (cj_hitos, automático) y el que Meta muestra hoy: el más viejo de los dos
+  const guardado = e.manuales.find(m => m.hito === 'lanzamiento' && esHitoAutomatico(m)) ?? null
+  const fechaLanz = primera(e.lanzamiento, guardado?.fecha)
+  const lanzamiento: Auto = fechaLanz
+    ? { fecha: fechaLanz, fuente: 'meta', detalle: fechaLanz === e.lanzamiento ? (e.campanaActiva ? 'Campaña activa en Meta' : 'Lanzó; hoy sin anuncios activos') : `${guardado?.nota || 'Primer gasto visto en Meta'} (guardado)` }
+    : guardado || e.lanzamientoSinFecha ? { fecha: null, fuente: 'meta', detalle: guardado?.nota || e.lanzamientoSinFecha || 'Gasto visto en Meta' } : null
   // Guiones hechos = la primera aprobación, envío o nota del cliente; la creación de esa tanda, solo como último recurso
   const guiones: Auto = t?.creado
     ? { fecha: primera(t.aprobada, t.enviada, t.notaCliente) ?? t.creado, fuente: 'despacho', detalle: 'Primera tanda de guiones aprobada o enviada (Despacho)' }
@@ -100,7 +110,7 @@ function automatico(e: EvidenciaHitos): Record<ClaveHito, Auto> {
     revision,
     grabacion: crudos ? { fecha: crudos, fuente: v?.crudos && v.crudos === crudos ? 'despacho' : 'drive', detalle: 'Último crudo subido' } : null,
     edicion: editados ? { fecha: editados, fuente: v?.editados && v.editados === editados ? 'despacho' : 'drive', detalle: 'Último video editado' } : null,
-    lanzamiento: e.lanzamiento ? { fecha: e.lanzamiento, fuente: 'meta', detalle: e.campanaActiva ? 'Campaña activa en Meta' : 'Lanzó; hoy sin anuncios activos' } : null,
+    lanzamiento,
     // El OK del bot de Éxito (Tomás o Gero A en Verificaciones) manda sobre el puntaje
     exito: e.exitoBot ? { fecha: e.exitoBot.fecha, fuente: 'exito_bot', detalle: `OK${e.exitoBot.por ? ` de ${e.exitoBot.por}` : ''}${e.exitoBot.testimonio ? ` · testimonio recibido el ${e.exitoBot.testimonio.split('-').reverse().join('/')}` : ''}` }
       : e.exito ? { fecha: e.exito, fuente: 'seguimiento', detalle: 'Puntaje de 8 o más y la promesa cumplida' } : null,
@@ -111,7 +121,8 @@ function automatico(e: EvidenciaHitos): Record<ClaveHito, Auto> {
 /** Los 9 hitos del cliente: lo manual manda; si un hito posterior está hecho, los anteriores se dan por hechos. */
 export function hitosDelCliente(e: EvidenciaHitos): Hito[] {
   const auto = automatico(e)
-  const manual = new Map(e.manuales.map(m => [m.hito, m]))
+  // Lo guardado por el sistema ya entró como dato de Meta (automatico): no es una anotación a mano
+  const manual = new Map(e.manuales.filter(m => !esHitoAutomatico(m)).map(m => [m.hito, m]))
   const base = HITOS.map((clave): Hito => {
     const m = manual.get(clave)
     const a = auto[clave]

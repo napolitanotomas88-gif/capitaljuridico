@@ -11,6 +11,7 @@ import { COLOR, colorDe, Corriendo, Enlaces, Estado, GuionEstado, NivelCPL, Sald
 import { nombreDia } from '@/lib/anuncios/feriados'
 import { RecuentoMeta } from './Recuento'
 import { PanelPorLanzar } from './PorLanzar'
+import { PanelVinculos } from './Vinculos'
 import { NotasCliente } from './NotasCliente'
 import { PanelRevisiones } from './Revisiones'
 import { filasDelPeriodo, ordenarCPL, type PeriodoCPL, type OrdenCPL } from '@/lib/anuncios/vista'
@@ -265,6 +266,7 @@ export function TableroAnuncios() {
       <GuionesAGrabar filas={datos.filas} />
       <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
       <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} esperando={datos.porLanzarEsperando ?? []} />
+      <PanelVinculos vinculos={datos.vinculos} />
       <details aria-label="Días malos de Meta" className="mt-8" style={{ borderLeft: '2px solid var(--filete)', paddingLeft: 16 }}>
         <summary className="etq" style={{ cursor: 'pointer' }}>Meta · días malos y recuento{(datos.diasMeta ?? []).some(x => x.malo && x.d >= sumarDias(datos.hoy, -3)) ? ' · hubo un día malo reciente' : ''}</summary>
         <TermometroMeta dias={datos.diasMeta} hoy={datos.hoy} />

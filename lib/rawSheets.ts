@@ -1,5 +1,6 @@
 import { google } from 'googleapis'
 import { clientesSinFin, esSinFin } from './clientes/sinFin'
+import { normNombre, NOMBRES_DE_PILA as NOMBRES_DE_PILA_COMUNES, sinApostrofos } from './nombresPersona'
 
 function getAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
@@ -933,27 +934,16 @@ async function leerSheets(sheets: ReturnType<typeof google.sheets>, lecturas: Le
 // Nombres normalizados (sin acentos ni puntuación). Ante nombres duplicados (ej. un cliente que
 // volvió: una fila INACTIVO y otra ACTIVO) gana la fila vigente (ACTIVO/PAUSADO).
 interface ClienteCRM { nombre: string; estado: string; telefono: string; email: string; tokens: string[] }
-const normTxt = (x: unknown) => (x ?? '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+// Sin apóstrofos antes de normalizar: «D’Ambrosio» = «DAmbrosio» (lib/nombresPersona.ts, 13/11/2026)
+const normTxt = normNombre
 const esVigente = (estado: string) => estado === 'ACTIVO' || estado === 'PAUSADO'
 // Palabras genéricas de nombres de cuentas/estudios que no identifican a nadie
 const PALABRAS_GENERICAS = new Set(['estudio', 'juridico', 'juridica', 'juridicos', 'abogado', 'abogada', 'abogados', 'abogadas',
   'asociados', 'asociadas', 'legal', 'legales', 'consultora', 'publicidad', 'campanas', 'finanzas', 'firma', 'dolares', 'notarial', 'penal'])
 // Nombres de pila frecuentes: NUNCA cuentan como "apellido único" (en 'Pujol Alejandra Maria Jose'
 // las 2 últimas palabras son nombres, no apellidos → 'maria' no puede identificar a nadie)
-const NOMBRES_DE_PILA = new Set(['maria', 'jose', 'josefina', 'laura', 'paula', 'paola', 'ana', 'juan', 'pablo', 'carlos', 'jorge',
-  'luis', 'lucia', 'lucas', 'luciana', 'andrea', 'andres', 'alejandra', 'alejandro', 'daniel', 'daniela', 'gabriel', 'gabriela',
-  'natalia', 'carolina', 'sofia', 'marcela', 'marcelo', 'martin', 'martina', 'javier', 'diego', 'fernando', 'fernanda', 'florencia',
-  'agustin', 'agustina', 'sebastian', 'nicolas', 'cecilia', 'veronica', 'silvina', 'claudia', 'claudio', 'mariana', 'mariano',
-  'marina', 'romina', 'valeria', 'victoria', 'elizabeth', 'eugenia', 'cristina', 'lorena', 'gisela', 'julieta', 'yanina', 'ignacio',
-  'matias', 'federico', 'francisco', 'gustavo', 'ricardo', 'roberto', 'miguel', 'manuel', 'antonio', 'eduardo', 'sergio', 'mauricio',
-  'leandro', 'noemi', 'beatriz', 'susana', 'patricia', 'monica', 'silvia', 'graciela', 'adriana', 'rodolfo', 'alfredo', 'alberto',
-  'gonzalo', 'santiago', 'tomas', 'emiliano', 'facundo', 'ezequiel', 'hernan', 'marcos', 'carmen', 'leticia', 'dario', 'constanza',
-  'soledad', 'mercedes', 'elena', 'julio', 'cesar', 'oscar', 'hector', 'enrique', 'guillermo', 'horacio', 'ariel', 'marta', 'liliana',
-  'viviana', 'sandra', 'alicia', 'belen', 'camila', 'micaela', 'melina', 'vanesa', 'vanina', 'noelia', 'pamela', 'rosario', 'sabrina',
-  'tamara', 'celeste', 'milagros', 'guadalupe', 'magdalena', 'macarena', 'emilia', 'emilio', 'esteban', 'franco', 'german', 'gaston',
-  'joaquin', 'julian', 'leonardo', 'maximiliano', 'octavio', 'patricio', 'ramiro', 'rodrigo', 'valentin', 'victor', 'teresa', 'rocio',
-  'ines', 'pilar', 'raquel', 'irene', 'lujan', 'dolores', 'isabel', 'paz'])
+// La lista es la común de los cruces por nombre (lib/nombresPersona.ts): una sola para el tablero, «Por lanzar» y esto
+const NOMBRES_DE_PILA = NOMBRES_DE_PILA_COMUNES
 
 function indiceClientes(crmAgencia: Row[], cuentasMetaRows: Row[]) {
   const crmPorNombre = new Map<string, ClienteCRM>()
@@ -1000,7 +990,7 @@ function indiceClientes(crmAgencia: Row[], cuentasMetaRows: Row[]) {
     nombre ? crmPorNombre.get(normTxt(nombre)) ?? matchClientePorNombre(nombre) : null
 
   // ── Pestaña "Cuentas Meta": A cuenta (nombre o id), B cliente actual SI/NO, C nombre en el CRM ──
-  const norm = (x: unknown) => (x ?? '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+  const norm = (x: unknown) => sinApostrofos((x ?? '').toString()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
   const cuentaInfo = new Map<string, { actual: boolean; clienteCRM: string }>()
   for (const r of cuentasMetaRows) {
     const cuenta = norm(r[0])
@@ -2154,7 +2144,7 @@ async function construirRawData(ligero = false): Promise<RawData> {
   //   · fuera: col B = NO en la pestaña "Cuentas Meta" (solo match EXACTO de nombre o id) o cliente del CRM FINALIZADO / INACTIVO
   //   · cliente del CRM = col C de "Cuentas Meta" (exacta o difusa contra filas SI) o match por nombre de la cuenta / del Business Manager
   //   · error de pago + cliente PAUSADO = pausa a propósito, no alarma (pausadoCRM)
-  const norm = (x: unknown) => (x ?? '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+  const norm = (x: unknown) => sinApostrofos((x ?? '').toString()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
   const mc = metaClientes as MetaClientes
   // Clientes en producción en ClickUp (onboarding → creación de campaña): su cuenta sin gasto
   // NO está "frenada", todavía no lanzó. Se cruza el nombre del CLIENTE del CRM (o, si la cuenta no

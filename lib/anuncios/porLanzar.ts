@@ -32,6 +32,7 @@ import { armarVista, esFichaKickoff, ordenarFilas, taparMails, type VistaKickoff
 import type { FilaFichaCliente } from '@/lib/bot/kickoff/registro'
 import { NOMBRE_ITEM_PORTFOLIO, type ItemPortfolio } from '@/lib/bot/kickoff/tipos'
 import { normTxt } from './cruce'
+import { esApellidoDe, NOMBRES_DE_PILA } from '../nombresPersona'
 
 // ── Lo que muestra la tarjeta ──
 export interface MomentoLanzar { href: string; etiqueta: string }   // "▶ ≈17:18": link a la grabación de Fathom en ese segundo
@@ -263,23 +264,29 @@ export const resumirKickoffs = (filas: FilaFichaCliente[], op: { base: string; a
   unaPorCliente(filas, f => resumirKickoff(f, op))
 
 // ── Las cuentas visibles de un cliente sin fila (la heurística del tablero, de antes del 24/10) ──
-const NOMBRES_COMUNES = new Set(['maria', 'jose', 'juan', 'laura', 'gabriela', 'florencia', 'daniel', 'carlos', 'javier', 'jorge', 'luis', 'pablo', 'claudia', 'andrea', 'lucas', 'ana', 'del', 'los', 'las', 'abogado', 'abogada', 'abogados', 'estudio', 'juridico', 'asociados', 'legal', 'usd', 'gonzalo', 'manuel', 'esteban', 'ernesto', 'alejandro', 'teresita', 'cristina', 'antonia', 'nicolas', 'eduardo', 'francisco', 'fernando', 'sebastian', 'martin', 'roberto', 'ricardo', 'alberto', 'monica', 'veronica', 'mariano', 'santiago', 'geraldina', 'geraldine', 'daniela', 'daiana', 'agustina', 'sofia', 'valentina', 'lourdes', 'belen'])
+// Los nombres de pila salen de la lista común (lib/nombresPersona.ts): la de acá no tenía «rodrigo» y la sugerencia le pegaba a
+// un cliente la cuenta de otro con el mismo nombre de pila (13/11/2026)
+const PALABRAS_GENERICAS = ['del', 'los', 'las', 'abogado', 'abogada', 'abogados', 'estudio', 'juridico', 'asociados', 'legal', 'usd']
+const NOMBRES_COMUNES = new Set([...NOMBRES_DE_PILA, ...PALABRAS_GENERICAS])
 /** Las palabras de un nombre que sirven para cruzarlo con una cuenta (sin nombres de pila comunes ni palabras genéricas). */
 export const tokensNombre = (s: string): string[] =>
   [...new Set(normTxt(s).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(t => t.length > 2 && !NOMBRES_COMUNES.has(t)))]
 export interface CandidataCuenta { id: string; nombre: string; estado: number; negocio?: { nombre: string } | null }
 
 /**
- * Las cuentas visibles y libres (sin fila, no excluidas) que el tablero le asocia a un cliente sin fila, con cómo: la de
- * AJUSTES_CUENTA (`manual`), dos palabras en común o un apellido distintivo (6 letras o más). `tokFilas`: las palabras de
- * clientes que ya tienen fila (no sirven para cruzar a otro).
+ * Las cuentas visibles y libres (sin fila, no excluidas) que el tablero le asocia a un cliente sin fila, con cómo: vinculada a
+ * mano (`manual`: AJUSTES_CUENTA, «Cuentas Meta» o la ficha; un id o varios), dos palabras en común o un apellido distintivo
+ * (6 letras o más, que no sea un nombre de pila ni la primera palabra del nombre). `tokFilas`: las palabras de clientes que ya
+ * tienen fila (no sirven para cruzar a otro).
  */
-export function cuentasDelCliente(cliente: string, candidatas: CandidataCuenta[], op: { manual?: string | null; tokFilas: ReadonlySet<string> }): CuentaPorLanzar[] {
+export function cuentasDelCliente(cliente: string, candidatas: CandidataCuenta[], op: { manual?: string | ReadonlySet<string> | null; tokFilas: ReadonlySet<string> }): CuentaPorLanzar[] {
   const t = tokensNombre(cliente).filter(k => !op.tokFilas.has(k))
+  const esManual = (id: string) => (typeof op.manual === 'string' ? op.manual === id : !!op.manual?.has(id))
   const out: CuentaPorLanzar[] = []
   for (const a of candidatas) {
     const comunes = t.filter(k => tokensNombre(`${a.nombre} ${a.negocio?.nombre ?? ''}`).includes(k))
-    const por: PorCuenta | null = a.id === op.manual ? 'manual' : comunes.length >= 2 ? 'nombre' : comunes.some(k => k.length >= 6) ? 'apellido' : null
+    const por: PorCuenta | null = esManual(a.id) ? 'manual' : comunes.length >= 2 ? 'nombre'
+      : comunes.some(k => k.length >= 6 && esApellidoDe(k, cliente)) ? 'apellido' : null
     if (por) out.push({ id: a.id, nombre: a.nombre, estado: a.estado, por })
   }
   return out
