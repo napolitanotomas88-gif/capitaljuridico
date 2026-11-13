@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dashboard Métricas",
-  description: "Dashboard general de métricas en tiempo real",
+  title: "Despacho · Capital Jurídico",
+  description: "Despacho de Capital Jurídico",
 }
 
 export const viewport = {

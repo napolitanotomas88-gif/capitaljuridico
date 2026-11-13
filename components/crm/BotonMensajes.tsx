@@ -15,8 +15,8 @@ export function BotonMensajes() {
       href={URL_DOC_MENSAJES}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Mensajes (PROCESOS VENTAS - SKWD)"
-      title="Mensajes: PROCESOS VENTAS - SKWD (se abre en otra pestaña)"
+      aria-label="Mensajes: guía de procesos de ventas"
+      title="Mensajes: guía de procesos de ventas (se abre en otra pestaña)"
       className="flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/60 px-2 text-sm font-semibold hover:bg-white/10 lg:px-3"
     >
       <IconoDocumento />
