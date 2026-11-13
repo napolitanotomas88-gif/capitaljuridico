@@ -25,7 +25,7 @@ function Fila({ r }: { r: RevisionVista }) {
       <details open={r.vencida || r.hoyToca} className="group">
         <summary className="py-3 grid gap-x-6 gap-y-1 lg:grid-cols-[minmax(0,1fr)_260px] cursor-pointer list-none [&::-webkit-details-marker]:hidden">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90" style={{ color: 'var(--laton)', fontSize: 11 }}>▶</span>
+            <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90 anu-laton" style={{ fontSize: 12 }}>▶</span>
             <span style={{ color: 'var(--hueso)', fontWeight: 600 }}>{r.cliente}</span>
             {r.tipo && <span style={{ fontSize: 12, color: 'var(--laton)' }}>{r.tipo}</span>}
           </div>
@@ -66,18 +66,18 @@ export function PanelRevisiones() {
       .catch(() => setError('No se pudieron leer las revisiones'))
   }, [])
   const setAbierto = (v: boolean) => { setAbiertoEstado(v); try { localStorage.setItem(CLAVE_ABIERTO, v ? 'si' : 'no') } catch { /* nada */ } }
-  if (error) return <section aria-label="A revisar" className="mb-8"><p style={{ fontSize: 13, color: 'var(--humo)' }}>A revisar: {error}</p></section>
+  if (error) return <section aria-label="A revisar" className="mb-8"><p className="anu-nota">A revisar: {error}</p></section>
   if (!lista?.length) return null
   const urgentes = lista.filter(r => r.vencida || r.hoyToca).length
   return (
-    <section id="a-revisar" aria-label="A revisar" className="mb-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-      <button type="button" onClick={() => setAbierto(!abierto)} aria-expanded={abierto} className="flex items-center gap-2 text-left">
-        <span aria-hidden="true" className="inline-block transition-transform" style={{ color: 'var(--laton)', fontSize: 11, transform: abierto ? 'rotate(90deg)' : 'none' }}>▶</span>
-        <span className="etq-laton">A revisar · {lista.length}{urgentes ? ` · ${urgentes} para hoy` : ''}</span>
+    <section id="a-revisar" aria-label="A revisar" className="anu-solapa" style={{ marginTop: 0, marginBottom: 32 }}>
+      <button type="button" onClick={() => setAbierto(!abierto)} aria-expanded={abierto} className="flex items-center gap-2 text-left" style={{ minHeight: 44 }}>
+        <span aria-hidden="true" className="inline-block transition-transform anu-laton" style={{ fontSize: 12, transform: abierto ? 'rotate(90deg)' : 'none' }}>▶</span>
+        <span className="etq-laton">A revisar: {lista.length}{urgentes ? `, ${urgentes} para hoy` : ''}</span>
       </button>
       {abierto && (
         <>
-          <p className="mt-1" style={{ fontSize: 13, color: 'var(--humo)' }}>Pruebas y cambios en curso: no tocarlos hasta la fecha de revisión, así terminan de aprender. Tocá cada cliente para ver el detalle.</p>
+          <p className="mt-1 anu-nota">Pruebas y cambios en curso: no tocarlos hasta la fecha de revisión, así terminan de aprender. Tocá cada cliente para ver el detalle.</p>
           <ul className="mt-3 flex flex-col">
             {lista.map(r => <Fila key={r.fila} r={r} />)}
           </ul>

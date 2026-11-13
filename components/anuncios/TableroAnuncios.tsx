@@ -157,12 +157,12 @@ export function TableroAnuncios() {
         <h1 className="serif mt-3" style={{ fontSize: 44 }}>Anuncios de clientes</h1>
         {error ? (
           <div role="alert" className="mt-8">
-            <p style={{ color: 'var(--hueso)', borderLeft: '2px solid var(--borgona)', paddingLeft: 12 }}>No se pudo cargar el tablero: {error}</p>
+            <p className="anu-aviso">No se pudo cargar el tablero: {error}</p>
             <button type="button" className="boton mt-5" disabled={actualizando} onClick={() => void cargar(true)}>Reintentar</button>
           </div>
         ) : (
           <div role="status" aria-busy="true" className="mt-8">
-            <p style={{ color: 'var(--humo)' }}>Cargando las cuentas de Meta, el CRM y los guiones…</p>
+            <p className="anu-humo">Cargando las cuentas de Meta, el CRM y los guiones…</p>
             <div className="mt-6 grid gap-3">
               {Array.from({ length: 6 }, (_, i) => <div key={i} className="esqueleto" style={{ height: 56, opacity: 1 - i * 0.12 }} />)}
             </div>
@@ -177,41 +177,37 @@ export function TableroAnuncios() {
   return (
     <div className="mx-auto px-4 md:px-8 pt-10 pb-20" style={{ maxWidth: 1480 }}>
       {/* ── Encabezado ── */}
-      <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+      <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
         <div>
           <p className="etq-laton">Capital Jurídico · Pauta de clientes</p>
           <h1 className="serif mt-2" style={{ fontSize: 'clamp(38px, 5vw, 56px)', lineHeight: 1.02 }}>Anuncios de clientes</h1>
         </div>
-        <div className="lg:text-right" style={{ fontSize: 13, color: 'var(--humo)', lineHeight: 1.7 }}>
-          <div style={{ color: 'var(--hueso)', fontSize: 15 }}>
+        <div className="lg:text-right anu-nota" style={{ lineHeight: 1.7 }}>
+          <div className="anu-hueso" style={{ fontSize: 15 }}>
             Actualizado {haceTiempo(datos.actualizado.insights ?? datos.generado, ahora)}
-            {error && <span style={{ color: 'var(--laton)' }}> · sin conexión ({haceTiempo(ultimaConsulta, ahora)})</span>}
+            {error && <span className="anu-laton">, sin conexión ({haceTiempo(ultimaConsulta, ahora)})</span>}
           </div>
-          <button type="button" disabled={actualizando} onClick={() => void cargar(true)} aria-busy={actualizando}
-            className="border px-3 py-1 my-2 disabled:opacity-50" style={{ borderColor: 'var(--laton)', color: 'var(--hueso)' }}>
+          <button type="button" disabled={actualizando} onClick={() => void cargar(true)} aria-busy={actualizando} className="boton my-2">
             {actualizando ? 'Actualizando…' : 'Actualizar datos'}
           </button>
           <span className="sr-only" role="status">{actualizando ? 'Actualizando datos' : error ? `Error: ${error}` : ultimaConsulta ? 'Datos cargados' : ''}</span>
-          <div>
-            Gasto y mensajes {haceTiempo(datos.actualizado.insights, ahora)} · pagos y saldo {haceTiempo(datos.actualizado.cuentas, ahora)} · actualización manual
-          </div>
-          <div>
-            Token de Meta:{' '}
-            {tok
-              ? !tok.valido ? <span style={{ color: 'var(--hueso)' }}>inválido</span>
-                : tok.diasRestantes == null ? 'no vence'
-                : <span style={{ color: tok.diasRestantes <= 10 ? 'var(--hueso)' : undefined }}>vence en {tok.diasRestantes} días</span>
-              : 'sin datos'}
-            {' · '}
-            <a href="/api/anuncios/reporte-pdf" style={{ color: 'var(--laton)', textDecoration: 'underline', textUnderlineOffset: 3 }}>reporte PDF</a>
-            {' · '}
+          <div>Gasto y mensajes: {haceTiempo(datos.actualizado.insights, ahora)}. Pagos y saldo: {haceTiempo(datos.actualizado.cuentas, ahora)}. Actualización manual.</div>
+          <div className="anu-acciones lg:justify-end">
+            <span>
+              Token de Meta:{' '}
+              {tok
+                ? !tok.valido ? <span className="anu-hueso">inválido</span>
+                  : tok.diasRestantes == null ? 'no vence'
+                  : <span className={tok.diasRestantes <= 10 ? 'anu-hueso' : undefined}>vence en {tok.diasRestantes} días</span>
+                : 'sin datos'}
+            </span>
+            <a href="/api/anuncios/reporte-pdf" className="enlace">Reporte PDF</a>
             <form method="post" action="/api/anuncios/logout" style={{ display: 'inline' }}>
-              <button type="submit" style={{ background: 'none', border: 0, color: 'var(--humo)', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }} title="Cierra solo el acceso a Anuncios (la sesión de Google sigue); vuelve a pedir la clave">cerrar Anuncios</button>
+              <button type="submit" className="anu-boton-texto" title="Cierra solo el acceso a Anuncios (la sesión de Google sigue); vuelve a pedir la clave">Cerrar Anuncios</button>
             </form>
           </div>
         </div>
       </header>
-      <div style={{ height: 1, background: 'var(--laton)', width: 56, margin: '26px 0 30px', opacity: 0.7 }} />
 
       {/* ── A revisar (8/11/2026): pruebas y cambios en curso, con los días que van y los que faltan ── */}
       <PanelRevisiones />
@@ -225,7 +221,7 @@ export function TableroAnuncios() {
             className="anu-tarjeta"
           >
             <span className="anu-tarjeta__rotulo">
-              <span className="anu-cuadro" data-estado={k} style={{ width: 10, height: 10, background: COLOR[k], border: k === 'verde' ? '1px solid rgba(239,233,220,0.25)' : 'none', display: 'inline-block', flex: 'none' }} />
+              <span className="anu-cuadro" data-estado={k} style={{ width: 10, height: 10, background: COLOR[k], border: k === 'verde' ? '1px solid rgba(255,255,255,0.25)' : 'none', display: 'inline-block', flex: 'none' }} />
               {txt.charAt(0).toUpperCase() + txt.slice(1)}
             </span>
             <span className="serif num anu-tarjeta__valor">{n}</span>
@@ -236,7 +232,7 @@ export function TableroAnuncios() {
           <button
             key={k} type="button" onClick={() => irA(k)} aria-pressed={foco === k}
             title={k === 'lanzadas' ? 'Cuentas con anuncios nuevos de los últimos 10 días' : 'Revisión pendiente desde el día 4 del lanzamiento (o de la última reactivación tras una pausa) hasta confirmar la optimización, y revisión semanal (cada 7 días) de campañas DM con 2 o más anuncios o tras 7 días de competencia'}
-            className="anu-tarjeta anu-tarjeta--azul"
+            className="anu-tarjeta anu-tarjeta--info"
           >
             <span className="anu-tarjeta__rotulo">{txt}</span>
             <span className="serif num anu-tarjeta__valor">{n}</span>
@@ -248,17 +244,17 @@ export function TableroAnuncios() {
           className="anu-tarjeta anu-tarjeta--laton">
           <span className="anu-tarjeta__rotulo">Por lanzar</span>
           <span className="serif num anu-tarjeta__valor">{r.porLanzar}</span>
-          <span className="anu-tarjeta__contexto">{r.sinAccesoPorLanzar} sin acceso{r.listosParaArmar > 0 ? ` · ${r.listosParaArmar} listo${r.listosParaArmar > 1 ? 's' : ''} para armar` : ''}</span>
+          <span className="anu-tarjeta__contexto">{r.sinAccesoPorLanzar} sin acceso{r.listosParaArmar > 0 ? `, ${r.listosParaArmar} listo${r.listosParaArmar > 1 ? 's' : ''} para armar` : ''}</span>
         </a>
-        <p className="anu-resumen__linea">
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.erroresPago}</b> con error de pago{r.erroresNuevos > 0 && <span style={{ color: 'var(--azul)' }}> ({r.erroresNuevos} nuevo{r.erroresNuevos > 1 ? 's' : ''}, en azul 3 días)</span>} ·{' '}
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.saldosPorAgotarse}</b> por quedarse sin saldo ·{' '}
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.sinMensajes}</b> gastan sin mensajes ·{' '}
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.enAumento}</b> {'\u2197\uFE0E'} en aumento ·{' '}
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.aGrabar}</b> a grabar ·{' '}
-          <b style={{ color: 'var(--hueso)', fontWeight: 500 }}>{r.sinGuionesNecesarios}</b> sin guiones que se necesitan ·{' '}
-          {r.total} cuentas
-        </p>
+        <ul className="anu-resumen__linea">
+          <li><b>{r.erroresPago}</b> con error de pago{r.erroresNuevos > 0 && <span className="anu-info"> ({r.erroresNuevos} nuevo{r.erroresNuevos > 1 ? 's' : ''}, destacados 3 días)</span>}</li>
+          <li><b>{r.saldosPorAgotarse}</b> por quedarse sin saldo</li>
+          <li><b>{r.sinMensajes}</b> gastan sin mensajes</li>
+          <li><b>{r.enAumento}</b> {'\u2197\uFE0E'} en aumento</li>
+          <li><b>{r.aGrabar}</b> a grabar</li>
+          <li><b>{r.sinGuionesNecesarios}</b> sin guiones que se necesitan</li>
+          <li>{r.total} cuentas</li>
+        </ul>
       </section>
 
       {/* 10/11/2026: orden por urgencia y todo en solapas (cerradas salvo lo que se abre desde el resumen) */}
@@ -269,8 +265,8 @@ export function TableroAnuncios() {
       <PanelPresupuesto filas={datos.filas} hoy={datos.hoy} />
       <PanelPorLanzar items={datos.porLanzar ?? []} avisos={datos.avisosPorLanzar ?? []} sinEditados={datos.porLanzarSinEditados ?? []} esperando={datos.porLanzarEsperando ?? []} />
       <PanelVinculos vinculos={datos.vinculos} />
-      <details aria-label="Días malos de Meta" className="mt-8" style={{ borderLeft: '2px solid var(--filete)', paddingLeft: 16 }}>
-        <summary className="etq" style={{ cursor: 'pointer' }}>Meta · días malos y recuento{(datos.diasMeta ?? []).some(x => x.malo && x.d >= sumarDias(datos.hoy, -3)) ? ' · hubo un día malo reciente' : ''}</summary>
+      <details aria-label="Días malos de Meta" className="anu-solapa">
+        <summary className="etq">Meta: días malos y recuento{(datos.diasMeta ?? []).some(x => x.malo && x.d >= sumarDias(datos.hoy, -3)) ? ' (hubo un día malo reciente)' : ''}</summary>
         <TermometroMeta dias={datos.diasMeta} hoy={datos.hoy} />
         <RecuentoMeta hoy={datos.hoy} casa="bolsa" />
       </details>
@@ -279,7 +275,7 @@ export function TableroAnuncios() {
       {datos.avisos.length > 0 && (
         <section aria-label="Avisos" className="mt-8 flex flex-col gap-2">
           {datos.avisos.map((a, i) => (
-            <p key={i} style={{ fontSize: 14, borderLeft: '2px solid var(--borgona)', paddingLeft: 12, color: 'var(--hueso)' }}>{a}</p>
+            <p key={i} className="anu-aviso" style={{ fontSize: 14 }}>{a}</p>
           ))}
         </section>
       )}
@@ -296,7 +292,7 @@ export function TableroAnuncios() {
         </Grupo>
         <label className="flex flex-col gap-2" style={{ minWidth: 180 }}>
           <span className="etq">Ordenar por</span>
-          <select aria-label="Ordenar por" className="buscar" value={ordenCPL} onChange={e => setOrdenCPL(e.target.value as OrdenCPL)} style={{ background: 'var(--tinta)' }}>
+          <select aria-label="Ordenar por" className="buscar" value={ordenCPL} onChange={e => setOrdenCPL(e.target.value as OrdenCPL)}>
             <option value="prioridad">Prioridad</option>
             <option value="alto">CPL más alto</option>
             <option value="bajo">CPL más bajo</option>
@@ -305,11 +301,11 @@ export function TableroAnuncios() {
         <Grupo titulo="Estado">
           <Chip activo={soloGracia} onClick={() => { setSoloGracia(!soloGracia); setEstado('todos'); setCorriendo('todos'); setMoneda('todas'); setQ(''); setRama('todas'); setSoloAumento(false); setFoco(null) }}>Período de gracia · Revisar ({datos.resumen.periodoGracia})</Chip>
           {(['todos', 'error', 'sin_gasto', 'rojo', 'amarillo', 'verde'] as const).map(k => (
-            <Chip key={k} activo={estado === k} onClick={() => setEstado(k)}>{k === 'todos' ? 'Todos' : k === 'error' ? '\u26A0\uFE0E Error' : k === 'sin_gasto' ? 'Sin gasto' : k}</Chip>
+            <Chip key={k} activo={estado === k} onClick={() => setEstado(k)}>{k === 'todos' ? 'Todos' : k === 'error' ? 'Error' : k === 'sin_gasto' ? 'Sin gasto' : k}</Chip>
           ))}
           <Chip activo={soloAumento} onClick={() => setSoloAumento(!soloAumento)}>{'\u2197\uFE0E'} En aumento ({datos.resumen.enAumento})</Chip>
-          <Chip activo={foco === 'lanzadas'} onClick={() => irA('lanzadas')}><span style={{ color: foco === 'lanzadas' ? undefined : 'var(--azul)' }}>{'\u25CF'}</span> Lanzadas ({datos.resumen.lanzadas})</Chip>
-          <Chip activo={foco === 'revisar'} onClick={() => irA('revisar')}><span style={{ color: foco === 'revisar' ? undefined : 'var(--azul)' }}>{'\u25CF'}</span> Revisar ({datos.resumen.revisarDia4})</Chip>
+          <Chip activo={foco === 'lanzadas'} onClick={() => irA('lanzadas')}><span className={foco === 'lanzadas' ? undefined : 'anu-info'} aria-hidden="true">{'\u25CF'}</span> Lanzadas ({datos.resumen.lanzadas})</Chip>
+          <Chip activo={foco === 'revisar'} onClick={() => irA('revisar')}><span className={foco === 'revisar' ? undefined : 'anu-info'} aria-hidden="true">{'\u25CF'}</span> Revisar ({datos.resumen.revisarDia4})</Chip>
         </Grupo>
         <Grupo titulo="Días corriendo">
           {([['todos', 'Todos'], ['menos7', 'Menos de 7'], ['7a30', '7 a 30'], ['mas30', 'Más de 30'], ['frenadas', 'Frenadas']] as const).map(([k, t]) => (
@@ -323,7 +319,7 @@ export function TableroAnuncios() {
         </Grupo>
         <label className="flex flex-col gap-2" style={{ minWidth: 200 }}>
           <span className="etq">Rama del derecho</span>
-          <select className="buscar" value={rama} onChange={e => setRama(e.target.value)} style={{ background: 'var(--tinta)' }}>
+          <select className="buscar" value={rama} onChange={e => setRama(e.target.value)}>
             <option value="todas">Todas</option>
             {ramas.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
             <option value="sin">Sin rama</option>
@@ -334,18 +330,18 @@ export function TableroAnuncios() {
           <input className="buscar" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Nombre, cuenta o portfolio" />
         </label>
       </section>
-      <p id="listado-foco" className="mt-4" style={{ fontSize: 13, color: 'var(--humo)', scrollMarginTop: 16 }}>
+      <p id="listado-foco" className="mt-4 anu-nota" style={{ scrollMarginTop: 16 }}>
         {hayFiltros && <button type="button" className="chip" onClick={restablecer} style={{ marginRight: 12 }}>Restablecer filtros</button>}
-        {foco && <span style={{ color: 'var(--azul)', marginRight: 8 }}>{foco === 'lanzadas' ? 'Solo lanzamientos recientes' : 'Solo campañas a revisar (día 4-5)'} ·</span>}
-        {filas.length === datos.filas.length ? `${filas.length} cuentas` : `${filas.length} de ${datos.filas.length} cuentas`} · {ordenCPL === 'prioridad' ? 'ordenadas por prioridad' : ordenCPL === 'alto' ? 'CPL de mayor a menor' : 'CPL de menor a mayor'} · CPL {periodoCPL === 'ayer' ? `del día anterior (${dm(sumarDias(datos.hoy, -1))})` : 'de los últimos 7 días'}
+        {foco && <span className="anu-info" style={{ marginRight: 8 }}>{foco === 'lanzadas' ? 'Solo lanzamientos recientes.' : 'Solo campañas a revisar (día 4-5).'}</span>}
+        {filas.length === datos.filas.length ? `${filas.length} cuentas` : `${filas.length} de ${datos.filas.length} cuentas`}, {ordenCPL === 'prioridad' ? 'ordenadas por prioridad' : ordenCPL === 'alto' ? 'CPL de mayor a menor' : 'CPL de menor a mayor'}. CPL {periodoCPL === 'ayer' ? `del día anterior (${dm(sumarDias(datos.hoy, -1))})` : 'de los últimos 7 días'}.
         <span style={{ display: 'block', marginTop: 6 }}>Colores: CPL {periodoCPL === 'ayer' ? 'del día anterior' : 'de los últimos 7 días'}. Tendencias y guiones: evaluación independiente. Sin CPL o sin conversión a USD: al final del orden por CPL.</span>
       </p>
 
       {foco && (() => {
         const ocultos = datos.filas.filter(f => f.semaforo === 'error' && !filas.some(x => x.id === f.id)).length
         return ocultos > 0 ? (
-          <p className="mt-2" style={{ fontSize: 13, color: 'var(--hueso)', borderLeft: '2px solid var(--borgona)', paddingLeft: 12 }}>
-            {ocultos} cuenta{ocultos > 1 ? 's' : ''} con error no aparece{ocultos > 1 ? 'n' : ''} en este filtro. <button type="button" className="enlace" onClick={() => { setFoco(null); setEstado('error') }} style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, font: 'inherit' }}>Ver errores</button>
+          <p className="mt-2 anu-aviso" style={{ fontSize: 13 }}>
+            {ocultos} cuenta{ocultos > 1 ? 's' : ''} con error no aparece{ocultos > 1 ? 'n' : ''} en este filtro. <button type="button" className="enlace" onClick={() => { setFoco(null); setEstado('error') }}>Ver errores</button>
           </p>
         ) : null
       })()}
@@ -353,7 +349,7 @@ export function TableroAnuncios() {
       {/* ── Vista LISTA: una línea por cliente ── */}
       {vista === 'lista' && (
         <div className="mt-4" style={{ borderTop: '1px solid var(--filete-fuerte)' }}>
-          <div className="hidden lg:grid gap-x-4 etq" style={{ gridTemplateColumns: COLUMNAS_LISTA, padding: '10px 0 10px 17px', fontSize: 10 }}>
+          <div className="hidden lg:grid gap-x-4 etq" style={{ gridTemplateColumns: COLUMNAS_LISTA, padding: '10px 0 10px 17px' }}>
             <span>Cliente</span><span>Estado · motivo</span><span className="text-right">CPL semanal</span><span className="text-right">Gasto ayer</span><span>Guiones</span><span />
           </div>
           {filas.map(f => <FilaLista key={f.id} f={f} periodo={periodoCPL} ordenado={ordenCPL !== 'prioridad'} />)}
@@ -388,10 +384,10 @@ export function TableroAnuncios() {
       </div>
       </>}
 
-      {!filas.length && <p className="mt-10" style={{ color: 'var(--humo)' }}>Ninguna cuenta con esos filtros.</p>}
+      {!filas.length && <p className="mt-10 anu-humo">Ninguna cuenta con esos filtros.</p>}
 
       {/* ── Cuentas excluidas y referencias ── */}
-      <section className="mt-16 grid gap-10 lg:grid-cols-2" style={{ borderTop: '1px solid var(--filete)', paddingTop: 24, fontSize: 14, color: 'var(--humo)' }}>
+      <section className="mt-16 grid gap-10 lg:grid-cols-2 anu-humo" style={{ borderTop: '1px solid var(--filete)', paddingTop: 24, fontSize: 14 }}>
         <div>
           <p className="etq-laton mb-3">Cómo se lee</p>
           <p>Todo en USD: los pesos se pasan con el dólar MEP venta del día y las otras monedas con su cotización del día. CPL = gasto ÷ conversaciones de mensajes iniciadas: elegí 7 días completos hasta ayer o sólo el día anterior. El selector cambia el CPL, los estados, los contadores y los filtros: ayer o 7 días completos hasta ayer. En el período elegido, gasto sin mensajes: rojo; sin gasto, clientes pausados o sin anuncios activos: grupo separado «Sin gasto», sin color de rendimiento. Los errores de pago tienen prioridad y quedan en su propio grupo. Las alertas de tendencias y guiones conservan sus períodos de evaluación; las cuentas sin anuncios activos en Meta, sin gasto reciente o en pausa del CRM no generan alertas de rendimiento por gasto histórico. Cada rama del derecho tiene su CPL normal (ej. Laboral hasta USD 1,50, Geriátrico hasta 2,70): verde hasta el tope de su rango, amarillo hasta 50% arriba, rojo más. La rama sale, en orden, del ajuste privado, de la columna D «Rama» de «Cuentas Meta» (planilla), de ClickUp (Seguimiento de Anuncios) o del nombre de la cuenta. Sin rama: verde hasta 2,80 · amarillo hasta 4 · rojo más.</p>
@@ -406,7 +402,7 @@ export function TableroAnuncios() {
             <p className="mt-2">Completar &ldquo;Tópicos Objetivos&rdquo; en ClickUp → Seguimiento de Anuncios. Mientras tanto usan los umbrales generales{' '}(o la rama que sugiere el nombre de la cuenta).</p>
             <ul className="mt-3 flex flex-col gap-1">
               {datos.filas.filter(f => !f.rama || f.rama.fuente === 'cuenta').map(f => (
-                <li key={f.id}><span style={{ color: 'var(--hueso)' }}>{f.cliente}</span> — {f.clickup ? `tarea "${f.clickup.nombre}" sin tópicos` : 'sin tarea en ClickUp'}{f.rama ? ` (por el nombre de la cuenta: ${f.rama.nombre})` : ''}</li>
+                <li key={f.id}><span className="anu-hueso">{f.cliente}</span>: {f.clickup ? `tarea "${f.clickup.nombre}" sin tópicos` : 'sin tarea en ClickUp'}{f.rama ? ` (por el nombre de la cuenta: ${f.rama.nombre})` : ''}</li>
               ))}
             </ul>
           </details>
@@ -415,7 +411,7 @@ export function TableroAnuncios() {
           <details>
             <summary className="etq-laton">Cuentas de la lista que no se muestran ({datos.excluidas.length})</summary>
             <ul className="mt-3 flex flex-col gap-1">
-              {datos.excluidas.map(e => <li key={e.id}><span style={{ color: 'var(--hueso)' }}>{e.cuenta}</span> — {e.motivo}</li>)}
+              {datos.excluidas.map(e => <li key={e.id}><span className="anu-hueso">{e.cuenta}</span>: {e.motivo}</li>)}
             </ul>
           </details>
         )}
@@ -430,7 +426,7 @@ function LineaSinGasto({ f }: { f: FilaAnuncio }) {
   // Solo en el grupo «Sin gasto» y en los pausados: en los errores, la fila ya dice el problema
   if (!f.sinGasto || (f.semaforo !== 'sin_gasto' && !f.pausado)) return null
   const color = f.sinGasto.tipo === 'pausa' ? 'var(--laton)' : 'var(--hueso)'
-  return <div style={{ fontSize: 12.5, lineHeight: 1.35, color, marginTop: 1 }} title="Por qué no gasta">{f.sinGasto.texto}</div>
+  return <div style={{ fontSize: 13, lineHeight: 1.35, color, marginTop: 1 }} title="Por qué no gasta">{f.sinGasto.texto}</div>
 }
 
 function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -450,10 +446,10 @@ function Identidad({ f }: { f: FilaVista }) {
   const distinto = f.cliente.trim().toLowerCase() !== f.cuenta.trim().toLowerCase()
   return (
     <>
-      <div style={{ fontSize: 16, color: 'var(--hueso)', fontWeight: 500, lineHeight: 1.3 }}>{f.cliente}</div>
-      <div style={{ fontSize: 12.5, color: 'var(--humo)', marginTop: 2 }}>
+      <div className="anu-hueso" style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.3 }}>{f.cliente}</div>
+      <div className="anu-nota" style={{ marginTop: 2 }}>
         {distinto ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}{f.negocio?.nombre && f.negocio.nombre !== f.cuenta ? ` · ${f.negocio.nombre}` : ''}{f.extra ? ' · sumada por el CRM' : ''}
-        <span style={{ display: 'block', color: f.rama ? 'var(--laton)' : 'var(--humo)' }} title={f.rama ? `Rama según ${FUENTE_RAMA[f.rama.fuente]}` : undefined}>{f.rama ? f.rama.nombre : 'Sin rama'}</span>
+        <span className={f.rama ? 'anu-laton' : 'anu-humo'} style={{ display: 'block' }} title={f.rama ? `Rama según ${FUENTE_RAMA[f.rama.fuente]}` : undefined}>{f.rama ? f.rama.nombre : 'Sin rama'}</span>
         {f.lanzamientos.length > 0 && <span style={{ display: 'block', marginTop: 4 }}><IconoLanzada f={f} /></span>}
       </div>
     </>
@@ -463,11 +459,11 @@ function Identidad({ f }: { f: FilaVista }) {
 function PorQue({ f }: { f: FilaAnuncio }) {
   return (
     <div style={{ fontSize: 14, lineHeight: 1.45 }}>
-      {f.aumento && <span style={{ display: 'block', color: 'var(--laton)', marginBottom: 2 }}><IconoAumento f={f} /> {f.aumento.texto}</span>}
-      <span style={{ color: 'var(--hueso)' }}>{f.frase}</span>
-      {f.semaforo !== 'verde' && f.notas.length > 0 && <span style={{ display: 'block', color: 'var(--humo)', fontSize: 12.5, marginTop: 2 }}>{f.notas.join(' · ')}</span>}
+      {f.aumento && <span className="anu-laton" style={{ display: 'block', marginBottom: 2 }}><IconoAumento f={f} /> {f.aumento.texto}</span>}
+      <span className="anu-hueso">{f.frase}</span>
+      {f.semaforo !== 'verde' && f.notas.length > 0 && <span className="anu-nota" style={{ display: 'block', marginTop: 2 }}>{f.notas.join(' · ')}</span>}
       {!f.pausado && !f.corriendo.sinAnunciosActivos && f.corriendo.frenadaHace == null && f.tendencia.tipo !== 'sin_datos' && !f.motivos.some(m => ['subiendo', 'quemando', 'grabar', 'finde'].includes(m.tipo)) && f.tendencia.tipo !== 'estable' && f.semaforo !== 'verde' && !f.notas.includes(f.tendencia.texto) && (
-        <span style={{ display: 'block', color: 'var(--humo)', fontSize: 12.5, marginTop: 2 }}>{f.tendencia.texto}</span>
+        <span className="anu-nota" style={{ display: 'block', marginTop: 2 }}>{f.tendencia.texto}</span>
       )}
     </div>
   )
@@ -476,7 +472,7 @@ function PorQue({ f }: { f: FilaAnuncio }) {
 function Mini({ etq, children, derecha }: { etq: string; children: React.ReactNode; derecha?: boolean }) {
   return (
     <div className="num" style={{ display: 'flex', justifyContent: derecha ? 'flex-end' : 'flex-start', alignItems: 'baseline', gap: 8, whiteSpace: 'nowrap' }}>
-      <span className="etq" style={{ fontSize: 9.5 }}>{etq}</span>
+      <span className="etq">{etq}</span>
       <span>{children}</span>
     </div>
   )
@@ -494,19 +490,19 @@ function FilaTabla({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
       <td style={{ minWidth: 220, maxWidth: 320 }}><PorQue f={f} /></td>
       <td style={{ textAlign: 'right', ...atenuado(f) }}>
         <div className="serif num" style={{ fontSize: 28, lineHeight: 1.05, ...marcaOrden(ordenado && periodo === 'd7') }}>{cpl(f.cpl.d7, f, f.gasto.d7)}</div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}><span title={`Nivel según el CPL ${periodo === 'ayer' ? 'del día anterior' : 'de 7 días'}`}><NivelCPL f={f} /> <small style={{ color: 'var(--humo)' }}>color: {periodo === 'ayer' ? 'día anterior' : '7 días'}</small></span></div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}><span title={`Nivel según el CPL ${periodo === 'ayer' ? 'del día anterior' : 'de 7 días'}`}><NivelCPL f={f} /> <small className="anu-humo">color: {periodo === 'ayer' ? 'día anterior' : '7 días'}</small></span></div>
         <RitmoPresupuesto f={f} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}><Sparkline f={f} ancho={96} alto={22} /></div>
       </td>
       <td style={{ textAlign: 'right' }}>
         <Mini etq="Ayer" derecha><span style={marcaOrden(ordenado && periodo === 'ayer')}>{cpl(f.cpl.ayer, f, f.gasto.ayer)}</span></Mini>
         <Mini etq="7 ant." derecha>{cpl(f.cpl.d7prev, f, f.gasto.d7prev)}</Mini>
-        {f.cpl.variacion7 != null && <div className="num" style={{ fontSize: 12, color: f.cpl.variacion7 >= 0.2 ? 'var(--hueso)' : 'var(--humo)' }}>{fmtPct(f.cpl.variacion7)} vs. 7 ant.</div>}
+        {f.cpl.variacion7 != null && <div className={`num anu-chico${f.cpl.variacion7 >= 0.2 ? ' anu-hueso' : ''}`}>{fmtPct(f.cpl.variacion7)} vs. 7 ant.</div>}
       </td>
       <td style={{ textAlign: 'right' }}>
         <Mini etq={f.moneda} derecha>{fmtGasto(f.gasto.ayer, f.moneda, { sinMoneda: true })}</Mini>
         <Mini etq="Msj" derecha>{fmtEntero(f.mensajes.ayer)}</Mini>
-        <div className="num" style={{ fontSize: 12, color: 'var(--humo)' }}>hoy {fmtGasto(f.gasto.hoy, f.moneda, { sinMoneda: true })} · {fmtEntero(f.mensajes.hoy)} msj</div>
+        <div className="num anu-chico">hoy {fmtGasto(f.gasto.hoy, f.moneda, { sinMoneda: true })}, {fmtEntero(f.mensajes.hoy)} msj</div>
       </td>
       <td style={{ whiteSpace: 'nowrap' }}>
         <Corriendo f={f} />
@@ -520,7 +516,7 @@ function FilaTabla({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
 function Dato({ etq, children }: { etq: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="etq" style={{ fontSize: 10 }}>{etq}</div>
+      <div className="etq">{etq}</div>
       <div className="num" style={{ fontSize: 15, marginTop: 2 }}>{children}</div>
     </div>
   )
@@ -536,22 +532,22 @@ function Tarjeta({ f, periodo }: { f: FilaVista; periodo: PeriodoCPL }) {
       <div className="mt-3"><PorQue f={f} /></div>
       <div className="mt-4 flex items-end justify-between gap-4">
         <div>
-          <div className="etq" style={{ fontSize: 10 }}>CPL semanal · {f.moneda}</div>
+          <div className="etq">CPL semanal ({f.moneda})</div>
           <div className="serif num" style={{ fontSize: 42, lineHeight: 1.05 }}>{cpl(f.cpl.d7, f, f.gasto.d7)}</div>
-          <div className="mt-1"><span title={`Nivel según el CPL ${periodo === 'ayer' ? 'del día anterior' : 'de 7 días'}`}><NivelCPL f={f} /> <small style={{ color: 'var(--humo)' }}>color: {periodo === 'ayer' ? 'día anterior' : '7 días'}</small></span></div>
+          <div className="mt-1"><span title={`Nivel según el CPL ${periodo === 'ayer' ? 'del día anterior' : 'de 7 días'}`}><NivelCPL f={f} /> <small className="anu-humo">color: {periodo === 'ayer' ? 'día anterior' : '7 días'}</small></span></div>
         </div>
         <RitmoPresupuesto f={f} />
         <Sparkline f={f} ancho={120} alto={30} />
       </div>
       <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3">
         <Dato etq="CPL ayer">{cpl(f.cpl.ayer, f, f.gasto.ayer)}</Dato>
-        <Dato etq="7 anteriores">{cpl(f.cpl.d7prev, f, f.gasto.d7prev)}{f.cpl.variacion7 != null && <span style={{ color: 'var(--humo)', fontSize: 12 }}> {fmtPct(f.cpl.variacion7)}</span>}</Dato>
+        <Dato etq="7 anteriores">{cpl(f.cpl.d7prev, f, f.gasto.d7prev)}{f.cpl.variacion7 != null && <span className="anu-chico"> {fmtPct(f.cpl.variacion7)}</span>}</Dato>
         <Dato etq="Corriendo"><Corriendo f={f} /></Dato>
         <Dato etq="Gasto ayer">{fmtGasto(f.gasto.ayer, f.moneda, { sinMoneda: true })}</Dato>
         <Dato etq="Mensajes ayer">{fmtEntero(f.mensajes.ayer)}</Dato>
         <Dato etq="Saldo"><Saldo f={f} /></Dato>
       </div>
-      <div className="mt-3" style={{ fontSize: 14 }}><span className="etq" style={{ fontSize: 10, marginRight: 8 }}>Guiones</span><GuionEstado f={f} /></div>
+      <div className="mt-3" style={{ fontSize: 14 }}><span className="etq" style={{ marginRight: 8 }}>Guiones</span><GuionEstado f={f} /></div>
       <div className="mt-4"><Enlaces f={f} /></div>
     </article>
   )
@@ -566,23 +562,23 @@ function TermometroMeta({ dias, hoy }: { dias: Tablero['diasMeta']; hoy: string 
   return (
     <section aria-label="Termómetro de Meta" className="mt-4">
       {ultimo && (
-        <p style={{ fontSize: 15, borderLeft: '2px solid var(--borgona)', paddingLeft: 12, color: 'var(--hueso)', marginBottom: 14 }}>
+        <p className="anu-aviso" style={{ fontSize: 15, marginBottom: 16 }}>
           {ultimo.d === sumarDias(hoy, -1) ? 'Ayer' : `El ${nombreDia(ultimo.d)} ${dm(ultimo.d)}`} fue un día malo de Meta: al {Math.round(ultimo.parte * 100)}% de las cuentas le subió el CPL (suba mediana {fmtPct(ultimo.mediana - 1)}). Es general, no de los guiones: no cuenta para las alertas.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <span className="etq">Meta · últimas 3 semanas</span>
+        <span className="etq">Meta, últimas 3 semanas</span>
         <span style={{ display: 'inline-flex', gap: 3 }}>
           {dias.map(x => (
             <span
               key={x.d}
               title={`${nombreDia(x.d)} ${dm(x.d)}${x.tipo === 'finde' ? ' (fin de semana / feriado)' : ''}: subió en ${x.suben} de ${x.cuentas} cuentas · mediana ${fmtPct(x.mediana - 1)}${x.malo ? ' · DÍA MALO DE META' : ''}`}
-              style={{ width: 10, height: 14, display: 'inline-block', background: x.malo ? 'var(--borgona)' : x.tipo === 'finde' ? 'transparent' : 'rgba(239,233,220,0.16)', border: x.tipo === 'finde' && !x.malo ? '1px solid rgba(239,233,220,0.22)' : '1px solid transparent' }}
+              style={{ width: 10, height: 14, display: 'inline-block', background: x.malo ? 'var(--borgona)' : x.tipo === 'finde' ? 'transparent' : 'var(--filete-fuerte)', border: x.tipo === 'finde' && !x.malo ? '1px solid var(--filete-fuerte)' : '1px solid transparent' }}
             />
           ))}
         </span>
-        <span style={{ fontSize: 13, color: 'var(--humo)' }}>
-          {malos.length ? `Días malos: ${malos.map(x => `${nombreDia(x.d).slice(0, 3)} ${dm(x.d)}`).join(' · ')}` : 'Ningún día malo: las subas que veas son de cada cuenta'}
+        <span className="anu-nota">
+          {malos.length ? `Días malos: ${malos.map(x => `${nombreDia(x.d).slice(0, 3)} ${dm(x.d)}`).join(', ')}` : 'Ningún día malo: las subas que veas son de cada cuenta'}
         </span>
       </div>
     </section>
@@ -605,18 +601,18 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
           <div style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{f.cliente}</div>
           <Chapas f={f} />
           <LineaSinGasto f={f} />
-          <div style={{ fontSize: 12, color: 'var(--humo)', overflowWrap: 'anywhere' }}>{f.rama ? <span style={{ color: 'var(--laton)' }}>{f.rama.nombre} · </span> : ''}{f.cuenta.trim().toLowerCase() !== f.cliente.trim().toLowerCase() ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}</div>
+          <div className="anu-chico" style={{ overflowWrap: 'anywhere' }}>{f.rama ? <span className="anu-laton">{f.rama.nombre} · </span> : ''}{f.cuenta.trim().toLowerCase() !== f.cliente.trim().toLowerCase() ? `${f.cuenta} · ` : ''}{f.monedaOriginal ?? f.moneda}</div>
         </div>
-        <div style={{ fontSize: 14, lineHeight: 1.4, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }} className="min-w-0">{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
+        <div style={{ fontSize: 14, lineHeight: 1.4, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }} className="min-w-0">{f.aumento && <span className="anu-laton">{f.aumento.texto}. </span>}{f.frase}{f.pago.periodoGracia && <span className="anu-info" style={{ display: 'block' }}>Período de gracia: revisar pago</span>}</div>
         <div className="num" style={{ textAlign: 'right', ...atenuado(f) }}>
-          <span className="serif" style={{ fontSize: 22, ...marcaOrden(ordenado && periodo === 'd7') }}>{cplSemanal}</span><small style={{ color: 'var(--humo)' }}> {f.moneda}</small>
-          <div style={{ fontSize: 10, color: 'var(--humo)', whiteSpace: 'nowrap' }}><ObjReal f={f} /></div>
+          <span className="serif" style={{ fontSize: 22, ...marcaOrden(ordenado && periodo === 'd7') }}>{cplSemanal}</span><small className="anu-humo"> {f.moneda}</small>
+          <div className="anu-chico" style={{ whiteSpace: 'nowrap' }}><ObjReal f={f} /></div>
         </div>
         <div className="num" style={{ textAlign: 'right', ...atenuado(f) }}>
           <span className="serif" style={{ fontSize: 20 }}>{fmtGasto(f.gasto.ayer, f.moneda)}</span>
-          <div style={{ fontSize: ordenado && periodo === 'ayer' ? 13 : 10, color: 'var(--humo)', ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</div>
+          <div className="anu-humo" style={{ fontSize: ordenado && periodo === 'ayer' ? 13 : 12, ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</div>
         </div>
-        <div style={{ fontSize: 13, color: f.guiones.estado === 'sin_guiones' ? 'var(--laton)' : 'var(--humo)' }} title={f.guiones.detalle}>{guion}</div>
+        <div className={f.guiones.estado === 'sin_guiones' ? 'anu-laton' : 'anu-humo'} style={{ fontSize: 13 }} title={f.guiones.detalle}>{guion}</div>
         <div style={{ textAlign: 'right', paddingRight: 4 }}><a className="enlace" href={f.links.ads} target="_blank" rel="noopener noreferrer">Abrir</a></div>
       </div>
       {/* Celular */}
@@ -626,13 +622,13 @@ function FilaLista({ f, periodo, ordenado }: { f: FilaVista; periodo: PeriodoCPL
           <LineaSinGasto f={f} />
         </div>
         <Chapas f={f} />
-        <div style={{ fontSize: 13.5, lineHeight: 1.4, marginTop: 3, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }}>{f.aumento && <span style={{ color: 'var(--laton)' }}>{f.aumento.texto} · </span>}{f.frase}{f.pago.periodoGracia && <span style={{ display: 'block', color: 'var(--azul)' }}>Período de gracia · revisar pago</span>}</div>
+        <div style={{ fontSize: 13.5, lineHeight: 1.4, marginTop: 3, color: f.semaforo === 'verde' ? 'var(--humo)' : 'var(--hueso)' }}>{f.aumento && <span className="anu-laton">{f.aumento.texto}. </span>}{f.frase}{f.pago.periodoGracia && <span className="anu-info" style={{ display: 'block' }}>Período de gracia: revisar pago</span>}</div>
         <div className="grid grid-cols-2 gap-4 my-2 num" style={atenuado(f)} aria-label={`Métricas; estado por ${periodo === 'ayer' ? 'ayer' : '7 días'}`}>
-          <div><div className="etq" style={{ fontSize: 9 }}>CPL semanal</div><div style={marcaOrden(ordenado && periodo === 'd7')}>{cplSemanal} {f.moneda}</div><small style={{ color: 'var(--humo)', display: 'block' }}><ObjReal f={f} /></small></div>
-          <div><div className="etq" style={{ fontSize: 9 }}>Gasto ayer</div><div>{fmtGasto(f.gasto.ayer, f.moneda)}</div><small style={{ color: 'var(--humo)', ...marcaOrden(ordenado && periodo === 'ayer') }}>CPL ayer {cplAyer} {f.moneda}</small></div>
+          <div><div className="etq">CPL semanal</div><div style={marcaOrden(ordenado && periodo === 'd7')}>{cplSemanal} {f.moneda}</div><small className="anu-chico" style={{ display: 'block' }}><ObjReal f={f} /></small></div>
+          <div><div className="etq">Gasto ayer</div><div>{fmtGasto(f.gasto.ayer, f.moneda)}</div><small className="anu-chico" style={marcaOrden(ordenado && periodo === 'ayer')}>CPL ayer {cplAyer} {f.moneda}</small></div>
         </div>
         <div className="flex items-center justify-between gap-3" style={{ marginTop: 6 }}>
-          <span style={{ fontSize: 12.5, color: f.guiones.estado === 'sin_guiones' ? 'var(--laton)' : 'var(--humo)' }}>{f.rama ? `${f.rama.nombre} · ` : ''}Guiones: {guion}</span>
+          <span className={f.guiones.estado === 'sin_guiones' ? 'anu-laton' : 'anu-humo'} style={{ fontSize: 13 }}>{f.rama ? `${f.rama.nombre}. ` : ''}Guiones: {guion}</span>
           <a className="enlace" href={f.links.ads} target="_blank" rel="noopener noreferrer">Abrir</a>
         </div>
       </div>
@@ -650,22 +646,22 @@ function GuionesAGrabar({ filas }: { filas: FilaAnuncio[] }) {
   const item = (f: FilaAnuncio, tipo: 'grabar' | 'no_rinde') => (
     <li key={f.id} className="flex flex-col lg:flex-row lg:items-baseline gap-x-4 gap-y-0.5" style={{ padding: '8px 0', borderBottom: '1px solid var(--filete)' }}>
       <span style={{ fontWeight: 500, minWidth: 200 }}>{f.cliente}</span>
-      <span style={{ color: 'var(--humo)', fontSize: 14, flex: 1 }}>{tipo === 'grabar' ? f.aumento?.texto : f.motivos.find(m => m.tipo === tipo)?.texto}</span>
-      <span style={{ fontSize: 13, color: f.guiones.estado === 'sin_guiones' ? 'var(--laton)' : 'var(--humo)', whiteSpace: 'nowrap' }} title={f.guiones.detalle}>
+      <span className="anu-humo" style={{ fontSize: 14, flex: 1 }}>{tipo === 'grabar' ? f.aumento?.texto : f.motivos.find(m => m.tipo === tipo)?.texto}</span>
+      <span className={f.guiones.estado === 'sin_guiones' ? 'anu-laton' : 'anu-humo'} style={{ fontSize: 13, whiteSpace: 'nowrap' }} title={f.guiones.detalle}>
         Guiones: {GUION_CORTO[f.guiones.estado]}
       </span>
       <a className="enlace" href={f.links.ads} target="_blank" rel="noopener noreferrer">Abrir</a>
     </li>
   )
   return (
-    <details aria-label="Guiones a grabar" className="mt-8" style={{ borderLeft: '2px solid var(--borgona)', paddingLeft: 16 }}>
-      <summary className="etq-laton" style={{ cursor: 'pointer' }}>Guiones a grabar · {quema.length + noRinde.length}</summary>
+    <details aria-label="Guiones a grabar" className="anu-solapa">
+      <summary className="etq-laton">Guiones a grabar: {quema.length + noRinde.length}</summary>
       {quema.length > 0 && <>
-        <p className="mt-3" style={{ fontSize: 13, color: 'var(--humo)' }}>Se están quemando: 4 o más días hábiles seguidos más caros</p>
+        <p className="mt-3 anu-nota">Se están quemando: 4 o más días hábiles seguidos más caros</p>
         <ul>{quema.map(f => item(f, 'grabar'))}</ul>
       </>}
       {noRinde.length > 0 && <>
-        <p className="mt-4" style={{ fontSize: 13, color: 'var(--humo)' }}>Primera tanda: 4 días completos con CPL del cliente alto o sin mensajes después de lanzar</p>
+        <p className="mt-4 anu-nota">Primera tanda: 4 días completos con CPL del cliente alto o sin mensajes después de lanzar</p>
         <ul>{noRinde.map(f => item(f, 'no_rinde'))}</ul>
       </>}
     </details>
@@ -677,8 +673,7 @@ function IconoAumento({ f }: { f: FilaAnuncio }) {
   if (!f.aumento) return null
   const fuerte = f.aumento.nivel !== 'subiendo'
   return (
-    <span title={f.aumento.texto} className="num" style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '1px 6px', marginLeft: 4, verticalAlign: '2px', whiteSpace: 'nowrap',
-      background: fuerte ? 'var(--borgona)' : 'transparent', color: fuerte ? 'var(--hueso)' : 'var(--laton)', border: `1px solid ${fuerte ? 'var(--borgona)' : 'var(--laton)'}` }}>
+    <span title={f.aumento.texto} className="num anu-chapa" style={{ background: fuerte ? 'var(--borgona)' : 'transparent', color: fuerte ? 'var(--hueso)' : 'var(--laton)', borderColor: fuerte ? 'var(--borgona)' : 'var(--laton)' }}>
       {'\u2197\uFE0E'} {f.aumento.dias}d
     </span>
   )
@@ -693,9 +688,8 @@ function Chapas({ f }: { f: FilaAnuncio }) {
 // Sin acceso a la cuenta (Meta #200): lo que se ve de gasto y CPL es viejo o no está
 function ChapaSinAcceso() {
   return (
-    <span title="Meta no nos deja leer esta cuenta: el gasto y el CPL no están actualizados" className="num"
-      style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '1px 6px', marginLeft: 4, verticalAlign: '2px', whiteSpace: 'nowrap', color: 'var(--hueso)', border: '1px dashed var(--filete-fuerte)' }}>
-      Sin acceso · dato no actualizado
+    <span title="Meta no nos deja leer esta cuenta: el gasto y el CPL no están actualizados" className="num anu-chapa anu-hueso" style={{ border: '1px dashed var(--filete-fuerte)' }}>
+      Sin acceso: dato no actualizado
     </span>
   )
 }
@@ -708,16 +702,15 @@ function ObjReal({ f }: { f: FilaAnuncio }) {
   return <>Obj. {fmtMonto(f.presupuesto.objetivoDiarioUSD, 'USD')}/día · Real {fmtMonto(f.presupuesto.realDiarioUSD, 'USD')}/día</>
 }
 
-// Azul = campaña con anuncios nuevos (últimos 10 días). Muestra el día de la más nueva; día 4-5 = revisar
+// Salvia (--info) = campaña con anuncios nuevos (últimos 10 días). Muestra el día de la más nueva; día 4-5 = revisar
 function IconoLanzada({ f }: { f: FilaAnuncio }) {
   const l = [...f.lanzamientos].sort((a, b) => Number(b.pendienteRevision) - Number(a.pendienteRevision) || a.dia - b.dia)[0]
   if (!l) return null
   const revisar = f.revisarDia4
   return (
-    <span title={f.lanzamientos.map(x => `${x.campana}: lanzada el ${dm(x.fecha)} (día ${x.dia})`).join('\n')} className="num"
-      style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', padding: '1px 6px', marginLeft: 4, verticalAlign: '2px', whiteSpace: 'nowrap',
-        background: revisar ? 'var(--azul)' : 'transparent', color: revisar ? 'var(--tinta)' : 'var(--azul)', border: '1px solid var(--azul)' }}>
-      {l.pendienteRevision ? 'Revisar para optimizar' : l.fechaRevision ? 'Revisada · ciclo 7 días' : l.etapa === 'competencia' ? `Compiten · ${l.diasCompetencia}/7` : l.etapa === 'ganador' ? 'Revisar ganador' : revisar ? 'Revisar · día 4' : `Nueva · día ${l.dia}`}
+    <span title={f.lanzamientos.map(x => `${x.campana}: lanzada el ${dm(x.fecha)} (día ${x.dia})`).join('\n')} className="num anu-chapa"
+      style={{ background: revisar ? 'var(--info)' : 'transparent', color: revisar ? '#0b2c25' : 'var(--info)', borderColor: 'var(--info)' }}>
+      {l.pendienteRevision ? 'Revisar para optimizar' : l.fechaRevision ? 'Revisada, ciclo 7 días' : l.etapa === 'competencia' ? `Compiten ${l.diasCompetencia}/7` : l.etapa === 'ganador' ? 'Revisar ganador' : revisar ? 'Revisar, día 4' : `Nueva, día ${l.dia}`}
     </span>
   )
 }
@@ -728,16 +721,16 @@ function PanelLanzamientos({ filas, foco, alOptimizar }: { filas: FilaAnuncio[];
   const items = filas.flatMap(f => f.lanzamientos.filter(l => todos ? !l.etapa && l.dia <= 10 : l.pendienteRevision).map(l => ({ f, l }))).sort((a, b) => b.l.dia - a.l.dia)
   if (!items.length) {
     return foco ? (
-      <section aria-label="Lanzamientos" className="mt-8" style={{ borderLeft: '2px solid var(--azul)', paddingLeft: 16 }}>
-        <p className="etq" style={{ color: 'var(--azul)' }}>{todos ? 'Lanzamientos recientes · 0' : 'Revisar para optimizar · 0'}</p>
-        <p className="mt-2" style={{ fontSize: 13, color: 'var(--humo)' }}>{todos ? 'No hay anuncios nuevos en los últimos 10 días.' : 'No hay revisiones pendientes de lanzamiento o competencia semanal.'}</p>
+      <section aria-label="Lanzamientos" className="anu-solapa">
+        <p className="etq anu-info">{todos ? 'Lanzamientos recientes: 0' : 'Revisar para optimizar: 0'}</p>
+        <p className="mt-2 anu-nota">{todos ? 'No hay anuncios nuevos en los últimos 10 días.' : 'No hay revisiones pendientes de lanzamiento o competencia semanal.'}</p>
       </section>
     ) : null
   }
   return (
-    <details open={foco != null} aria-label="Lanzamientos" className="mt-8" style={{ borderLeft: '2px solid var(--azul)', paddingLeft: 16 }}>
-      <summary className="etq" style={{ color: 'var(--azul)', cursor: 'pointer' }}>{todos ? 'Lanzamientos recientes' : 'Revisar para optimizar'} · {items.length}</summary>
-      <p className="mt-2" style={{ fontSize: 13, color: 'var(--humo)' }}>{todos ? 'Anuncios nuevos de los últimos 10 días (día 1 = el del lanzamiento). Al día 4 o 5 toca revisar CPL, mensajes y creativos.' : 'Revisión inicial desde el día 4 hasta confirmarla. Campañas DM con 2 o más anuncios activos: revisar los mejores cada 7 días; la revisión queda pendiente hasta registrarla.'}</p>
+    <details open={foco != null} aria-label="Lanzamientos" className="anu-solapa">
+      <summary className="etq anu-info">{todos ? 'Lanzamientos recientes' : 'Revisar para optimizar'}: {items.length}</summary>
+      <p className="mt-2 anu-nota">{todos ? 'Anuncios nuevos de los últimos 10 días (día 1 = el del lanzamiento). Al día 4 o 5 toca revisar CPL, mensajes y creativos.' : 'Revisión inicial desde el día 4 hasta confirmarla. Campañas DM con 2 o más anuncios activos: revisar los mejores cada 7 días; la revisión queda pendiente hasta registrarla.'}</p>
       <ul className="mt-2">
         {items.map(({ f, l }) => {
           const tope = f.rama?.umbral.ok ?? 2.8
@@ -745,12 +738,12 @@ function PanelLanzamientos({ filas, foco, alOptimizar }: { filas: FilaAnuncio[];
           return (
             <li key={l.campanaId} className="flex flex-col lg:flex-row lg:items-baseline gap-x-4 gap-y-0.5" style={{ padding: '8px 0', borderBottom: '1px solid var(--filete)' }}>
               <span style={{ fontWeight: 500, minWidth: 200 }}>{f.cliente}</span>
-              <span style={{ color: 'var(--humo)', fontSize: 14, flex: 1 }}>
-                {l.campana} · {l.reactivada ? 'reactivada' : 'lanzada'} el {dm(l.fecha)} · <span style={{ color: 'var(--azul)' }}>día {l.dia}{revisar ? ' · revisar' : ''}</span> · {l.anuncios} anuncio{l.anuncios > 1 ? 's' : ''}
-                {l.gasto != null && <> · {fmtGasto(f.usdPor ? l.gasto / f.usdPor : l.gasto, f.usdPor ? 'USD' : f.moneda)} · {l.mensajes} msj · CPL <span style={{ color: l.cplUSD != null && l.cplUSD <= tope ? 'var(--hueso)' : 'var(--laton)' }}>{l.cplUSD != null ? `USD ${l.cplUSD.toFixed(2).replace('.', ',')}` : 'sin mensajes'}</span> (normal ≤ {String(tope).replace('.', ',')})</>}
+              <span className="anu-humo" style={{ fontSize: 14, flex: 1 }}>
+                {l.campana} · {l.reactivada ? 'reactivada' : 'lanzada'} el {dm(l.fecha)} · <span className="anu-info">día {l.dia}{revisar ? ', revisar' : ''}</span> · {l.anuncios} anuncio{l.anuncios > 1 ? 's' : ''}
+                {l.gasto != null && <> · {fmtGasto(f.usdPor ? l.gasto / f.usdPor : l.gasto, f.usdPor ? 'USD' : f.moneda)} · {l.mensajes} msj · CPL <span className={l.cplUSD != null && l.cplUSD <= tope ? 'anu-hueso' : 'anu-laton'}>{l.cplUSD != null ? `USD ${l.cplUSD.toFixed(2).replace('.', ',')}` : 'sin mensajes'}</span> (normal ≤ {String(tope).replace('.', ',')})</>}
               </span>
-              {revisar && !l.fechaRevision && !l.fechaOptimizacion && !(l.dm && l.anuncios >= 2) && <span style={{ fontSize: 12, color: 'var(--azul)' }}>sin revisión registrada</span>}
-              {l.dm && l.anuncios >= 2 && <span style={{ fontSize: 12, color: 'var(--azul)' }}>DM · {l.anuncios} activos · {l.diasDesdeRevision} días {l.fechaRevision || l.fechaOptimizacion ? 'desde última revisión/optimización' : 'desde inicio · sin revisión registrada'}</span>}
+              {revisar && !l.fechaRevision && !l.fechaOptimizacion && !(l.dm && l.anuncios >= 2) && <span className="anu-info" style={{ fontSize: 12 }}>sin revisión registrada</span>}
+              {l.dm && l.anuncios >= 2 && <span className="anu-info" style={{ fontSize: 12 }}>DM, {l.anuncios} activos, {l.diasDesdeRevision} días {l.fechaRevision || l.fechaOptimizacion ? 'desde última revisión/optimización' : 'desde inicio · sin revisión registrada'}</span>}
               {revisar && <BotonOptimizada campanaId={l.campanaId} alGuardar={alOptimizar} />}
               {revisar && <BotonOptimizada campanaId={l.campanaId} alGuardar={alOptimizar} revision />}
               <a className="enlace" href={l.link} target="_blank" rel="noopener noreferrer">Abrir campaña</a>
@@ -775,17 +768,17 @@ function BotonOptimizada({ campanaId, alGuardar, revision = false }: { campanaId
     } catch (e) { setError((e as Error).message) }
     finally { setGuardando(false) }
   }
-  return <span><button type="button" className="enlace" disabled={guardando} onClick={() => void guardar()}>{guardando ? 'Guardando…' : revision ? 'Ya revisé' : 'Ya optimicé'}</button>{error && <small role="alert">{error}</small>}</span>
+  return <span><button type="button" className="enlace" disabled={guardando} onClick={() => void guardar()}>{guardando ? 'Guardando…' : revision ? 'Ya revisé' : 'Ya optimicé'}</button>{error && <small role="alert" className="anu-aviso" style={{ marginLeft: 8 }}>{error}</small>}</span>
 }
 
 function PanelCompetencia({ filas, alRevisar }: { filas: FilaAnuncio[]; alRevisar: () => void }) {
   const items = filas.flatMap(f => f.lanzamientos.filter(l => l.etapa).map(l => ({ f, l })))
   if (!items.length) return null
-  return <details id="competencia" aria-label="Seguimiento de optimizaciones" className="mt-8" style={{ borderLeft: '2px solid var(--azul)', paddingLeft: 16 }}>
-    <summary className="etq" style={{ color: 'var(--azul)', cursor: 'pointer' }}>Mejores compitiendo · {items.filter(x => x.l.etapa === 'competencia').length} · Revisar ganador final · {items.filter(x => x.l.etapa === 'ganador').length}</summary>
-    <p className="mt-2" style={{ fontSize: 13, color: 'var(--humo)' }}>7 días desde la confirmación de optimización. Después: comparar los anuncios que quedaron, elegir el ganador y mantener presupuesto si funciona.</p>
+  return <details id="competencia" aria-label="Seguimiento de optimizaciones" className="anu-solapa">
+    <summary className="etq anu-info">Mejores compitiendo: {items.filter(x => x.l.etapa === 'competencia').length}. Revisar ganador final: {items.filter(x => x.l.etapa === 'ganador').length}</summary>
+    <p className="mt-2 anu-nota">7 días desde la confirmación de optimización. Después: comparar los anuncios que quedaron, elegir el ganador y mantener presupuesto si funciona.</p>
     <ul>{items.map(({ f, l }) => <li key={l.campanaId} className="flex flex-col lg:flex-row gap-3 py-2" style={{ borderBottom: '1px solid var(--filete)' }}>
-      <span>{f.cliente}</span><span style={{ color: 'var(--azul)', flex: 1 }}>{l.etapa === 'ganador' ? 'Revisar ganador final' : `Mejores compitiendo · ${l.diasCompetencia} de 7 días`} · optimización confirmada {dm(l.fechaOptimizacion!)} · {l.campana}</span>
+      <span>{f.cliente}</span><span className="anu-info" style={{ flex: 1 }}>{l.etapa === 'ganador' ? 'Revisar ganador final' : `Mejores compitiendo, ${l.diasCompetencia} de 7 días`}. Optimización confirmada {dm(l.fechaOptimizacion!)} · {l.campana}</span>
       {l.etapa === 'ganador' && <BotonOptimizada campanaId={l.campanaId} alGuardar={alRevisar} revision />}
       <a className="enlace" href={l.link} target="_blank" rel="noopener noreferrer">Abrir campaña</a>
     </li>)}</ul>
@@ -804,15 +797,15 @@ function PanelPresupuesto({ filas, hoy }: { filas: FilaAnuncio[]; hoy: string })
   const porcentaje = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%'
   const grupos = [
     { titulo: 'Se están quedando cortos', filas: cortos, color: 'var(--laton)' },
-    { titulo: 'Se están pasando', filas: excesos, color: '#c98085' },
-    { titulo: 'Dentro del margen (±USD 20)', filas: enRango, color: 'var(--azul)' },
+    { titulo: 'Se están pasando', filas: excesos, color: '#f0b1b8' },
+    { titulo: 'Dentro del margen (±USD 20)', filas: enRango, color: 'var(--info)' },
   ]
-  return <details aria-label="Revisar presupuesto" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-    <summary className="etq-laton" style={{ cursor: 'pointer' }}>Revisar presupuesto · {cortos.length + excesos.length}</summary>
-    <p className="mt-3" style={{ color: 'var(--humo)', fontSize: 13 }}>Gasto acumulado hasta {dm(sumarDias(hoy, -1))}. Quedan {diasRestantes} días, desde hoy hasta fin de mes. El objetivo diario reparte el presupuesto pendiente entre esos días.</p>
-    <p className="mt-1" style={{ color: 'var(--humo)', fontSize: 12 }}>Barra = presupuesto consumido · marca vertical = avance esperado del mes ({porcentaje(esperado)}). Configurado en Meta se compara con el objetivo de los días restantes; es presupuesto asignado, no gasto garantizado. La proyección indica cómo cerraríamos si mantenemos el ritmo del mes hasta ayer. Desvíos de hasta USD 20, hacia arriba o abajo, están dentro del margen; el objetivo sigue siendo cumplir el pactado exacto.</p>
+  return <details aria-label="Revisar presupuesto" className="anu-solapa">
+    <summary className="etq-laton">Revisar presupuesto: {cortos.length + excesos.length}</summary>
+    <p className="mt-3 anu-nota">Gasto acumulado hasta {dm(sumarDias(hoy, -1))}. Quedan {diasRestantes} días, desde hoy hasta fin de mes. El objetivo diario reparte el presupuesto pendiente entre esos días.</p>
+    <p className="mt-1 anu-chico">Barra = presupuesto consumido; marca vertical = avance esperado del mes ({porcentaje(esperado)}). Configurado en Meta se compara con el objetivo de los días restantes; es presupuesto asignado, no gasto garantizado. La proyección indica cómo cerraríamos si mantenemos el ritmo del mes hasta ayer. Desvíos de hasta USD 20, hacia arriba o abajo, están dentro del margen; el objetivo sigue siendo cumplir el pactado exacto.</p>
     {grupos.filter(g => g.filas.length).map(grupo => <section key={grupo.titulo} aria-label={grupo.titulo} className="mt-6">
-      <h3 className="etq-laton" style={{ color: grupo.color }}>{grupo.titulo} · {grupo.filas.length}</h3>
+      <h3 className="etq-laton" style={{ color: grupo.color }}>{grupo.titulo}: {grupo.filas.length}</h3>
       <ul>{grupo.filas.map(f => {
         const p = f.presupuesto
         const restante = Math.max(0, p.mensualUSD! - p.gastadoMesUSD!)
@@ -822,15 +815,15 @@ function PanelPresupuesto({ filas, hoy }: { filas: FilaAnuncio[]; hoy: string })
         const diferenciaConfigurada = cierreConfigurado == null ? null : Math.round((cierreConfigurado - p.mensualUSD!) * 100) / 100
         const cumplimiento = f.pago.errorPago ? 'Error de pago: lo configurado no se está gastando' : p.gastadoMesUSD! > p.mensualUSD! + 20 && p.configuradoDiarioUSD === 0 ? 'Ya excedido · configurado en cero' : diferenciaConfigurada == null ? p.configuradoNota ?? 'Sin datos de Meta' : Math.abs(diferenciaConfigurada) <= 20 ? 'Alcanza · dentro del margen' : diferenciaConfigurada > 20 ? `Bajar ${fmtMonto(Math.max(0, p.configuradoDiarioUSD! - p.ajusteDiarioUSD!), 'USD')}/día` : `Subir ${fmtMonto(Math.max(0, p.ajusteDiarioUSD! - p.configuradoDiarioUSD!), 'USD')}/día`
         const dato = (etiqueta: string, valor: string, destacado = false, detalle?: string) => <div>
-          <dt style={{ color: 'var(--humo)', fontSize: 11, marginBottom: 5 }}>{etiqueta}</dt>
-          <dd className="num" style={{ margin: 0, fontSize: destacado ? 18 : 15, color: destacado ? 'var(--hueso)' : undefined }}>{valor}</dd>
-          {detalle && <dd style={{ margin: '4px 0 0', color: 'var(--humo)', fontSize: 11 }}>{detalle}</dd>}
+          <dt className="anu-chico" style={{ marginBottom: 4 }}>{etiqueta}</dt>
+          <dd className={`num${destacado ? ' anu-hueso' : ''}`} style={{ margin: 0, fontSize: destacado ? 17 : 15 }}>{valor}</dd>
+          {detalle && <dd className="anu-chico" style={{ margin: '4px 0 0' }}>{detalle}</dd>}
         </div>
         return <li key={f.id} className="py-4 grid gap-4 xl:grid-cols-[minmax(180px,1.5fr)_minmax(0,5fr)_minmax(150px,1fr)]" style={{ borderBottom: '1px solid var(--filete)' }}>
           <div>
             <div style={{ fontSize: 15 }}>{f.cliente}</div>
-            <a className="enlace" style={{ display: 'inline-block', marginTop: 7, fontSize: 11 }} href={f.links.ads} target="_blank" rel="noopener noreferrer">Revisar anuncios</a>
-            <div className="mt-2" style={{ color: 'var(--humo)', fontSize: 10 }}>{p.fuente}</div>
+            <a className="enlace" style={{ display: 'inline-block', marginTop: 8 }} href={f.links.ads} target="_blank" rel="noopener noreferrer">Revisar anuncios</a>
+            <div className="mt-2 anu-chico">{p.fuente}</div>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-4" style={{ margin: 0 }}>
             {dato('Pactado para el mes', fmtMonto(p.mensualUSD, 'USD'))}
@@ -841,23 +834,23 @@ function PanelPresupuesto({ filas, hoy }: { filas: FilaAnuncio[]; hoy: string })
             {dato('Configurado en Meta', p.configuradoDiarioUSD == null ? 'No disponible' : `${fmtMonto(p.configuradoDiarioUSD, 'USD')}/día`, true, cumplimiento)}
           </dl>
           <div aria-label={`Avance mensual de ${f.cliente}`}>
-            <div className="flex justify-between gap-2" style={{ fontSize: 11, color: 'var(--humo)' }}><span>Del pactado</span><span className="num">{porcentaje(consumido)}</span></div>
+            <div className="flex justify-between gap-2 anu-chico"><span>Del pactado</span><span className="num">{porcentaje(consumido)}</span></div>
             <div role="progressbar" aria-label={`Presupuesto consumido de ${f.cliente}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, consumido))} aria-valuetext={`${porcentaje(consumido)} consumido; esperado ${porcentaje(esperado)}`} className="mt-2" style={{ height: 5, position: 'relative', background: 'var(--filete)', borderRadius: 3 }}>
               <div style={{ width: `${Math.min(100, Math.max(0, consumido))}%`, height: '100%', borderRadius: 3, background: grupo.color, opacity: 0.65 }} />
               <span title={`Esperado hasta ayer: ${porcentaje(esperado)}`} style={{ position: 'absolute', left: `${esperado}%`, top: -3, width: 1, height: 11, background: 'var(--hueso)', opacity: 0.75 }} />
             </div>
-            <div className="mt-2" style={{ color: 'var(--humo)', fontSize: 10 }}>Esperado: {porcentaje(esperado)}</div>
+            <div className="mt-2 anu-chico">Esperado: {porcentaje(esperado)}</div>
           </div>
         </li>
       })}</ul>
     </section>)}
-    {!cortos.length && !excesos.length && <p className="mt-2" style={{ color: 'var(--humo)' }}>Sin desvíos mayores a USD 20 con datos suficientes.</p>}
-    {!!faltantes.length && <p className="mt-2" style={{ color: 'var(--humo)' }}>Sin presupuesto confirmado: {faltantes.map(f => f.cliente).join(', ')}.</p>}
+    {!cortos.length && !excesos.length && <p className="mt-2 anu-humo">Sin desvíos mayores a USD 20 con datos suficientes.</p>}
+    {!!faltantes.length && <p className="mt-2 anu-humo">Sin presupuesto confirmado: {faltantes.map(f => f.cliente).join(', ')}.</p>}
   </details>
 }
 
 function RitmoPresupuesto({ f }: { f: FilaVista }) {
-  return <div className="num" style={{ fontSize: 10, color: 'var(--humo)' }}>
+  return <div className="num anu-chico">
     <div>Objetivo: {fmtMonto(f.presupuesto.objetivoDiarioUSD, 'USD')}/día</div>
     <div>Real: {fmtMonto(f.presupuesto.realDiarioUSD, 'USD')}/día (7 días)</div>
   </div>

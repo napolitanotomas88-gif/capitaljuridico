@@ -36,10 +36,10 @@ export function NotasCliente() {
   const pendientes = importantes.filter(n => n.avisar).length
   const lista = todas ? base : base.slice(0, VISIBLES)
   return (
-    <details id="notas" open={foco !== null} aria-label="Notas del cliente" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-      <summary className="etq-laton" style={{ cursor: 'pointer' }}>Notas del cliente · {importantes.length} importantes{pendientes ? ` · ${pendientes} con pedido` : ''}</summary>
-      <p className="mt-1" style={{ fontSize: 13, color: 'var(--humo)' }}>Lo que dijeron de sus anuncios en su grupo de WhatsApp (últimos 60 días), solo lo que sirve para la estrategia: pedidos, cosas a tener en cuenta y cómo vienen las consultas. El bot solo lee.</p>
-      {!importantes.length && !conResto && <p className="mt-3" style={{ fontSize: 13, color: 'var(--humo)' }}>No hay notas importantes.</p>}
+    <details id="notas" open={foco !== null} aria-label="Notas del cliente" className="anu-solapa">
+      <summary className="etq-laton">Notas del cliente: {importantes.length} importantes{pendientes ? `, ${pendientes} con pedido` : ''}</summary>
+      <p className="mt-1 anu-nota">Lo que dijeron de sus anuncios en su grupo de WhatsApp (últimos 60 días), solo lo que sirve para la estrategia: pedidos, cosas a tener en cuenta y cómo vienen las consultas. El bot solo lee.</p>
+      {!importantes.length && !conResto && <p className="mt-3 anu-nota">No hay notas importantes.</p>}
       <ul className="mt-3 flex flex-col">
         {lista.map(n => (
           <li key={n.id} id={`nota-${n.id}`} className="py-3" style={{ borderTop: '1px solid var(--filete)', fontSize: 14, ...(foco === n.id ? { background: 'color-mix(in srgb, var(--laton) 12%, transparent)', paddingLeft: 8, paddingRight: 8 } : {}) }}>
@@ -47,7 +47,7 @@ export function NotasCliente() {
               <span className="num" style={{ color: 'var(--humo)', fontSize: 13 }}>{fecha(n.enviado)}</span>
               <span style={{ color: 'var(--hueso)', fontWeight: 600 }}>{n.cliente}</span>
               <span style={{ fontSize: 12, color: 'var(--humo)' }}>{etiquetaTipo(n.tipo)}{n.grupo ? ` · grupo ${n.grupo}` : ''}</span>
-              {n.estado === 'aviso_fallido' && <span style={{ fontSize: 12, color: 'var(--borgona)' }}>el aviso a Valen no salió</span>}
+              {n.estado === 'aviso_fallido' && <span style={{ fontSize: 12, color: '#f0b1b8' }}>el aviso a Valen no salió</span>}
             </div>
             <p className="mt-1">{n.dijo}</p>
             {n.pide && <p className="mt-1" style={{ color: 'var(--laton)' }}>Pide: {n.pide}</p>}

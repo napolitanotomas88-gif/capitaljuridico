@@ -9,28 +9,28 @@ import { fmtGasto, fmtMonto } from '@/lib/anuncios/formato'
 export const COLOR: Record<FilaAnuncio['semaforo'], string> = { sin_gasto: 'var(--humo)', error: 'var(--hueso)', rojo: 'var(--borgona)', amarillo: 'var(--laton)', verde: 'var(--sala)' }
 const NOMBRE: Record<FilaAnuncio['semaforo'], string> = { sin_gasto: 'Sin gasto', error: '\u26A0\uFE0E Error', rojo: 'Rojo', amarillo: 'Amarillo', verde: 'Verde' }
 
-// Color de la barra de la fila: un error de pago NUEVO (menos de 3 días) va en azul
-export const colorDe = (f: FilaAnuncio) => (f.semaforo === 'error' && f.pago.nuevo ? 'var(--azul)' : COLOR[f.semaforo])
+// Color de la barra de la fila: un error de pago NUEVO (menos de 3 días) va en salvia (--info, antes azul)
+export const colorDe = (f: FilaAnuncio) => (f.semaforo === 'error' && f.pago.nuevo ? 'var(--info)' : COLOR[f.semaforo])
 
 export function Estado({ s, nuevo }: { s: FilaAnuncio['semaforo']; nuevo?: { desde: string; dia: number } | null }) {
   if (s === 'error' && nuevo) return (
-    <span title={`Entró en error de pago el ${nuevo.desde.slice(8, 10)}/${nuevo.desde.slice(5, 7)}; pasa a error normal al día 4`} style={{ display: 'inline-block', fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, padding: '4px 9px', whiteSpace: 'nowrap', background: 'var(--azul)', color: 'var(--tinta)', border: '1px solid var(--azul)' }}>
-      {'\u26A0\uFE0E'} Error nuevo · día {nuevo.dia}/3
+    <span title={`Entró en error de pago el ${nuevo.desde.slice(8, 10)}/${nuevo.desde.slice(5, 7)}; pasa a error normal al día 4`} className="anu-estado" style={{ background: 'var(--info)', color: '#0b2c25', borderColor: 'var(--info)' }}>
+      {'\u26A0\uFE0E'} Error nuevo, día {nuevo.dia}/3
     </span>
   )
   const relleno = s !== 'amarillo' && s !== 'sin_gasto'
   if (s === 'error') return (
-    <span style={{ display: 'inline-block', fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, padding: '4px 9px', whiteSpace: 'nowrap', background: 'var(--hueso)', color: 'var(--borgona)', border: '1px solid var(--hueso)' }}>
+    <span className="anu-estado" style={{ background: 'var(--hueso)', color: 'var(--borgona)', borderColor: 'var(--hueso)' }}>
       {NOMBRE[s]}
     </span>
   )
   return (
     <span
+      className="anu-estado"
       style={{
-        display: 'inline-block', fontSize: 10.5, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 600,
-        padding: '4px 9px', whiteSpace: 'nowrap',
+        fontWeight: 600,
         background: relleno ? COLOR[s] : 'transparent', color: relleno ? 'var(--hueso)' : s === 'sin_gasto' ? 'var(--humo)' : 'var(--laton)',
-        border: `1px solid ${s === 'verde' ? 'rgba(239,233,220,0.18)' : COLOR[s]}`,
+        borderColor: s === 'verde' ? 'rgba(255,255,255,0.18)' : COLOR[s],
       }}
     >
       {NOMBRE[s]}
@@ -50,7 +50,7 @@ export function NivelCPL({ f }: { f: FilaAnuncio }) {
   if (f.semaforo === 'sin_gasto' || f.semaforo === 'error') return <span className="etq" style={{ color: 'var(--humo)' }}>Sin evaluar</span>
   const n = NIVEL[f.cpl.nivel]
   return (
-    <span className="etq" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+    <span className="etq" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={{ width: 7, height: 7, background: n.color, border: f.cpl.nivel === 'sin_datos' ? '1px solid var(--humo)' : 'none', display: 'inline-block' }} />
       {n.txt}
     </span>
@@ -66,7 +66,7 @@ export function Sparkline({ f, ancho = 112, alto = 26 }: { f: FilaAnuncio; ancho
   const s = f.serie.slice(0, -1)   // sin hoy (parcial)
   const vals = s.map(x => (x.m > 0 ? x.g / x.m : null))
   const conValor = vals.filter((v): v is number => v != null)
-  if (conValor.length < 2) return <span className="etq" style={{ fontSize: 10 }}>sin serie</span>
+  if (conValor.length < 2) return <span className="etq">sin serie</span>
   const orden = [...conValor].sort((a, b) => a - b)
   const max = orden[Math.floor(orden.length * 0.9)] * 1.15 || 1   // recorta picos para que no aplasten el resto
   const paso = ancho / (s.length - 1)
@@ -95,7 +95,7 @@ export function Corriendo({ f }: { f: FilaAnuncio }) {
 export function Saldo({ f }: { f: FilaAnuncio }) {
   const s = f.saldo
   if (s.restante == null)
-    return <span style={{ color: 'var(--humo)', fontSize: 12.5 }}>{f.pago.medio ? `sin límite · ${f.pago.medio}` : 'sin medio de pago'}</span>
+    return <span className="anu-humo" style={{ fontSize: 13 }}>{f.pago.medio ? `sin límite (${f.pago.medio})` : 'sin medio de pago'}</span>
   const urgente = s.restante <= 0 || (s.dias != null && s.dias <= 3)
   const dias = s.restante <= 0 ? 'sin saldo' : s.dias == null ? 'sin gasto reciente' : `~${Math.floor(s.dias)} días`
   return (
