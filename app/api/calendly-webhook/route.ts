@@ -2,7 +2,7 @@ import { NextResponse, after } from 'next/server'
 import crypto from 'node:crypto'
 import { revisarEspaciosAgenda } from '@/lib/agendaSlots'
 import { enviarConfirmacionAgenda, type InviteePayload } from '@/lib/confirmacionAgenda'
-import { aplicarReagendaNueva, aplicarReprogramacion } from '@/lib/crm/calendlyReagenda'
+import { aplicarReagendaNueva, aplicarReprogramacion, eventoAReemplazar } from '@/lib/crm/calendlyReagenda'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -66,9 +66,15 @@ export async function POST(req: Request) {
         const inicioNuevo = invitado.scheduled_event?.start_time
         const r = invitado.old_invitee
           ? await aplicarReprogramacion({ oldInvitee: invitado.old_invitee, email: invitado.email, telefono, inicioNuevo })
-          : await aplicarReagendaNueva({ email: invitado.email, telefono, inicioNuevo, closerNuevo: invitado.scheduled_event?.event_memberships?.[0]?.user_name })
+          : await aplicarReagendaNueva({
+              email: invitado.email, telefono, inicioNuevo,
+              closerNuevo: invitado.scheduled_event?.event_memberships?.[0]?.user_name,
+              // Botón Reagendar con la reunión todavía por venir (Gero, 13/11/2026): se cancela esa reunión al cargar la nueva
+              reemplaza: eventoAReemplazar(invitado.tracking?.utm_content),
+            })
         if (r.ok) console.log(`calendly-webhook: reprogramación cargada en el CRM — ${r.lead} (${r.hoja}, fila ${r.fila}) de ${r.de} a ${r.a}`)
         else console.error('calendly-webhook: reprogramación sin cargar en el CRM —', invitado.email ?? '', r.motivo)
+        if (r.cancelada) console.log(`calendly-webhook: reunión anterior del ${r.cancelada} cancelada en Calendly (reemplazada por la reagenda)`)
       })().catch(e => console.error('calendly-webhook (reprogramación):', e)),
       // Espacios de agenda, con un margen para que la disponibilidad refleje la reserva
       (async () => {

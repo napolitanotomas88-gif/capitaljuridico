@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parsearFechaSheet } from "@/lib/crm/fechas";
 import { accionPrecall, proximaAccion } from "@/lib/crm/motor/proxima-accion";
 import { COLUMNAS, type Campo, type FilaLead } from "@/lib/crm/sheets/columnas";
-import { cambiosDeReprogramacion, elegirEventoReagenda, filaDeLaReagendaNueva, notaCancelacion, filasDeLaReunion, linkConDatos, reunionActual, type EventoReagenda } from "@/lib/crm/calendlyReagenda";
+import { cambiosDeReprogramacion, elegirEventoReagenda, eventoAReemplazar, filaDeLaReagendaNueva, reemplazadaCancelable, notaCancelacion, filasDeLaReunion, linkConDatos, reunionActual, type EventoReagenda } from "@/lib/crm/calendlyReagenda";
 
 // Reprogramar desde Calendly (pedido de Tomás, 19/10/2026)
 const AHORA = parsearFechaSheet("19/10/2026 11:00")!;
@@ -93,7 +93,7 @@ describe("reagenda de una reunión que ya pasó (evento \"Reunión Consultiva - 
   });
   it("no toca nada si ya estaba cargada (Calendly reintenta), si ya se presentó o si es ambiguo", () => {
     const yaCargada = fila({ fechaCall: "17/10/2026 10:00:00", presentoAgenda1: "No", fechaReagenda: "23/10/2026 15:30:00" });
-    expect(filaDeLaReagendaNueva([yaCargada], inv, nuevo)).toEqual({ motivo: "la reagenda de laura@x.co ya estaba cargada" });
+    expect(filaDeLaReagendaNueva([yaCargada], inv, nuevo)).toEqual({ motivo: "la reagenda de laura@x.co ya estaba cargada", yaCargada: true });
     expect("motivo" in filaDeLaReagendaNueva([fila({ fechaCall: "17/10/2026 10:00:00", presentoAgenda1: "Si" })], inv, nuevo)).toBe(true);
     expect("motivo" in filaDeLaReagendaNueva([pasada, fila({ fechaCall: "17/10/2026 10:00:00" })], inv, nuevo)).toBe(true);
     expect("motivo" in filaDeLaReagendaNueva([pasada], { email: "nadie@x.co", telefono: "" }, nuevo)).toBe(true);
@@ -122,5 +122,39 @@ describe("botón Cancelar reunión", () => {
     const cancelada = { ...f, valores: { ...f.valores, ...BOTON_CANCELAR_REUNION.cambios } } as FilaLead;
     expect(accionPrecall(cancelada, AHORA)).toBeNull();
     expect(proximaAccion(cancelada, parsearFechaSheet("22/10/2026 11:00")!)).toBeNull();
+  });
+});
+
+describe("reagendar una reunión que todavía no pasó con el evento Reagenda (Gero, 13/11/2026)", () => {
+  const evento: EventoReagenda = { duenio: "u/carlos", nombreDuenio: "Carlos Roletto", url: "https://calendly.com/carlos-skyward/reunion-consultiva-reagenda-carlos", preguntaTelefono: 0 };
+  const uuid = "AAAA1111-bbbb-2222-cccc-333344445555";
+  it("el link marca la reunión vieja en utm_content y el webhook la reconoce", () => {
+    const u = new URL(linkConDatos(evento, fila({}), `https://api.calendly.com/scheduled_events/${uuid}`));
+    expect(u.searchParams.get("utm_content")).toBe(`reemplaza-${uuid}`);
+    expect(eventoAReemplazar(u.searchParams.get("utm_content"))).toBe(uuid);
+    // sin reunión a reemplazar (ya pasó) no lleva marca
+    expect(new URL(linkConDatos(evento, fila({}))).searchParams.has("utm_content")).toBe(false);
+    for (const raro of [null, "", "reemplaza-", "reemplaza-../x", "otra-cosa", `reemplaza-${uuid}/invitees`]) expect(eventoAReemplazar(raro)).toBeNull();
+  });
+  it("la fila es la de la reunión reemplazada aunque el horario nuevo sea antes", () => {
+    const porVenir = fila({ fechaCall: "30/10/2026 10:00:00" });
+    const antes = parsearFechaSheet("25/10/2026 12:00")!;
+    expect("motivo" in filaDeLaReagendaNueva([porVenir], { email: "laura@x.co", telefono: "" }, antes)).toBe(true);
+    const r = filaDeLaReagendaNueva([porVenir, fila({ fechaCall: "17/10/2026 10:00:00" })], { email: "laura@x.co", telefono: "" }, antes, parsearFechaSheet("30/10/2026 10:00"));
+    expect("fila" in r && r.fila).toBe(porVenir);
+    // otra reunión: no la toma
+    expect("motivo" in filaDeLaReagendaNueva([porVenir], { email: "laura@x.co", telefono: "" }, antes, parsearFechaSheet("01/11/2026 10:00"))).toBe(true);
+  });
+  it("cancela la reunión vieja solo si sigue activa, por venir y es del mismo lead", () => {
+    const ahora = parsearFechaSheet("19/10/2026 11:00")!;
+    const ev = { status: "active", start_time: "2026-10-30T13:00:00.000000Z" };
+    const lead = { email: "Laura@X.co", telefono: "" };
+    const invs = [{ email: "laura@x.co", status: "active" }];
+    expect(reemplazadaCancelable(ev, invs, lead, ahora)).toBe(true);
+    expect(reemplazadaCancelable({ ...ev, status: "canceled" }, invs, lead, ahora)).toBe(false);
+    expect(reemplazadaCancelable({ ...ev, start_time: "2026-10-18T13:00:00.000000Z" }, invs, lead, ahora)).toBe(false);
+    expect(reemplazadaCancelable(ev, [{ email: "otro@x.co", status: "active" }], lead, ahora)).toBe(false);
+    expect(reemplazadaCancelable(ev, [{ email: "otro@x.co", text_reminder_number: "+54 9 11 5555-1234" }], { email: "", telefono: "1155551234" }, ahora)).toBe(true);
+    expect(reemplazadaCancelable(null, invs, lead, ahora)).toBe(false);
   });
 });

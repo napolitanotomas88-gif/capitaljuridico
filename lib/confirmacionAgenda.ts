@@ -18,6 +18,7 @@ export interface InviteePayload {
   rescheduled?: boolean; old_invitee?: string | null; status?: string
   text_reminder_number?: string | null; questions_and_answers?: QA[]
   routing_form_submission?: string | null; reschedule_url?: string; cancel_url?: string
+  tracking?: { utm_content?: string | null; utm_source?: string | null; utm_campaign?: string | null } | null
   scheduled_event?: {
     uri?: string; name?: string; start_time?: string
     location?: { type?: string; join_url?: string; location?: string }

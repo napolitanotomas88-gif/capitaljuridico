@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 // "Reagendar en Calendly" (tarjetas de Pre-call y No-show, pedidos de Tomás del 19 y 22/10/2026): busca la reunión del lead en
 // Calendly y redirige a su link de reprogramación (con el mismo closer si el evento round robin tiene "Use same hosts as
 // original meeting"). Calendly libera el horario viejo, mueve el evento en Google Calendar y avisa al webhook, que actualiza la
-// fila del CRM (lib/crm/calendlyReagenda.ts). Si la reunión ya pasó, abre el evento "Reagenda" de su closer.
+// fila del CRM (lib/crm/calendlyReagenda.ts). Si la reunión ya pasó, abre el evento "Reagenda" de su closer. Desde el
+// 13/11/2026 (Gero) también si todavía no pasó: el evento Reagenda deja más días y el webhook cancela la reunión vieja.
 // Mismo acceso que la ficha: sesión del CRM y la hoja tiene que ser suya (el socio, cualquiera).
 
 const escapar = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
