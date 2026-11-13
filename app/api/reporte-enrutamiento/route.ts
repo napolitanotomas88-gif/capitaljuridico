@@ -5,7 +5,7 @@ import { armarEnrutamientosPerdidos, sendDiscord } from '@/lib/discord'
 import { registrarEnrutamiento } from '@/lib/enrutamientoSheet'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300   // el 13/11/2026 cortó a los 60 s (504) y ese día no hubo reporte ni fila en el sheet
 
 // "Enrutamientos perdidos" del DÍA ANTERIOR: cron de Vercel (8:05 AR) o llamada manual.
 // 1) escribe las filas en el sheet de Ventas (pestañas "Enrutamientos perdidos", "No-shows",
