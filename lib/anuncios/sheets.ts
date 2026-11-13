@@ -1,6 +1,7 @@
 // ── Google Sheets para el tablero de anuncios (solo lectura, service account) ───────────────
 //   · CRM (SHEET_ID_CLIENTES): Agencia (A id, B nombre, C estado), "Cuentas Meta" (A cuenta o id,
-//     B cliente actual SI/NO, C nombre en el CRM) y "Alias Guiones" (A alias, B nombre en el CRM).
+//     B cliente actual SI/NO, C nombre en el CRM, D rama opcional: id o nombre visible, ver ramaDeTexto en ramas.ts) y
+//     "Alias Guiones" (A alias, B nombre en el CRM).
 //   · Guiones (sheet "Guiones y Videos"), pestaña "Guiones para realizar": A cliente ("Guiones - X"),
 //     D día realizado, E grabación hecha (X / fecha / nota), F fecha de grabación.
 // Ojo: los rangos arrancan en la fila 1 y se descarta el encabezado acá (slice(1)).
@@ -12,7 +13,7 @@ type Celda = string | number | boolean | null | undefined
 type Fila = Celda[]
 
 export interface ClienteCRM { nombre: string; estado: string; id?: string }              // estado: ACTIVO | PAUSADO | FINALIZADO | INACTIVO
-export interface FilaCuentaMeta { cuenta: string; actual: boolean; clienteCRM: string }
+export interface FilaCuentaMeta { cuenta: string; actual: boolean; clienteCRM: string; rama?: string }   // rama: col D cruda (opcional)
 export interface FilaAlias { alias: string; cliente: string }
 export interface FilaGuion { alias: string; diaRealizado: string | null; grabado: boolean; fechaGrabacion: string | null; nota: string | null }
 
@@ -78,7 +79,7 @@ export async function leerSheets(hoy: string): Promise<DatosSheets> {
   const errores: string[] = []
   const [crm, guiones] = await Promise.all([
     CRM
-      ? leerLote(sheets, CRM, ['Agencia!A1:C400', "'Cuentas Meta'!A1:C300", "'Alias Guiones'!A1:B300"], false)
+      ? leerLote(sheets, CRM, ['Agencia!A1:C400', "'Cuentas Meta'!A1:D300", "'Alias Guiones'!A1:B300"], false)
         .catch(e => { errores.push(`CRM: ${(e as Error).message}`); return [[], [], []] as Fila[][] })
       : Promise.resolve((errores.push('Falta SHEET_ID_CLIENTES'), [[], [], []] as Fila[][])),
     leerLote(sheets, SHEET_GUIONES, ["'Guiones para realizar'!A1:F1500"], true)
@@ -87,7 +88,7 @@ export async function leerSheets(hoy: string): Promise<DatosSheets> {
   const [agencia, cuentasMeta, alias] = crm
   return {
     clientes: agencia.filter(r => txt(r[0]) && txt(r[1])).map(r => ({ nombre: txt(r[1]), estado: txt(r[2]).toUpperCase(), id: txt(r[0]).toUpperCase() })),
-    cuentasMeta: cuentasMeta.filter(r => txt(r[0])).map(r => ({ cuenta: txt(r[0]), actual: !txt(r[1]).toUpperCase().startsWith('N'), clienteCRM: txt(r[2]) })),
+    cuentasMeta: cuentasMeta.filter(r => txt(r[0])).map(r => ({ cuenta: txt(r[0]), actual: !txt(r[1]).toUpperCase().startsWith('N'), clienteCRM: txt(r[2]), rama: txt(r[3]) })),
     alias: alias.filter(r => txt(r[0]) && txt(r[1])).map(r => ({ alias: txt(r[0]), cliente: txt(r[1]) })),
     guiones: guiones[0].map(r => {
       const a = txt(r[0]).replace(/^\s*guiones\s*-\s*/i, '').trim()

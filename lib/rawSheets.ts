@@ -1152,8 +1152,8 @@ async function construirRawData(ligero = false): Promise<RawData> {
     { id: CLIENTES, range: 'Renovaciones!A1:G', unformatted: true },
     // Tracker de grabaciones: A cliente ("Guiones - X"), D día realizado, E grabación hecha, F fecha de grabación
     { id: GUIONES, range: "'Guiones para realizar'!A1:F1023", unformatted: true },
-    // Pestaña "Cuentas Meta" del CRM: A cuenta, B cliente actual SI/NO, C nombre en el CRM
-    { id: CLIENTES, range: "'Cuentas Meta'!A1:C120" },
+    // Pestaña "Cuentas Meta" del CRM: A cuenta, B cliente actual SI/NO, C nombre en el CRM, D rama (la usa el tablero de Anuncios)
+    { id: CLIENTES, range: "'Cuentas Meta'!A1:D120" },
     // Pestaña "Alias Guiones" del CRM: A alias del sheet de guiones, B nombre en el CRM
     { id: CLIENTES, range: "'Alias Guiones'!A1:B200" },
     // Pestaña "Recordatorios" del CRM: A fecha, B texto, C hecho (SI) — salen en el resumen de Discord
