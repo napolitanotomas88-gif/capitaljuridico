@@ -322,7 +322,10 @@ async function lugaresDelEvento(
     hosts.push({ nombre, reglas: regla.rules, tz: regla.timezone ?? TZ, ocupado: cache.ocupado.get(uri)!, reservasPorDia: cache.reservas.get(uri), tope: TOPES_DIARIOS[nombre] })
   }
   if (!hosts.length) throw new Error('el evento no tiene hosts')
-  return contarLugares({ horarios, hosts, duracionMin: e.duration ?? 60, nivel: nivelDeEvento(e.internal_note ?? '', e.name) })
+  // Margen después de cada reunión en Calendly (15 min desde el 13/11/2026 en todos los eventos de closers). La API pública no lo
+  // devuelve: se configura con CALENDLY_MARGEN_MIN (15 por defecto). Lo ocupado ya viene con el margen (buffered_*_time).
+  const margenMin = Number(process.env.CALENDLY_MARGEN_MIN ?? 15) || 0
+  return contarLugares({ horarios, hosts, duracionMin: e.duration ?? 60, margenMin, nivel: nivelDeEvento(e.internal_note ?? '', e.name) })
 }
 
 export async function fetchEspaciosAgenda(): Promise<{ disponible: boolean; eventos: EspaciosAgenda[] }> {
