@@ -1,6 +1,6 @@
 // node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-accesos.mjs
 // Accesos desde Configuración: modelo, permisos por persona y la planilla (contra un Google SIMULADO en un servidor http local).
-import { test, describe, before, after, beforeEach } from 'node:test'
+import { test, describe, before, after, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { generateKeyPairSync } from 'node:crypto'
@@ -199,6 +199,28 @@ describe('planilla de Accesos (Google simulado)', () => {
     caidoLeyendo = true; invalidarAccesos()
     await asegurarUsuarios()                                   // no lanza
     assert.equal(buscarUsuario('luz@ejemplo.test').nombre, 'Luz')  // conserva lo último
+  })
+  test('vencida hace menos de 2 min: no espera (relee de fondo y la baja rige al terminar); más vieja, espera la relectura', async () => {
+    const real = Date.now.bind(Date)
+    let desfase = 0
+    mock.method(Date, 'now', () => real() + desfase)
+    try {
+      filas = [[...ENCABEZADOS], ['luz@ejemplo.test', 'Luz', 'acceso', 'guiones', '', 'sí']]
+      await asegurarUsuarios()
+      assert.equal(buscarUsuario('luz@ejemplo.test').nombre, 'Luz')
+      filas[1][5] = 'no'                                         // la quitaron en la planilla
+      desfase = 90_000
+      await asegurarUsuarios()                                   // vuelve sin esperar a Google
+      assert.equal(buscarUsuario('luz@ejemplo.test').nombre, 'Luz') // todavía con la lista anterior
+      for (let i = 0; i < 100 && buscarUsuario('luz@ejemplo.test'); i++) await new Promise((r) => setTimeout(r, 10))
+      assert.equal(buscarUsuario('luz@ejemplo.test'), null)      // la relectura de fondo aplicó la baja
+      filas[1][5] = 'sí'
+      desfase += 200_000                                         // lista de hace más de 2 min: se espera la relectura
+      await asegurarUsuarios()
+      assert.equal(buscarUsuario('luz@ejemplo.test').nombre, 'Luz')
+    } finally {
+      mock.restoreAll()
+    }
   })
   test('sin SHEET_ID_ACCESOS no hay planilla: no se llama a Google y la lista fija sigue entrando', async () => {
     delete process.env.SHEET_ID_ACCESOS
