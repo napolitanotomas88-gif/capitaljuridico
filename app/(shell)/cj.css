@@ -354,7 +354,7 @@ body:has(.cj-raiz) {
 .cj-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px; /* área de toque de 44 px también en escritorio (13/11/2026) */
   padding: 0 14px;
   font-family: inherit;
   font-size: 11px;
@@ -521,7 +521,6 @@ html:has(.resumen-marca[data-theme='dark']), body:has(.resumen-marca[data-theme=
   .cj-tabla td { white-space: nowrap; }
   .cj-tabla td.cj-largo { white-space: normal; }
   .cj-pila { gap: 48px; }
-  .cj-chip { min-height: 40px; }
   .cj-boton { min-height: 44px; }
   .cj-enlace { min-height: 44px; }
   .cj-campo__entrada { font-size: 16px; } /* iOS no hace zoom al enfocar con 16px */
@@ -530,7 +529,6 @@ html:has(.resumen-marca[data-theme='dark']), body:has(.resumen-marca[data-theme=
 
 /* Pantallas táctiles anchas (tablet de 820 px o más): el diseño es el de escritorio, pero las áreas de toque siguen en 40 px */
 @media (pointer: coarse) {
-  .cj-chip { min-height: 40px; }
   .cj-boton { min-height: 44px; }
   .cj-enlace { min-height: 44px; }
 }

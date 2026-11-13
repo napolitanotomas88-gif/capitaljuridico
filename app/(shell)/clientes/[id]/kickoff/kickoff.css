@@ -83,7 +83,7 @@
 /* Tilde a mano: tres chips (el elegido prendido) + nota corta */
 .ko-tilde { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ko-tilde__botones { display: flex; flex-wrap: wrap; gap: 6px; }
-.ko-tilde__botones .cj-chip { min-height: 36px; padding: 0 12px; }
+.ko-tilde__botones .cj-chip { padding: 0 12px; }
 .ko-tilde__botones .ko-tilde__quitar { border-style: dashed; }
 .ko-tilde__nota { display: flex; flex-direction: column; gap: 4px; }
 .ko-tilde__nota input, .ko-revision textarea {

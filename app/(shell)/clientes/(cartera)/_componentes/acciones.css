@@ -40,7 +40,7 @@
 }
 .ac-campos { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ac-opciones { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.ac-opcion { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+.ac-opcion { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
 .ac-opcion input { accent-color: var(--cj-laton); }
 .ac-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
 .ac-o { padding-bottom: 8px; color: var(--cj-humo); }

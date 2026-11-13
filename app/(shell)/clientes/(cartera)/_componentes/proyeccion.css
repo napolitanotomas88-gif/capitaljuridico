@@ -17,7 +17,7 @@
 .py-fase--ok { color: var(--cj-ok); }
 .py-marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .py-marca {
-  font: inherit; font-size: 0.8rem; line-height: 1; padding: 7px 10px; min-height: 32px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.8rem; line-height: 1; padding: 7px 12px; min-height: 44px; border-radius: 999px; cursor: pointer;
   background: transparent; color: var(--cj-hueso); border: 1px solid var(--cj-control);
 }
 .py-marca:hover:not(:disabled) { border-color: var(--cj-hueso); }
@@ -26,6 +26,6 @@
 .py-marca--si { border-color: color-mix(in srgb, var(--cj-ok) 60%, transparent); color: var(--cj-ok); background: color-mix(in srgb, var(--cj-ok) 10%, transparent); }
 .py-marca--no { border-color: color-mix(in srgb, var(--cj-error) 60%, transparent); color: var(--cj-error); background: color-mix(in srgb, var(--cj-error) 10%, transparent); }
 .py-fecha { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.py-input { min-height: 32px; }
+.py-input { min-height: 44px; }
 .py-error { flex-basis: 100%; margin: 0; font-size: 0.8rem; color: var(--cj-error); }
 @media (max-width: 640px) { .py-item { flex-direction: column; align-items: flex-start; } }
