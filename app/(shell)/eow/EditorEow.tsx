@@ -10,17 +10,19 @@ import {
   COLORES, NOMBRE_COLOR, NOMBRE_TARJETA, TARJETAS, contar, fechaCorta, nuevoIdFila, rangoSemana, ubicar,
   type Color, type DatosEow, type DestinoUbicar, type FilaEow, type ReporteEow, type Tarjeta,
 } from '@/lib/eow/modelo'
+import { Calificacion } from '@/components/clientes/Calificacion'
+import type { PuntajeCompacto } from '@/lib/clientes/puntaje'
 import { NOMBRE_ESTADO_CARTERA, crearVinculador, difiereDeCartera, linkCartera, type ClienteCartera, type Vinculo } from '@/lib/eow/vinculo'
 
 // Editor del reporte EOW (13/11/2026). Todo se edita en la pantalla y se guarda junto con «Guardar cambios» (un solo POST con
 // la versión leída: si alguien guardó antes, 409 y se pide recargar, sin pisar lo del otro).
 
-type Props = { semanas: string[]; inicial: ReporteEow | null; historial: EntradaHistorial[]; cartera: ClienteCartera[] | null }
+type Props = { semanas: string[]; inicial: ReporteEow | null; historial: EntradaHistorial[]; cartera: ClienteCartera[] | null; puntajes?: Record<string, PuntajeCompacto> | null }
 
 const hora = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
 
-export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
+export function EditorEow({ semanas, inicial, historial, cartera, puntajes = null }: Props) {
   const router = useRouter()
   const [confirmar, dialogoConfirmar] = useConfirmacion()
   const [datos, setDatos] = useState<DatosEow>(() => ({ filas: inicial?.filas ?? [], tarjetas: inicial?.tarjetas ?? ({} as DatosEow['tarjetas']) }))
@@ -127,6 +129,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
             Cada cliente tiene su <strong>estado</strong> (Activo o Pausado) y su <strong>color</strong>: se cambian juntos en el desplegable de la fila, o con «Pausar» / «Reanudar».
             {cartera
               ? ' La columna «Cartera» muestra cómo está el cliente en /clientes; pausar o reanudar allá se hace desde su tarjeta (link «en la Cartera»), porque escribe el CRM.'
+                + (puntajes ? ' Al lado va su puntaje (el del cliente y el interno) como referencia: no cambia el color que elegís.' : '')
               : ' No se pudo leer la Cartera: se muestra sin su estado.'}
           </p>
 
@@ -181,7 +184,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
                       <button type="button" className="eow-pausar" onClick={() => editarFila(f.id, { pausado: !f.pausado })}>
                         {f.pausado ? 'Reanudar' : 'Pausar'}
                       </button>
-                      <CeldaCartera fila={f} vinculo={vincular(f)} cartera={cartera} alVincular={(cambio) => editarFila(f.id, cambio)} />
+                      <CeldaCartera fila={f} vinculo={vincular(f)} cartera={cartera} puntajes={puntajes} alVincular={(cambio) => editarFila(f.id, cambio)} />
                       <button type="button" className="eow-quitar" aria-label={`Quitar a ${f.cliente || 'esta fila'}`} onClick={() => quitarFila(f.id)}>×</button>
                     </li>
                   ))}
@@ -241,7 +244,7 @@ function TarjetaEditable({ titulo, items, alCambiar }: { titulo: string; items: 
   )
 }
 
-function CeldaCartera({ fila, vinculo, cartera, alVincular }: { fila: FilaEow; vinculo: Vinculo | null; cartera: ClienteCartera[] | null; alVincular: (c: Partial<FilaEow>) => void }) {
+function CeldaCartera({ fila, vinculo, cartera, puntajes, alVincular }: { fila: FilaEow; vinculo: Vinculo | null; cartera: ClienteCartera[] | null; puntajes: Record<string, PuntajeCompacto> | null; alVincular: (c: Partial<FilaEow>) => void }) {
   const [eligiendo, setEligiendo] = useState(false)
   if (!cartera || !vinculo) return <span className="eow-cartera eow-cartera--nada">—</span>
   if (eligiendo) {
@@ -277,6 +280,8 @@ function CeldaCartera({ fila, vinculo, cartera, alVincular }: { fila: FilaEow; v
       </a>
       {difiere && <a className="eow-cartera__aviso" href={linkCartera(c.id)}>{fila.pausado ? 'pausar en la Cartera' : 'reanudar en la Cartera'} ↗</a>}
       <button type="button" className="eow-vincular" aria-label={`Cambiar el vínculo de ${fila.cliente}`} onClick={() => setEligiendo(true)}>{vinculo.tipo === 'auto' ? 'auto' : 'manual'}</button>
+      {/* Puntaje interno como referencia (no cambia el color que elige Gero M) */}
+      {puntajes?.[c.id.toUpperCase()] && <Calificacion className="eow-puntaje" p={puntajes[c.id.toUpperCase()]} />}
     </span>
   )
 }
