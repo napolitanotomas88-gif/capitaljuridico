@@ -135,6 +135,8 @@ const META_CARTERA_SEG = 120
 const META_VIEJO_MS = 10 * 60_000
 // La página no espera más de ESPERA_META_MS, pero la lectura de fondo sí (hasta 25 s): así el refresco de la caché no se corta
 // por el mismo tope cuando el tablero tarda (Meta frío), y la próxima carga ya lo tiene.
+// Esa lectura de fondo la registra conCache con after() (lib/segundoPlano.ts): en Vercel la función no se congela al cerrar
+// la respuesta y la caché se llena igual; sin eso el aviso «Meta tardó en responder» se repetía en cada carga.
 const ESPERA_META_MS = 4_000
 export async function campanasMetaCartera(): Promise<{ porCliente: Map<string, CampanaMeta>; aviso: string | null }> {
   try {
