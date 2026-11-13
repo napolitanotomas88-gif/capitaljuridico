@@ -18,20 +18,28 @@ export const NOMBRE_RAMA: Record<Rama, string> = {
 }
 
 export const UMBRAL_GENERAL = { ok: 2.8, medio: 4 }
-// CPL NORMAL por rama (USD por mensaje, datos de Tomás 30/9/2026). Verde = hasta el tope del rango
-// normal · amarillo = hasta 50% arriba del tope · rojo = más. Previsional y Empresas no tienen rango
-// todavía: usan el general.
+// CPL NORMAL por rama (USD por mensaje). Verde = hasta el tope del rango normal · amarillo = hasta 50% arriba del
+// tope · rojo = más. Topes fijados por Tomás el 13/11/2026 en la planilla «KPI de anuncios», mirando el costo real de
+// la cartera ese día (antes eran los del 30/9/2026; Previsional y Empresas usaban el general).
 const RANGO_NORMAL: Partial<Record<Rama, [number, number]>> = {
-  laboral: [0.5, 1.5],        // TOP 1 · despidos
-  art: [0.7, 2],              // TOP 2 · accidentes y enfermedades profesionales
-  transito: [0.55, 1.5],      // TOP 3
-  salud: [0.4, 1.3],          // TOP 4 · amparos (0,4 | 0,7 - 1,3)
-  geriatrico: [1.6, 2.7],     // TOP 4 · geriátrico
-  consumidor: [0.6, 1.5],     // TOP 5
-  penal: [0.6, 2],            // TOP 6
-  internacional: [0.4, 1.3],  // TOP 7 · ciudadanías
-  familia: [0.6, 1.6],        // TOP 8
-  sucesiones: [0.7, 2.3],     // TOP 9
+  laboral: [0.5, 1.5],        // despidos (sin cambio)
+  art: [0.7, 2.2],            // accidentes y enfermedades profesionales (antes 2)
+  transito: [0.55, 2.2],      // antes 1,5
+  salud: [0.4, 1.6],          // amparos (antes 1,3)
+  geriatrico: [1.6, 3.2],     // antes 2,7
+  consumidor: [0.6, 1.7],     // antes 1,5
+  penal: [0.6, 2],            // sin cambio
+  internacional: [0.4, 1.6],  // ciudadanías (antes 1,3)
+  familia: [0.6, 1.75],       // antes 1,6
+  sucesiones: [0.7, 1.3],     // antes 2,3
+  previsional: [0.4, 1],      // antes el general (2,8)
+  empresas: [1.5, 4.5],       // antes el general (2,8)
+}
+// Qué tan buena es cada rama para Capital Jurídico, de 1 (mala) a 5 (excelente). Tomás, 13/11/2026. La usa el puntaje de
+// clientes y sirve para priorizar guiones y ventas; no cambia el semáforo.
+export const CALIDAD_RAMA: Record<Rama, number> = {
+  laboral: 5, art: 5, transito: 4, salud: 4, geriatrico: 4, consumidor: 4,
+  penal: 3, internacional: 3, empresas: 3, previsional: 2, familia: 1, sucesiones: 1,
 }
 const MARGEN_AMARILLO = 1.5
 export const UMBRALES_RAMA: Partial<Record<Rama, { ok: number; medio: number }>> = Object.fromEntries(
