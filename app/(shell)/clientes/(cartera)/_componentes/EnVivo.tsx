@@ -8,7 +8,8 @@ import { marcaDe, marcasBackend } from '@/lib/clientes/marcasBackend'
 import { panelesDeTodos } from '@/lib/clientes/panelReferidos'
 import { carpetasDrive } from '@/lib/clientes/drive'
 import { hitosDelCliente, type Hito, type HitoManual } from '@/lib/clientes/hitos'
-import { leerAnotaciones, type EtapaManual } from '@/lib/clientes/hitosRegistro'
+import { anotarLanzamientosDeFondo, leerAnotaciones, type EtapaManual } from '@/lib/clientes/hitosRegistro'
+import { lanzamientoVisto, pedidosLanzamiento, type LanzamientoVisto } from '@/lib/clientes/lanzamientoAuto'
 import { claveNombre, clientesTrabados, crearCruceCarpetas, crearCruceClickUp } from '@/lib/clientes/prioridad'
 import { tareasClickUp } from '@/lib/clientes/produccion'
 import { PUNTAJE_CONTENTO, ubicarCliente, type FilaRecorrido, type FuentesCliente } from '@/lib/clientes/recorrido'
@@ -65,6 +66,7 @@ const armarCartera = cache(async (vista: VistaCRM) => {
   const vistaRecorrido = demoRecorrido ? { ...vista, datos: demoRecorrido.datos } : vista
   const lecturas = vista.esDemo ? { meta: true, despacho: true, clickup: true } : { meta: meta.porCliente.size > 0 || !meta.aviso, despacho: !!despacho?.ok, clickup: clickup.tareas.length > 0 }
   const hitosPorId = new Map<string, Hito[]>()
+  const vistosEnMeta: { id: string; meta: LanzamientoVisto | null }[] = []
   const filasRecorrido: FilaRecorrido[] = vistaRecorrido.datos.clientes
     .filter(c => c.linea === 'agencia' && c.id && !c.esNoCliente)
     .map(c => {
@@ -78,10 +80,13 @@ const armarCartera = cache(async (vista: VistaCRM) => {
       const base: FuentesCliente = demoRecorrido?.fuentes.get(c.id) ?? {
         kickoff: k && { fecha: k.fecha, frenos: k.frenos, ideas: k.ideas },
         tanda, videos,
-        meta: m && { activa: m.activa, ultimoLanzamiento: m.ultimoLanzamiento, semaforo: m.semaforo },
+        meta: m && { activa: m.activa, ultimoLanzamiento: m.ultimoLanzamiento, semaforo: m.semaforo, ultimoGasto: m.ultimoGasto ?? null },
         clickup: t && { estado: t.estado, actualizada: t.actualizada },
         puntaje: e ? { valor: e.valor, dia: e.dia } : null,
       }
+      // Gasto real visto en Meta: da el hito «Campaña lanzada» y, la primera vez, se guarda (lanzamientoAuto.ts)
+      const visto = demoRecorrido ? null : lanzamientoVisto(m)
+      vistosEnMeta.push({ id: c.id, meta: visto })
       // El registro de hitos: lo que dicen todas las fuentes + lo anotado a mano (lib/clientes/hitos.ts)
       const hitos = hitosDelCliente({
         dia1: c.dia1, renovo: c.renovo, inicioPeriodo2: c.periodos.find(p => p.periodo === 1)?.dia1 ?? null,
@@ -90,7 +95,8 @@ const armarCartera = cache(async (vista: VistaCRM) => {
         videos: base.videos ? { crudos: base.videos.crudoRecibido ?? null, editados: base.videos.editado ?? null } : null,
         drive: carpeta ? { guion: carpeta.guion?.modificado ?? null, guionCreado: carpeta.guion?.creado ?? null, crudos: carpeta.crudos?.cantidad ? carpeta.crudos.primero ?? carpeta.crudos.ultimo : null, editados: carpeta.editados?.cantidad ? carpeta.editados.primero ?? carpeta.editados.ultimo : null } : null,
         clickupGuiones: t?.guionesHechos.slice().sort()[0] ?? null, clickupEstado: t?.estado ?? null,
-        lanzamiento: m?.primerLanzamiento ?? base.meta?.ultimoLanzamiento ?? null,
+        lanzamiento: [m?.primerLanzamiento ?? base.meta?.ultimoLanzamiento ?? null, visto?.fecha].filter((x): x is string => !!x).sort()[0] ?? null,
+        lanzamientoSinFecha: visto && !visto.fecha ? visto.nota : null,
         campanaActiva: !!base.meta?.activa,
         // Éxito por puntaje: el PRIMER 8 o más (con la promesa no incumplida)
         exito: /^no\b/i.test(c.promesa.trim()) ? null : (estados.get(c.id)?.historial ?? []).filter(p => p.valor >= PUNTAJE_CONTENTO).map(p => p.dia).sort()[0] ?? null,
@@ -100,6 +106,13 @@ const armarCartera = cache(async (vista: VistaCRM) => {
       hitosPorId.set(c.id, hitos)
       return { id: c.id, clave: `${c.id}-${c.fila}`, nombre: c.nombre, closer: c.closer, ...ubicarCliente(c, { ...base, hitos, etapaManual: anotaciones.etapas.get(c.id.toUpperCase()) ?? null }, datos.hoy, lecturas) }
     })
+  // «Campaña lanzada» guardada la primera vez que se ve gasto (de fondo, con tope e intervalo: hitosRegistro.ts). Solo con lo
+  // anotado leído bien: si no, no se sabe quién ya lo tiene
+  if (!vista.esDemo && !anotaciones.falla && lecturas.meta) {
+    const anotados = new Set([...anotaciones.hitos].filter(([, hs]) => hs.some(h => h.hito === 'lanzamiento')).map(([id]) => id))
+    // el tope va después de sacar los ya pedidos en esta instancia (anotarLanzamientosDeFondo)
+    anotarLanzamientosDeFondo(pedidosLanzamiento(vistosEnMeta, anotados, vistosEnMeta.length))
+  }
   // IDs repetidos en el CRM (la planilla los admite): se avisan para corregirlos; las tarjetas usan una clave por fila
   const vistos = new Map<string, number>()
   for (const f of filasRecorrido) vistos.set(f.id.toUpperCase(), (vistos.get(f.id.toUpperCase()) ?? 0) + 1)

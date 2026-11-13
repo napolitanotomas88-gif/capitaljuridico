@@ -4,6 +4,8 @@
 // anotación; sin tabla, la lectura devuelve [] (no es una falla). Sin mails: quien anotó se guarda con su nombre corto.
 import { neon } from '@neondatabase/serverless'
 import { esClaveHito, type ClaveHito, type HitoManual } from './hitos'
+import { QUIEN_AUTOMATICO, type PedidoLanzamiento } from './lanzamientoAuto'
+import { enSegundoPlano } from '../segundoPlano'
 
 const TOPE_MS = 4_000
 const ID_CRM = /^[A-Za-z]\d{1,6}$/
@@ -187,4 +189,57 @@ export async function leerAnotaciones(): Promise<{ hitos: Map<string, HitoManual
     pausaAnotaciones = { hasta: Date.now() + PAUSA_ANOTACIONES_MS, motivo: String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 140) }
     throw e
   }
+}
+
+// ── «Campaña lanzada» guardada por el sistema (13/11/2026; la regla está en lanzamientoAuto.ts) ──
+// La arma la cartera con lo que ya leyó de Meta y se escribe de fondo (enSegundoPlano): la página no la espera. Para que no
+// se escriba en cada carga: cada instancia recuerda a quién ya se lo pidió, deja pasar un intento cada INTERVALO_MS y como
+// mucho TOPE_LANZAMIENTOS clientes por intento. En la base es idempotente: INSERT … ON CONFLICT DO NOTHING (no pisa lo anotado
+// a mano ni revive un hito borrado). Sin DATABASE_URL no hace nada; si falla, lo deja en el log y se reintenta más tarde.
+export const TOPE_LANZAMIENTOS = 40
+const INTERVALO_MS = 5 * 60_000
+const yaPedidos = new Set<string>()
+let ultimoIntento = 0
+
+/** Escribe los hitos y devuelve a cuántos clientes se les anotó (los que ya tenían el hito no cuentan). */
+export async function guardarLanzamientosAutomaticos(pedidos: PedidoLanzamiento[]): Promise<number> {
+  const xs = pedidos.filter(p => ID_CRM.test(p.id) && (p.fecha === null || fechaReal(p.fecha))).slice(0, TOPE_LANZAMIENTOS)
+  if (!xs.length || !baseHitosConfigurada()) return 0
+  const q = sqlEscritura()
+  const ids = xs.map(p => p.id.toUpperCase()), fechas = xs.map(p => p.fecha), notas = xs.map(p => p.nota.slice(0, NOTA_MAX))
+  const escribir = () => q`INSERT INTO cj_hitos (id_crm, hito, fecha, nota, quien, cuando, borrado)
+      SELECT x.id, 'lanzamiento', x.fecha::date, x.nota, ${QUIEN_AUTOMATICO}, now(), false
+      FROM unnest(${ids}::text[], ${fechas}::text[], ${notas}::text[]) AS x(id, fecha, nota)
+    ON CONFLICT (id_crm, hito) DO NOTHING
+    RETURNING id_crm, fecha::text AS fecha, nota`
+  let nuevas: Record<string, unknown>[]
+  try { nuevas = (await escribir()) as Record<string, unknown>[] } catch (e) {
+    if (!faltaTabla(e)) throw e
+    await crearTabla(q)
+    nuevas = (await escribir()) as Record<string, unknown>[]
+  }
+  if (nuevas.length) {
+    await q`INSERT INTO cj_hitos_historial (id_crm, hito, fecha, nota, borrado, quien)
+        SELECT x.id, 'lanzamiento', x.fecha::date, x.nota, false, ${QUIEN_AUTOMATICO}
+        FROM unnest(${nuevas.map(n => String(n.id_crm))}::text[], ${nuevas.map(n => (n.fecha ? String(n.fecha) : null))}::text[], ${nuevas.map(n => String(n.nota ?? ''))}::text[]) AS x(id, fecha, nota)`
+      .catch(e => console.error('[hitos] historial de lanzamientos:', String((e as Error)?.message ?? e).slice(0, 120)))
+  }
+  return nuevas.length
+}
+
+/** Lo que llama la cartera en cada carga: filtra lo ya pedido, respeta el intervalo y escribe de fondo. Nunca tira. */
+export function anotarLanzamientosDeFondo(pedidos: PedidoLanzamiento[], ahora: number = Date.now()): void {
+  if (!baseHitosConfigurada()) return
+  const nuevos = pedidos.filter(p => !yaPedidos.has(p.id.toUpperCase())).slice(0, TOPE_LANZAMIENTOS)
+  if (!nuevos.length || ahora - ultimoIntento < INTERVALO_MS) return
+  ultimoIntento = ahora
+  for (const p of nuevos) yaPedidos.add(p.id.toUpperCase())
+  enSegundoPlano(guardarLanzamientosAutomaticos(nuevos).then(
+    n => { if (n) console.log(`[hitos] «Campaña lanzada» guardada sola para ${n} cliente${n === 1 ? '' : 's'}`) },
+    e => {
+      // Que se pueda reintentar en el próximo intervalo
+      for (const p of nuevos) yaPedidos.delete(p.id.toUpperCase())
+      console.error('[hitos] no se pudieron guardar los lanzamientos:', String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 140))
+    },
+  ))
 }
