@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { ArrastrarParaActualizar } from '@/components/shell/ArrastrarParaActualizar'
 import { Aviso } from '@/components/shell/Aviso'
+import { Entrada } from '@/components/shell/Entrada'
 import { Latido } from '@/components/shell/Latido'
 import { Navegacion } from '@/components/shell/Navegacion'
 import { menuDe, type ItemNavegacion } from '@/components/shell/secciones'
@@ -34,7 +35,10 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
   const aparte = process.env.NODE_ENV !== 'production' && sesion.rol === 'socio' ? [SISTEMA] : []
 
   return (
-    // lang="es" explícito aunque el <html> del layout raíz (app/layout.tsx) ya lo trae: no depende de que ese archivo no cambie
+    <>
+    {/* Entrada animada del primer ingreso de la sesión: va ANTES de .cj-raiz, que es lo que se abre en círculo (Entrada.tsx) */}
+    <Entrada />
+    {/* lang="es" explícito aunque el <html> del layout raíz (app/layout.tsx) ya lo trae: no depende de que ese archivo no cambie */}
     <div className={`cj-raiz cj-cristal ${clasesFuentes}`} lang="es" data-noche={noche} data-nav={nav.chica ? 'chica' : 'abierta'} style={{ '--cj-ancho-lateral': `${anchoVisible(nav)}px` } as React.CSSProperties}>
       <div className="cj-cristal__fondo" aria-hidden="true">
         <span className="cj-cristal__manchas" />
@@ -61,5 +65,6 @@ export async function MarcoShell({ sesion, children }: { sesion: Sesion; childre
         <div className="cj-pagina">{children}</div>
       </main>
     </div>
+    </>
   )
 }
