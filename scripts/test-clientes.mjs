@@ -498,6 +498,28 @@ describe('snapshot y respaldo ante errores (sin red)', () => {
     const r = await obtenerHojas()   // invalidado, sin credenciales: lee → falla → vuelve con el respaldo
     assert.equal(r.fuente, 'snapshot_viejo')
   })
+  test('servirViejo (pantallas): snapshot vencido se sirve al toque y la relectura corre de fondo', async () => {
+    reiniciarEstadoDeLectura()
+    snap.guardarSnapshot(snapshotDe(11 * 60_000))
+    const r = await obtenerHojas({ servirViejo: true })
+    assert.equal(r.fuente, 'snapshot'); assert.equal(r.aviso, undefined)
+    // La relectura de fondo (sin credenciales: falla) deja anotada la espera, igual que una lectura normal
+    await new Promise(res => setTimeout(res, 20))
+    assert.ok(snap.leerSnapshot().reintentarDesde > Date.now())
+    const fresco = await obtenerHojas({ servirViejo: true })   // fresco: sin lectura de fondo
+    assert.equal(fresco.fuente, 'snapshot')
+  })
+  test('servirViejo NO aplica sin snapshot útil: invalidado, pasado el tope de 60 min o forzando se espera la lectura', async () => {
+    reiniciarEstadoDeLectura()
+    snap.guardarSnapshot(snapshotDe(61 * 60_000))
+    assert.equal((await obtenerHojas({ servirViejo: true })).fuente, 'snapshot_viejo')   // esperó a Sheets, que falló
+    reiniciarEstadoDeLectura()
+    snap.guardarSnapshot(snapshotDe(11 * 60_000, { invalidado: true }))
+    assert.equal((await obtenerHojas({ servirViejo: true })).fuente, 'snapshot_viejo')
+    reiniciarEstadoDeLectura()
+    snap.guardarSnapshot(snapshotDe(11 * 60_000))
+    assert.equal((await obtenerHojas({ servirViejo: true, forzar: true })).fuente, 'snapshot_viejo')
+  })
   test('pedidos simultáneos comparten una sola lectura', async () => {
     reiniciarEstadoDeLectura()
     snap.guardarSnapshot(snapshotDe(11 * 60_000))

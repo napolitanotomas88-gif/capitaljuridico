@@ -36,7 +36,8 @@ export const cargarVista = cache(async (demo: boolean, cobros: 'cache' | 'fresco
     const datos = crearDatosDemo(hoyArgentina())
     return { datos, creditos: calcularCreditosDeDatos(datos), esDemo: true }
   }
-  const crm = await leerClientes()
+  // Pantallas: si el snapshot venció (10 min) no se espera a Sheets; se muestra el guardado y se relee de fondo
+  const crm = await leerClientes({ servirViejo: true })
   const datos = cobros === 'omitir' ? crm : await aplicarCobrosFinanzas(crm, { forzar: cobros === 'fresco' })
   return { datos, creditos: calcularCreditosDeDatos(datos), esDemo: false }
 })

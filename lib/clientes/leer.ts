@@ -4,7 +4,8 @@
 // intentara, esta capa no puede escribir en las planillas.
 //
 // Cuota (60 lecturas/min por service account, COMPARTIDA con producción):
-//  · el resultado crudo se guarda en snapshot.ts y se reutiliza 10 min (TTL);
+//  · el resultado crudo se guarda en snapshot.ts y se reutiliza 10 min (TTL); las pantallas (servirViejo) además
+//    muestran el snapshot vencido (hasta 60 min) mientras la relectura corre de fondo;
 //  · ante un 429 o cualquier error se responde con el último snapshot y no se insiste por 60 s;
 //  · ni forzando se lee más seguido que cada 30 s; pedidos simultáneos comparten una sola lectura;
 //  · NO hay reintentos automáticos: reintentar contra un 429 solo suma presión sobre la cuota.
@@ -26,6 +27,7 @@ import {
   edadSnapshot, guardarSnapshot, leerSnapshot, snapshotFresco,
 } from './snapshot'
 import { letraColumna } from './texto'
+import { enSegundoPlano } from '../segundoPlano'
 
 // Los rangos SIEMPRE arrancan en la fila 1: los encabezados se necesitan para resolver las columnas.
 // (rawSheets.ts descarta la fila 1 con slice(1); acá se conserva, por eso nunca se pide desde la fila 2.)
@@ -107,6 +109,11 @@ async function leerDeSheets(previo: Snapshot | null): Promise<Snapshot> {
 export interface OpcionesLectura {
   forzar?: boolean      // saltea el TTL (no el mínimo entre lecturas ni la espera tras un error)
   ttlMs?: number
+  /** Solo para PANTALLAS: vencido el TTL se responde al toque con el snapshot guardado y Sheets se relee de fondo (la
+   *  próxima carga ya lo tiene). No aplica si no hay snapshot, si está invalidado (después de una escritura), si se
+   *  fuerza o si el snapshot pasó TOPE_SERVIR_VIEJO_MS: ahí se espera la lectura como siempre. Los bots, los crons y
+   *  todo lo que decide o escribe NO lo usan: siguen esperando el dato al día. */
+  servirViejo?: boolean
 }
 export interface ResultadoHojas { snap: Snapshot; fuente: FuenteDatos; aviso?: string }
 
@@ -116,7 +123,18 @@ let falloReciente: { hasta: number; mensaje: string } | null = null
 // Solo para los tests: olvida el último fallo y el pedido en vuelo del proceso
 export function reiniciarEstadoDeLectura(): void { enVuelo = null; falloReciente = null; lecturasHechas = 0 }
 
+// Hasta qué edad se sirve un snapshot vencido sin esperar a Sheets (servirViejo). Más viejo que esto, se espera.
+export const TOPE_SERVIR_VIEJO_MS = 60 * 60_000
+
 export function obtenerHojas(op: OpcionesLectura = {}): Promise<ResultadoHojas> {
+  if (op.servirViejo && !op.forzar) {
+    const snap = leerSnapshot()
+    if (snap && !snap.invalidado && edadSnapshot(snap) < TOPE_SERVIR_VIEJO_MS) {
+      // Vencido: la relectura corre de fondo (una sola, compartida) y respeta las mismas esperas de cuota que siempre
+      if (!snapshotFresco(snap, op.ttlMs ?? TTL_SNAPSHOT_MS)) enSegundoPlano(obtenerHojas({ ttlMs: op.ttlMs }))
+      return Promise.resolve({ snap, fuente: 'snapshot' })
+    }
+  }
   if (enVuelo) return enVuelo   // pedidos simultáneos comparten una sola lectura
   enVuelo = obtener(op).finally(() => { enVuelo = null })
   return enVuelo
