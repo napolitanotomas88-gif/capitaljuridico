@@ -62,7 +62,7 @@ function linkWhatsApp(c: MetaCuenta): string | null {
     ? `están frenados hace ${c.diasSinCorrer >= 90 ? 'más de 90' : c.diasSinCorrer} ${c.diasSinCorrer === 1 ? 'día' : 'días'}`
     : 'pueden cortarse en cualquier momento'
   const texto =
-    `Hola${nombre ? ` ${nombre}` : ''}, ¿cómo estás? Te escribimos de Skyward. ` +
+    `Hola${nombre ? ` ${nombre}` : ''}, ¿cómo estás? Te escribimos de Capital Jurídico. ` +
     `Meta nos marca un problema con el pago de tu cuenta publicitaria (${c.nombre}) y los anuncios ${situacion}. ` +
     `¿Podés revisar la tarjeta en Meta → Configuración de pagos? Si necesitás, te ayudamos por acá.`
   return `https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`
