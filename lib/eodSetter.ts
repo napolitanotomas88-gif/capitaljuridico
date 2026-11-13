@@ -446,8 +446,8 @@ const corto = (ymd: string) => new Date(`${ymd}T15:00:00Z`).toLocaleDateString('
 export const pctFmt = (x: number) => `${(x * 100).toFixed(2).replace('.', ',')}%`   // 2 decimales: 1/41 = 2,44% (no 2%)
 const pctTxt = (p: PctSetter, etiqueta: string) => { const den = p.leads ?? p.asignados ?? null; return p.pct !== null && den !== null ? `${etiqueta} ${p.agendas}/${den} = ${pctFmt(p.pct)}` : `${etiqueta} **sin dato** _(${p.motivo ?? 'sin fuente'})_` }
 
-// Meta del setter que dijo Paolo (12/11/2026): se cruza con los datos de Business Suite; Josefina los saca del BM. Pendiente de confirmar con Paolo.
-const META_BANDEJA = '🎯 **Meta de bandeja (la dijo Paolo, confirmarla con él)**: 90 % de la bandeja contestada y tiempo de respuesta menor a 1 h.\nJosefina: sacar del BM (Business Suite) el % contestado y el tiempo de respuesta, para cruzarlos con este reporte.'
+// Meta del setter que dijo Paolo (12/11/2026): se cruza con los datos de Business Suite. Pendiente de confirmar con Paolo.
+const META_BANDEJA = '🎯 **Meta de bandeja (la dijo Paolo, confirmarla con él)**: 90 % de la bandeja contestada y tiempo de respuesta menor a 1 h. Para cruzar con los datos de Business Suite.'
 
 export function textoEOD(e: EOD): string[] {
   const fechaLarga = new Date(`${e.fecha}T15:00:00Z`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ })
