@@ -68,9 +68,38 @@
   --color-ambar-fondo: #f7edda;
   --color-rojo: #7f202c;
   --color-rojo-fondo: #f8e9eb;
+  /* Roles (13/11/2026, tanda visual 3b). El cristal del Despacho invierte negro y blanco (texto claro sobre fondo oscuro); lo
+     que NO se invierte tiene su propio token, así el tema se resuelve acá y no con parches por selector:
+       barra: encabezados, títulos de columna y cabeceras de tabla (siempre oscuros, con texto claro);
+       accion: el botón principal (dorado en el tema claro; marfil en el cristal, como .cj-boton--primario);
+       control: el borde de los botones secundarios y los campos. */
+  --color-barra: #012d25;
+  --color-barra-alerta: #7f202c;
+  --color-sobre-barra: #fffdf8;
+  --color-accion: #be8f49;
+  --color-accion-hover: #805c29;
+  --color-sobre-accion: #1d1d1b;
+  --color-sobre-accion-hover: #fffdf8;
+  --color-control: #1d1d1b;
   --radius-lg: 0.375rem;
   --radius-xl: 0.5rem;
   --radius-2xl: 0.75rem;
+}
+/* Radios del Despacho dentro de Ventas y Cuotas (DESIGN.md: controles 10–12, tarjetas 18). Va acotado a esas pantallas:
+   Finanzas usa las mismas utilidades con sus radios. */
+.crm-raiz, .cuotas-raiz { --radius-md: 10px; --radius-lg: 10px; --radius-xl: 12px; --radius-2xl: 18px; }
+/* Tarjeta y panel del CRM (antes «rounded-2xl border border-gris-linea bg-blanco» en cada pantalla): la misma superficie,
+   filete y sombra que .cj-panel. Con el cristal la pinta components/shell/cristal.css */
+/* Va en la capa de componentes: las utilidades le ganan (p. ej. la franja de estado border-l-4 border-l-dorado). Con el
+   cristal, components/shell/cristal.css le da sus variables (--crm-panel-*). */
+@layer components {
+  .crm-panel {
+    border: 1px solid var(--crm-panel-borde, var(--color-gris-linea));
+    border-top-color: var(--crm-panel-borde-arriba, var(--color-gris-linea));
+    border-radius: 18px;
+    background: var(--crm-panel-fondo, var(--color-blanco));
+    box-shadow: var(--crm-panel-sombra, 0 1px 2px rgba(29, 29, 27, 0.06));
+  }
 }
 /* `font-titulo` (cifras del CRM: "Hechas N", contadores del encabezado, KPI del admin) con la fuente de títulos del shell.
    Va `inline`: la utilidad lleva el var() de cj.css y se resuelve en cada elemento. Sin `inline` la variable se resolvería
@@ -93,8 +122,12 @@
 
 /* Barras y columnas con la identidad Capital Jurídico */
 .marca-barra { background: linear-gradient(110deg, #012d25, #012d25 68%, #1d1d1b); border-bottom: 1px solid #be8f49; }
-.marca-columna { border-top: 2px solid #be8f49; background: #012d25; }
-.marca-columna[data-grupo="noShow"], .marca-columna[data-grupo="postCall"] { background: #7f202c; }
+.marca-columna { border-top: 2px solid #be8f49; background: var(--color-barra); color: var(--color-sobre-barra); }
+.marca-columna[data-grupo="noShow"], .marca-columna[data-grupo="postCall"] { background: var(--color-barra-alerta); }
+.bg-barra :focus-visible, .bg-barra-alerta :focus-visible { outline-color: #d0a45a; }
+/* cj.css hace que los enlaces del Despacho hereden el color (salvo en .crm-raiz): el enlace con forma de botón principal
+   (p. ej. «Volver al inicio» de Cuotas) conserva el texto de su relleno */
+.cj-raiz a.bg-accion { color: var(--color-sobre-accion); }
 
 * { box-sizing: border-box; }
 

@@ -106,6 +106,21 @@
     --color-ambar: #ecca8f;
     --color-ambar-fondo: rgba(236, 202, 143, 0.14);
     --color-rojo-fondo: rgba(240, 177, 184, 0.13);
+    /* Roles que no se invierten (globals.css): barras oscuras opacas con texto marfil, botón principal marfil como
+       .cj-boton--primario y borde de control como .cj-boton--secundario */
+    --color-barra: color-mix(in srgb, #fff 9%, #04201a);
+    --color-barra-alerta: color-mix(in srgb, #f0b1b8 18%, #04201a);
+    --color-sobre-barra: #fbf8f2;
+    --color-accion: #f2eadc;
+    --color-accion-hover: #fff;
+    --color-sobre-accion: #0b2c25;
+    --color-sobre-accion-hover: #0b2c25;
+    --color-control: var(--cj-control);
+    /* Tarjetas y paneles del CRM (.crm-panel, globals.css): la superficie de .cj-panel */
+    --crm-panel-fondo: var(--cjc-panel);
+    --crm-panel-borde: var(--cjc-borde);
+    --crm-panel-borde-arriba: var(--cjc-borde-arriba);
+    --crm-panel-sombra: var(--cj-sombra-1);
 
     /* Tarjetas del Hub (components/ui/tarjetas.css) */
     --cj-superficie: var(--cjc-panel);
@@ -126,6 +141,8 @@
     --cjc-vidrio: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), rgba(2, 13, 10, 0.76);
     --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), var(--cjc-panel-liso);
     --card: rgba(3, 18, 14, 0.8);
+    --color-barra: color-mix(in srgb, #fff 7%, #031410);
+    --color-barra-alerta: color-mix(in srgb, #f0b1b8 16%, #031410);
     background: #021b16;
   }
   body:has(.cj-cristal) { background: #03221c; color: var(--cj-hueso); }
@@ -560,22 +577,16 @@
 
   /* ── CRM de ventas y Cuotas: barras y rellenos ──
      La escala neutra está invertida (negro = texto claro, blanco = verde oscuro): un botón elegido bg-negro/text-blanco queda
-     en píldora clara con texto oscuro, igual que en Finanzas. Las BARRAS oscuras (encabezados, columnas, cabeceras de tabla) no
-     se invierten: pasan a cristal con texto marfil. Y sobre los rellenos de color (oro, bordó, verde) el texto va oscuro. */
-  .cj-cristal :is(.marca-barra, .marca-columna, thead.bg-negro, tr.bg-negro, th.bg-negro, td.bg-negro, .rounded-2xl.bg-negro, .bg-negro.px-4.py-3, .rounded-t-xl.bg-negro, .rounded-t-xl.bg-rojo) {
-    --color-blanco: #fbf8f2; --color-negro: #fbf8f2;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)), rgba(4, 27, 22, 0.55);
-    color: #fbf8f2;
-  }
+     en píldora clara con texto oscuro, igual que en Finanzas. Las barras oscuras (encabezados, columnas, cabeceras de tabla)
+     usan sus propios tokens (--color-barra y --color-sobre-barra, arriba): ya no hacen falta parches por selector.
+     Sobre los rellenos de color (oro, bordó, verde) el texto va oscuro. */
   /* Encabezado pegajoso de Ventas y Cuotas: sólido, sin desenfoque (el contenido no se trasluce al pasar debajo) */
   .cj-cristal .marca-barra {
     background: linear-gradient(180deg, var(--cjc-blanco-12), rgba(255, 255, 255, 0.06)), var(--cjc-barra);
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   }
-  .cj-cristal .marca-barra :focus-visible, .cj-cristal :is(thead, tr, th).bg-negro :focus-visible { outline-color: #eed6a8; }
+  .cj-cristal :is(.marca-barra, .bg-barra, .bg-barra-alerta) :focus-visible { outline-color: #eed6a8; }
   .cj-cristal .marca-columna { border-top: 1px solid rgba(255, 255, 255, 0.28); }
-  .cj-raiz.cj-cristal .rounded-t-xl.bg-rojo, .cj-raiz.cj-cristal .marca-columna:is([data-grupo='noShow'], [data-grupo='postCall']) { background: linear-gradient(180deg, rgba(240, 177, 184, 0.22), rgba(240, 177, 184, 0.12)), rgba(4, 27, 22, 0.55); }
-  .cj-cristal .bg-negro\/50 { background-color: rgba(0, 10, 8, 0.55); }
   .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro, .bg-rojo, .bg-bordo, .bg-verde) { --color-negro: #1d1d1b; --color-blanco: #1d1d1b; color: #1d1d1b; }
   .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro, .bg-rojo, .bg-bordo, .bg-verde) :focus-visible, .cj-cristal :is(.bg-dorado, .bg-dorado-oscuro):focus-visible { outline-color: #fbf8f2; }
   .cj-cristal .bg-verde { background-color: #9fdcc0; }
