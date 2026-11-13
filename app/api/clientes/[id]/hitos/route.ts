@@ -38,7 +38,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (typeof pedido === 'string') return respuesta({ ok: false, mensaje: pedido }, 400)
   // El cliente tiene que existir en el CRM de Agencia (si no, quedaban filas huérfanas con cualquier ID; revisión del Hub)
   try {
-    const { datos } = await cargarVista(false)
+    const { datos } = await cargarVista(false, 'cache', true)
     if (!datos.clientes.some(c => c.linea === 'agencia' && c.id.toUpperCase() === id.toUpperCase())) return respuesta({ ok: false, mensaje: 'Ese cliente no está en el CRM de Agencia.' }, 404)
   } catch {
     return respuesta({ ok: false, mensaje: 'No se pudo leer el CRM para validar el cliente. Probá de nuevo en un minuto.' }, 503)

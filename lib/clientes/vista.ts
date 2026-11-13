@@ -31,12 +31,15 @@ export interface EstadoLectura {
   motivo: string | null
 }
 
-export const cargarVista = cache(async (demo: boolean, cobros: 'cache' | 'fresco' | 'omitir' = 'cache'): Promise<VistaCRM> => {
+// alDia = true: para lo que DECIDE o ESCRIBE (rutas de API, bots, encuesta, portal): espera el dato al día como siempre.
+// Las pantallas lo dejan en false y muestran el snapshot guardado mientras Sheets se relee de fondo.
+export const cargarVista = cache(async (demo: boolean, cobros: 'cache' | 'fresco' | 'omitir' = 'cache', alDia = false): Promise<VistaCRM> => {
   if (demo && demoPermitido()) {
     const datos = crearDatosDemo(hoyArgentina())
     return { datos, creditos: calcularCreditosDeDatos(datos), esDemo: true }
   }
-  const crm = await leerClientes()
+  // Pantallas: si el snapshot venció (10 min) no se espera a Sheets; se muestra el guardado y se relee de fondo
+  const crm = await leerClientes({ servirViejo: !alDia })
   const datos = cobros === 'omitir' ? crm : await aplicarCobrosFinanzas(crm, { forzar: cobros === 'fresco' })
   return { datos, creditos: calcularCreditosDeDatos(datos), esDemo: false }
 })

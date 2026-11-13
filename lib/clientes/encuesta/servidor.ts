@@ -95,7 +95,7 @@ export interface DatosEncuesta {
 export async function cargarEncuesta(op: { ahora?: Date } = {}): Promise<DatosEncuesta> {
   const hoy = hoyArgentina(op.ahora)
   const [{ datos }, envios, asignaciones, filas] = await Promise.all([
-    cargarVista(false, 'omitir'), leerEnvios(), leerAsignaciones(), filasTypeform().catch(() => null),
+    cargarVista(false, 'omitir', true), leerEnvios(), leerAsignaciones(), filasTypeform().catch(() => null),
   ])
   const prueba = clientesPrueba()
   const conId = datos.clientes.filter((c: Cliente) => c.id && !prueba.has(c.id.toUpperCase()))

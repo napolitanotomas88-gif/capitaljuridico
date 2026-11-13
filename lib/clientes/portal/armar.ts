@@ -41,7 +41,7 @@ const corto = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z
 /** null = ese ID no está en el CRM (la página da 404). */
 export async function armarPortal(idCrudo: string): Promise<PaginaPortal | null> {
   const id = idCrudo.toUpperCase()
-  const vista = await cargarVista(false, 'omitir')
+  const vista = await cargarVista(false, 'omitir', true)
   const c = vista.datos.clientes.find(x => x.id.toUpperCase() === id)
   if (!c) return null
   const avisos: string[] = []

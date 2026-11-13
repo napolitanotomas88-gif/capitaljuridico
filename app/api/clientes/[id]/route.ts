@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
   let vista
   try {
-    vista = await cargarVista(false, puedeVer(acceso.sesion, 'finanzas') ? 'fresco' : 'omitir')
+    vista = await cargarVista(false, puedeVer(acceso.sesion, 'finanzas') ? 'fresco' : 'omitir', true)
   } catch (e) {
     console.error('API cliente: no se pudo leer el CRM:', (e as Error).message?.slice(0, 200))
     return json({ error: 'No se pudo leer la planilla de clientes' }, 503)

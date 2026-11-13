@@ -75,7 +75,8 @@ export async function leerDeDrive(): Promise<CarpetaCliente[]> {
   })
 }
 
-/** Carpetas de clientes en Drive (caché de 30 min compartida). Espera hasta `esperaMs`; si no llega, sigue sin Drive y avisa. */
+/** Carpetas de clientes en Drive (caché de 30 min compartida). Espera hasta `esperaMs`; si no llega, sigue sin Drive y avisa.
+ *  La lectura que quedó atrás no se pierde: conCache la registra con after() y termina de llenar la caché para la próxima carga. */
 export async function carpetasDrive(esperaMs = 9000): Promise<{ carpetas: CarpetaCliente[]; aviso: string | null }> {
   try {
     const r = await Promise.race([conCache('drive-clientes-v2', 1800, leerDeDrive), new Promise<null>(res => setTimeout(() => res(null), esperaMs))])

@@ -8,10 +8,15 @@
 //   2) Memoria del proceso (hasta que el dato vence, mínimo 15 s): una misma instancia no vuelve a
 //      consultar el Data Cache en cada poll, y los pedidos simultáneos se deduplican (un vuelo por clave).
 //
-// La clave incluye el id del deploy: un deploy nuevo arranca con caché vacía (evita servir datos
-// con una forma vieja). Si la capa 1 no está disponible (scripts sueltos), se usa solo la 2 con
+// La clave NO incluye el id del deploy (antes sí): así la caché sobrevive a cada publicación y no hay que volver a
+// leer Meta, Drive, ClickUp y los kickoffs en frío después de cada merge. Para no servir datos con una forma vieja
+// se usa ESQUEMA_CACHE (abajo). Si la capa 1 no está disponible (scripts sueltos), se usa solo la 2 con
 // el plazo completo. Si algo falla y hay un último valor bueno en memoria, se devuelve ese.
+//
+// Cada lectura en curso se registra con enSegundoPlano (after de Next): si quien la pidió deja de esperarla (la
+// cartera espera a Meta 4 s y a Drive 3 s), la lectura igual termina y deja la caché llena para la próxima carga.
 import { revalidateTag, unstable_cache } from 'next/cache'
+import { enSegundoPlano } from '../segundoPlano'
 
 export interface Cacheado<T> { at: number; data: T }
 export interface ResultadoCache<T> extends Cacheado<T> { error?: string; viejo?: boolean }
@@ -20,12 +25,15 @@ const MEMORIA_SEG = 15
 const memoria = new Map<string, { hasta: number; valor: Cacheado<unknown> }>()
 const enVuelo = new Map<string, Promise<Cacheado<unknown>>>()
 const ultimoBueno = new Map<string, Cacheado<unknown>>()
-const DEPLOY = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_URL || 'local'
+// Versión de la FORMA de lo guardado, para todas las claves a la vez. SUBIR A MANO (e1 → e2…) en el mismo PR que
+// cambie la forma de un dato cacheado (campos que se renombran, se sacan o cambian de tipo): la caché ya no se vacía
+// sola con cada deploy. Si cambia una sola fuente, alcanza con subir el sufijo de su clave («drive-clientes-v2» → v3).
+export const ESQUEMA_CACHE = 'e1'
 
 async function capaDatos<T>(clave: string, segundos: number, fn: () => Promise<T>): Promise<Cacheado<T>> {
   const envuelta = async (): Promise<Cacheado<T>> => ({ at: Date.now(), data: await fn() })
   try {
-    const cacheada = unstable_cache(envuelta, ['anuncios-v1', DEPLOY, clave], { revalidate: segundos, tags: ['anuncios', `anuncios-${clave}`] })
+    const cacheada = unstable_cache(envuelta, ['anuncios-v1', ESQUEMA_CACHE, clave], { revalidate: segundos, tags: ['anuncios', `anuncios-${clave}`] })
     return await cacheada()
   } catch (e) {
     // Fuera de un request de Next no hay incrementalCache: se sigue sin la capa compartida
@@ -39,7 +47,8 @@ export async function conCache<T>(clave: string, segundos: number, fn: () => Pro
   const m = memoria.get(clave)
   if (m && m.hasta > Date.now()) return m.valor as Cacheado<T>
   const vuelo = enVuelo.get(clave)
-  if (vuelo) return vuelo as Promise<Cacheado<T>>
+  // Quien se suma a una lectura en curso también la registra: el pedido que la lanzó pudo haber terminado ya
+  if (vuelo) { enSegundoPlano(vuelo); return vuelo as Promise<Cacheado<T>> }
   const p = capaDatos(clave, segundos, fn)
     .then(valor => {
       // En memoria hasta que el dato venza (mínimo 15 s): mientras está fresco no hace falta ni
@@ -50,6 +59,7 @@ export async function conCache<T>(clave: string, segundos: number, fn: () => Pro
     })
     .finally(() => enVuelo.delete(clave))
   enVuelo.set(clave, p as Promise<Cacheado<unknown>>)
+  enSegundoPlano(p)
   try {
     return await p
   } catch (e) {

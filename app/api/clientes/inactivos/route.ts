@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try { b = JSON.parse(texto) as Record<string, unknown> } catch { return json({ ok: false, mensaje: 'JSON inválido.' }, 400) }
   if (!b || Array.isArray(b) || typeof b !== 'object' || typeof b.idCrm !== 'string' || !/^[A-Za-z]\d{1,6}$/.test(b.idCrm) || !['cliente', 'equipo', 'resuelta'].includes(String(b.tipo))) return json({ ok: false, mensaje: 'Cliente o interacción inválidos.' }, 400)
   try {
-    const { datos } = await cargarVista(false)
+    const { datos } = await cargarVista(false, 'cache', true)
     if (!datos.clientes.some(c => c.id.toUpperCase() === String(b.idCrm).toUpperCase())) return json({ ok: false, mensaje: 'Cliente no encontrado.' }, 404)
     await registrarActividadInactivos({ idCrm: b.idCrm, tipo: b.tipo as 'cliente' | 'equipo' | 'resuelta', cuando: typeof b.cuando === 'string' ? b.cuando : undefined, origen: 'manual' })
     return json({ ok: true })
