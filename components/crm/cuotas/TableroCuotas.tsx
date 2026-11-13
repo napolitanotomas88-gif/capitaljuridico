@@ -44,12 +44,12 @@ import {
 /** La próxima gestión nunca se muestra en el pasado: el domingo tarea() puede devolver el sábado (sin envíos ese día) */
 const proximaGestion = (proxima: string, hoy: string) => (proxima < hoy ? sinDomingo(hoy) : proxima);
 const BOTON =
-  "inline-flex min-h-11 items-center justify-center rounded-lg border border-gris-linea px-3 py-2 text-sm font-bold disabled:opacity-50";
-// Botones neutros: blanco, marfil al pasar el mouse y un tono más al tocar (el "gris-claro" de antes no existe en la paleta)
-const SECUNDARIO = `${BOTON} bg-blanco hover:bg-marfil active:bg-gris-linea`;
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-control px-3 py-2 text-sm font-bold disabled:opacity-50";
+// Botones neutros: borde de control como .cj-boton--secundario; al pasar, borde firme y fondo suave; un tono más al tocar
+const SECUNDARIO = `${BOTON} bg-blanco hover:border-negro hover:bg-gris-fondo active:bg-gris-linea`;
 // Lo que pisa algo de BOTON lleva "!": con dos utilidades de la misma propiedad no gana la última de la clase sino la que
 // Tailwind escribe después en el CSS (border-gris-linea le ganaba a border-dorado y justify-center a justify-between)
-const PRIMARIO = `${BOTON} border-dorado! bg-dorado text-negro hover:bg-dorado-oscuro hover:text-blanco active:bg-dorado-oscuro active:text-blanco`;
+const PRIMARIO = `${BOTON} border-accion! bg-accion text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover active:bg-accion-hover active:text-sobre-accion-hover`;
 // 16 px: con menos, el iPhone hace zoom al enfocar el campo
 const INPUT =
   "min-h-11 w-full rounded-lg border border-gris-borde bg-blanco px-3 py-2 text-base";
@@ -265,10 +265,7 @@ export function TableroCuotas({
       {dialogoConfirmar}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-dorado-oscuro">
-            Capital Jurídico · Cobros
-          </p>
-          <h2 className="mt-1 text-3xl font-bold">Tu tablero de cuotas</h2>
+          <h2 className="text-3xl font-bold">Tu tablero de cuotas</h2>
           <p className="mt-1 text-gris-texto">
             Primero hacé la gestión; después registrala.
           </p>
@@ -338,7 +335,7 @@ export function TableroCuotas({
         ].map(([etiqueta, valor]) => (
           <div
             key={etiqueta}
-            className="rounded-xl border border-gris-linea bg-blanco p-4"
+            className="crm-panel p-4"
           >
             <p className="text-xs font-bold uppercase text-gris-texto">
               {etiqueta}
@@ -453,10 +450,10 @@ export function TableroCuotas({
               return (
                 <section
                   key={grupo}
-                  className="min-w-0 rounded-xl border border-gris-linea"
+                  className="crm-panel min-w-0 overflow-hidden"
                 >
                   <div
-                    className={`flex justify-between rounded-t-xl border-t-2 border-dorado p-4 text-blanco ${grupo === "vencidas" ? "bg-rojo" : "bg-negro"}`}
+                    className={`flex justify-between p-4 text-sobre-barra ${grupo === "vencidas" ? "bg-barra-alerta" : "bg-barra"}`}
                   >
                     <h3 className="text-xl font-bold">{titulo}</h3>
                     <span>{filas.length}</span>
@@ -500,7 +497,7 @@ export function TableroCuotas({
             })}
           </div>
           <details
-            className="rounded-xl border border-gris-linea bg-blanco p-4"
+            className="crm-panel p-4"
             open={hayFiltros}
           >
             <summary className="min-h-11 cursor-pointer text-lg font-bold">
@@ -552,7 +549,7 @@ export function TableroCuotas({
             <div key={r.plan.id} className="flex flex-wrap items-stretch gap-2">
               <button
                 onClick={() => seleccionar({ tipo: "detalle", id: r.plan.id })}
-                className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 rounded-xl border border-gris-linea bg-blanco p-4 text-left"
+                className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 crm-panel p-4 text-left hover:border-control"
               >
                 <span>
                   <strong>{r.plan.nombre}</strong>
@@ -1029,7 +1026,7 @@ export function TableroCuotas({
                 </h4>
                 <ol className="mt-3 space-y-3">
                   {[...actual.plan.eventos].reverse().map((e) => (
-                    <li key={e.id} className="border-l-2 border-dorado pl-3">
+                    <li key={e.id} className="border-l-2 border-gris-linea pl-3">
                       <p>{e.texto}</p>
                       <p className="text-sm text-gris-texto">
                         {new Date(e.fecha).toLocaleString("es-AR", {
@@ -1136,7 +1133,7 @@ function Tarjeta({
   return (
     <article
       aria-busy={guardando}
-      className="rounded-xl border border-gris-linea border-l-4 border-l-dorado bg-blanco p-4"
+      className="crm-panel p-4"
     >
       <button
         onClick={onDetalle}

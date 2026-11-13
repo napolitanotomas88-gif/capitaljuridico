@@ -300,7 +300,7 @@ export function MiDia({ items, calls, hechas, ahoraISO, closer, situaciones, esA
                 const cantidad = deLaColumna.length;
                 return (
                   <section key={col.clave} className="flex min-h-0 flex-col" aria-label={col.titulo}>
-                    <h2 data-grupo={col.grupo} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-negro px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-blanco">
+                    <h2 data-grupo={col.grupo} className="marca-columna mb-2 flex items-center justify-between gap-2 rounded-lg bg-barra px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-sobre-barra">
                       <span>{col.titulo}</span>
                       <span className="tabular rounded-full bg-dorado px-2 py-0.5 text-negro">{cantidad}</span>
                     </h2>
@@ -398,7 +398,7 @@ export function SinResultados({ hayFiltros, hayListos, onLimpiar }: { hayFiltros
     <button
       type="button"
       onClick={onLimpiar}
-      className="mt-3 min-h-11 rounded-xl border border-negro bg-blanco px-4 text-sm font-bold hover:bg-negro hover:text-blanco"
+      className="mt-3 min-h-11 rounded-xl border border-control bg-blanco px-4 text-sm font-bold hover:border-negro hover:bg-gris-fondo"
     >
       Ver todo
     </button>

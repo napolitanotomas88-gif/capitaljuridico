@@ -108,7 +108,7 @@ export function PanelFicha({ lead, version, escrituras, modalAbierto, onCerrar }
       aria-labelledby={idTitulo}
       className="panel-lateral fixed inset-y-0 right-0 z-30 flex w-[420px] flex-col border-l border-gris-linea bg-gris-fondo shadow-2xl"
     >
-      <div className="flex items-start gap-2 bg-negro px-4 py-3 text-blanco" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
+      <div className="flex items-start gap-2 bg-barra px-4 py-3 text-sobre-barra" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-dorado">Ficha{datos ? ` · ${datos.closer}` : ""}</p>
           <h2 id={idTitulo} className="truncate text-lg font-bold leading-tight">
@@ -140,7 +140,7 @@ export function PanelFicha({ lead, version, escrituras, modalAbierto, onCerrar }
             <button
               type="button"
               onClick={reintentar}
-              className="mt-2 min-h-11 rounded-xl border border-negro bg-blanco px-4 text-sm font-bold text-negro hover:bg-negro hover:text-blanco"
+              className="mt-2 min-h-11 rounded-xl border border-control bg-blanco px-4 text-sm font-bold text-negro hover:border-negro hover:bg-gris-fondo"
             >
               Reintentar
             </button>

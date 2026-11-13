@@ -49,8 +49,8 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
           {accion}
         </section>
 
-        {/^cerrado en /i.test(valores.situacion.trim()) && <section className="rounded-2xl border border-dorado bg-blanco p-4"><h2 className="text-lg font-bold">Plan de cobro</h2><p className="mt-2 text-sm text-gris-texto">Si quedaron cuotas pendientes, cargalas en Cuotas. El pago recibido en el cierre no se importa automáticamente.</p><Link href={`/cuotas?${new URLSearchParams({nuevo:"si",nombre:identidad.nombre,telefono:identidad.telefono,hoja:identidad.hoja}).toString()}`} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-dorado px-3 font-bold">Crear plan de cuotas</Link></section>}
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        {/^cerrado en /i.test(valores.situacion.trim()) && <section className="crm-panel border-dorado! p-4"><h2 className="text-lg font-bold">Plan de cobro</h2><p className="mt-2 text-sm text-gris-texto">Si quedaron cuotas pendientes, cargalas en Cuotas. El pago recibido en el cierre no se importa automáticamente.</p><Link href={`/cuotas?${new URLSearchParams({nuevo:"si",nombre:identidad.nombre,telefono:identidad.telefono,hoja:identidad.hoja}).toString()}`} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-accion px-3 font-bold text-sobre-accion hover:bg-accion-hover">Crear plan de cuotas</Link></section>}
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">Contacto</h2>
           <dl className="text-sm">
             <Dato etiqueta="Teléfono">
@@ -91,7 +91,7 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
           </dl>
         </section>
 
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">Estado</h2>
           <dl className="text-sm">
             {CAMPOS_ESTADO.map((c) => (
@@ -102,24 +102,24 @@ export function ContenidoFicha({ ficha, accion, dosColumnas = false }: Props) {
           </dl>
         </section>
 
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">{ETIQUETA_CAMPO.datosReagenda} · notas</h2>
           <NotasReagenda key={lead} identidad={identidad} original={datosFichaDesde(valores)} />
         </section>
       </div>
 
       <div className={`mt-4 space-y-4 ${dosColumnas ? "lg:mt-0" : ""}`}>
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">Antes de la call</h2>
           <Contexto valores={valores} instagram={ficha.instagram} />
         </section>
 
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gris-texto">Cierre y grabaciones</h2>
           <FormularioFicha key={lead} identidad={identidad} original={datosFichaDesde(valores)} />
         </section>
 
-        <section className="rounded-2xl border border-gris-linea bg-blanco p-4">
+        <section className="crm-panel p-4">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gris-texto">Historial (Log App)</h2>
           {historial.length === 0 ? (
             <p className="text-sm text-gris-texto">Todavía no hay acciones registradas desde la app.</p>

@@ -41,7 +41,7 @@ export function Encabezado({ closer, fechaLarga, pendientes, atrasados, esAdmin,
   }, []);
 
   return (
-    <header ref={ref} className="marca-barra sticky top-0 z-30 bg-negro text-blanco" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+    <header ref={ref} className="marca-barra sticky top-0 z-30 bg-barra text-sobre-barra" style={{ paddingTop: "env(safe-area-inset-top)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:flex-nowrap lg:gap-4">
         <div className="min-w-0">
           {esAdmin || closers.length > 1 ? (
@@ -53,7 +53,7 @@ export function Encabezado({ closer, fechaLarga, pendientes, atrasados, esAdmin,
                 id="selector-closer"
                 value={closer.id}
                 onChange={(e) => router.push(`/ventas/closer/${encodeURIComponent(e.target.value)}`)}
-                className="h-11 max-w-[45vw] rounded-lg border border-white/60 bg-negro px-2 font-bold"
+                className="h-11 max-w-[45vw] rounded-lg border border-white/60 bg-barra px-2 font-bold"
               >
                 {closers.map((c) => (
                   <option key={c.id} value={c.id}>

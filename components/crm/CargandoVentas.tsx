@@ -4,12 +4,12 @@
 // Dónde se usa: como loading.tsx de las pantallas que leen datos (admin, ficha del lead y guía) y como reserva del <Suspense>
 // de «Mi día» (/ventas y /ventas/closer/[id]). Esas dos páginas NO llevan loading.tsx a propósito: primero deciden a dónde
 // va cada uno (redirect) y esa redirección tiene que seguir siendo un 307 real, no una dentro de la respuesta ya empezada.
-const BLOQUE = 'rounded-2xl border border-gris-linea bg-blanco motion-safe:animate-pulse'
+const BLOQUE = 'crm-panel motion-safe:animate-pulse'
 
 export function CargandoVentas() {
   return (
     <div role="status" aria-busy="true" aria-label="Leyendo el CRM de ventas…" className="flex flex-1 flex-col">
-      <div className="marca-barra bg-negro" style={{ paddingTop: 'env(safe-area-inset-top)' }} aria-hidden="true">
+      <div className="marca-barra bg-barra" style={{ paddingTop: 'env(safe-area-inset-top)' }} aria-hidden="true">
         <div className="h-[68px]" />
       </div>
       <div className="w-full flex-1 space-y-6 px-4 pb-28 pt-5 lg:px-6 lg:pb-5" aria-hidden="true">

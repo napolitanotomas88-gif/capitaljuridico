@@ -17,7 +17,7 @@ export function PantallaAviso({ etiqueta, titulo, children, acciones }: Props) {
     <div className="flex flex-1 flex-col">
       {/* div y no main: el main es el del shell (un solo landmark). */}
       <div className="flex flex-1 items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md rounded-2xl border border-gris-linea border-t-4 border-t-dorado bg-blanco p-6 text-center shadow-sm">
+        <div className="crm-panel w-full max-w-md p-6 text-center">
           {etiqueta && <p className="text-xs font-bold uppercase tracking-[0.2em] text-dorado-oscuro">{etiqueta}</p>}
           <h1 className="mt-1 text-xl font-bold">{titulo}</h1>
           <div className="mt-3 space-y-2 text-sm text-gris-texto">{children}</div>
@@ -30,6 +30,6 @@ export function PantallaAviso({ etiqueta, titulo, children, acciones }: Props) {
 
 /** Estilos de los botones de estas pantallas (principal dorado, secundario con borde negro). */
 export const BOTON_PRINCIPAL =
-  "flex min-h-12 items-center justify-center rounded-xl bg-dorado px-6 font-bold text-negro hover:bg-dorado-oscuro hover:text-blanco";
+  "flex min-h-12 items-center justify-center rounded-xl bg-accion px-6 font-bold text-sobre-accion hover:bg-accion-hover hover:text-sobre-accion-hover";
 export const BOTON_SECUNDARIO =
-  "flex min-h-12 items-center justify-center rounded-xl border border-negro bg-blanco px-6 font-bold hover:bg-gris-fondo";
+  "flex min-h-12 items-center justify-center rounded-xl border border-control bg-blanco px-6 font-bold hover:border-negro hover:bg-gris-fondo";

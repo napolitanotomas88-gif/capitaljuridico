@@ -20,7 +20,7 @@ type Props = {
 
 /** El estilo de los botones del aviso (también para las acciones extra). */
 export const CLASE_BOTON_AVISO =
-  "min-h-11 rounded-xl border border-negro bg-blanco px-4 text-sm font-bold text-negro hover:bg-negro hover:text-blanco";
+  "min-h-11 rounded-xl border border-control bg-blanco px-4 text-sm font-bold text-negro hover:border-negro hover:bg-gris-fondo";
 
 /**
  * Aviso de las notas y del formulario de cierre cuando la fila de la ficha pasó a ser de otro lead
