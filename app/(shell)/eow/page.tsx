@@ -19,7 +19,7 @@ export default async function PaginaEow({ searchParams }: { searchParams: Promis
   if (!baseEowConfigurada()) {
     return (
       <div className="cj-pila cj-pila--chica">
-        <SeccionTitulo etiqueta="EOW" titulo="Reporte EOW" />
+        <SeccionTitulo titulo="Reporte EOW" />
         <p className="eow-error" role="alert">Falta conectar la base (DATABASE_URL).</p>
       </div>
     )
@@ -43,7 +43,7 @@ export default async function PaginaEow({ searchParams }: { searchParams: Promis
   if (error) {
     return (
       <div className="cj-pila cj-pila--chica">
-        <SeccionTitulo etiqueta="EOW" titulo="Reporte EOW" />
+        <SeccionTitulo titulo="Reporte EOW" />
         <p className="eow-error" role="alert">{error}</p>
       </div>
     )

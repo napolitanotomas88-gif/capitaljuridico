@@ -25,7 +25,7 @@ export default async function EncuestaPage() {
   if (!d) {
     return (
       <div className="cj-pila cj-altas">
-        <SeccionTitulo etiqueta="Clientes" titulo="Encuesta mensual" />
+        <SeccionTitulo titulo="Encuesta mensual" />
         <div className="cj-aviso"><p>No se pudo leer la encuesta. Probá de nuevo en un rato.</p></div>
       </div>
     )
@@ -33,7 +33,7 @@ export default async function EncuestaPage() {
   const { estado: e } = d
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo="Encuesta mensual" />
+      <SeccionTitulo titulo="Encuesta mensual" />
       <p className="cj-texto-2">
         {e.total ? `Contestaron ${e.contestaron.length} de ${e.total}${e.promedio !== null ? ` · promedio ${puntaje(e.promedio)}` : ''}` : 'Todavía no hay envíos marcados en los últimos 30 días.'}
         {e.sinAsignar.length ? ` · ${e.sinAsignar.length} sin asignar` : ''}
@@ -69,7 +69,7 @@ export default async function EncuestaPage() {
       </section>
 
       <section className="cj-pila cj-pila--chica" aria-labelledby="encuesta-si">
-        <SeccionTitulo etiqueta="Respuestas" titulo={`Contestaron (${e.contestaron.length})`} nivel={2} />
+        <SeccionTitulo titulo={`Contestaron (${e.contestaron.length})`} nivel={2} />
         {e.contestaron.length > 0 && (
           <div className="cj-tabla-scroll" role="region" aria-label="Contestaron" tabIndex={0}>
             <table className="cj-tabla">

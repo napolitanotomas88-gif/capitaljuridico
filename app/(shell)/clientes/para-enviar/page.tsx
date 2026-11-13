@@ -29,7 +29,7 @@ export default async function ParaEnviarPage() {
   try { datos = await listarMensajes() } catch { error = 'No se pudo leer la lista. Probá de nuevo en un rato.' }
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo={`Para enviar (${datos.pendientes.length})`} />
+      <SeccionTitulo titulo={`Para enviar (${datos.pendientes.length})`} />
       <p className="cj-texto-2">El bot ya no escribe por WhatsApp: estos mensajes se pegan a mano en el grupo del cliente. Después tocá «Enviado».</p>
       {error && <div className="cj-aviso"><p>{error}</p></div>}
       {!error && datos.pendientes.length === 0 && <p className="cj-texto-2">No hay nada para enviar.</p>}

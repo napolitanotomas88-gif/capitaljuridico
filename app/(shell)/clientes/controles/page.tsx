@@ -41,7 +41,7 @@ export default async function ControlesPage({ searchParams }: { searchParams: Pr
   } catch { error = 'No se pudo leer la base. Probá de nuevo en un rato.' }
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo="Controles de cumplimiento" />
+      <SeccionTitulo titulo="Controles de cumplimiento" />
       <p className="cj-texto-2">
         {controlesEncendidos() ? 'Encendidos: corren todos los días a las 10:00 y el resumen sale los lunes.' : 'Apagados (CONTROLES_CLIENTES no está en «encendido»).'}{' '}
         Error de pago y presupuesto del período no invertido dejan el aviso directo en <Link href="/clientes/para-enviar">Para enviar</Link>. Capturas, guiones y crudos quedan «a verificar»: el aviso se arma solo con «Es incumplimiento». Nada se le manda al cliente solo.

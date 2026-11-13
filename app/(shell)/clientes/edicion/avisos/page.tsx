@@ -22,7 +22,7 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
   if (!puedePestana(c.rol, c.socio, 'avisos')) {
     return (
       <div className="ed-pila">
-        <Encabezado etiqueta="Edición" titulo="Avisos" vigia={null} {...comun} />
+        <Encabezado titulo="Avisos" vigia={null} {...comun} />
         <Vacio frase="Esta parte es de Aylu y Tomás." accion={<BotonEnlace href={conSufijo('/clientes/edicion', c.sufijo)}>Volver al tablero</BotonEnlace>} />
       </div>
     )
@@ -34,11 +34,11 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
   else {
     try { avisos = await listarAvisos({ estados: ['dry', 'dudoso', 'error', 'pendiente', 'enviando'], limite: 100 }) } catch (e) { logLectura('los avisos', e); falla = 'No se pudo leer la base del Despacho. Probá de nuevo en un minuto.' }
   }
-  if (falla) return <div className="ed-pila"><SeccionTitulo etiqueta="Edición" titulo="Avisos" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
+  if (falla) return <div className="ed-pila"><SeccionTitulo titulo="Avisos" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
   const filas = armarAvisos(avisos)
   return (
     <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Avisos" vigia={null} contadores={{ avisos: filas.length }} {...comun} />
+      <Encabezado titulo="Avisos" vigia={null} contadores={{ avisos: filas.length }} {...comun} />
       <p className="ed-parrafo ed-sub">{c.demo || !avisosReales() ? 'Los avisos están en modo prueba: no salen a Discord y quedan acá con el texto que habrían llevado.' : 'Los avisos salen a Discord (#✂️-edicion y, para Valen, #ads). Acá quedan los que esperan agruparse, los dudosos y los que dieron error.'}</p>
       {filas.length ? (
         <ul className="ed-avisos">

@@ -72,7 +72,6 @@ export default async function ClientesPage({ searchParams }: Props) {
   return (
     <div className="cj-pila">
       <SeccionTitulo
-        etiqueta="Clientes"
         titulo="Cartera de clientes"
         acciones={
           <div className="cj-fila">

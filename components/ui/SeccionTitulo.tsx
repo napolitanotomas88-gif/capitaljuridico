@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
 import { clases } from './clases'
 
-// Etiqueta latón + título Bodoni: dos jerarquías, ninguna más. "acciones" va a la derecha (botones, filtros).
+// Etiqueta latón + título: dos jerarquías, ninguna más. "acciones" va a la derecha (botones, filtros).
+// La etiqueta es opcional (13/11/2026): va solo si informa algo que el título no dice (cliente, período, ruta), nunca
+// para repetir el nombre de la sección que ya está en la barra lateral.
 type Props = {
-  etiqueta: string
+  etiqueta?: string
   titulo: string
   /** 1 = título de página (h1, grande); 2 = título de sección (h2, más chico) */
   nivel?: 1 | 2
@@ -16,7 +18,7 @@ export function SeccionTitulo({ etiqueta, titulo, nivel = 1, acciones, className
   return (
     <header className={clases('cj-seccion', className)}>
       <div className="cj-seccion__texto">
-        <span className="cj-etiqueta cj-etiqueta--laton">{etiqueta}</span>
+        {etiqueta && <span className="cj-etiqueta cj-etiqueta--laton">{etiqueta}</span>}
         <Titulo className={clases('cj-titulo', nivel === 2 && 'cj-titulo--seccion')}>{titulo}</Titulo>
       </div>
       {acciones}

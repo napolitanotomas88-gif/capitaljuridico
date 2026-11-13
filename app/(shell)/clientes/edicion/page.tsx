@@ -41,7 +41,7 @@ export default async function EdicionPage({ searchParams }: Props) {
       c.demo || c.rol === 'rene' || !baseConfigurada() ? [] : lecturasPendientes().catch(() => []),
     ])
     return <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Sistema de Edición" vigia={null} modo={c.modo} demo={c.demo} rol={c.rol}
+      <Encabezado titulo="Sistema de Edición" vigia={null} modo={c.modo} demo={c.demo} rol={c.rol}
         pestanas={pestanasDe(c.rol, c.socio)} actual="tarjetas" sufijo={c.sufijo} rutaActual="/clientes/edicion?vista=tarjetas" avisoRol={c.avisoRol} />
       {mensajes.length > 0 && (
         <p className="ed-interno" role="note"><strong>Grupo Contenido</strong>
@@ -80,7 +80,7 @@ export default async function EdicionPage({ searchParams }: Props) {
   if (falla) {
     return (
       <div className="ed-pila">
-        <SeccionTitulo etiqueta="Edición" titulo="Grabación y edición" />
+        <SeccionTitulo titulo="Grabación y edición" />
         <div className="cj-aviso" role="alert"><p>{falla}</p></div>
         <div className="cj-fila"><BotonEnlace href="/clientes/edicion">Reintentar</BotonEnlace></div>
       </div>
@@ -105,7 +105,7 @@ export default async function EdicionPage({ searchParams }: Props) {
 
   return (
     <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Grabación y edición" vigia={estadoVigia(corrida, ahora)} modo={c.modo} demo={c.demo} rol={c.rol}
+      <Encabezado titulo="Grabación y edición" vigia={estadoVigia(corrida, ahora)} modo={c.modo} demo={c.demo} rol={c.rol}
         pestanas={v.pestanas} actual={pestana} sufijo={c.sufijo} rutaActual={base} avisoRol={c.avisoRol}
         contadores={{ ...(v.cola ? { cola: v.cola.total } : {}), ...(pendientes !== undefined ? { pendientes } : {}) }} />
 

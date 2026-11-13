@@ -25,7 +25,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
   if (!puedePestana(c.rol, c.socio, 'vinculos')) {
     return (
       <div className="ed-pila">
-        <Encabezado etiqueta="Edición" titulo="Vínculos de carpetas" vigia={null} {...comun} />
+        <Encabezado titulo="Vínculos de carpetas" vigia={null} {...comun} />
         <Vacio frase="Esta parte es de Aylu y Tomás." accion={<BotonEnlace href={conSufijo('/clientes/edicion', c.sufijo)}>Volver al tablero</BotonEnlace>} />
       </div>
     )
@@ -37,11 +37,11 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
   else {
     try { carpetas = await listarVinculos() } catch (e) { logLectura('los vínculos', e); falla = 'No se pudo leer la base del Despacho. Probá de nuevo en un minuto.' }
   }
-  if (falla) return <div className="ed-pila"><SeccionTitulo etiqueta="Edición" titulo="Vínculos de carpetas" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
+  if (falla) return <div className="ed-pila"><SeccionTitulo titulo="Vínculos de carpetas" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
   const v = armarVinculos(carpetas, c.rol)
   return (
     <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Vínculos de carpetas" vigia={null} contadores={{ vinculos: v.pendientes.length }} {...comun} />
+      <Encabezado titulo="Vínculos de carpetas" vigia={null} contadores={{ vinculos: v.pendientes.length }} {...comun} />
       <p className="ed-parrafo ed-sub">{v.confirmados} carpeta{v.confirmados === 1 ? '' : 's'} ya vinculada{v.confirmados === 1 ? '' : 's'} (se pueden corregir más abajo). Las por confirmar no procesan nada hasta que se confirme de qué cliente son.</p>
       {v.pendientes.length ? (
         <ul className="ed-vinculos">

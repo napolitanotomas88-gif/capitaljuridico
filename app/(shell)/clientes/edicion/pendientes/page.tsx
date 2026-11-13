@@ -29,7 +29,7 @@ export default async function PendientesPage({ searchParams }: { searchParams: P
   if (!puedePestana(c.rol, c.socio, 'pendientes')) {
     return (
       <div className="ed-pila">
-        <Encabezado etiqueta="Edición" titulo="Grabaciones pendientes" vigia={null} {...comun} />
+        <Encabezado titulo="Grabaciones pendientes" vigia={null} {...comun} />
         <Vacio frase="Esta parte es de Aylu y Tomás (el seguimiento de los clientes que no grabaron)." accion={<BotonEnlace href={conSufijo('/clientes/edicion', c.sufijo)}>Volver a tu cola</BotonEnlace>} />
       </div>
     )
@@ -55,7 +55,7 @@ export default async function PendientesPage({ searchParams }: { searchParams: P
   if (falla) {
     return (
       <div className="ed-pila">
-        <SeccionTitulo etiqueta="Edición" titulo="Grabaciones pendientes" />
+        <SeccionTitulo titulo="Grabaciones pendientes" />
         <div className="cj-aviso" role="alert"><p>{falla}</p></div>
       </div>
     )
@@ -64,7 +64,7 @@ export default async function PendientesPage({ searchParams }: { searchParams: P
   const v = armarPendientes(pasos, c.rol, { ahora, docs, loMandaElBot: p => loMandaElBot(p, bot) })
   return (
     <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Grabaciones pendientes" vigia={estadoVigia(corrida, ahora)} contadores={{ pendientes: v.total }} {...comun} />
+      <Encabezado titulo="Grabaciones pendientes" vigia={estadoVigia(corrida, ahora)} contadores={{ pendientes: v.total }} {...comun} />
       <p className="ed-parrafo ed-sub">Escalera en días hábiles desde que los guiones quedaron «Para grabar» o se marcaron como enviados. Los textos son un borrador (versión tx1) que aprueba Tomás.</p>
       {v.clientes.length ? v.clientes.map(k => (
         <section key={k.id_crm} className="ed-seccion" aria-label={k.cliente}>

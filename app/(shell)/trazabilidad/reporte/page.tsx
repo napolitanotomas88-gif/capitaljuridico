@@ -78,7 +78,7 @@ export default async function ReportePage({ searchParams }: { searchParams: Prom
 
       <div className="traz-dos">
         <section className="cj-pila cj-pila--chica">
-          <SeccionTitulo nivel={2} etiqueta="Piezas" titulo="Piezas gatillo" />
+          <SeccionTitulo nivel={2} titulo="Piezas gatillo" />
           <Tabla descripcion="Piezas que más veces fueron gatillo" filas={r.piezasGatillo} claveFila={(f) => f.etiqueta} vacio={<Vacio frase="Sin datos." />}
             columnas={[
               { clave: 'etiqueta', titulo: 'Pieza', largo: true },
@@ -87,13 +87,13 @@ export default async function ReportePage({ searchParams }: { searchParams: Prom
             ]} />
         </section>
         <section className="cj-pila cj-pila--chica">
-          <SeccionTitulo nivel={2} etiqueta="Bolsas" titulo="Gatillos por bolsa" />
+          <SeccionTitulo nivel={2} titulo="Gatillos por bolsa" />
           <Tabla descripcion="Gatillos por bolsa" filas={r.bolsas} claveFila={(f) => f.bolsa} vacio={<Vacio frase="Sin datos." />}
             columnas={[
               { clave: 'bolsa', titulo: 'Bolsa', celda: (f) => (f.bolsa === 'sin bolsa' ? 'Sin bolsa asignada' : ETIQUETA_BOLSA[f.bolsa]) },
               { clave: 'pct', titulo: 'Gatillos', celda: (f) => <Barra valor={f.pct} texto={`${f.gatillos} · ${pctTxt(f.pct)}`} /> },
             ]} />
-          <SeccionTitulo nivel={2} etiqueta="Origen" titulo="De dónde vinieron" />
+          <SeccionTitulo nivel={2} titulo="De dónde vinieron" />
           <Tabla descripcion="Origen de los leads" filas={r.origenes} claveFila={(f) => f.origen} vacio={<Vacio frase="Sin datos." />}
             columnas={[
               { clave: 'origen', titulo: 'Origen', celda: (f) => ETIQUETA_ORIGEN[f.origen] },
@@ -116,7 +116,7 @@ export default async function ReportePage({ searchParams }: { searchParams: Prom
       </section>
 
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Llamadas" titulo="Dolores que dijeron en la llamada" />
+        <SeccionTitulo nivel={2} titulo="Dolores que dijeron en la llamada" />
         <p className="traz-texto">Agrupados por ángulo del catálogo. Los que dicen <strong>NUEVO</strong> no corresponden a ningún ángulo: son candidatos a ángulos que todavía no se tocan en el contenido.</p>
         <Tabla descripcion="Dolores de las llamadas" filas={r.dolores.slice(0, 25)} claveFila={(f) => `${f.angulo ?? ''}${f.tema}`} vacio={<Vacio frase="Todavía no hay llamadas analizadas en este período." />}
           columnas={[
@@ -141,7 +141,7 @@ export default async function ReportePage({ searchParams }: { searchParams: Prom
       </section>
 
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Uno por uno" titulo="Análisis individual" />
+        <SeccionTitulo nivel={2} titulo="Análisis individual" />
         <Tabla descripcion="Cada cierre de la muestra" filas={r.individual} claveFila={(f) => f.clave}
           columnas={[
             { clave: 'nombre', titulo: 'Lead', celda: (f) => <Link className="traz-link" href={rutaLead(f.clave)}>{f.nombre}</Link> },
