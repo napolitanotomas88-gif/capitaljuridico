@@ -35,3 +35,13 @@ test('la lista de conectados la ve todo el equipo (decisión de Tomás, 27/10/20
   assert.match(ruta, /if \(!sesion\) return json\(\{ error: 'sin sesión' \}, 401\)/)
   assert.match(ruta, /mismoOrigen\(req\.headers\)/)
 })
+
+test('latido (velocidad, tanda 2): un solo reloj por pestaña; al navegar solo avisa si cambió la sección', () => {
+  const src = readFileSync(new URL('../components/shell/Latido.tsx', import.meta.url), 'utf8')
+  // El reloj y el listener se arman una vez (dependencias vacías), no en cada cambio de ruta
+  assert.match(src, /setInterval\(tick, INTERVALO_LATIDO_MS\)[\s\S]*?\}, \[\]\)/)
+  assert.match(src, /seccionDeRuta\(ruta\) !== seccionAvisada\.current\) avisar\.current\(\)/)
+  // La tabla de secciones sale del módulo sin base (el navegador no carga el cliente de Neon)
+  assert.match(src, /from '@\/lib\/presencia\/intervalo'/)
+  assert.doesNotMatch(readFileSync(new URL('../lib/presencia/intervalo.ts', import.meta.url), 'utf8'), /neon/)
+})
