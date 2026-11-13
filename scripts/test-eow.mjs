@@ -218,8 +218,13 @@ describe('recién lanzados y aviso del domingo', () => {
     { nombre: 'PRUEBA BOT Alfa', idCrm: null, lanzado: '2026-11-12' },       // prueba
   ]
   test('ventana y filtro', () => {
-    const v = L.ventana('2026-11-15', '2026-11-08')
-    assert.deepEqual(v, { desde: '2026-11-09', hasta: '2026-11-15' })
+    const v = L.ventana('2026-11-15')
+    assert.deepEqual(v, { desde: '2026-11-09', hasta: '2026-11-15' }, 'de ese lunes a ese domingo')
+    // Aunque el último reporte sea más viejo, la ventana es la semana del reporte (lunes a domingo)
+    assert.deepEqual(L.ventana('2026-11-22'), { desde: '2026-11-16', hasta: '2026-11-22' })
+    assert.equal(M.rangoSemana('2026-11-15'), '09/11 al 15/11/26')
+    assert.equal(M.rangoSemana('2026-10-03'), '27/09 al 03/10/26', 'historial: la fecha del doc es el cierre')
+    assert.equal(M.lunesDe('2026-11-08'), '2026-11-02')
     assert.deepEqual(L.recienLanzados(lanzados, reporte, v).map((c) => c.nombre), ['Estudio Nuevo Ejemplo'])
     const datos = L.agregarFilas(reporte, [lanzados[2]])
     assert.equal(datos.filas[0].color, null)
@@ -230,7 +235,7 @@ describe('recién lanzados y aviso del domingo', () => {
   test('texto del aviso', () => {
     const t = L.textoAviso('2026-11-15', ['Uno', 'Dos'], 'https://despacho.ejemplo/eow')
     assert.match(t, /^Reporte EOW de la semana: 2 clientes recién lanzados para ubicar\n• Uno\n• Dos\n/)
-    assert.match(t, /https:\/\/despacho\.ejemplo\/eow/)
+    assert.match(t, /https:\/\/despacho\.ejemplo\/eow \(semana del 09\/11 al 15\/11\/26\)/)
   })
 
   function deps(hoy, extra = {}) {

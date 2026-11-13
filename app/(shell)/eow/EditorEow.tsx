@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Boton, SeccionTitulo } from '@/components/ui'
 import type { EntradaHistorial } from '@/lib/eow/db'
 import {
-  COLORES, NOMBRE_COLOR, NOMBRE_TARJETA, TARJETAS, contar, fechaCorta, nuevoIdFila, ubicar,
+  COLORES, NOMBRE_COLOR, NOMBRE_TARJETA, TARJETAS, contar, fechaCorta, nuevoIdFila, rangoSemana, ubicar,
   type Color, type DatosEow, type DestinoUbicar, type FilaEow, type ReporteEow, type Tarjeta,
 } from '@/lib/eow/modelo'
 import { NOMBRE_ESTADO_CARTERA, crearVinculador, difiereDeCartera, linkCartera, type ClienteCartera, type Vinculo } from '@/lib/eow/vinculo'
@@ -82,7 +82,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
     }
   }
 
-  const titulo = inicial ? `Reporte EOW · semana del ${fechaCorta(inicial.semana)}` : 'Reporte EOW'
+  const titulo = inicial ? `Reporte EOW · semana del ${rangoSemana(inicial.semana)}` : 'Reporte EOW'
   return (
     <div className="eow cj-pila cj-pila--chica">
       <SeccionTitulo
@@ -94,7 +94,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
       {semanas.length > 0 && (
         <nav className="eow-semanas" aria-label="Semanas anteriores">
           {semanas.map((s) => (
-            <Link key={s} href={`/eow?semana=${s}`} className="eow-chip" aria-current={s === inicial?.semana ? 'page' : undefined}>
+            <Link key={s} href={`/eow?semana=${s}`} className="eow-chip" title={`Semana del ${rangoSemana(s)}`} aria-current={s === inicial?.semana ? 'page' : undefined}>
               {fechaCorta(s)}
             </Link>
           ))}

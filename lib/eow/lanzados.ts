@@ -6,7 +6,8 @@
 //      Idempotente: si ya existe, no la toca. Aunque Meta no responda, la semana se crea igual.
 //   1. Lee los clientes con campaña lanzada (la misma fuente que la etapa «Lanzado» del Despacho: el PRIMER lanzamiento que
 //      se conoce en Meta, del tablero de /anuncios; ver lib/clientes/produccion.ts campanasMeta) y se queda con los lanzados
-//      después del reporte anterior (o en los últimos 7 días si no hay anterior), hasta hoy.
+//      en la semana del reporte: de ese lunes a ese domingo (14/11/2026, Tomás: el reporte es del cierre de la semana;
+//      el domingo 15/11 se crea el de la semana lunes 09/11 → domingo 15/11).
 //   2. Descarta los que ya están en el reporte de la semana (fila o cualquier tarjeta: mismo ID del CRM, mismo nombre o el
 //      cruce de nombres de la cartera, crearCruce).
 //   3. Los agrega como «Recién lanzados · para ubicar» (fila sin color, origen «sistema», con la fecha de lanzamiento) al
@@ -15,7 +16,7 @@
 //      (pedido de Tomás, 13/11/2026). Un aviso por semana (cj_eow_avisos). Apagado salvo EOW_AVISO=encendido.
 // Todo entra por DepsAvisoEow: los tests usan dependencias de juguete; lanzadosReales.ts usa Neon, Meta y Discord.
 import { claveNombre, crearCruce } from '@/lib/clientes/prioridad'
-import { TARJETAS, domingoDe, esFecha, fechaCorta, nuevoIdFila, sumarDias, type DatosEow, type FilaEow } from './modelo'
+import { TARJETAS, domingoDe, lunesDe, esFecha, nuevoIdFila, rangoSemana, type DatosEow, type FilaEow } from './modelo'
 
 export interface ClienteLanzado { nombre: string; idCrm: string | null; lanzado: string }
 
@@ -30,10 +31,9 @@ export function yaEnReporte(datos: DatosEow, c: Pick<ClienteLanzado, 'nombre' | 
   return cruce(c.nombre) !== null
 }
 
-/** Ventana de lanzamientos que cuentan para esta semana: después del reporte anterior (o los últimos 7 días), hasta hoy. */
-export function ventana(hoy: string, semanaAnterior: string | null): { desde: string; hasta: string } {
-  const desde = semanaAnterior && semanaAnterior < hoy ? sumarDias(semanaAnterior, 1) : sumarDias(hoy, -6)
-  return { desde, hasta: hoy }
+/** Ventana de lanzamientos de la semana del reporte: del lunes al domingo de cierre (`semana` es ese domingo). */
+export function ventana(semana: string): { desde: string; hasta: string } {
+  return { desde: lunesDe(semana), hasta: semana }
 }
 
 /** Los recién lanzados para agregar: en la ventana, sin clientes de prueba, sin repetidos y que no estén en el reporte. */
@@ -66,7 +66,7 @@ export function textoAviso(semana: string, nombres: readonly string[], link: str
   return [
     `Reporte EOW de la semana: ${n} ${n === 1 ? 'cliente recién lanzado' : 'clientes recién lanzados'} para ubicar`,
     ...nombres.map((x) => `• ${x}`),
-    `${link} (semana del ${fechaCorta(semana)})`,
+    `${link} (semana del ${rangoSemana(semana)})`,
   ].join('\n')
 }
 
@@ -118,7 +118,7 @@ export async function correrAvisoEow(d: DepsAvisoEow, opciones: { dry?: boolean;
   if (!lanzados) return { ...base, motivo: 'No se pudo leer Meta: la semana quedó creada, pero sin los recién lanzados (se reintenta con ?forzar=1).' }
   const datos = (await d.leer(semana)) ?? null
   const anterior = await d.semanaAnterior(semana)
-  const v = ventana(hoy, anterior)
+  const v = ventana(semana)
   // Sin reporte de la semana todavía: se compara contra la copia de la anterior (lo que quedaría al crearla)
   const comparar = datos ?? (anterior ? await d.leer(anterior) : null) ?? { filas: [], tarjetas: {} as DatosEow['tarjetas'] }
   const nuevos = recienLanzados(lanzados, { filas: comparar.filas, tarjetas: Object.fromEntries(TARJETAS.map((k) => [k, comparar.tarjetas?.[k] ?? []])) as DatosEow['tarjetas'] }, v)

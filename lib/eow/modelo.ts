@@ -165,6 +165,10 @@ export function domingoDe(hoy: string): string {
   const dia = new Date(`${hoy}T12:00:00Z`).getUTCDay() // 0 = domingo
   return dia === 0 ? hoy : sumarDias(hoy, 7 - dia)
 }
+/** El lunes de la semana que cierra el domingo `semana` (la semana va de lunes a domingo). */
+export const lunesDe = (semana: string): string => sumarDias(semana, -6)
+/** «09/11 al 15/11/26»: la semana del reporte, del lunes al domingo de cierre. */
+export const rangoSemana = (semana: string): string => (esFecha(semana) ? `${fechaCorta(lunesDe(semana)).slice(0, 5)} al ${fechaCorta(semana)}` : semana)
 /** «13/11/26» */
 export const fechaCorta = (f: string): string => (esFecha(f) ? `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(2, 4)}` : f)
 
