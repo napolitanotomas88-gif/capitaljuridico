@@ -10,7 +10,13 @@ const SHEETS_REAL = 'https://sheets.googleapis.com'
 const tokenUrl = () => (permiteEndpointsDePrueba() && process.env.GOOGLE_TOKEN_URL) || TOKEN_REAL
 export const sheetsBase = () => (permiteEndpointsDePrueba() && process.env.GOOGLE_SHEETS_URL) || SHEETS_REAL
 const ESPERA_MS = 8000
-let token: { valor: string; vence: number; scopes: string } | null = null
+// Un token por scope: Drive (drive.readonly) y Sheets corren en paralelo y con un solo casillero se lo pisaban (cada
+// uno pedía el suyo de nuevo). Mientras se pide, los pedidos simultáneos del mismo scope comparten la misma promesa.
+const tokens = new Map<string, { valor: string; vence: number }>()
+const pidiendo = new Map<string, Promise<string>>()
+
+// Solo para las pruebas: olvida los tokens guardados y los pedidos en curso
+export function reiniciarTokensGoogle(): void { tokens.clear(); pidiendo.clear() }
 
 function clavePrivada(): string {
   let k = (process.env.GOOGLE_PRIVATE_KEY ?? '').trim()
@@ -25,7 +31,16 @@ export function googleConfigurado(): boolean {
 }
 
 async function tokenDeAcceso(scopes: string): Promise<string> {
-  if (token && token.scopes === scopes && token.vence > Date.now() + 60_000) return token.valor
+  const guardado = tokens.get(scopes)
+  if (guardado && guardado.vence > Date.now() + 60_000) return guardado.valor
+  const enCurso = pidiendo.get(scopes)
+  if (enCurso) return enCurso
+  const p = pedirToken(scopes).finally(() => pidiendo.delete(scopes))
+  pidiendo.set(scopes, p)
+  return p
+}
+
+async function pedirToken(scopes: string): Promise<string> {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
   if (!email || !process.env.GOOGLE_PRIVATE_KEY) throw new Error('Falta la cuenta de servicio de Google')
   const ahora = Math.floor(Date.now() / 1000)
@@ -41,8 +56,8 @@ async function tokenDeAcceso(scopes: string): Promise<string> {
   })
   if (!res.ok) throw new Error(`Google rechazó la cuenta de servicio (${res.status})`)
   const json = (await res.json()) as { access_token: string; expires_in: number }
-  token = { valor: json.access_token, vence: Date.now() + json.expires_in * 1000, scopes }
-  return token.valor
+  tokens.set(scopes, { valor: json.access_token, vence: Date.now() + json.expires_in * 1000 })
+  return json.access_token
 }
 
 export const SCOPE_SHEETS = 'https://www.googleapis.com/auth/spreadsheets'
