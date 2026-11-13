@@ -4,6 +4,7 @@
 import { COOKIE_SESION, igualesSeguro, leerCookie } from './cookie'
 import { esSesionCliente, sesionDePrueba, sesionDesdeCookie, type Sesion } from './identidad'
 import type { Seccion } from './roles'
+import type { ListaCorreos } from './correos'
 import { ERROR_SIN_PERMISO, ERROR_SIN_SESION, veredicto, type Contexto } from './rutas'
 
 type Cabeceras = { get(nombre: string): string | null }
@@ -43,10 +44,10 @@ const SIN_CACHE = { 'Cache-Control': 'no-store', 'Content-Type': 'application/js
  * Segunda barrera de las rutas /api de datos del Resumen. Devuelve la respuesta de rechazo (401 sin sesión, 403 si el rol
  * no ve la sección) o null si puede seguir. Con { maquina: true } también deja pasar el Bearer CRON_SECRET.
  */
-export function exigirAccesoApi(req: Request, seccion: Seccion, opciones: { maquina?: boolean } = {}): Response | null {
+export function exigirAccesoApi(req: Request, seccion: Seccion | null, opciones: { maquina?: boolean; correos?: ListaCorreos } = {}): Response | null {
   const ctx = contextoDePeticion(req.headers)
   const quien = opciones.maquina ? 'google_o_maquina' : 'google'
-  switch (veredicto({ quien, seccion }, ctx)) {
+  switch (veredicto({ quien, seccion: seccion ?? undefined, correos: opciones.correos }, ctx)) {
     case 'sin_sesion':
       return new Response(JSON.stringify({ error: ERROR_SIN_SESION }), { status: 401, headers: SIN_CACHE })
     case 'sin_permiso':

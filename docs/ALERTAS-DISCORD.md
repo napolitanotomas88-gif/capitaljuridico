@@ -56,6 +56,7 @@ Tests: `scripts/test-alertas-discord.mjs`.
 | `DISCORD_WEBHOOK_ANUNCIOS` (alias `DISCORD_WEBHOOK_KICKOFF_ADS`) | 📣-ads | g01–g07 (el texto para el cliente va en el aviso), notas cargadas a mano, `anuncios_dudoso` |
 | `DISCORD_WEBHOOK_CLIENTES` | 🤝-exito-y-bajas | h02 (testimonio recibido), i05, `cliente_sin_respuesta`, `beneficio_referido` |
 | `DISCORD_WEBHOOK_OPERACIONES` | 🛠️-operaciones | Tareas a mano (crear los 3 grupos, Skool, sacar de grupos), `kickoff_error`, «para enviar» con más de 48 h |
+| `DISCORD_WEBHOOK_EOW` | 📊-reporte-eow (privado: Tomás, Gero A y Gero M) | El mismo cron crea antes la semana nueva (copia de la anterior, sin aviso). Aviso de los domingos 10:00 AR del reporte EOW: «N clientes recién lanzados para ubicar» con los nombres y el link a `/eow`. Menciona SOLO a Gero M. Uno por semana (`cj_eow_avisos`). Si falta, sale por `DISCORD_WEBHOOK_OPERACIONES`. Apagado salvo `EOW_AVISO=encendido`; `GET /api/eow/aviso?dry=1` muestra lo que haría |
 | `DISCORD_WEBHOOK_PARA_ENVIAR` | 📤-para-enviar-al-cliente | Cada texto para pegar en un grupo del cliente |
 | `DISCORD_WEBHOOK_SISTEMA` | 🧰-sistema-bot | Respaldo de cualquier canal sin webhook, ensayo y topes; carga de la tanda en el Doc fallida o dudosa y chips sin pasar a «Para grabar» (Gero M y Aylu, link a /guiones/<ID>) |
 | `DISCORD_WEBHOOK_URL` | 🚨-alertas-dashboard | Último respaldo |

@@ -6,6 +6,10 @@
 //      Hosts → Rescheduling preferences = "Use same hosts as original meeting" (por defecto vuelve a sortear el closer).
 //      Si la reunión ya pasó (Calendly no deja reprogramarla), abre el evento "Reunión Consultiva - Reagenda <closer>" del
 //      closer de esa reunión, con los datos del lead.
+//      Cambio de Gero (13/11/2026): también si la reunión TODAVÍA NO PASÓ se abre el evento Reagenda del closer (permite elegir
+//      con más días de antelación que el evento original). El link lleva en utm_content la reunión vieja ("reemplaza-<uuid>")
+//      y, cuando el lead reserva, el webhook carga la fecha nueva y recién ahí cancela en Calendly la reunión vieja. Si el
+//      closer no tiene evento Reagenda, sigue el link de reprogramación de siempre.
 //   2. Calendly avisa al webhook (/api/calendly-webhook: invitee.created con `old_invitee`, o una reserva del evento Reagenda)
 //      y la fila del lead se actualiza sola (`aplicarReprogramacion` / `aplicarReagendaNueva`): R = No (no se presentó a la
 //      primera), T vacía, AC = fecha y hora nuevas, AH = ese día (los seguimientos de no-show esperan a la reunión nueva) y una
@@ -176,9 +180,24 @@ export function elegirEventoReagenda(eventos: readonly EventoReagenda[], anfitri
   return null;
 }
 
-/** Link al evento de reagenda con el nombre, el mail y (si el evento lo pregunta) el celular del lead ya cargados. */
-export function linkConDatos(evento: EventoReagenda, fila: FilaLead): string {
+/** Prefijo de utm_content que marca la reunión (todavía no pasada) que reemplaza la reserva del evento Reagenda. */
+const PREFIJO_REEMPLAZA = "reemplaza-";
+/** El uuid de la reunión a reemplazar que trae el utm_content de una reserva; null si no trae una marca válida. */
+export function eventoAReemplazar(utmContent: string | null | undefined): string | null {
+  const t = (utmContent ?? "").trim();
+  if (!t.startsWith(PREFIJO_REEMPLAZA)) return null;
+  const uuid = t.slice(PREFIJO_REEMPLAZA.length);
+  return /^[A-Za-z0-9-]{8,64}$/.test(uuid) ? uuid : null;
+}
+
+/**
+ * Link al evento de reagenda con el nombre, el mail y (si el evento lo pregunta) el celular del lead ya cargados. Con
+ * `reemplaza` (uri de la reunión que todavía no pasó), la marca en utm_content para que el webhook la cancele al reservar.
+ */
+export function linkConDatos(evento: EventoReagenda, fila: FilaLead, reemplaza?: string): string {
   const u = new URL(evento.url);
+  const uuid = reemplaza?.split("/").pop() ?? "";
+  if (eventoAReemplazar(PREFIJO_REEMPLAZA + uuid)) u.searchParams.set("utm_content", PREFIJO_REEMPLAZA + uuid);
   const { nombre, email, telefono } = fila.valores;
   if (nombre.trim()) u.searchParams.set("name", nombre.trim());
   if (email.trim()) u.searchParams.set("email", email.trim());
@@ -221,11 +240,12 @@ async function buscarReunion(
 }
 
 /**
- * El link para reagendar la reunión actual del lead (la de la fila):
- *   - si todavía no empezó: su link de reprogramación de Calendly (mueve el evento y libera el horario viejo; con el mismo
- *     closer si el evento round robin tiene "Use same hosts as original meeting");
- *   - si ya pasó (Calendly no deja reprogramarla): el evento "Reagenda" del closer de esa reunión (o del dueño de la pestaña),
- *     con los datos del lead cargados. Esa reserva nueva la toma el webhook (`aplicarReagendaNueva`).
+ * El link para reagendar la reunión actual del lead (la de la fila): el evento "Reagenda" del closer de esa reunión (o del
+ * dueño de la pestaña), con los datos del lead cargados. Esa reserva nueva la toma el webhook (`aplicarReagendaNueva`).
+ *   - si la reunión todavía no empezó (Gero, 13/11/2026: más días de antelación), el link marca esa reunión para que el
+ *     webhook la cancele cuando el lead reserve; si el closer no tiene evento Reagenda, el link de reprogramación de Calendly
+ *     (mueve el evento y libera el horario viejo);
+ *   - si ya pasó (Calendly no deja reprogramarla) o ya no está en Calendly (se canceló), el evento Reagenda.
  * `{ error }` si no se puede: el botón explica que hay que hacerlo a mano.
  */
 export async function linkReprogramacion(
@@ -236,14 +256,16 @@ export async function linkReprogramacion(
   const b = await buscarReunion(fila);
   if ("error" in b) return b;
   const { reunion, api, evento } = b;
-  if (evento && new Date(evento.ev.start_time).getTime() > ahora.getTime() && evento.invitado.reschedule_url)
-    return { url: evento.invitado.reschedule_url };
+  const futura = !!evento && new Date(evento.ev.start_time).getTime() > ahora.getTime();
   const anfitrion = evento?.ev.event_memberships?.[0]?.user ?? null;
-  if (anfitrion || reunion.getTime() <= ahora.getTime()) {
+  // Sin evento activo (p. ej. la reunión se canceló con el botón Cancelar): el evento Reagenda del closer de la pestaña.
+  if (anfitrion || !futura) {
     const reagenda = elegirEventoReagenda(await eventosReagenda(api), anfitrion, closerDeHoja, fila.hoja);
-    if (reagenda) return { url: linkConDatos(reagenda, fila) };
-    return { error: `La reunión del ${corto(reunion)} ya pasó y no encontré en Calendly el evento "Reunión Consultiva - Reagenda" de ${closerDeHoja}.` };
+    if (reagenda) return { url: linkConDatos(reagenda, fila, futura ? evento!.ev.uri : undefined) };
   }
+  if (futura && evento!.invitado.reschedule_url) return { url: evento!.invitado.reschedule_url };
+  if (reunion.getTime() <= ahora.getTime())
+    return { error: `La reunión del ${corto(reunion)} ya pasó y no encontré en Calendly el evento "Reunión Consultiva - Reagenda" de ${closerDeHoja}.` };
   const mail = fila.valores.email.trim();
   return { error: `No encontré en Calendly la reunión del ${corto(reunion)} de este lead${mail ? ` (${mail})` : ""}.` };
 }
@@ -287,8 +309,8 @@ export async function cancelarEnCalendly(fila: FilaLead, ahora = new Date()): Pr
 }
 
 export type ResultadoReprogramacion =
-  | { ok: true; hoja: string; fila: number; lead: string; de: string; a: string }
-  | { ok: false; motivo: string };
+  | { ok: true; hoja: string; fila: number; lead: string; de: string; a: string; cancelada?: string }
+  | { ok: false; motivo: string; cancelada?: string };
 
 /**
  * Aplica una reprogramación avisada por Calendly (invitee.created con `old_invitee`): busca la fila del lead cuya reunión
@@ -341,22 +363,30 @@ export async function aplicarReprogramacion(p: {
  * La fila que corresponde a una reserva del evento "Reagenda" (reunión que ya pasó): del mismo lead (mail o teléfono), en una
  * etapa en la que se puede reagendar (no se presentó y no cerró) y con su reunión actual ANTES del horario nuevo. Si el lead
  * tiene varias, la de la reunión más reciente; si empatan, ninguna (ambigua). Si la reunión actual ya es la nueva (Calendly
- * reintentó el webhook), no hay nada que hacer.
+ * reintentó el webhook), no hay nada que hacer (`yaCargada`).
+ * Con `viejoConocido` (la reserva reemplaza una reunión que todavía no pasó), la fila es la de esa reunión, aunque el horario
+ * nuevo sea anterior.
  */
 export function filaDeLaReagendaNueva(
   filas: readonly FilaLead[],
   invitado: Invitado,
   inicioNuevo: Date,
-): { fila: FilaLead; viejo: Date } | { motivo: string } {
+  viejoConocido?: Date | null,
+): { fila: FilaLead; viejo: Date } | { motivo: string; yaCargada?: true } {
   const mail = normalizar(invitado.email);
   const tel = ultimos8(invitado.telefono);
   const delLead = filas.filter((f) => (mail && normalizar(f.valores.email) === mail) || (tel && ultimos8(f.valores.telefono) === tel));
   if (delLead.length === 0) return { motivo: `no encontré en el CRM el lead ${invitado.email}` };
   if (delLead.some((f) => Math.abs((reunionActual(f)?.getTime() ?? 0) - inicioNuevo.getTime()) <= TOLERANCIA_MS))
-    return { motivo: `la reagenda de ${invitado.email} ya estaba cargada` };
+    return { motivo: `la reagenda de ${invitado.email} ya estaba cargada`, yaCargada: true };
   const posibles = delLead
     .map((fila) => ({ fila, viejo: reunionActual(fila) }))
-    .filter((c): c is { fila: FilaLead; viejo: Date } => !!c.viejo && c.viejo.getTime() < inicioNuevo.getTime())
+    .filter((c): c is { fila: FilaLead; viejo: Date } =>
+      !!c.viejo &&
+      (viejoConocido
+        ? Math.abs(c.viejo.getTime() - viejoConocido.getTime()) <= TOLERANCIA_MS
+        : c.viejo.getTime() < inicioNuevo.getTime()),
+    )
     .filter((c) => cambiosDeReprogramacion(c.fila, c.viejo, inicioNuevo, inicioNuevo) !== null)
     .sort((a, b) => b.viejo.getTime() - a.viejo.getTime());
   if (posibles.length === 0) return { motivo: `${invitado.email} no tiene una reunión anterior para reagendar (ya se presentó o cerró)` };
@@ -366,9 +396,30 @@ export function filaDeLaReagendaNueva(
 }
 
 /**
- * Aplica una reserva del evento "Reunión Consultiva - Reagenda <closer>" (lead cuya reunión ya pasó, Calendly no la deja
- * reprogramar): los mismos cambios que una reprogramación (R = No, T vacía, AC = horario nuevo, AH = ese día, nota en AB),
- * con la escritura segura del CRM y en el Log App como "Calendly".
+ * La reunión que reemplaza una reserva del evento Reagenda se cancela solo si sigue activa, todavía no empezó y es del mismo
+ * lead (mail o teléfono de un invitado activo). Si no, no se toca nada en Calendly.
+ */
+export function reemplazadaCancelable(
+  ev: { status?: string; start_time?: string } | null | undefined,
+  invitados: readonly InvitadoAPI[],
+  lead: Invitado,
+  ahora: Date,
+): boolean {
+  if (!ev || ev.status !== "active" || !ev.start_time) return false;
+  const inicio = new Date(ev.start_time);
+  if (isNaN(inicio.getTime()) || inicio.getTime() <= ahora.getTime()) return false;
+  const mail = normalizar(lead.email);
+  const tel = ultimos8(lead.telefono);
+  return invitados.some(
+    (i) => i.status !== "canceled" && ((mail && normalizar(i.email ?? "") === mail) || (tel && ultimos8(i.text_reminder_number ?? "") === tel)),
+  );
+}
+
+/**
+ * Aplica una reserva del evento "Reunión Consultiva - Reagenda <closer>": los mismos cambios que una reprogramación (R = No,
+ * T vacía, AC = horario nuevo, AH = ese día, nota en AB), con la escritura segura del CRM y en el Log App como "Calendly".
+ * Con `reemplaza` (uuid de la reunión que todavía no había pasado, del utm_content del link del botón), la fila es la de esa
+ * reunión y, una vez cargada la fecha nueva (o si ya estaba cargada: Calendly reintentó), se cancela esa reunión en Calendly.
  */
 export async function aplicarReagendaNueva(p: {
   email?: string;
@@ -376,16 +427,47 @@ export async function aplicarReagendaNueva(p: {
   inicioNuevo?: string;
   /** Closer de la reunión nueva, para la nota. */
   closerNuevo?: string;
+  /** uuid de la reunión (todavía no pasada) que reemplaza esta reserva. */
+  reemplaza?: string | null;
 }): Promise<ResultadoReprogramacion> {
   const nuevo = p.inicioNuevo ? new Date(p.inicioNuevo) : null;
   if (!nuevo || isNaN(nuevo.getTime())) return { ok: false, motivo: "la reserva no trae la fecha" };
   const con = p.closerNuevo?.trim() ? ` con ${p.closerNuevo.trim()}` : "";
+  const lead: Invitado = { email: p.email ?? "", telefono: p.telefono ?? "" };
+
+  // La reunión vieja que hay que reemplazar (si el link la marcó y sigue activa, por venir y del mismo lead)
+  let reemplazada: { uri: string; inicio: Date; api: { h: Record<string, string>; org: string } } | null = null;
+  if (p.reemplaza) {
+    const api = await calendly();
+    if (api) {
+      const uri = `${API}/scheduled_events/${encodeURIComponent(p.reemplaza)}`;
+      const ev = ((await (await fetch(uri, { headers: api.h })).json()) as { resource?: EventoAPI }).resource;
+      const inv = ev ? ((await (await fetch(`${uri}/invitees`, { headers: api.h })).json()) as { collection?: InvitadoAPI[] }).collection ?? [] : [];
+      if (ev && reemplazadaCancelable(ev, inv, lead, new Date())) reemplazada = { uri: ev.uri || uri, inicio: new Date(ev.start_time), api };
+    }
+  }
+  const cancelar = async (): Promise<string | undefined> => {
+    if (!reemplazada) return undefined;
+    const r = await fetch(`${reemplazada.uri}/cancellation`, {
+      method: "POST",
+      headers: { ...reemplazada.api.h, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: `Reagendada para el ${corto(nuevo)}.` }),
+    });
+    if (!r.ok) throw new Error(`Calendly respondió ${r.status} al cancelar la reunión del ${corto(reemplazada.inicio)}`);
+    return corto(reemplazada.inicio);
+  };
+
   invalidarCache();
   const hojas = await leerHojas(hojasClosers());
-  const elegida = filaDeLaReagendaNueva([...hojas.values()].flat(), { email: p.email ?? "", telefono: p.telefono ?? "" }, nuevo);
-  if ("motivo" in elegida) return { ok: false, motivo: elegida.motivo };
+  const elegida = filaDeLaReagendaNueva([...hojas.values()].flat(), lead, nuevo, reemplazada?.inicio ?? null);
+  if ("motivo" in elegida) {
+    // Reintento de Calendly con la fecha ya cargada: falta solo cancelar la vieja (si sigue activa)
+    if (elegida.yaCargada) return { ok: false, motivo: elegida.motivo, cancelada: await cancelar() };
+    return { ok: false, motivo: elegida.motivo };
+  }
   const { fila, viejo } = elegida;
-  const plan = cambiosDeReprogramacion(fila, viejo, nuevo, new Date(), `Reagendado en Calendly${con} (la reunión ya había pasado)`);
+  const como = reemplazada ? `Reagendado en Calendly${con}` : `Reagendado en Calendly${con} (la reunión ya había pasado)`;
+  const plan = cambiosDeReprogramacion(fila, viejo, nuevo, new Date(), como);
   if (!plan) return { ok: false, motivo: `${fila.valores.nombre} (${fila.hoja}, fila ${fila.numeroFila}) ya se presentó o cerró: no se tocó` };
   const { nombre, telefono, fechaCall } = fila.valores;
   await aplicarCambios({
@@ -401,7 +483,7 @@ export async function aplicarReagendaNueva(p: {
     modo: "accion",
     tocar: false,
   });
-  return { ok: true, hoja: fila.hoja, fila: fila.numeroFila, lead: nombre, de: corto(viejo), a: corto(nuevo) };
+  return { ok: true, hoja: fila.hoja, fila: fila.numeroFila, lead: nombre, de: corto(viejo), a: corto(nuevo), cancelada: await cancelar() };
 }
 
 /** La nota en AB de una reunión cancelada desde el CRM, arriba de lo que ya había. */

@@ -162,7 +162,8 @@ describe('tabla REGLAS: orden y forma', () => {
       assert.ok(['publico', 'propio', 'finanzas', 'google', 'google_o_maquina'].includes(r.quien), r.patron)
       if (r.seccion) assert.ok(SECCIONES.includes(r.seccion), r.patron)
       // Las rutas del marco global (notificaciones y presencia, 27/10/2026) son para cualquiera con sesión: el filtro va adentro
-      if ((r.quien === 'google' || r.quien === 'google_o_maquina') && !MARCO_SIN_SECCION.includes(r.patron)) assert.ok(r.seccion, `${r.patron}: falta la sección`)
+      // Las que se abren por MAIL (EOW, 13/11/2026: lib/auth/correos.ts) no llevan sección: llevan su lista de correos
+      if ((r.quien === 'google' || r.quien === 'google_o_maquina') && !MARCO_SIN_SECCION.includes(r.patron)) assert.ok(r.seccion || r.correos, `${r.patron}: falta la sección`)
       assert.ok(r.motivo.length > 10, r.patron)
     }
   })

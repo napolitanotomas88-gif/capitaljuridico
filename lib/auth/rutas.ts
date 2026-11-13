@@ -17,6 +17,7 @@ import { puedeVer, rutaInicial, type Rol, type Seccion } from './roles'
 import { rutaInternaSegura } from './destino'
 import { destinoSinPermiso } from './hubClientes'
 import { esRutaDelPortal } from './portal'
+import { correoPermitido, type ListaCorreos } from './correos'
 
 export type Quien =
   /** Cualquiera: login y estáticos. El proxy no mira nada de la petición. */
@@ -30,7 +31,9 @@ export type Quien =
   /** Igual que "google", o bien "Authorization: Bearer <CRON_SECRET>" (scripts y verificaciones, nunca ?key=). */
   | 'google_o_maquina'
 
-export type Regla = { patron: string; quien: Quien; seccion?: Seccion; motivo: string }
+/** `correos` (13/11/2026): además de la sesión, el MAIL tiene que estar en esa lista (lib/auth/correos.ts). Ni el rol ni las
+ *  secciones la abren: es por persona. */
+export type Regla = { patron: string; quien: Quien; seccion?: Seccion; correos?: ListaCorreos; motivo: string }
 
 export const REGLAS: readonly Regla[] = [
   // ── Públicas: sin esto nadie puede entrar o la pantalla de ingreso se rompe ───────────────────
@@ -124,6 +127,10 @@ export const REGLAS: readonly Regla[] = [
   { patron: '/api/cuotas/aviso-admin', quien: 'propio', motivo: 'Aviso diario de las cuotas que cobra Administración (12/11/2026): cron 10:00 AR, una línea por cuota (vence hoy, en 2 días o atrasada) en 🛠️-operaciones y el texto para el cliente en Para enviar. Solo Bearer CRON_SECRET (nunca ?key=): 401 sin él. ?dry=1 no escribe ni manda. Encendido con AVISO_CUOTAS_ADMIN=encendido.' },
   { patron: '/api/clientes/inactivos/cron', quien: 'propio', motivo: 'Cron con Bearer CRON_SECRET: alertas internas por tres días sin respuesta. Sin sesión humana y sin mensajes al cliente.' },
   { patron: '/api/clientes/encuesta/cron', quien: 'propio', motivo: 'Cron con Bearer CRON_SECRET (10:00 AR): lista de los que no contestaron la encuesta mensual (desde el día 3 del envío marcado) a 🛠️-operaciones. ?dry=1 no manda. Sin sesión humana y sin mensajes al cliente.' },
+  // EOW (13/11/2026): reporte End of Week, por MAIL (EOW_CORREOS), no por rol. El cron va ANTES que '/api/eow/*'.
+  { patron: '/api/eow/aviso', quien: 'propio', motivo: 'Recién lanzados del EOW: cron diario de Vercel que actúa los domingos (agrega al reporte de la semana los clientes cuya campaña se lanzó y avisa en #📊-reporte-eow), ?dry=1. Solo Bearer CRON_SECRET (nunca ?key=): 401 sin él. Encendido con EOW_AVISO=encendido.' },
+  { patron: '/eow/*', quien: 'google', correos: 'eow', motivo: 'Reporte EOW (End of Week): semáforo de clientes, recién lanzados y tarjetas de la semana. Solo los mails de EOW_CORREOS (Tomás, Empresa y Gero M); sin la variable, nadie. Ningún rol ni sección lo abre.' },
+  { patron: '/api/eow/*', quien: 'google', correos: 'eow', motivo: 'API del EOW (leer, guardar con versión, nueva semana): sesión de Google con el mail en EOW_CORREOS y mismo origen. Sin acceso por máquina.' },
   { patron: '/api/clientes/sincronizar', quien: 'propio', motivo: 'Cron con Bearer CRON_SECRET: confirma pedidos durables de acciones y meses de referidos; reconcilia avisos internos. Sin escritura nueva sin un pedido previo.' },
   { patron: '/api/clientes/*', quien: 'google', seccion: 'clientes', motivo: 'API de clientes. La usa la pantalla /clientes/[id]/kickoff (POST /api/clientes/[id]/kickoff: tildes del portfolio y aprobación de ideas). Sin acceso por máquina.' },
   { patron: '/api/edicion/clickup', quien: 'propio', motivo: 'Webhook de ClickUp de la lista de Edición (X-Signature: HMAC-SHA256 con el secreto del webhook, tiempo constante) y acciones/estado con Bearer CRON_SECRET (sincronizar, registrar el webhook, simular Publicar en seco). Nunca ?key=. Falla cerrado.' },
@@ -193,19 +200,20 @@ export function resolverRegla(pathname: string): Resolucion {
 
 // ── Decisión ───────────────────────────────────────────────────────────────────────────────
 /** Lo que se sabe de quien pide: su sesión de Google (solo hace falta el rol) y si mandó el Bearer correcto. */
-export type Contexto = { sesion: { rol: Rol; secciones?: readonly Seccion[] | null; clienteId?: string | null } | null; maquina: boolean }
+export type Contexto = { sesion: { rol: Rol; secciones?: readonly Seccion[] | null; clienteId?: string | null; email?: string | null } | null; maquina: boolean }
 export type Veredicto = 'pasar' | 'finanzas' | 'sin_sesion' | 'sin_permiso'
 
-function conSesion(regla: Pick<Regla, 'seccion'>, ctx: Contexto): Veredicto {
+function conSesion(regla: Pick<Regla, 'seccion' | 'correos'>, ctx: Contexto): Veredicto {
   if (!ctx.sesion) return 'sin_sesion'
   // El cliente (portal) no tiene permiso para NADA por sección ni por "cualquier sesión": su portal lo abre decidir() aparte
   if (ctx.sesion.rol === 'cliente') return 'sin_permiso'
   if (regla.seccion && !puedeVer(ctx.sesion, regla.seccion)) return 'sin_permiso'
+  if (regla.correos && !correoPermitido(regla.correos, ctx.sesion.email)) return 'sin_permiso'
   return 'pasar'
 }
 
 /** Resultado de aplicar una regla a quien pide. "finanzas" = que lo resuelva el bloque de la contraseña de Finanzas. */
-export function veredicto(regla: Pick<Regla, 'quien' | 'seccion'>, ctx: Contexto): Veredicto {
+export function veredicto(regla: Pick<Regla, 'quien' | 'seccion' | 'correos'>, ctx: Contexto): Veredicto {
   switch (regla.quien) {
     case 'publico':
     case 'propio':
