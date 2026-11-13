@@ -117,9 +117,9 @@ export type Lugares = {
 
 /**
  * Lugares de un evento: por closer y por día, los horarios libres en orden, sin pisarse entre sí (una reunión arranca cuando
- * terminó la anterior), hasta el tope diario.
+ * terminó la anterior más el margen entre reuniones de Calendly, `margenMin`), hasta el tope diario.
  */
-export function contarLugares(p: { horarios: readonly Date[]; hosts: readonly Host[]; duracionMin: number; nivel: Nivel }): Lugares {
+export function contarLugares(p: { horarios: readonly Date[]; hosts: readonly Host[]; duracionMin: number; nivel: Nivel; margenMin?: number }): Lugares {
   const ordenados = [...p.horarios].sort((a, b) => a.getTime() - b.getTime())
   const porDia: Record<string, Record<string, number>> = {}
   let total = 0
@@ -134,7 +134,7 @@ export function contarLugares(p: { horarios: readonly Date[]; hosts: readonly Ho
       const tope = h.tope ?? Infinity
       if ((h.reservasPorDia?.[dia] ?? 0) + (tomados[dia] ?? 0) >= tope) continue
       if (s.getTime() < (finPorDia[dia] ?? -Infinity)) continue
-      finPorDia[dia] = s.getTime() + p.duracionMin * 60_000
+      finPorDia[dia] = s.getTime() + (p.duracionMin + (p.margenMin ?? 0)) * 60_000
       tomados[dia] = (tomados[dia] ?? 0) + 1
       ;(porDia[dia] ??= {})[h.nombre] = (porDia[dia][h.nombre] ?? 0) + 1
       total++
