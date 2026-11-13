@@ -99,7 +99,7 @@
 .ko-ideas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
 .ko-idea {
   display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; min-width: 0;
-  background: var(--cj-sala); border: 1px solid var(--cj-filete-fuerte); border-left: 3px solid var(--cj-laton); border-radius: var(--cj-radio);
+  background: var(--cj-sala); border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio);
   --cj-texto-2: var(--cj-humo-claro);
 }
 .ko-idea__titulo { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; }

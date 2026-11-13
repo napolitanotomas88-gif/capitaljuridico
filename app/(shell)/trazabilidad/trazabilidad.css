@@ -8,7 +8,7 @@
 .traz-texto strong { color: var(--cj-hueso); font-weight: 600; }
 .traz-nota { font-size: 13px; color: var(--cj-humo); margin: 0; }
 
-.traz-direccional { border-left: 2px solid var(--cj-laton); padding: 4px 0 4px 16px; }
+.traz-direccional { padding: 4px 0; }
 
 .traz-capa { display: inline-block; min-width: 20px; font-size: 13px; text-align: center; }
 .traz-capa--si { color: var(--cj-ok); }
