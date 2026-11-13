@@ -103,12 +103,15 @@
     background: #03221c;
     color-scheme: dark;
   }
+  /* Nocturno un 20 % más oscuro (13/11/2026, pedido de Tomás): fondo, manchas, logo y paneles bajan un 20 % de luz */
   :root:has(.cj-cristal[data-noche='true']) {
-    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.04) 100%), rgba(2, 16, 13, 0.7);
-    --cjc-panel-liso: rgba(4, 22, 18, 0.88);
-    --card: rgba(4, 22, 18, 0.74);
+    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), rgba(2, 13, 10, 0.76);
+    --cjc-panel-liso: rgba(3, 18, 14, 0.9);
+    --card: rgba(3, 18, 14, 0.8);
+    background: #021b16;
   }
   body:has(.cj-cristal) { background: #03221c; color: var(--cj-hueso); }
+  body:has(.cj-cristal[data-noche='true']) { background: #021b16; }
   :root:has(.cj-cristal) ::selection { background: rgba(208, 164, 90, 0.45); color: #fff; }
 
   /* ── El marco ── */
@@ -161,8 +164,8 @@
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
   }
-  .cj-cristal[data-noche='true'] .cj-cristal__manchas { filter: brightness(0.55) saturate(0.85); }
-  .cj-cristal[data-noche='true'] .cj-cristal__logo { opacity: 0.17; }
+  .cj-cristal[data-noche='true'] .cj-cristal__manchas { filter: brightness(0.44) saturate(0.85); }
+  .cj-cristal[data-noche='true'] .cj-cristal__logo { opacity: 0.14; }
 
   /* ── Barra lateral: un panel de cristal que flota (escritorio) ── */
   .cj-cristal .cj-lateral {
@@ -179,7 +182,7 @@
     border-right: 0;
     font-family: var(--cjc-sans);
   }
-  .cj-cristal[data-noche='true'] .cj-lateral { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(190, 143, 73, 0.06) 100%), rgba(2, 14, 11, 0.68); }
+  .cj-cristal[data-noche='true'] .cj-lateral { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(190, 143, 73, 0.05) 100%), rgba(2, 11, 9, 0.74); }
   @media (min-width: 769px) {
     .cj-cristal .cj-lateral {
       top: 16px;
@@ -695,7 +698,7 @@
       -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
     }
     :root:has(.cj-cristal) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 38%, rgba(190, 143, 73, 0.05) 100%), rgba(5, 30, 25, 0.72); }
-    :root:has(.cj-cristal[data-noche='true']) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.035) 100%), rgba(2, 16, 13, 0.8); }
+    :root:has(.cj-cristal[data-noche='true']) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.03) 100%), rgba(2, 13, 10, 0.84); }
     :root:has(.cj-cristal) .rc-capa .rc-panel { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   }
 }
@@ -715,4 +718,14 @@
   .cj-cristal .recharts-wrapper [fill='#9db5ac'] { fill: #6e9488; }
   .cj-cristal .recharts-wrapper [fill='#605747'] { fill: #e3dac8; }
   .cj-cristal .recharts-wrapper [stroke='#cdbf9f'] { stroke: rgba(255, 255, 255, 0.38); }
+}
+
+/* ── Letra un 10 % más grande (13/11/2026, pedido de Tomás) ──
+   Los tamaños del Despacho están en px en cientos de reglas: se agranda con zoom el contenido (no el marco, que usa 100vh y
+   se desbordaría) y lo que se abre encima (tarjeta del cliente y hoja «Más»). Solo en escritorio: en el celular el ancho no
+   alcanza. Cuando exista la escala única de tamaños (tanda visual) esto pasa a ser un factor de esa escala. */
+@media screen and (min-width: 900px) {
+  .cj-cristal .cj-contenido,
+  :root:has(.cj-cristal) .rc-capa :is(.rc-panel__cab, .rc-panel__cuerpo),
+  :root:has(.cj-cristal) .cj-hoja { zoom: 1.1; }
 }
