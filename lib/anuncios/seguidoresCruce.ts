@@ -3,9 +3,11 @@
 // POST /api/ads/seguidores. Acá se valida esa foto y se calculan los costos que muestra el Resumen.
 //
 //   · Costo atribuido = gasto ÷ seguidores que Meta Ads le atribuye al anuncio.
-//   · Costo real      = gasto ÷ seguidores del posteo en Business Suite (orgánico + anuncios).
-//   · Solo anuncios   = gasto ÷ seguidores «de anuncios» del posteo.
-//   · Perfil          = anuncios que no usan un posteo (contenido subido): gasto ÷ crecimiento del perfil.
+//   · Costo real      = gasto ÷ seguidores «de anuncios» del posteo en Business Suite (los orgánicos NO cuentan).
+//   · Con orgánicos   = gasto ÷ seguidores totales del posteo (referencia).
+//   · Perfil          = anuncios que no usan un posteo (contenido subido): gasto ÷ (crecimiento del perfil − seguidores
+//                       orgánicos que trajeron los posteos propios del perfil, según Business Suite).
+// Todo se suma también por cuenta publicitaria («principal», «secundaria»), además del total de FM.
 // Business Suite da acumulados: el dato de un día sale de restar contra la foto anterior.
 // Sin imports de Next: se prueba con node:test. Los IDs de cuentas y posteos llegan con los datos, nunca en el código.
 
@@ -26,6 +28,7 @@ export interface PerfilFoto {
   cuenta: string
   seguidores: number            // seguidores del perfil al momento de la foto
   seguidoresInicio?: number     // seguidores cuando arrancaron los anuncios (para el acumulado)
+  organicosAcum?: number        // seguidores orgánicos de los posteos propios del perfil desde el inicio (se restan)
   gastoAcum: number
   atribuidosAcum: number
   gastoAyer: number
@@ -89,9 +92,12 @@ export function validarFoto(entrada: unknown): { ok: true; foto: FotoCruce } | {
       return { ok: false, motivo: `perfil ${usuario}: seguidores, gasto y atribuidos tienen que ser números ≥ 0` }
     if (f.seguidoresInicio !== undefined && !esNum(f.seguidoresInicio))
       return { ok: false, motivo: `perfil ${usuario}: seguidoresInicio tiene que ser un número ≥ 0` }
+    if (f.organicosAcum !== undefined && !esNum(f.organicosAcum))
+      return { ok: false, motivo: `perfil ${usuario}: organicosAcum tiene que ser un número ≥ 0` }
     perfiles.push({
       usuario, cuenta, seguidores: f.seguidores as number,
       ...(f.seguidoresInicio !== undefined ? { seguidoresInicio: f.seguidoresInicio as number } : {}),
+      ...(f.organicosAcum !== undefined ? { organicosAcum: f.organicosAcum as number } : {}),
       gastoAcum: f.gastoAcum as number, atribuidosAcum: f.atribuidosAcum as number,
       gastoAyer: f.gastoAyer as number, atribuidosAyer: f.atribuidosAyer as number,
     })
@@ -116,22 +122,24 @@ export interface FilaPosteo {
   costoAtribuido: number | null
   bsTotal: number | null
   bsAnuncios: number | null
-  costoReal: number | null
-  costoSoloAnuncios: number | null
+  costoReal: number | null            // gasto ÷ seguidores de anuncios (sin orgánicos)
+  costoConOrganicos: number | null    // gasto ÷ seguidores totales (referencia)
   // Día (contra la foto anterior). null cuando no hay foto anterior o Business Suite no dio dato.
   gastoAyer: number
   atribuidosAyer: number
   costoAtribuidoAyer: number | null
   bsNuevos: number | null
   bsAnunciosNuevos: number | null
-  costoRealAyer: number | null
+  costoRealAyer: number | null        // gasto del día ÷ seguidores de anuncios nuevos
 }
 
 export interface FilaPerfil {
   usuario: string
   cuenta: string
   seguidores: number
-  nuevosAcum: number | null
+  crecimientoAcum: number | null      // seguidores − seguidores al inicio
+  organicosAcum: number               // orgánicos de los posteos propios que se restan
+  nuevosAcum: number | null           // crecimiento − orgánicos (lo que se le adjudica a los anuncios)
   costoRealAcum: number | null
   gastoAcum: number
   atribuidosAcum: number
@@ -142,28 +150,61 @@ export interface FilaPerfil {
   costoRealAyer: number | null
 }
 
+export interface TotalesCruce {
+  gastoAcum: number
+  atribuidosAcum: number
+  costoAtribuido: number | null
+  seguidoresReales: number            // de anuncios: Business Suite «de anuncios» + crecimiento de perfiles sin orgánicos
+  seguidoresConOrganicos: number      // Business Suite total + crecimiento de perfiles
+  gastoConDato: number                // gasto de los posteos y perfiles que tienen dato real
+  costoReal: number | null
+  gastoAyer: number
+  atribuidosAyer: number
+  costoAtribuidoAyer: number | null
+  seguidoresRealesAyer: number | null // null sin foto anterior
+  gastoAyerConDato: number
+  costoRealAyer: number | null
+}
+
 export interface CruceCalculado {
   dia: string
   tomada: string
   diaAnterior: string | null
   posteos: FilaPosteo[]
   perfiles: FilaPerfil[]
-  totales: {
-    gastoAcum: number
-    atribuidosAcum: number
-    costoAtribuido: number | null
-    seguidoresReales: number      // Business Suite (posteos con dato) + crecimiento de perfiles
-    gastoConDato: number          // gasto de los posteos y perfiles que tienen dato real
-    costoReal: number | null
-    gastoAyer: number
-    atribuidosAyer: number
-    costoAtribuidoAyer: number | null
-  }
+  totales: TotalesCruce
+  porCuenta: { cuenta: string; totales: TotalesCruce }[]   // principal primero, después el resto por nombre
   notas: string[]
 }
 
 const idPosteo = (p: { cuenta: string; clave: string }) => `${p.cuenta}|${p.clave}`.toLowerCase()
 const resta = (a: number | null | undefined, b: number | null | undefined) => (a != null && b != null ? Math.max(0, a - b) : null)
+const suma = (xs: number[]) => xs.reduce((a, x) => a + x, 0)
+
+function totalizar(posteos: FilaPosteo[], perfiles: FilaPerfil[], hayAnterior: boolean): TotalesCruce {
+  const posteosConDato = posteos.filter(p => p.bsAnuncios != null)
+  const perfilesConDato = perfiles.filter(p => p.nuevosAcum != null)
+  const gastoAcum = suma(posteos.map(p => p.gastoAcum)) + suma(perfiles.map(p => p.gastoAcum))
+  const atribuidosAcum = suma(posteos.map(p => p.atribuidosAcum)) + suma(perfiles.map(p => p.atribuidosAcum))
+  const gastoAyer = suma(posteos.map(p => p.gastoAyer)) + suma(perfiles.map(p => p.gastoAyer))
+  const atribuidosAyer = suma(posteos.map(p => p.atribuidosAyer)) + suma(perfiles.map(p => p.atribuidosAyer))
+  const seguidoresReales = suma(posteosConDato.map(p => p.bsAnuncios as number)) + suma(perfilesConDato.map(p => p.nuevosAcum as number))
+  const seguidoresConOrganicos = suma(posteos.filter(p => p.bsTotal != null).map(p => p.bsTotal as number))
+    + suma(perfiles.filter(p => p.crecimientoAcum != null).map(p => p.crecimientoAcum as number))
+  const gastoConDato = suma(posteosConDato.map(p => p.gastoAcum)) + suma(perfilesConDato.map(p => p.gastoAcum))
+  // Día: solo lo que tiene seguidores del día (posteos con dato contra la foto anterior y perfiles con dos fotos)
+  const posteosDia = posteos.filter(p => p.bsAnunciosNuevos != null)
+  const perfilesDia = perfiles.filter(p => p.nuevosAyer != null)
+  const seguidoresRealesAyer = hayAnterior
+    ? suma(posteosDia.map(p => p.bsAnunciosNuevos as number)) + suma(perfilesDia.map(p => p.nuevosAyer as number)) : null
+  const gastoAyerConDato = suma(posteosDia.map(p => p.gastoAyer)) + suma(perfilesDia.map(p => p.gastoAyer))
+  return {
+    gastoAcum, atribuidosAcum, costoAtribuido: costo(gastoAcum, atribuidosAcum),
+    seguidoresReales, seguidoresConOrganicos, gastoConDato, costoReal: costo(gastoConDato, seguidoresReales),
+    gastoAyer, atribuidosAyer, costoAtribuidoAyer: costo(gastoAyer, atribuidosAyer),
+    seguidoresRealesAyer, gastoAyerConDato, costoRealAyer: costo(gastoAyerConDato, seguidoresRealesAyer),
+  }
+}
 
 /**
  * Calcula el cruce con la foto más nueva y, si hay, la anterior (para los seguidores del día).
@@ -176,47 +217,42 @@ export function calcularCruce(actual: FotoCruce, anterior?: FotoCruce | null): C
 
   const posteos: FilaPosteo[] = actual.posteos.map(p => {
     const ant = prevPosteos.get(idPosteo(p))
-    const bsNuevos = resta(p.bsTotal, ant?.bsTotal)
+    const bsAnunciosNuevos = resta(p.bsAnuncios, ant?.bsAnuncios)
     return {
       clave: p.clave, ...(p.texto ? { texto: p.texto } : {}), cuenta: p.cuenta,
       gastoAcum: p.gastoAcum, atribuidosAcum: p.atribuidosAcum, costoAtribuido: costo(p.gastoAcum, p.atribuidosAcum),
       bsTotal: p.bsTotal, bsAnuncios: p.bsAnuncios,
-      costoReal: costo(p.gastoAcum, p.bsTotal), costoSoloAnuncios: costo(p.gastoAcum, p.bsAnuncios),
+      costoReal: costo(p.gastoAcum, p.bsAnuncios), costoConOrganicos: costo(p.gastoAcum, p.bsTotal),
       gastoAyer: p.gastoAyer, atribuidosAyer: p.atribuidosAyer, costoAtribuidoAyer: costo(p.gastoAyer, p.atribuidosAyer),
-      bsNuevos, bsAnunciosNuevos: resta(p.bsAnuncios, ant?.bsAnuncios),
-      costoRealAyer: costo(p.gastoAyer, bsNuevos),
+      bsNuevos: resta(p.bsTotal, ant?.bsTotal), bsAnunciosNuevos,
+      costoRealAyer: costo(p.gastoAyer, bsAnunciosNuevos),
     }
   }).sort((a, b) => b.gastoAyer - a.gastoAyer || b.gastoAcum - a.gastoAcum)
 
   const perfiles: FilaPerfil[] = actual.perfiles.map(p => {
     const ant = prevPerfiles.get(`${p.cuenta}|${p.usuario}`.toLowerCase())
-    const nuevosAcum = resta(p.seguidores, p.seguidoresInicio)
-    const nuevosAyer = resta(p.seguidores, ant?.seguidores)
+    const organicosAcum = p.organicosAcum ?? 0
+    const crecimientoAcum = resta(p.seguidores, p.seguidoresInicio)
+    const nuevosAcum = resta(crecimientoAcum, organicosAcum)
+    const crecimientoDia = ant ? p.seguidores - ant.seguidores : null
+    const nuevosAyer = crecimientoDia == null ? null : Math.max(0, crecimientoDia - Math.max(0, organicosAcum - (ant?.organicosAcum ?? 0)))
     return {
       usuario: p.usuario, cuenta: p.cuenta, seguidores: p.seguidores,
-      nuevosAcum, costoRealAcum: costo(p.gastoAcum, nuevosAcum),
+      crecimientoAcum, organicosAcum, nuevosAcum, costoRealAcum: costo(p.gastoAcum, nuevosAcum),
       gastoAcum: p.gastoAcum, atribuidosAcum: p.atribuidosAcum, costoAtribuido: costo(p.gastoAcum, p.atribuidosAcum),
       gastoAyer: p.gastoAyer, atribuidosAyer: p.atribuidosAyer, nuevosAyer, costoRealAyer: costo(p.gastoAyer, nuevosAyer),
     }
   })
 
-  const suma = (xs: number[]) => xs.reduce((a, x) => a + x, 0)
-  const conDatoPosteos = posteos.filter(p => p.bsTotal != null)
-  const conDatoPerfiles = perfiles.filter(p => p.nuevosAcum != null)
-  const gastoAcum = suma(posteos.map(p => p.gastoAcum)) + suma(perfiles.map(p => p.gastoAcum))
-  const atribuidosAcum = suma(posteos.map(p => p.atribuidosAcum)) + suma(perfiles.map(p => p.atribuidosAcum))
-  const gastoAyer = suma(posteos.map(p => p.gastoAyer)) + suma(perfiles.map(p => p.gastoAyer))
-  const atribuidosAyer = suma(posteos.map(p => p.atribuidosAyer)) + suma(perfiles.map(p => p.atribuidosAyer))
-  const seguidoresReales = suma(conDatoPosteos.map(p => p.bsTotal as number)) + suma(conDatoPerfiles.map(p => p.nuevosAcum as number))
-  const gastoConDato = suma(conDatoPosteos.map(p => p.gastoAcum)) + suma(conDatoPerfiles.map(p => p.gastoAcum))
-
+  const hayAnterior = previa != null
+  const cuentas = [...new Set([...posteos.map(p => p.cuenta), ...perfiles.map(p => p.cuenta)])]
+    .sort((a, b) => (a === 'principal' ? -1 : b === 'principal' ? 1 : a.localeCompare(b)))
   return {
     dia: actual.dia, tomada: actual.tomada, diaAnterior: previa?.dia ?? null, posteos, perfiles,
-    totales: {
-      gastoAcum, atribuidosAcum, costoAtribuido: costo(gastoAcum, atribuidosAcum),
-      seguidoresReales, gastoConDato, costoReal: costo(gastoConDato, seguidoresReales),
-      gastoAyer, atribuidosAyer, costoAtribuidoAyer: costo(gastoAyer, atribuidosAyer),
-    },
+    totales: totalizar(posteos, perfiles, hayAnterior),
+    porCuenta: cuentas.map(cuenta => ({
+      cuenta, totales: totalizar(posteos.filter(p => p.cuenta === cuenta), perfiles.filter(p => p.cuenta === cuenta), hayAnterior),
+    })),
     notas: actual.notas ?? [],
   }
 }

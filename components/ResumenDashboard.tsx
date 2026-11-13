@@ -548,8 +548,8 @@ export default function Dashboard() {
       {/* Banda verde de la marca (como el encabezado del CRM de ventas), de borde a borde. Header fijo: permite cambiar filtros mientras se scrollea y comparar */}
       {/* Sticky solo desde 768px (clase dashboard-header en globals.css): en el celular tapaba media pantalla */}
       <header className="no-print-sticky dashboard-header marca-banda" style={{ zIndex: 40 }}>
-        <div className="max-w-6xl mx-auto px-4" style={{ padding: '12px 16px 14px' }}>
-          <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+        <div className="max-w-6xl mx-auto px-4 dashboard-header__marco" style={{ padding: '12px 16px 14px' }}>
+          <div className="flex items-start justify-between flex-wrap gap-3 mb-4 dashboard-header__achicar">
             <div>
               <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text)' }}>
                 Despacho <span style={{ color: 'var(--brand-texto)' }}>· Capital Jurídico</span>
@@ -599,7 +599,7 @@ export default function Dashboard() {
 
           {/* Filtros. En el celular cada fila de botones se desliza de costado (.fila-deslizable): el bloque que la envuelve no
               puede estirarse al ancho de los botones (min-w-0 / max-w-full), si no ensancha la página y el celular la achica entera. */}
-          <div className="flex flex-wrap gap-4 items-start no-print min-w-0">
+          <div className="flex flex-wrap gap-4 items-start no-print min-w-0 dashboard-header__achicar">
             <div className="min-w-0 max-w-full">
               <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>PERÍODO</p>
               <DateFilter value={dateRange} onChange={handleDateRangeChange} />
