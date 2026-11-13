@@ -16,6 +16,7 @@
 // Límite que queda: Sheets no tiene compare-and-set, así que entre la relectura y el borrado (≈1 s) una edición manual
 // de esa misma fila no se detectaría.
 import { invalidarSnapshot } from '../../clientes/snapshot'
+import { invalidarCobrosFinanzas } from '../../clientes/cobrosFinanzas'
 import { columnasDeClientes, columnasDeRenovaciones } from '../../clientes/parsear'
 import { letraColumna } from '../../clientes/texto'
 import type { Fila } from '../../clientes/tipos'
@@ -237,7 +238,7 @@ export async function limpiarFilaPrueba(filaAgencia: number, filaRenovaciones: n
   } catch (e) {
     return { ...conBase, borro: true, motivo: `Falló el borrado (${mensajeDe(e)}): revisar a mano Agencia fila ${filaAgencia} y Renovaciones fila ${filaRenovaciones}.` }
   }
-  ;(o.invalidarCache ?? (() => { invalidarSnapshot() }))()
+  ;(o.invalidarCache ?? (() => { invalidarSnapshot(); invalidarCobrosFinanzas() }))()
   const conBorrado = { ...conBase, borro: true }
   try {
     if (restauracion.data.length) await planilla.escribirValores(restauracion.data)

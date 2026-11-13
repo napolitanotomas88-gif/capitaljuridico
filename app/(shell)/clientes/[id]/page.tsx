@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChipSemaforo, Resumen, SeccionTitulo, type DatoResumen, type Tono } from '@/components/ui'
@@ -13,6 +14,7 @@ import { pedidoDemo } from '@/lib/clientes/demo'
 import { ID_CLIENTE_VALIDO, armarFicha, sinMontos } from '@/lib/clientes/ficha'
 import { ETIQUETA_ESTADO, fechaCorta, textoDias } from '@/lib/clientes/formato'
 import { cargarVista, estadoDeLectura, type VistaCRM } from '@/lib/clientes/vista'
+import { modoCobros } from '@/lib/clientes/cobrosFrescos'
 import { Cobros } from './_componentes/Cobros'
 import { Creditos } from './_componentes/Creditos'
 import { Datos } from './_componentes/Datos'
@@ -63,7 +65,8 @@ export default async function FichaClientePage({ params, searchParams }: Props) 
 
   let vista: VistaCRM
   try {
-    vista = await cargarVista(demo, verMontos ? 'fresco' : 'omitir')
+    // Cobros con la caché de 45 s; sin caché para quien acaba de cargar un pago (lib/clientes/cobrosFrescos.ts)
+    vista = await cargarVista(demo, verMontos ? modoCobros(await cookies()) : 'omitir')
   } catch (e) {
     console.error('Ficha de cliente: no se pudo leer el CRM:', (e as Error).message?.slice(0, 200))
     return <ErrorLectura etiqueta="Clientes" titulo="Ficha del cliente" volver={`/clientes/${encodeURIComponent(id)}`} />

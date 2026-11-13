@@ -180,10 +180,9 @@ async function terminar(op: Operacion, d: DepsAcciones): Promise<{
             await aplicarPlan(d.planilla, op.resultado, await d.planilla.ids());
         }
         const accion = await d.confirmar(op.accion.id);
-        if (op.resultado.pago) {
-            const { invalidarCobrosFinanzas } = await import('../cobrosFinanzas');
-            invalidarCobrosFinanzas();
-        }
+        // Siempre, no solo con pago: el cruce de cobros usa el nombre y el teléfono del CRM, que una acción puede cambiar
+        const { invalidarCobrosFinanzas } = await import('../cobrosFinanzas');
+        invalidarCobrosFinanzas();
         const { invalidarSnapshot } = await import('../snapshot');
         invalidarSnapshot();
         return { status: 200, cuerpo: {
@@ -344,6 +343,8 @@ export async function deshacerAccion(idCrm: string, accionId: string, quien: str
                 return { status: 202, cuerpo: { ok: false, mensaje: 'La reversa anterior está pendiente de confirmación. No se vuelve a escribir; se reconciliará al comprobar el CRM.' } };
             }
             const accion = await d.confirmar(accionId, quien);
+            const { invalidarCobrosFinanzas } = await import('../cobrosFinanzas');
+            invalidarCobrosFinanzas();
             const { invalidarSnapshot } = await import('../snapshot');
             invalidarSnapshot();
             return { status: 200, cuerpo: { ok: true, accion, mensaje: 'Deshecho y verificado en el CRM.' } };

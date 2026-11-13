@@ -200,7 +200,6 @@ Cómo agregar una página: crear `app/(shell)/<ruta>/page.tsx`, llamar `exigirAc
 
 ## Pendientes
 
-- Las fuentes Geist de la raíz siguen declarándose en todas las páginas aunque el shell no las use.
 - Los dos tintes del semáforo no están en el manual (solo define los seis colores): son derivados de Sala y Borgoña y habría que confirmarlos con quien lleva la marca.
 - El manual nombra la marca "Skyward Jurídica"; el dashboard muestra "Capital Jurídico" por pedido. Confirmar el nombre visible cuando se defina el logo.
 - Confirmar con el usuario la matriz de roles (en particular si Resumen es solo para socio).

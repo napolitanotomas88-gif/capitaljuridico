@@ -732,7 +732,7 @@ describe('marca: cj.css y las fuentes de Capital Jurídico no se cuelan en el la
       assert.doesNotMatch(readFileSync(join(RAIZ, rel), 'utf8'), /<main[\s>]/, `${rel}: con el marco ya hay un <main id="cj-contenido">`)
     }
   })
-  test('el 404 raíz tampoco carga next/font (solo el layout raíz usa Geist)', () => {
+  test('el 404 raíz tampoco carga next/font', () => {
     const fuente = readFileSync(join(RAIZ, 'app', 'not-found.tsx'), 'utf8')
     assert.deepEqual(importsDe(fuente).filter((e) => e.startsWith('next/font')), [])
     assert.doesNotMatch(fuente, /components\/(ui|shell)/, 'esos componentes dependen de cj.css')

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import { BotonEnlace, Resumen, SeccionTitulo, type DatoResumen } from '@/components/ui'
 import { pedidoDemo } from '@/lib/clientes/demo'
 import { AvisoLectura } from '@/components/clientes/AvisoLectura'
@@ -10,6 +11,7 @@ import { fechaCorta, numeroAR } from '@/lib/clientes/formato'
 import { indicadoresDeCartera } from '@/lib/clientes/indicadores'
 import { parsearFiltros } from '@/lib/clientes/listado'
 import { cargarVista, estadoDeLectura, type VistaCRM } from '@/lib/clientes/vista'
+import { modoCobros } from '@/lib/clientes/cobrosFrescos'
 import { BotonMontos } from '@/components/clientes/BotonMontos'
 import { Monto } from '@/components/clientes/Monto'
 import { CalidadDatos } from './_componentes/CalidadDatos'
@@ -36,7 +38,9 @@ export default async function ClientesPage({ searchParams }: Props) {
 
   let vista: VistaCRM
   try {
-    vista = await cargarVista(demo, !verCobros ? 'omitir' : typeof params.cliente === 'string' ? 'fresco' : 'cache')
+    // Cobros con la caché de 45 s también al abrir una tarjeta (?cliente=): antes cada apertura releía dos planillas.
+    // Quien acaba de cargar un pago o un cambio los lee sin caché durante un minuto (lib/clientes/cobrosFrescos.ts).
+    vista = await cargarVista(demo, !verCobros ? 'omitir' : modoCobros(await cookies()))
   } catch (e) {
     console.error('Clientes: no se pudo leer el CRM:', (e as Error).message?.slice(0, 200))
     return <ErrorLectura etiqueta="Clientes" titulo="Cartera de clientes" volver="/clientes" />

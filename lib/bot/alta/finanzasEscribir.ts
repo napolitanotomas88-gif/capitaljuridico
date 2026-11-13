@@ -45,6 +45,7 @@
 import { google } from 'googleapis'
 import { letraColumna, normTxt } from '../../clientes/texto'
 import { serialAYmd } from '../../clientes/fechas'
+import { invalidarCobrosFinanzas } from '../../clientes/cobrosFinanzas'
 import { COLUMNAS_REGISTRO, FILA_NUEVA, cuotasAnterioresEn, historialClienteEn, type HistorialCliente, formulaMes, leerOpcionPrograma, programaDeLista, type CeldaRegistro, type ColumnaRegistro, type FilaRegistroPagos } from './finanzas'
 import { guardarPagoEnApp, type ResultadoPagoApp } from '../../finanzasSkwd/pagoApp'
 import { aplicaAlTablero, registrarPagoBotEnTablero, type PagoCuotaBot } from '../../crm/cuotas/pagoBot'
@@ -141,7 +142,9 @@ export function planillaFinanzasReal(modo: ModoFinanzas): PlanillaFinanzas {
       return (hoja.data?.[0]?.rowData ?? []).map(r => validacionDeApi(r.values?.[0]?.dataValidation as ReglaApi))
     },
     async batchUpdate(requests) {
-      await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } }, op)
+      // Toda escritura en Finanzas (pago del alta, de la tarjeta, limpieza) pasa por acá: la tarjeta del cliente lee los
+      // cobros con caché de 45 s y tiene que soltarla aunque el pedido falle (pudo aplicarse igual).
+      try { await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } }, op) } finally { invalidarCobrosFinanzas() }
     },
   }
 }

@@ -110,3 +110,22 @@ test('sin Finanzas se ocultan cobrado, saldo y aviso de esa cifra', () => {
   assert.equal(f.cobros.saldo, null)
   assert.equal(f.cobros.aviso, null)
 })
+
+test('abrir la tarjeta usa la caché de 45 s; solo quien acaba de escribir (marca de un minuto) lee sin caché', async () => {
+  const { COOKIE_COBROS_FRESCOS, cabeceraCobrosFrescos, modoCobros } = await import('../lib/clientes/cobrosFrescos.ts')
+  assert.equal(modoCobros({ has: () => false }), 'cache')
+  assert.equal(modoCobros({ has: n => n === COOKIE_COBROS_FRESCOS }), 'fresco')
+  assert.match(cabeceraCobrosFrescos(), /^cj_cobros_frescos=1; Max-Age=60; Path=\/clientes; HttpOnly; SameSite=Lax/)
+  const { readFileSync } = await import('node:fs')
+  const lee = (...p) => readFileSync(new URL(`../${p.join('/')}`, import.meta.url), 'utf8')
+  for (const pagina of [lee('app', '(shell)', 'clientes', '(cartera)', 'page.tsx'), lee('app', '(shell)', 'clientes', '[id]', 'page.tsx')]) {
+    assert.match(pagina, /modoCobros\(await cookies\(\)\)/)
+    assert.doesNotMatch(pagina, /'fresco'/, 'ninguna pantalla fuerza la lectura sin caché por su cuenta')
+  }
+  // Donde se escribe un pago o cambia la identidad del cliente, la caché se suelta
+  assert.match(lee('lib', 'bot', 'alta', 'finanzasEscribir.ts'), /finally \{ invalidarCobrosFinanzas\(\) \}/)
+  for (const escritor of [['lib', 'bot', 'alta', 'crmEscribir.ts'], ['lib', 'bot', 'alta', 'crmLimpiar.ts'], ['lib', 'bot', 'bajas', 'servidor.ts'], ['lib', 'clientes', 'acciones', 'servidor.ts']])
+    assert.match(lee(...escritor), /invalidarCobrosFinanzas\(\)/, escritor.join('/'))
+  for (const ruta of [['app', 'api', 'clientes', '[id]', 'acciones', 'route.ts'], ['app', 'api', 'clientes', '[id]', 'acciones', '[accionId]', 'route.ts']])
+    assert.match(lee(...ruta), /'set-cookie': cabeceraCobrosFrescos\(\)/, ruta.join('/'))
+})

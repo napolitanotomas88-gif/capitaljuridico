@@ -12,6 +12,7 @@ import type { RespuestaCampos, RespuestaHistorial } from '@/lib/clientes/accione
 import { leerClienteFresco, metadatosPago } from '@/lib/clientes/acciones/escritor';
 import { puedeVer } from '@/lib/auth/roles';
 import { estaArchivado } from '@/lib/clientes/acciones/planesNuevos';
+import { cabeceraCobrosFrescos } from '@/lib/clientes/cobrosFrescos';
 // /api/clientes/<id>/acciones — acciones sobre el cliente desde su tarjeta (lib/clientes/acciones: contrato en tipos.ts).
 //   GET  → historial + pausa vigente (RespuestaHistorial) · GET ?campos=1 → campos editables con su valor (RespuestaCampos)
 //   POST → CuerpoAccion (RespuestaAccion). La variable CLIENTES_ESCRITURA selecciona sombra, prueba Z001 o real.
@@ -22,6 +23,9 @@ const SIN_CACHE = { 'content-type': 'application/json', 'cache-control': 'no-sto
 const ID_CLIENTE = /^[A-Za-z]\d{1,6}$/;
 const LARGO_MAX = 8000;
 const respuesta = (cuerpo: unknown, status = 200) => new Response(JSON.stringify(cuerpo), { status, headers: SIN_CACHE });
+// Después de intentar una escritura (aunque haya fallado: pudo llegar a escribir), las pantallas de Clientes de esta persona
+// leen los cobros sin caché durante un minuto (lib/clientes/cobrosFrescos.ts).
+const respuestaTrasEscribir = (cuerpo: unknown, status = 200) => new Response(JSON.stringify(cuerpo), { status, headers: { ...SIN_CACHE, 'set-cookie': cabeceraCobrosFrescos() } });
 const sinUrls = (e: unknown) => String((e as Error)?.message ?? e).replace(/\b[a-z]+:\/\/\S+/gi, '[url]').slice(0, 200);
 export async function GET(req: Request, ctx: {
     params: Promise<{
@@ -131,10 +135,10 @@ export async function POST(req: Request, ctx: {
         // «Llamada de proyección» aplicada: resuelve sola las notificaciones de la bandeja (link enviado / agendada / hecha)
         if (cuerpo.tipo === 'proyeccion' && r.cuerpo.ok && r.cuerpo.accion?.estado === 'aplicada')
             await cerrarPorMarca(patronCierreAccion(cliente.id, cuerpo.estado), sesion.nombre || 'Equipo');
-        return respuesta(r.cuerpo, r.status);
+        return respuestaTrasEscribir(r.cuerpo, r.status);
     }
     catch (e) {
         console.error('API acciones (POST):', sinUrls(e));
-        return respuesta({ ok: false, mensaje: 'No se pudo guardar. Probá de nuevo en un minuto.' }, 500);
+        return respuestaTrasEscribir({ ok: false, mensaje: 'No se pudo guardar. Probá de nuevo en un minuto.' }, 500);
     }
 }

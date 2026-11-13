@@ -201,7 +201,7 @@ export function depsBajasReales(op: OpcionesBajasReal = {}): DepsBajas {
       const { planillaCrmReal } = await import('@/lib/bot/alta/crmEscribir')
       // En modo prueba el CRM SOLO escribe filas "PRUEBA BOT…", sin importar BAJA_CRM_SOLO_PRUEBA
       const r = await marcarBajaCrm(planillaCrmReal(), p, { modo: op.dry ? 'simulacion' : modo, soloPrueba: prueba || /^(si|sí|1|true)$/i.test(env.BAJA_CRM_SOLO_PRUEBA?.trim() ?? '') })
-      if (r.estado === 'hecho') { const { invalidarSnapshot } = await import('@/lib/clientes/snapshot'); invalidarSnapshot() }
+      if (r.estado === 'hecho') { const { invalidarSnapshot } = await import('@/lib/clientes/snapshot'); invalidarSnapshot(); const { invalidarCobrosFinanzas } = await import('@/lib/clientes/cobrosFinanzas'); invalidarCobrosFinanzas() }
       return r
     } : undefined,
     // Ronda 2. Meta: solo con la capacidad (en ensayo, solo lectura). Token: META_ANUNCIOS_TOKEN (Gero A, ve las cuentas de los
