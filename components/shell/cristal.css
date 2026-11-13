@@ -555,20 +555,24 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     --card: rgba(255, 255, 255, 0.08); --border: rgba(255, 255, 255, 0.3); --text-muted: #e3dac8; --brand-texto: #eed6a8;
   }
-  .cj-cristal .resumen-marca :is(.card, .glass-board, .goal-card, .big-metric, .small-metric) { border-top: 1px solid var(--cjc-borde-arriba); }
-  .cj-cristal .resumen-marca :is(.card, .glass-board) { border-radius: 18px; }
-  .cj-cristal :is(.card, .glass-board, .glass-alert) {
+  /* Tarjetas del Resumen: la superficie, el filete y la sombra de .cj-panel (radios de 18 px en globals.css) */
+  .cj-cristal :is(.card, .glass-board, .glass-alert, .goal-card, .big-metric, .small-metric) {
     background: var(--cjc-panel); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
     box-shadow: var(--cj-sombra-1);
   }
+  /* Filtros del Resumen (período, persona, embudo, anuncios): como .cj-chip; el elegido, marfil */
+  .cj-cristal .filter-pill { color: var(--cj-humo); border-color: var(--cj-control); }
+  .cj-cristal .filter-pill:hover { color: var(--cj-hueso); border-color: var(--cj-hueso); }
+  .cj-cristal .filter-pill.active { color: #0b2c25; background: #f2eadc; border-color: #f2eadc; }
+  .cj-cristal .resumen-anidado { background: var(--cjc-anidado); box-shadow: inset 0 1px 0 var(--cjc-blanco-8); }
+  /* «Descargar PDF»: el botón principal del Despacho (.cj-boton--primario) */
+  .cj-cristal .resumen-boton { background: #f2eadc; border-color: #f2eadc; color: #0b2c25; }
+  .cj-cristal .resumen-boton:hover:not(:disabled) { background: #fff; border-color: #fff; }
   .cj-cristal :is(.card, .glass-board) :is(.card, .glass-tile, .glass-alert) { background: var(--cjc-anidado); box-shadow: inset 0 1px 0 var(--cjc-blanco-8); }
   .cj-cristal .glass-tile { background: var(--cjc-anidado); border-color: var(--cjc-borde); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
   /* El Resumen y los paneles viejos (Grabaciones, Meta, embudo) traen tamaños en línea de 8,5 a 11 px (unos 300 textos): piso de 12 px */
   .cj-cristal :is([style*='font-size: 8px'], [style*='font-size: 8.5px'], [style*='font-size: 9px'], [style*='font-size: 9.5px'], [style*='font-size: 10px'], [style*='font-size: 10.4px'], [style*='font-size: 10.5px'], [style*='font-size: 11px'], [style*='font-size: 11.5px']) { font-size: 12px !important; }
   .cj-cristal .resumen-marca :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]) { font-size: 12px; }
-  .cj-cristal .resumen-marca .section-title { font-size: 12px; }
-  /* Rótulos de las métricas chicas del Resumen (globals.css: 0,65 rem = 10,4 px) */
-  .cj-cristal .small-metric .sm-label { font-size: 12px; }
   /* Ejes y leyendas de los gráficos (Recharts): legibles sobre el cristal (antes 2,4:1 en el modo oscuro del Resumen) */
   .cj-cristal :is(.recharts-cartesian-axis-tick-value, .recharts-cartesian-axis-tick text, .recharts-legend-item-text) { fill: #e3dac8; font-size: 12px; }
   .cj-cristal .recharts-legend-item-text { color: #e3dac8 !important; }
