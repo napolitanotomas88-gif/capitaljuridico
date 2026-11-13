@@ -145,6 +145,7 @@ El proxy no interviene: ni siquiera se invoca (el `matcher` de `proxy.ts` las de
 | `/api/trazabilidad/manychat` | Importación de etiquetas de ManyChat a Trazabilidad (manual) | `Authorization: Bearer <CRON_SECRET>` (nunca `?key=`), falla cerrado. Sin `?escribir=1` solo cuenta coincidencias; `?analizar=N` analiza pendientes. |
 | `/api/trazabilidad/semanal` | Cron de Vercel, lunes 8:00 AR: semanal de setting (EOD + botonera + cierres sin capas) a Discord | `Authorization: Bearer <CRON_SECRET>` (nunca `?key=`), falla cerrado. `?preview=1` devuelve el texto. |
 | `/api/trazabilidad/procesar` | Cron de Vercel, 7:00 AR: analiza los envíos de la botonera y trae las llamadas de Fathom de los cierres | `Authorization: Bearer <CRON_SECRET>` (nunca `?key=`), falla cerrado. |
+| `/api/eow/aviso` | Cron de Vercel, 10:00 AR (diario; actúa solo los domingos): recién lanzados del EOW | `Authorization: Bearer <CRON_SECRET>` (nunca `?key=`), falla cerrado. Apagado salvo `EOW_AVISO=encendido`; `?dry=1` muestra lo que haría sin escribir ni mandar; `?forzar=1` corre aunque no sea domingo. Aviso en #📊-reporte-eow (solo Gero M). |
 
 Si se agrega una ruta de automatización nueva hay que sumarla en dos lugares: `REGLAS` y el `matcher` de `proxy.ts`. El test avisa si quedan desfasados.
 
@@ -188,6 +189,8 @@ La sesión de Google **no reemplaza** la clave de Finanzas ni la de Anuncios (ni
 | `/api/notificaciones/whatsapp` | Salida única de WhatsApp de la bandeja | máquina (Bearer `CRON_SECRET`) | POST: una corrida del despachador (lo mismo que hace el vigía cada 15 min). GET: variables (sí/no), cuentas y últimos registros de `cj_notif_whatsapp`. Fuera del proxy; falla cerrado. Ver docs/NOTIF-WHATSAPP.md. |
 | `/api/notificaciones/*` | Marco del Despacho | cualquiera con sesión | GET `/api/notificaciones?desde=<id>`: las notificaciones de esa persona (por mail o por sección), para el aviso con sonido y el menú rápido del Hub (27/10/2026). POST `/api/notificaciones/[id]` `{ accion: 'vista' \| 'hecha' }`: mismo origen; la ruta controla que sea de esa persona. Sin Bearer. |
 | `/api/presencia` | Marco del Despacho | cualquiera con sesión | POST cada 45 s con la pestaña visible (mail, nombre, sección); GET con los conectados de los últimos 2 minutos: los ve todo el equipo (decisión de RESPONSABLE_HUB, 27/10/2026). Sin Bearer. |
+| `/eow/*` | EOW (reporte End of Week) | solo los mails de `EOW_CORREOS` | Semáforo semanal de clientes, recién lanzados y tarjetas. **Por mail, no por rol** (`lib/auth/correos.ts`): Tomás, la cuenta Empresa y Gero M. Sin la variable, nadie (tampoco un socio). El ítem del menú solo aparece para esos mails. |
+| `/api/eow/*` | API del EOW | solo los mails de `EOW_CORREOS` | Leer, guardar con control de versión (409 si otro guardó antes) y «Nueva semana». Mismo origen; 401 sin sesión y 403 con otro mail. Sin acceso por máquina. |
 | `/api/preferencias` | Marco del Despacho | cualquiera con sesión | POST `{ noche }` (mismo origen): guarda el modo nocturno del cristal en la cuenta (misma tabla que `/api/finanzas/preferencias`, clave = el mail de la sesión). Sin Bearer. |
 | `/clientes/referidos/*` | Referidos (pestaña de Clientes) | socio y csm | Antes `/referidos` (redirige con 308, con subrutas y query). Va ANTES que `/clientes/*` en `REGLAS`. |
 | `/sistema/*` | Resumen | socio | Revisión de marca. Solo existe en desarrollo (en producción da 404). |
@@ -401,3 +404,11 @@ Pedido de Tomás: una pestaña aparte para UN cliente (estrategia de contenido o
 - **Desarrollo:** `CRM_DEV_ROL=cliente` con `CRM_DEV_CLIENTE=<ID>` (solo local).
 - **Tests:** `scripts/test-portal-cliente.mjs`.
 
+
+## EOW: sección por mail (13/11/2026)
+
+- **Qué es:** el reporte End of Week (antes, el documento semanal de Gero M) en `/eow`: semáforo de clientes (Rojo, Amarillo, Verde, con «Pausado» como pill gris), «Recién lanzados · para ubicar» y las tarjetas (Cliente pesadilla, Cancelaciones, Pausados, Testimonios pedidos, Testimonios obtenidos, Servicio terminado, Observaciones). Datos en Neon (`cj_eow_reportes`, `cj_eow_historial`, `cj_eow_avisos`), tablas propias.
+- **Acceso por mail, no por rol:** la regla lleva `correos: 'eow'` (`lib/auth/rutas.ts`) y se cumple solo si el mail de la sesión está en **`EOW_CORREOS`** (Vercel; mails separados por coma). Sin la variable o vacía, nadie entra. Ni `socio` ni una sección de Configuración lo abren. Página: `exigirCorreos('eow')`; API: `exigirAccesoApi(req, null, { correos: 'eow' })`; menú: `menuDe` lo agrega después de Finanzas solo para esos mails.
+- **Recién lanzados:** `GET /api/eow/aviso` (cron diario 10:00 AR, actúa los domingos) suma al reporte de la semana los clientes cuyo primer lanzamiento en Meta cae después del reporte anterior y que todavía no figuran, y avisa en #📊-reporte-eow (`DISCORD_WEBHOOK_EOW`; si falta, `DISCORD_WEBHOOK_OPERACIONES`) mencionando solo a Gero M. `EOW_AVISO=encendido` para que actúe.
+- **Historial:** `scripts/eow-importar.mjs <html> [--cargar]` importa el documento exportado (el HTML no va al repo).
+- Tests: `scripts/test-eow.mjs` (permisos, API, modelo, recién lanzados e importador).
