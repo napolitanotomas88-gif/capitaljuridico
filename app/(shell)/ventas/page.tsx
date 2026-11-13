@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { CargandoVentas } from '@/components/crm/CargandoVentas'
 import { PantallaMiDia } from '@/components/crm/mi-dia/PantallaMiDia'
 import { PantallaAviso, BOTON_SECUNDARIO } from '@/components/crm/PantallaAviso'
 import { exigirAcceso } from '@/lib/auth/sesion'
@@ -33,5 +35,7 @@ export default async function VentasPage() {
     const primera = closers().find((c) => sesion.hojas.includes(c.hoja))
     if (primera) redirect(`/ventas/closer/${encodeURIComponent(primera.id)}`)
   }
-  return <PantallaMiDia closer={closerDeSesion(sesion)} sesion={sesion} />
+  // Las hojas se leen dentro de <Suspense> (13/11/2026): sale el marco con el esqueleto y «Mi día» llega cuando están.
+  // Las redirecciones de arriba quedan fuera, así siguen siendo un 307 real.
+  return <Suspense fallback={<CargandoVentas />}><PantallaMiDia closer={closerDeSesion(sesion)} sesion={sesion} /></Suspense>
 }
