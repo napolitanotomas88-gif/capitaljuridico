@@ -32,6 +32,9 @@ import { puedeHacerAcciones } from '@/lib/clientes/acciones/permisos'
 import type { Hito } from '@/lib/clientes/hitos'
 import { asegurarDocumentoCliente, documentoVinculadoCliente } from '@/lib/bot/guiones/documento'
 import { HistorialOperativo } from '@/components/clientes/HistorialOperativo'
+import { WinsCliente } from '@/components/clientes/WinsCliente'
+import type { ResultadoPuntaje } from '@/lib/clientes/puntaje'
+import { BloquePuntaje } from './BloquePuntaje'
 
 // Tarjeta abierta de la línea de tiempo (25/10/2026): TODO el cliente en un solo lugar, reusando lo que ya existe.
 //   · CRM: las mismas secciones de la ficha (/clientes/<id>) armadas con armarFicha. Períodos (con precios) y cobros, solo con Finanzas.
@@ -49,6 +52,7 @@ type Props = {
   meta: CampanaMeta | null
   kickoff: KickoffPorLanzar | null
   hitos: Hito[]
+  puntaje: ResultadoPuntaje | null   // null = todavía no lanzó (lib/clientes/puntaje.ts)
   demo: boolean
   accionInicial?: string
 }
@@ -69,7 +73,7 @@ const ETIQUETA_TANDA: Record<string, string> = {
   enviada: 'Enviada al cliente', con_notas: 'Con notas del cliente', corrigiendo: 'Corrigiendo', error: 'Con error', cerrada: 'Cerrada (fuera del bot)',
 }
 
-export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos, demo, accionInicial }: Props) {
+export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos, puntaje, demo, accionInicial }: Props) {
   const ficha = armarFicha(vista.datos, vista.creditos, fila.id, { conContacto: puedeVer(quien, 'clientes') })
   if (!ficha) return <p className="cj-aviso" role="alert">No se encontró este cliente en el CRM.</p>
   const ver = { guiones: puedeVer(quien, 'guiones'), edicion: puedeVer(quien, 'edicion'), anuncios: puedeVer(quien, 'anuncios'), finanzas: puedeVer(quien, 'finanzas'), referidos: puedeVer(quien, 'referidos'), acciones: puedeVer(quien, 'clientes') }
@@ -96,10 +100,22 @@ export async function DetalleCliente({ vista, fila, quien, meta, kickoff, hitos,
       )}
 
       <Saltos secciones={[
-        ['rc-registro', 'Registro'], ['rc-proyeccion', 'Proyección'], ...(ver.acciones ? [['rc-acciones', 'Acciones'] as [string, string]] : []), ['rc-crm', 'CRM'], ['rc-kickoff', 'Kickoff'], ...(ver.guiones ? [['rc-guiones', 'Guiones'] as [string, string]] : []),
+        ['rc-puntaje', 'Puntaje'], ['rc-wins', 'Wins'], ['rc-registro', 'Registro'], ['rc-proyeccion', 'Proyección'], ...(ver.acciones ? [['rc-acciones', 'Acciones'] as [string, string]] : []), ['rc-crm', 'CRM'], ['rc-kickoff', 'Kickoff'], ...(ver.guiones ? [['rc-guiones', 'Guiones'] as [string, string]] : []),
         ...(ver.edicion ? [['rc-edicion', 'Edición'] as [string, string]] : []), ...(ver.anuncios ? [['rc-anuncios', 'Anuncios'] as [string, string]] : []),
         ...(ver.referidos ? [['rc-referidos', 'Referidos'] as [string, string]] : []), ['rc-notas', 'Notas'],
       ]} />
+
+      <div id="rc-puntaje" className="rc-bloque">
+        <SeccionFicha etiqueta="Puntaje" titulo="Cómo está el cliente">
+          <BloquePuntaje p={puntaje} etapa={fila.etapa} />
+        </SeccionFicha>
+      </div>
+
+      <div id="rc-wins" className="rc-bloque">
+        <SeccionFicha etiqueta="Wins" titulo="Lo que dijo el cliente">
+          <WinsCliente idCrm={ficha.id} puedeEditar={demo || puedeHacerAcciones(quien.email)} demo={demo} hoy={vista.datos.hoy} />
+        </SeccionFicha>
+      </div>
 
       <div id="rc-registro" className="rc-bloque">
         <SeccionFicha etiqueta="Registro" titulo="Todo lo que pasó con el cliente">

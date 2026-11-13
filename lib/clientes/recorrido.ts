@@ -21,6 +21,7 @@
 import { diasEntre, type Ymd } from './fechas'
 import { etapaPorHitos, type FuenteHito, type Hito } from './hitos'
 import type { EstadoCliente } from './tipos'
+import type { PuntajeCompacto } from './puntaje'
 
 export const ETAPAS = ['alta', 'kickoff', 'guiones', 'grabacion', 'edicion', 'por_lanzar', 'lanzado', 'exito', 'renovacion', 'pausa', 'baja', 'sin_dato'] as const
 export type Etapa = (typeof ETAPAS)[number]
@@ -281,7 +282,10 @@ export interface FiltrosRecorrido { etapa: Etapa | null; closer: string | null; 
 export const FILTROS_RECORRIDO_INICIALES: FiltrosRecorrido = { etapa: null, closer: null, antiguedad: 'todos', lanzado: 'todos', frenados: false, vencen: false, texto: '', cierre: false }
 
 // clave: una por fila del CRM (el ID puede repetirse en la planilla): es la key de React; el ID abre la tarjeta
-export interface FilaRecorrido extends UbicacionCliente { id: string; clave?: string; nombre: string; closer: string }
+export interface FilaRecorrido extends UbicacionCliente {
+  id: string; clave?: string; nombre: string; closer: string
+  calificacion?: PuntajeCompacto | null   // puntaje del cliente e interno (lib/clientes/puntaje.ts); null = todavía no lanzó
+}
 
 const sinTildes = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 export function enRango(dias: number | null, r: RangoAntiguedad): boolean {

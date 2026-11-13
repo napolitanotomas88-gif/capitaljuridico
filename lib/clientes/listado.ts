@@ -6,6 +6,7 @@ import { mesesRenovacionGratis, saldoCanjeable } from './creditos'
 import { mesesTexto, usd } from './formato'
 import type { PanelReferidos } from './panelReferidos'
 import { textoExtra } from './programa'
+import type { PuntajeCompacto } from './puntaje'
 
 // Saldo chico (redondeos, centavos de tipo de cambio) que no se informa como deuda: mismo corte que las
 // alertas de cobranza del dashboard de producción (saldo > 50).
@@ -39,6 +40,7 @@ export interface ClienteListado {
   sinRespuestaMes: boolean      // cliente actual que no respondió el Typeform este mes: hay que puntuarlo a mano
   sinCampana: boolean           // prioridad: en ClickUp sigue antes de la campaña y no tiene anuncios activos en Meta
   backend: MarcaBackend | null  // lo que mostraba Backend (retirado el 10/10/2026): renovación pendiente y llamada de proyección
+  calificacion?: PuntajeCompacto | null  // puntaje del cliente e interno (lib/clientes/puntaje.ts); null = todavía no lanzó
 }
 
 /**
@@ -49,7 +51,7 @@ export interface ClienteListado {
 export interface MarcaBackend { renovacionDias: number | null; proyeccion: boolean; notaCrm: string | null }
 
 export interface PuntajeListado { valor: number; tendencia: 'sube' | 'baja' | 'igual' | null; fuente: 'manual' | 'typeform'; dia: Ymd }
-export interface ExtrasListado { puntaje?: PuntajeListado | null; sinRespuestaMes?: boolean; sinCampana?: boolean; backend?: MarcaBackend | null }
+export interface ExtrasListado { puntaje?: PuntajeListado | null; sinRespuestaMes?: boolean; sinCampana?: boolean; backend?: MarcaBackend | null; calificacion?: PuntajeCompacto | null }
 
 export function aListado(c: Cliente, i: number, credito?: ResumenCredito, panel?: PanelReferidos, extras: ExtrasListado = {}): ClienteListado {
   let creditoLista: CreditoListado | null = null
@@ -75,6 +77,7 @@ export function aListado(c: Cliente, i: number, credito?: ResumenCredito, panel?
     sinRespuestaMes: !!extras.sinRespuestaMes,
     sinCampana: !!extras.sinCampana,
     backend: extras.backend ?? null,
+    calificacion: extras.calificacion ?? null,
   }
 }
 

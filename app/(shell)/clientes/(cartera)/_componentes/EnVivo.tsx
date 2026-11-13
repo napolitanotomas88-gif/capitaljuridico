@@ -16,6 +16,10 @@ import { PUNTAJE_CONTENTO, ubicarCliente, type FilaRecorrido, type FuentesClient
 import { extenderDemo } from '@/lib/clientes/recorridoDemo'
 import { campanasMetaCartera, exitosDelBot, leerDespachoRecorrido } from '@/lib/clientes/recorridoFuentes'
 import type { VistaCRM } from '@/lib/clientes/vista'
+import { compacto, yaLanzo } from '@/lib/clientes/puntaje'
+import { puntajeDemo } from '@/lib/clientes/puntajeDemo'
+import { leerFuentesPuntaje } from '@/lib/clientes/puntajeFuentes'
+import { puntajesDeCartera } from '@/lib/clientes/puntajeSenales'
 import { leerSeguimiento, leerTypeform } from '@/lib/seguimiento/hojas'
 import { ESTADO_VACIO, estadoPorCliente } from '@/lib/seguimiento/modelo'
 import type { ResultadoTypeform } from '@/lib/seguimiento/typeform'
@@ -35,7 +39,7 @@ const armarCartera = cache(async (vista: VistaCRM) => {
   const { datos } = vista
   const agencia = datos.clientes.filter(c => c.linea === 'agencia' && c.id)
   // En paralelo y sin frenar: si alguna fuente falla, la página sigue sin ese dato. Con ?demo=1 no se consulta nada de afuera.
-  const [seguimiento, lecturaTypeform, clickup, meta, despacho, drive, anotaciones, exitoBotDe] = await Promise.all([
+  const [seguimiento, lecturaTypeform, clickup, meta, despacho, drive, anotaciones, exitoBotDe, fuentesPuntaje] = await Promise.all([
     // Si la planilla falla no es "la pestaña no existe": sale sin puntajes y sin ese aviso
     vista.esDemo ? { puntajes: [], ausente: false } : leerSeguimiento().catch(() => ({ puntajes: [], ausente: false })),
     // Con caché de 5 min: abrir y cerrar la tarjeta de un cliente (?cliente=) vuelve a armar la página y no debe leer la planilla cada vez
@@ -54,6 +58,8 @@ const armarCartera = cache(async (vista: VistaCRM) => {
     }),
     // El OK del bot de Éxito (cj_exito_pedidos, de CONSULTOR): sin tabla todavía, ninguno
     vista.esDemo ? (() => null) : exitosDelBot(),
+    // Puntaje (13/11/2026): wins, último EOW y planes de cuotas, tres consultas para toda la cartera con caché (puntajeFuentes.ts)
+    vista.esDemo ? null : leerFuentesPuntaje(),
   ])
   const { r: typeform, error: errorTypeform } = lecturaTypeform
   const estados = estadoPorCliente([...seguimiento.puntajes, ...(typeform?.puntajes ?? [])], datos.hoy)
@@ -106,6 +112,30 @@ const armarCartera = cache(async (vista: VistaCRM) => {
       hitosPorId.set(c.id, hitos)
       return { id: c.id, clave: `${c.id}-${c.fila}`, nombre: c.nombre, closer: c.closer, ...ubicarCliente(c, { ...base, hitos, etapaManual: anotaciones.etapas.get(c.id.toUpperCase()) ?? null }, datos.hoy, lecturas) }
     })
+  // ── Puntaje (especificación v1, 13/11/2026): el del cliente (encuesta) y el interno, solo para los que ya lanzaron ──
+  // Todo con lo que ya se leyó arriba más las tres lecturas de leerFuentesPuntaje: ninguna consulta por cliente.
+  const demoPuntaje = demoRecorrido ? puntajeDemo(demoRecorrido.fuentes, datos.hoy) : null
+  const etapaDe = new Map(filasRecorrido.map(f => [f.id.toUpperCase(), f.etapa]))
+  const puntajes = puntajesDeCartera({
+    clientes: vistaRecorrido.datos.clientes, hoy: datos.hoy,
+    historialDe: id => (demoPuntaje ? demoPuntaje.historialDe(id) : estados.get(id)?.historial ?? []),
+    metaLeida: lecturas.meta,
+    campanaDe: c => (demoPuntaje ? demoPuntaje.campanaDe(c.id) : campanaDe(c.nombre)),
+    lanzo: c => {
+      const m = demoPuntaje ? demoPuntaje.campanaDe(c.id) : campanaDe(c.nombre)
+      return yaLanzo({
+        hitoLanzamiento: !!hitosPorId.get(c.id)?.some(h => h.clave === 'lanzamiento' && h.hecho && !h.respaldo),
+        metaActiva: m?.activa, primerLanzamiento: m?.primerGasto ?? null, etapa: etapaDe.get(c.id.toUpperCase()) ?? null,
+      })
+    },
+    referidos: datos.pestanasAusentes.includes('Referidos') ? null : vistaRecorrido.datos.referidos,
+    fuentes: demoPuntaje?.fuentes ?? fuentesPuntaje ?? { winsFechas: null, eow: null, planes: null },
+  })
+  for (const f of filasRecorrido) {
+    const p = puntajes.get(f.id.toUpperCase())
+    f.calificacion = p ? compacto(p) : null
+  }
+
   // «Campaña lanzada» guardada la primera vez que se ve gasto (de fondo, con tope e intervalo: hitosRegistro.ts). Solo con lo
   // anotado leído bien: si no, no se sabe quién ya lo tiene
   if (!vista.esDemo && !anotaciones.falla && lecturas.meta) {
@@ -136,9 +166,10 @@ const armarCartera = cache(async (vista: VistaCRM) => {
       sinRespuestaMes: sinRespuestaDelMes(c, e, datos.hoy, !!typeform),
       sinCampana: idsTrabados.has(c.id),
       backend: marcaDe(marcas, c),
+      calificacion: c.id && c.linea === 'agencia' ? (p => (p ? compacto(p) : null))(puntajes.get(c.id.toUpperCase())) : null,
     })
   })
-  return { seguimiento, typeform, errorTypeform, campanaDe, despacho, demoRecorrido, vistaRecorrido, filasRecorrido, avisosRecorrido, filas, hitosPorId }
+  return { seguimiento, typeform, errorTypeform, campanaDe, despacho, demoRecorrido, vistaRecorrido, filasRecorrido, avisosRecorrido, filas, hitosPorId, puntajes }
 })
 
 /** La línea de tiempo y, si la URL trae ?cliente=<ID>, la tarjeta abierta de ese cliente. */
@@ -168,6 +199,7 @@ export async function RecorridoEnVivo({ vista, pedido, sesion, accion }: { vista
             meta={c.demoRecorrido ? metaDemo(c.demoRecorrido.fuentes.get(fila.id)?.meta ?? null) : c.campanaDe(fila.nombre)}
             kickoff={c.despacho?.kickoffDe(fila.id, fila.nombre)?.tarjeta ?? null}
             hitos={c.hitosPorId.get(fila.id) ?? []}
+            puntaje={c.puntajes.get(fila.id.toUpperCase()) ?? null}
             demo={vista.esDemo}
             accionInicial={accion}
           />

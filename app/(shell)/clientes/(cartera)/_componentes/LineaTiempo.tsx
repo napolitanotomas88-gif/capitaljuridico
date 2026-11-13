@@ -10,6 +10,7 @@ import {
 } from '@/lib/clientes/recorrido'
 import { clasesFuentes } from '../../../fuentes'
 import './recorrido.css'
+import { Calificacion } from '@/components/clientes/Calificacion'
 
 // Línea de tiempo de la cartera (25/10/2026, reemplaza "Prioridad: todavía sin campaña lanzada"): todos los clientes de
 // Agencia, cada uno en su etapa (la regla está en lib/clientes/recorrido.ts). Arriba, una barra con cuántos hay en cada
@@ -349,6 +350,7 @@ function EjeTiempo({ filas, abierto, onTramo, idPanel, onAbrir }: {
                         {/* Tocar el nombre abre la tarjeta completa del cliente (sin abrir el tramo) */}
                         <button type="button" className={`rc-mini__item rc-e--${x.etapa}${x.frenado ? ' rc-mini__item--freno' : ''}${idPanel === x.id ? ' rc-mini__item--activo' : ''}`}
                           onClick={e => onAbrir(x.id, e.currentTarget)} aria-haspopup="dialog">
+                          <Calificacion p={x.calificacion} className="rc-mini__puntaje" />
                           <span className={`rc-pto rc-e--${x.etapa} rc-pto--quieto`} aria-hidden />
                           <span className="rc-mini__nombre">{x.nombre}</span>
                           <span className="rc-mini__etapa">{NOMBRE_ETAPA[x.etapa]} · día {x.diasCliente ?? '—'}</span>
@@ -388,6 +390,7 @@ function Tarjeta({ x, grande, activa, onAbrir }: { x: FilaRecorrido; grande: boo
       onClick={e => onAbrir(x.id, e.currentTarget)}
       aria-haspopup="dialog"
     >
+      <Calificacion p={x.calificacion} />
       <span className="rc-tarjeta__nombre">{x.nombre}</span>
       <span className="rc-tarjeta__meta">
         {x.closer && <span>Closer {x.closer}</span>}
