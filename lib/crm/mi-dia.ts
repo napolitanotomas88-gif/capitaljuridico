@@ -63,6 +63,9 @@ export async function datosMiDia(hoja: string, ahora: Date): Promise<DatosMiDia>
   };
 }
 
+/** "HH:mm:ss" de la columna Fecha del log (`dd/mm/yyyy HH:mm:ss`): todas las de "Hechas hoy" son del mismo día. */
+const horaDelLog = (fecha: string) => fecha.trim().split(/\s+/)[1]?.padStart(8, "0") ?? "";
+
 /**
  * Pre-call v2: la vista del pre-caller (`/ventas/closer/pre-caller`). Las tarjetas PRE_CALLER de todas las hojas que puede ver,
  * juntas y en el orden del motor, cada una con el closer de la reunión al frente del estado. "Hechas hoy", de todas esas hojas.
@@ -81,7 +84,10 @@ export async function datosPrecaller(visibles: string[], ahora: Date): Promise<D
   items.sort((a, b) => compararAcciones(a.accion, b.accion));
   const hechas = hojas
     .flatMap((hoja) => operacionesDeHoy(log, hoja, ahora))
-    .filter((op) => /PRE_CALLER/.test(op.motivo ?? ""));
+    // PRE_CALLER (v2) y PRE_CALL (tarjeta de pre-call de antes del v2, que el pre-caller también puede tocar)
+    .filter((op) => /^PRE_CALL/.test(op.motivo ?? ""))
+    // Todas las hojas juntas, la más nueva primero (antes quedaban agrupadas por hoja y una de las 19:10 salía al final)
+    .sort((a, b) => horaDelLog(b.fecha).localeCompare(horaDelLog(a.fecha)));
   return {
     items: items.map(({ fila, accion }) => ({ ...armarItem(fila, accion, ahora), closer: nombreCloserDeHoja(fila.hoja) })),
     calls: [],
