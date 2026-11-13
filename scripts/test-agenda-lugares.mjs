@@ -70,7 +70,7 @@ test('cuenta reuniones que entran, no horarios: un closer libre de 9 a 11 suma 2
 })
 
 test('con 15 min de margen: libre de 9 a 12:15 con horarios cada 15 min entran 9:00 y 10:15 (no 10:00)', () => {
-  const horarios = ['09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15'].map(ar)
+  const horarios = ['09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15'].map((h) => ar(h))
   const carlos = { nombre: 'Carlos Roletto', reglas: semana('09:00', '12:15'), tz: TZ, ocupado: [] }
   assert.equal(contarLugares({ horarios, hosts: [carlos], duracionMin: 60, nivel: 1 }).total, 3)
   assert.equal(contarLugares({ horarios, hosts: [carlos], duracionMin: 60, margenMin: 15, nivel: 1 }).total, 2)
