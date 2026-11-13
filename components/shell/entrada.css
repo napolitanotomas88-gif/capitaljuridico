@@ -1,0 +1,85 @@
+/* ── Entrada animada del Despacho (components/shell/Entrada.tsx) ─────────────────────────────────────────────────────
+   Todo cuelga de .cj-telon[data-fase], que pone el script en línea SOLO en el primer ingreso de la sesión: sin ese atributo
+   (la gran mayoría de las cargas) ninguna de estas reglas aplica y el telón queda oculto. Con movimiento reducido tampoco.
+   Tiempos y curvas: los de la maqueta aprobada (optimizacion-despacho/maqueta-entrada.html). Solo se animan transform,
+   opacity, clip-path y stroke-dashoffset; la única excepción es el relleno de los trazos del escudo (fill/stroke-opacity),
+   como en la maqueta, sobre un SVG de 74 px y antes de que haya página a la vista. */
+.cj-telon { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* El contenedor no se posiciona: así el fondo queda DEBAJO de .cj-raiz (que con el recorte pinta encima, por orden) y el
+     escudo y el nombre quedan ENCIMA de todo */
+  .cj-telon[data-fase] { display: block; pointer-events: none; }
+  .cj-telon__fondo { position: fixed; inset: 0; background: radial-gradient(60vmax 50vmax at 50% 45%, #0b4034 0%, #012d25 62%); }
+  .cj-telon__marca {
+    position: fixed; inset: 0; z-index: 70; padding-top: 118px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  }
+  .cj-telon__nombre {
+    font-family: var(--font-source-serif), Georgia, serif; font-size: 15px; line-height: 1.5; letter-spacing: 0.32em;
+    text-transform: uppercase; color: #f2eadc; opacity: 0;
+    animation: cje-aparece 1.2s ease 2s forwards, cje-sale 0.7s ease 3.1s forwards;
+  }
+  .cj-telon__linea { width: 120px; height: 1px; background: rgba(242, 234, 220, 0.16); overflow: hidden; animation: cje-sale 0.7s ease 3.1s forwards; }
+  .cj-telon__linea i {
+    display: block; width: 100%; height: 100%; background: #be8f49; transform: scaleX(0); transform-origin: left;
+    animation: cje-llena 2.9s cubic-bezier(0.45, 0, 0.2, 1) 0.2s forwards;
+  }
+
+  /* El escudo: se construye de abajo hacia arriba (--k = turno de cada trazo, 23 ms entre uno y otro) y después vuela.
+     Este vuelo es el de respaldo (sube y se desvanece, el del celular); en escritorio EntradaCliente lo reemplaza por el
+     vuelo medido hasta el logo de la barra */
+  .cj-telon__escudo {
+    position: fixed; z-index: 71; left: 50%; top: 45%; width: 74px; color: #be8f49;
+    transform: translate(-50%, -58%); transform-origin: 50% 50%;
+    animation: cje-se-va 1.7s cubic-bezier(0.6, 0, 0.2, 1) 3.15s forwards;
+  }
+  .cj-telon__escudo svg { display: block; width: 100%; height: auto; }
+  .cj-telon__escudo :is(path, polygon) {
+    fill-opacity: 0; stroke: currentColor; stroke-width: 3; stroke-dasharray: 1; stroke-dashoffset: 1;
+    animation: cje-traza 1.5s cubic-bezier(0.45, 0, 0.2, 1) calc(0.15s + var(--k, 0) * 23ms) forwards,
+      cje-rellena 0.9s ease calc(1.05s + var(--k, 0) * 23ms) forwards;
+  }
+
+  /* La página: oculta hasta que se abre en círculo desde el escudo (recorte de .cj-raiz, que está arriba a la izquierda) */
+  .cj-telon[data-fase] ~ .cj-raiz {
+    clip-path: circle(0 at 50vw 45vh);
+    animation: cje-abre 1.9s cubic-bezier(0.65, 0, 0.35, 1) 3.2s forwards;
+  }
+  /* El logo de la barra aparece cuando aterriza el escudo */
+  .cj-telon[data-fase] ~ .cj-raiz .cj-lateral .cj-marca { opacity: 0; animation: cje-aparece 0.5s ease 4.75s forwards; }
+  /* Los íconos de la barra, de a uno de arriba hacia abajo */
+  .cj-telon[data-fase] ~ .cj-raiz .cj-nav > li {
+    opacity: 0; transform: translateX(-10px);
+    animation: cje-entra 1s cubic-bezier(0.22, 1, 0.36, 1) calc(4.5s + var(--cje-n, 0) * 140ms) forwards;
+  }
+  .cj-nav > li:nth-child(2) { --cje-n: 1; } .cj-nav > li:nth-child(3) { --cje-n: 2; } .cj-nav > li:nth-child(4) { --cje-n: 3; }
+  .cj-nav > li:nth-child(5) { --cje-n: 4; } .cj-nav > li:nth-child(6) { --cje-n: 5; } .cj-nav > li:nth-child(7) { --cje-n: 6; }
+  .cj-nav > li:nth-child(8) { --cje-n: 7; } .cj-nav > li:nth-child(9) { --cje-n: 8; } .cj-nav > li:nth-child(n + 10) { --cje-n: 9; }
+  /* El contenido espera escondido hasta que EntradaCliente lo hace aparecer de a un bloque (data-contenido) */
+  .cj-telon[data-fase]:not([data-contenido]) ~ .cj-raiz .cj-pagina { opacity: 0; }
+
+  /* Botón principal: arranca bordó y pasa en degradado al marfil de siempre. Una capa por debajo del texto (tres veces el
+     ancho del botón, borde incluido) que se corre hacia la derecha mientras su recorte se corre al revés: así siempre se
+     ve justo la caja del botón, con sus esquinas. Al terminar se saca el atributo y el botón queda exactamente como es */
+  .cj-raiz .cj-boton[data-cje-boton] { position: relative; isolation: isolate; }
+  .cj-raiz .cj-boton[data-cje-boton]::before {
+    content: ''; position: absolute; top: -1px; bottom: -1px; left: -1px; width: calc(300% + 6px); z-index: -1; pointer-events: none;
+    background: linear-gradient(100deg, transparent 0%, transparent 34%, #d9b678 50%, #7f202c 66%, #7f202c 100%);
+    transform: translateX(-66.667%); clip-path: inset(0 0 0 66.667% round 12px);
+  }
+  .cj-raiz .cj-boton[data-cje-boton='bordo'], .cj-raiz .cj-boton[data-cje-boton='pasa'] { color: #fbf8f2; }
+  .cj-raiz .cj-boton[data-cje-boton='pasa']::before, .cj-raiz .cj-boton[data-cje-boton='pasada']::before {
+    animation: cje-pasa 1.8s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+  }
+}
+
+@keyframes cje-traza { to { stroke-dashoffset: 0; } }
+@keyframes cje-rellena { to { fill-opacity: 1; stroke-opacity: 0; } }
+@keyframes cje-aparece { to { opacity: 1; } }
+@keyframes cje-sale { to { opacity: 0; } }
+@keyframes cje-llena { to { transform: scaleX(1); } }
+@keyframes cje-se-va { to { transform: translate(-50%, calc(-58% - 24vh)) scale(0.5); opacity: 0; } }
+@keyframes cje-abre { to { clip-path: circle(150vmax at 50vw 45vh); } }
+@keyframes cje-entra { to { opacity: 1; transform: none; } }
+@keyframes cje-pasa { to { transform: translateX(0); clip-path: inset(0 66.667% 0 0 round 12px); } }
