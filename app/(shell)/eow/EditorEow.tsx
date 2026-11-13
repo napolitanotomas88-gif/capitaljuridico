@@ -179,7 +179,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
                         </select>
                       </label>
                       <button type="button" className="eow-pausar" onClick={() => editarFila(f.id, { pausado: !f.pausado })}>
-                        {f.pausado ? '▶ Reanudar' : '⏸ Pausar'}
+                        {f.pausado ? 'Reanudar' : 'Pausar'}
                       </button>
                       <CeldaCartera fila={f} vinculo={vincular(f)} cartera={cartera} alVincular={(cambio) => editarFila(f.id, cambio)} />
                       <button type="button" className="eow-quitar" aria-label={`Quitar a ${f.cliente || 'esta fila'}`} onClick={() => quitarFila(f.id)}>×</button>
@@ -202,7 +202,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
               <summary>Historial de cambios ({historial.length})</summary>
               <ul>
                 {historial.map((h, i) => (
-                  <li key={i}><strong>{h.quien}</strong> · {hora(h.cuando)} — {h.cambios.slice(0, 8).join(' · ')}{h.cambios.length > 8 ? ` · y ${h.cambios.length - 8} más` : ''}</li>
+                  <li key={i}><strong>{h.quien}</strong> · {hora(h.cuando)}: {h.cambios.slice(0, 8).join('; ')}{h.cambios.length > 8 ? `; y ${h.cambios.length - 8} más` : ''}</li>
                 ))}
               </ul>
             </details>
@@ -235,7 +235,7 @@ function TarjetaEditable({ titulo, items, alCambiar }: { titulo: string; items: 
       </ul>
       <form className="eow-tarjeta__nuevo" onSubmit={(e) => { e.preventDefault(); sumar() }}>
         <input className="eow-input" value={nuevo} placeholder="Agregar…" aria-label={`Agregar a ${titulo}`} onChange={(e) => setNuevo(e.target.value)} />
-        <button type="submit" className="eow-agregar">+</button>
+        <button type="submit" className="eow-agregar" aria-label={`Agregar a ${titulo}`}>+</button>
       </form>
     </div>
   )
