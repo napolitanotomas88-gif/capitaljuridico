@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { CargandoVentas } from "@/components/crm/CargandoVentas";
 import { PantallaMiDia } from "@/components/crm/mi-dia/PantallaMiDia";
 import { closerDeSesion, puedeVerHoja, requerirSesion } from "@/lib/crm/auth";
 import { closers } from "@/lib/crm/config";
@@ -35,5 +37,10 @@ export default async function PaginaCloser({ params }: Props) {
   // Para un closer con una sola pestaña se muestra su nombre; para el socio y para quien trabaja en varias (pre-caller),
   // el de la pestaña elegida (el de su closer)
   const propia = sesion.rol === "closer" && sesion.hojas.length === 1 && sesion.closerId === closer.id;
-  return <PantallaMiDia closer={propia ? closerDeSesion(sesion) : closer} sesion={sesion} />;
+  // Las hojas se leen dentro de <Suspense>: el esqueleto sale al toque y las redirecciones de arriba siguen siendo reales.
+  return (
+    <Suspense fallback={<CargandoVentas />}>
+      <PantallaMiDia closer={propia ? closerDeSesion(sesion) : closer} sesion={sesion} />
+    </Suspense>
+  );
 }
