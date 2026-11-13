@@ -47,6 +47,9 @@ export async function tareasClickUp(): Promise<{ tareas: TareaClickUp[]; aviso: 
 }
 
 /** Campañas de Meta por cliente del CRM, tomadas del tablero de /anuncios. Espera hasta `esperaMs`; si no llega, sigue sin ellas. */
+// Nivel del costo por mensaje del tablero (reglas.ts) → color del semáforo del puntaje. Sin datos o sin referencia: null
+const COLOR_CPL: Record<string, 'verde' | 'amarillo' | 'rojo'> = { ok: 'verde', medio: 'amarillo', alto: 'rojo' }
+
 export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<string, CampanaMeta>; aviso: string | null }> {
   const vacio = new Map<string, CampanaMeta>()
   try {
@@ -54,6 +57,7 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
     const tablero = await Promise.race([obtenerTablero(), new Promise<null>(r => setTimeout(() => r(null), esperaMs))])
     if (!tablero) return { porCliente: vacio, aviso: 'Meta tardó en responder: se muestra sin el dato de campañas (recargá en un minuto).' }
     const porCliente = new Map<string, CampanaMeta>()
+    const gastoCpl = new Map<string, number>()   // gasto de 7 días de la cuenta que dio el color del costo por mensaje
     const hoy = hoyArgentina()
     for (const f of tablero.filas) {
       const nombre = f.clienteCRM || f.cliente
@@ -70,6 +74,11 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
       const primerGasto = [v?.primero, previo?.primerGasto].filter((x): x is string => !!x).sort()[0] ?? null
       const gastoAntesDe = (v?.primero && v.primero === v.desde ? v.desde : null) ?? previo?.gastoAntesDe ?? null
       const ultimoGasto = [v?.ultimo, previo?.ultimoGasto].filter((x): x is string => !!x).sort().pop() ?? null
+      // Costo por mensaje: el de la cuenta que más gastó en 7 días. Gasto diario y objetivo: suma de todas sus cuentas
+      const colorCpl = COLOR_CPL[f.cpl.nivel] ?? null
+      const usaEsta = colorCpl !== null && f.gasto.d7 >= (gastoCpl.get(k) ?? -1)
+      if (usaEsta) gastoCpl.set(k, f.gasto.d7)
+      const sumar = (a: number | null | undefined, b: number | null | undefined) => (a == null && b == null ? null : (a ?? 0) + (b ?? 0))
       const primero = [...f.lanzamientos.map(l => l.fecha).filter(Boolean), corriendoDesde, previo?.primerLanzamiento ?? null].filter((x): x is string => !!x).sort()[0] ?? null
       porCliente.set(k, {
         primerLanzamiento: primero,
@@ -79,6 +88,10 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
         semaforo: previo?.semaforo === 'rojo' ? 'rojo' : f.semaforo ?? previo?.semaforo ?? null,
         aGrabar: f.aGrabar === 'no_rinde' || previo?.aGrabar === 'no_rinde' ? 'no_rinde' : f.aGrabar ?? previo?.aGrabar ?? null,
         primerGasto, gastoAntesDe, ultimoGasto,
+        cpl: usaEsta ? colorCpl : previo?.cpl ?? null,
+        gastoRealDiarioUSD: sumar(previo?.gastoRealDiarioUSD, f.presupuesto.realDiarioUSD),
+        gastoObjetivoDiarioUSD: sumar(previo?.gastoObjetivoDiarioUSD, f.presupuesto.objetivoDiarioUSD),
+        errorPago: !!previo?.errorPago || (f.pago.errorPago && !f.pausado),
       })
     }
     return { porCliente, aviso: null }

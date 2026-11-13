@@ -37,6 +37,11 @@ export interface CampanaMeta {
   primerGasto?: Ymd | null   // el primer día con gasto que se ve
   gastoAntesDe?: Ymd | null  // si ya gastaba el primer día de la ventana: ese día (el lanzamiento fue antes; no se sabe cuándo)
   ultimoGasto?: Ymd | null   // el último día con gasto (para «en pausa desde…»)
+  // Para el puntaje interno (lib/clientes/puntaje.ts, 13/11/2026), lo que el tablero ya calcula (sin pedidos nuevos a Meta):
+  cpl?: 'verde' | 'amarillo' | 'rojo' | null   // costo por mensaje frente al KPI de su rama (de la cuenta que más gastó en 7 días)
+  gastoRealDiarioUSD?: number | null            // promedio diario de los últimos 7 días completos (todas sus cuentas)
+  gastoObjetivoDiarioUSD?: number | null        // presupuesto mensual pactado / días del mes (todas sus cuentas)
+  errorPago?: boolean                           // alguna de sus cuentas está frenada por un problema de pago
 }
 export interface ClienteBase { id: string; nombre: string; closer: string; estado: string }
 export interface GuionesPlanilla { ultimoGuion: Ymd | null; fechasGuiones: Ymd[]; grabado: boolean; ultimaGrabacion: Ymd | null }
