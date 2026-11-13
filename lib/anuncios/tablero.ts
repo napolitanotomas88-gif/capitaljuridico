@@ -10,7 +10,7 @@
 import { createHash } from 'node:crypto'
 import { conCache } from './cache'
 import { cargarCuentas, esCuentaPropia, sinAct } from './cuentas'
-import { crearCruce, normTxt, type Guiones } from './cruce'
+import { crearCruce, normTxt, VINCULOS_FIRMES, type Guiones } from './cruce'
 import { diasEntre, hoyAR, haceTiempo, sumarDias } from './formato'
 import { descubrirCuentas, leerCuentas, leerEntradasErrorPago, leerInsights, leerLanzamientos, type Lanzamiento, type CuentaDescubierta, type CuentaMeta, type InsightsCuentas, type ResultadoCuentas } from './meta'
 import { analizarCuenta, DIAS_VENTANA, MOTIVOS_RENDIMIENTO, type Analisis, type Semaforo, type TipoMotivo } from './reglas'
@@ -35,6 +35,7 @@ import { lineaBaseDe, novedad } from '@/lib/bot/anuncios/docAdsBase'
 import { leerFilasBase } from '@/lib/bot/anuncios/docAdsBaseNeon'
 import { avisosFichasSueltas, cruzarKickoffs, cuentasDelCliente, opcionesCruceTablero, tokensNombre, type ConKickoff, type CuentaPorLanzar } from './porLanzar'
 import { avisoSinAcceso, esSinPermiso } from './sinAcceso'
+import { clientesSinCuenta, cuentasDeFichas, cuentasSinCliente, type CuentaVinculadaSinGasto, type Vinculos } from './vinculos'
 
 export const DIAS_LANZAMIENTO = 10
 export const REFRESCO = { lanzamientosSeg: 900, clickupSeg: 3600, cuentasSeg: 150, insightsSeg: 720, sheetsSeg: 300, descubrimientoSeg: 1800, tokenSeg: 3600, dolarSeg: 1800, monedasSeg: 21600, kickoffsSeg: 300, pantallaSeg: 15 }
@@ -64,6 +65,9 @@ export interface FilaAnuncio extends Analisis {
   lanzamientos: (Lanzamiento & { dia: number; cplUSD: number | null; link: string; fechaOptimizacion: string | null; etapa: 'competencia' | 'ganador' | null; diasCompetencia: number; pendienteRevision: boolean; diasDesdeRevision: number; fechaRevision: string | null })[]
   revisarDia4: boolean           // alguna campaña está en el día 4 o 5 (revisión pendiente)   // tarea de "Seguimiento de Anuncios"
   usdPor: number | null          // unidades de su moneda por 1 USD (USD = 1 · ARS = dólar MEP venta · otras = cotización del día)
+  // Primer y último día con gasto en la ventana de insights (35 días; desde = su primer día). Si el primero es `desde`, la
+  // cuenta ya gastaba antes: no es la fecha real del lanzamiento. Lo usa el hito «Campaña lanzada» (lib/clientes/lanzamientoAuto.ts)
+  gastoVentana?: { primero: string | null; ultimo: string | null; desde: string }
 }
 
 export interface DocAdsPorLanzar {
@@ -105,6 +109,7 @@ export interface Tablero {
   avisosPorLanzar: string[]      // los de las fichas de kickoff (lectura de la base, fichas sueltas): van en el panel, no en `avisos` (el reporte de Discord no los arrastra)
   dolar: DolarHoy | null         // venta de hoy por casa (oficial, blue, MEP, tarjeta) para pasar ARS a USD
   optimizacionesLeidas?: boolean // se pudo leer «Ads Optimizaciones»: sin eso, el seguimiento del bot (lib/bot/anuncios) no corre
+  vinculos?: Vinculos            // clientes sin cuenta, cuentas con gasto sin cliente y vinculadas sin gasto (vinculos.ts, 13/11)
 }
 
 const hash = (xs: string[]) => createHash('sha1').update(xs.join(',')).digest('hex').slice(0, 10)
@@ -187,7 +192,10 @@ export async function obtenerTablero(): Promise<Tablero> {
   if (token?.aviso) avisos.push(token.aviso)
 
   // ── Qué cuentas seguir: lista base + cuentas de clientes ACTIVOS que aparezcan en Meta ──
-  const cruce = crearCruce(sheets)
+  // La cuenta que revisó la ficha de kickoff también une la cuenta al cliente (después del ajuste privado y de «Cuentas Meta»,
+  // antes del nombre: cruce.ts). Las fichas ya se venían leyendo en paralelo (con su tope de 3 s): se esperan acá.
+  const kickoffsR = await kickoffsP
+  const cruce = crearCruce(sheets, { cuentasFicha: cuentasDeFichas(kickoffsR.ok ? kickoffsR.v.data : null, sheets.clientes) })
   const porIdDesc = new Map(descubiertas.map(c => [c.id, c]))
   const excluidasIds = new Set(CUENTAS_EXCLUIDAS)
   const base = CUENTAS_BASE.filter(id => !excluidasIds.has(id) && !esCuentaPropia(id))
@@ -245,6 +253,7 @@ export async function obtenerTablero(): Promise<Tablero> {
   // ── Filas ──
   const filas: FilaAnuncio[] = []
   const excluidas: Tablero['excluidas'] = []
+  const vinculadasSinGasto: CuentaVinculadaSinGasto[] = []
   for (const id of ids) {
     const cuenta: CuentaMeta | undefined = cuentasMeta.cuentas[id]
     const desc = porIdDesc.get(id)
@@ -256,7 +265,12 @@ export async function obtenerTablero(): Promise<Tablero> {
     const estado = cuenta?.estado ?? desc?.estado ?? 0
     if ([100, 101].includes(estado)) { excluidas.push({ id, cuenta: nombre, motivo: 'cuenta cerrada en Meta', moneda: cuenta?.moneda ?? 'USD' }); continue }
     const dias = insights?.porCuenta[id] ?? null
-    if (esExtra && dias && !dias.some(d => d.g > 0)) continue   // cuenta extra del cliente sin gasto en 5 semanas: ruido
+    // Cuenta extra del cliente sin gasto en 5 semanas: no entra a la tabla. Si está vinculada a mano (ajuste, «Cuentas Meta» o
+    // la ficha), no se pierde: va al bloque de vínculos como «vinculada, sin gasto todavía» (13/11/2026)
+    if (esExtra && dias && !dias.some(d => d.g > 0)) {
+      if (res.vinculo && VINCULOS_FIRMES.includes(res.vinculo)) vinculadasSinGasto.push({ id, cuenta: nombre, cliente: res.cliente?.nombre || res.nombreColC, vinculo: res.vinculo })
+      continue
+    }
     const guiones = cruce.guionesDe(res.cliente, res.nombreColC, nombre, AJUSTES_CUENTA[id]?.aliasGuiones)
     const moneda = cuenta?.moneda ?? 'USD'
     const usdPor = moneda === 'USD' ? 1 : moneda === 'ARS' ? dolar?.bolsa?.venta ?? dolar?.oficial?.venta ?? null : fx?.[moneda] ?? null
@@ -284,6 +298,7 @@ export async function obtenerTablero(): Promise<Tablero> {
     const fechaPrevia = sumarDias(hoy, -1)
     const ayer = analizarCuenta(cuenta ?? null, dias, fechaPrevia, { ...ctx, enCompetencia: lanzamientosCuenta.some(l => etapaOptimizacion(optDe(l)?.fecha ?? null, fechaPrevia) === 'competencia') })
     const idNum = sinAct(id)
+    const conGasto = (dias ?? []).filter(d => d.g > 0).map(d => d.d).sort()
     filas.push({
       ...a,
       presupuesto,
@@ -307,6 +322,7 @@ export async function obtenerTablero(): Promise<Tablero> {
       sinAcceso: sinPermiso.has(id),
       ...(sinPermiso.has(id) ? { frase: 'Sin acceso a la cuenta publicitaria: el gasto y el CPL no están actualizados. El cliente tiene que volver a darle acceso a Gerónimo Actis.' } : {}),
       usdPor,
+      gastoVentana: { primero: conGasto[0] ?? null, ultimo: conGasto.at(-1) ?? null, desde },
       rama,
       lanzamientos: (lanzPorCuenta.get(id) ?? []).map(l => ({
         pendienteRevision: !res.pausado && cuenta?.entrega !== 'sin_activos' && requiereRevision(l, optDe(l)?.fecha ?? null, revDe(l)?.fecha ?? null, hoy),
@@ -338,18 +354,24 @@ export async function obtenerTablero(): Promise<Tablero> {
   const conFila = new Set(filas.map(f => normTxt(f.clienteCRM ?? '')))
   const idsFila = new Set(filas.map(f => f.id))
   const tokFilas = new Set(filas.flatMap(f => tokensNombre(`${f.cliente} ${f.cuenta}`)))   // palabras que ya pertenecen a clientes con fila: no sirven para cruzar a otro
-  const idPorCliente = new Map(Object.entries(AJUSTES_CUENTA).filter(([, a]) => a.cliente).map(([id, a]) => [normTxt(a.cliente!), id]))
   const candidatas = descubiertas.filter(c => !idsFila.has(c.id) && !excluidasIds.has(c.id) && !esCuentaPropia(c.id) && ![100, 101].includes(c.estado))
+  // Vinculadas a mano: las de AJUSTES_CUENTA y las visibles que el cruce une al cliente por «Cuentas Meta» o por la ficha
+  const idsPorCliente = new Map<string, Set<string>>()
+  const vincular = (cliente: string, id: string) => { const k = normTxt(cliente); if (k) idsPorCliente.set(k, (idsPorCliente.get(k) ?? new Set()).add(id)) }
+  for (const [id, a] of Object.entries(AJUSTES_CUENTA)) if (a.cliente) vincular(a.cliente, id)
+  for (const c of candidatas) {
+    const r = cruce.resolverCliente({ id: c.id, nombre: c.nombre, negocio: c.negocio?.nombre })
+    if (r.vinculo && VINCULOS_FIRMES.includes(r.vinculo)) vincular(r.cliente?.nombre || r.nombreColC, c.id)
+  }
   const sinLanzar: Omit<PorLanzar, keyof ConKickoff>[] = sheets.clientes.filter(c => c.estado === 'ACTIVO' && !conFila.has(normTxt(c.nombre))).map(c => {
     // Las cuentas que se parecen por el nombre (a mano, dos palabras en común o un apellido distintivo): porLanzar.ts
-    const cuentas = cuentasDelCliente(c.nombre, candidatas, { manual: idPorCliente.get(normTxt(c.nombre)) ?? null, tokFilas })
+    const cuentas = cuentasDelCliente(c.nombre, candidatas, { manual: idsPorCliente.get(normTxt(c.nombre)) ?? null, tokFilas })
     const tarea = buscarTarea([c.nombre])
     return { cliente: c.nombre, idCrm: c.id || null, etapa: tarea?.estado ?? null, clickup: tarea ? { nombre: tarea.nombre, url: tarea.url } : null, acceso: cuentas.length ? 'si' as const : 'no' as const, cuentas }
   })
   // La ficha de kickoff de cada uno (porLanzar.ts): por el nombre del CRM que guardó la ficha, con el mismo cruce del
   // tablero, o por la cuenta que revisó (solo si el tablero se la asoció con algo firme). Con cuenta en la ficha, el
   // acceso es el de esa cuenta: la ve el token, ya gasta en otra fila, el tablero no la sigue (y por qué) o no la ve.
-  const kickoffsR = await kickoffsP
   const avisosPorLanzar: string[] = []
   const avisoFichas = avisoLecturaFichas(kickoffsR, haceTiempo)
   if (avisoFichas) avisosPorLanzar.push(avisoFichas)
@@ -385,6 +407,13 @@ export async function obtenerTablero(): Promise<Tablero> {
     }
   }
   for (const p of [...porLanzar, ...esperando]) p.traba = diagnosticar(entradaTraba(p, tandas))
+  // Lo que falta vincular (vinculos.ts): de TODOS los por lanzar (también los que todavía no tienen editados). Sin el CRM no
+  // se sabe quién es cliente, y sin la lista de cuentas de Meta todos parecerían «sin cuenta»: no se arma
+  const vinculos: Vinculos | undefined = sheetsR.ok && descR.ok ? {
+    clientesSinCuenta: clientesSinCuenta(todosPorLanzar),
+    cuentasSinCliente: cuentasSinCliente(filas),
+    vinculadasSinGasto: vinculadasSinGasto.sort((a, b) => a.cliente.localeCompare(b.cliente, 'es')),
+  } : undefined
 
   const tiene = (f: FilaAnuncio, ...t: TipoMotivo[]) => f.motivos.some(x => t.includes(x.tipo))
   return {
@@ -432,6 +461,7 @@ export async function obtenerTablero(): Promise<Tablero> {
     avisosPorLanzar,
     dolar,
     optimizacionesLeidas: optR.ok,
+    vinculos,
   }
 }
 

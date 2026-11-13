@@ -3,14 +3,16 @@
 // acoplarse a ese archivo. Nombres normalizados: minúsculas, sin acentos ni puntuación.
 //   Cuenta → cliente: 1) AJUSTES_CUENTA (cuentas.ts); 2) col C de "Cuentas Meta" (fila exacta por
 //   nombre o id; si no, la única fila SI cuyas palabras están todas en el nombre de la cuenta);
-//   3) match por nombre de la cuenta / del portfolio contra el CRM (≥2 palabras de 4+ letras con UN cliente).
+//   3) la cuenta que revisó la ficha de kickoff del cliente (opciones.cuentasFicha, 13/11/2026);
+//   4) match por nombre de la cuenta / del portfolio contra el CRM (≥2 palabras de 4+ letras con UN cliente).
 //   Cliente → guiones: pestaña "Alias Guiones" del CRM; si no, alias tipo "CarlosE" (nombre + iniciales
 //   de apellidos) que calce con UN solo cliente vigente; si no, el alias pegado al nombre ("SofíaCuervo").
 import type { ClienteCRM, DatosSheets, FilaGuion } from './sheets'
 import { cargarCuentas } from './cuentas'
+import { normNombre, sinApostrofos } from '../nombresPersona'
 
-export const normTxt = (x: unknown) => (x ?? '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+// Sin apóstrofos antes de normalizar: «D’Arcangelo» = «DArcangelo» (lib/nombresPersona.ts, 13/11/2026)
+export const normTxt = normNombre
 const pegado = (x: string) => normTxt(x).replace(/ /g, '')
 const esVigente = (estado: string) => estado === 'ACTIVO' || estado === 'PAUSADO'
 
@@ -24,12 +26,23 @@ export interface ClienteResuelto {
   exCliente: string | null        // motivo si el CRM lo marca como ex-cliente
   activo: boolean                 // cliente vigente según CRM o "Cuentas Meta" (col B = SI)
   pausado: boolean
+  // Cómo se unió la cuenta al cliente: a mano (ajuste privado o «Cuentas Meta» con cliente), por la ficha de kickoff o por el
+  // nombre. null = sin cliente. Las tres primeras son vínculos firmes: la cuenta no se descarta por no tener gasto (tablero.ts).
+  vinculo: VinculoCuenta | null
+}
+export type VinculoCuenta = 'ajuste' | 'planilla' | 'ficha' | 'nombre'
+export const VINCULOS_FIRMES: readonly VinculoCuenta[] = ['ajuste', 'planilla', 'ficha']
+
+export interface OpcionesCruceCuentas {
+  /** Cuenta de Meta (act_…) → nombre del cliente en el CRM, según su ficha de kickoff. Menos prioridad que el ajuste privado
+   *  y que «Cuentas Meta»; más que el cruce por nombre. */
+  cuentasFicha?: ReadonlyMap<string, string>
 }
 
 export type EstadoGuion = 'grabado' | 'pendiente' | 'sin_guiones' | 'inactivo'
 export interface Guiones { estado: EstadoGuion; detalle: string; alias: string[] }
 
-export function crearCruce(s: DatosSheets) {
+export function crearCruce(s: DatosSheets, opciones: OpcionesCruceCuentas = {}) {
   const AJUSTES_CUENTA = cargarCuentas().ajustes
   // ── CRM: un registro por nombre (si hay duplicados, gana el vigente) ──
   const crmPorNombre = new Map<string, ClienteCRM & { tokens: string[] }>()
@@ -54,7 +67,7 @@ export function crearCruce(s: DatosSheets) {
     nombre ? crmPorNombre.get(normTxt(nombre)) ?? matchPorNombre(nombre.replace(/\(.*?\)/g, ' ')) ?? matchPorNombre(nombre) : null
 
   // ── "Cuentas Meta": fila exacta por nombre/id o difusa (solo filas SI) ──
-  const norm = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+  const norm = (x: string) => sinApostrofos(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
   const cuentaInfo = new Map<string, { actual: boolean; clienteCRM: string }>()
   for (const f of s.cuentasMeta) cuentaInfo.set(norm(f.cuenta), { actual: f.actual, clienteCRM: f.clienteCRM })
   const IGNORAR = new Set(['usd', 'ars', 'cp', 'ads', 'y', 'de', 'la', 'del'])
@@ -72,10 +85,18 @@ export function crearCruce(s: DatosSheets) {
     const ajuste = AJUSTES_CUENTA[c.id]
     const info = infoCuenta(c.nombre, c.id)
     let colC = ajuste?.cliente ?? info?.clienteCRM ?? ''
+    let vinculo: VinculoCuenta | null = ajuste?.cliente ? 'ajuste' : colC ? 'planilla' : null
     let cli = colC ? buscarCliente(colC) : null
     // Col C traída por match DIFUSO que apunta a un ex-cliente: no se usa
-    if (!ajuste?.cliente && info && !info.exacta && cli && !esVigente(cli.estado)) { colC = ''; cli = null }
-    if (!colC) cli = matchPorNombre(c.nombre) ?? (c.negocio ? matchPorNombre(c.negocio) : null)
+    if (!ajuste?.cliente && info && !info.exacta && cli && !esVigente(cli.estado)) { colC = ''; cli = null; vinculo = null }
+    // La cuenta que revisó la ficha de kickoff: después de la planilla, antes del nombre
+    const ficha = colC ? '' : opciones.cuentasFicha?.get(c.id) ?? ''
+    const cliFicha = ficha ? buscarCliente(ficha) : null
+    if (cliFicha) { cli = cliFicha; vinculo = 'ficha' }
+    else if (!colC) {
+      cli = matchPorNombre(c.nombre) ?? (c.negocio ? matchPorNombre(c.negocio) : null)
+      vinculo = cli ? 'nombre' : null
+    }
     const estado = cli?.estado ?? ''
     let exCliente: string | null = null
     if (info?.exacta && !info.actual) exCliente = 'la pestaña "Cuentas Meta" la marca como NO cliente actual'
@@ -87,6 +108,7 @@ export function crearCruce(s: DatosSheets) {
       exCliente,
       activo: !exCliente && (estado === 'ACTIVO' || (!!info?.actual && estado !== 'PAUSADO')),
       pausado: estado === 'PAUSADO',
+      vinculo,
     }
   }
 
