@@ -41,6 +41,7 @@ import { TIMEOUT_RED_SHEETS_MS } from '../../clientes/coordinadorPostgres'
 import { serialAYmd, ymdASerial } from '../../clientes/fechas'
 import { columnasDeClientes, columnasDeRenovaciones } from '../../clientes/parsear'
 import { invalidarSnapshot } from '../../clientes/snapshot'
+import { invalidarCobrosFinanzas } from '../../clientes/cobrosFinanzas'
 import { letraColumna } from '../../clientes/texto'
 import type { Celda, Fila } from '../../clientes/tipos'
 import type { ExtrasCrm } from './crm'
@@ -504,7 +505,7 @@ export function escribirAltaCrm(
 async function escribir(a: AltaParseada, extras: Omit<ExtrasCrm, 'closersConocidos'>, opciones: OpcionesEscritura): Promise<ResultadoEscrituraCrm> {
   const { modo, deps = {} } = opciones ?? ({} as OpcionesEscritura)
   const ahora = deps.ahora ?? Date.now
-  const invalidar = deps.invalidarCache ?? (() => { invalidarSnapshot() })
+  const invalidar = deps.invalidarCache ?? (() => { invalidarSnapshot(); invalidarCobrosFinanzas() })   // cobros: el cruce usa las identidades del CRM
   const base: ResultadoEscrituraCrm = {
     ok: false, modo, etapa: 'previa', motivo: null, escribio: false, id: null, filaAgencia: null, filaRenovaciones: null,
     verificacion: null, pedidos: null, omitidas: [], formulasPrevias: null, avisos: [], previa: null, duplicadoVigente: null,
