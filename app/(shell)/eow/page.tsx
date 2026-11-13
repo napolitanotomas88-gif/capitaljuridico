@@ -33,8 +33,10 @@ export default async function PaginaEow({ searchParams }: { searchParams: Promis
   try {
     semanas = await listarSemanas()
     const semana = q.semana && esFecha(q.semana) && semanas.includes(q.semana) ? q.semana : semanas[0]
-    reporte = semana ? await leerReporte(semana) : null
-    historial = reporte ? await historialSemana(reporte.semana) : []
+    // El reporte y su historial dependen solo de la semana: en paralelo (el historial se descarta si la semana no tiene reporte)
+    const [leido, cambios] = semana ? await Promise.all([leerReporte(semana), historialSemana(semana)]) : [null, []]
+    reporte = leido
+    historial = leido ? cambios : []
   } catch {
     error = 'No se pudo leer el EOW. Recargá en un minuto.'
   }
