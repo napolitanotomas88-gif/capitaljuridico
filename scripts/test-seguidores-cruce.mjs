@@ -4,7 +4,7 @@ import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { calcularCruce, costo, validarFoto, veredictoCosto } from '../lib/anuncios/seguidoresCruce.ts'
+import { calcularCruce, costo, tonoCpm, tonoCtr, validarFoto, veredictoCosto } from '../lib/anuncios/seguidoresCruce.ts'
 
 const RAIZ = join(import.meta.dirname, '..')
 
@@ -151,6 +151,47 @@ describe('calcularCruce', () => {
   test('ordena por gasto del día y después por acumulado', () => {
     const f = validarFoto(foto({ posteos: [posteo({ clave: 'A', gastoAyer: 0, gastoAcum: 900 }), posteo({ clave: 'B', gastoAyer: 5 })] })).foto
     assert.deepEqual(calcularCruce(f).posteos.map(p => p.clave), ['B', 'A'])
+  })
+})
+
+describe('anuncios y calidad', () => {
+  const anuncio = (x = {}) => ({ nombre: 'Anuncio A', cuenta: 'principal', activo: false, gastoAcum: 100, gastoAyer: 0, cpm: 1.2, ctr: 4.5, atribuidosAcum: 10, atribuidosAyer: 0, ...x })
+  const cal = (x = {}) => ({ cuenta: 'secundaria', alcance: 'todos los seguidores', revisados: 20, abogados: 4, dudosos: 1, otros: 3, sinDato: 12, perfilesAbiertos: 5, ...x })
+
+  test('una foto sin anuncios ni calidad sigue valiendo (fotos viejas)', () => {
+    const c = calcularCruce(validarFoto(foto()).foto)
+    assert.deepEqual(c.anuncios, [])
+    assert.deepEqual(c.calidad, [])
+  })
+  test('anuncios: activos primero, después por gasto del día y total; con costo atribuido', () => {
+    const f = validarFoto(foto({ anuncios: [anuncio({ nombre: 'Viejo', gastoAcum: 900 }), anuncio({ nombre: 'Prendido', activo: true, gastoAyer: 5, gastoAcum: 20, atribuidosAcum: 0 }), anuncio({ nombre: 'Ayer', gastoAyer: 30 })] }))
+    assert.equal(f.ok, true)
+    const a = calcularCruce(f.foto).anuncios
+    assert.deepEqual(a.map(x => x.nombre), ['Prendido', 'Ayer', 'Viejo'])
+    assert.equal(a[0].costoAtribuido, null)
+    assert.equal(a[2].costoAtribuido, 90)
+  })
+  test('cpm y ctr pueden venir en null; activo tiene que ser booleano', () => {
+    assert.equal(validarFoto(foto({ anuncios: [anuncio({ cpm: null, ctr: null })] })).ok, true)
+    assert.equal(validarFoto(foto({ anuncios: [anuncio({ activo: 'si' })] })).ok, false)
+    assert.equal(validarFoto(foto({ anuncios: [anuncio({ ctr: '4,5%' })] })).ok, false)
+    assert.equal(validarFoto(foto({ anuncios: 'x' })).ok, false)
+  })
+  test('calidad: porcentaje confirmado y con dudosos', () => {
+    const c = calcularCruce(validarFoto(foto({ calidad: [cal()] })).foto).calidad[0]
+    assert.equal(c.pctAbogados, 0.2)
+    assert.equal(c.pctConDudosos, 0.25)
+  })
+  test('calidad: los conteos tienen que sumar los revisados', () => {
+    assert.equal(validarFoto(foto({ calidad: [cal({ sinDato: 11 })] })).ok, false)
+    assert.equal(calcularCruce(validarFoto(foto({ calidad: [cal({ revisados: 0, abogados: 0, dudosos: 0, otros: 0, sinDato: 0 })] })).foto).calidad[0].pctAbogados, null)
+  })
+  test('semáforo de CPM y CTR', () => {
+    assert.equal(tonoCpm(1.4), 'bueno')
+    assert.equal(tonoCpm(1.6), 'medio')
+    assert.equal(tonoCpm(1.71), 'malo')
+    assert.equal(tonoCtr(3.5), 'bueno')
+    assert.equal(tonoCtr(3.49), 'neutro')
   })
 })
 

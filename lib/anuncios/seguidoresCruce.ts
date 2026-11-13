@@ -35,11 +35,37 @@ export interface PerfilFoto {
   atribuidosAyer: number
 }
 
+export interface AnuncioFoto {
+  nombre: string
+  cuenta: string
+  activo: boolean               // prendido en Meta al momento de la foto
+  gastoAcum: number
+  gastoAyer: number
+  cpm: number | null            // USD cada 1.000 impresiones (acumulado)
+  ctr: number | null            // % (acumulado)
+  atribuidosAcum: number
+  atribuidosAyer: number
+}
+
+/** Calidad de los seguidores revisados: cuántos son abogados o estudios jurídicos. Solo conteos, nunca nombres. */
+export interface CalidadFoto {
+  cuenta: string
+  alcance: string               // qué se revisó: «todos los seguidores», «nuevos del día»…
+  revisados: number
+  abogados: number              // el nombre, el usuario, la bio o el chat dicen abogado o estudio jurídico
+  dudosos: number               // afín o ambiguo (escribanía, «Dr.», editorial jurídica)
+  otros: number                 // otra profesión o comercio
+  sinDato: number               // cuenta personal sin información
+  perfilesAbiertos?: number     // perfiles que se abrieron para leer la bio (muestra)
+}
+
 export interface FotoCruce {
   dia: string                   // AAAA-MM-DD (hora argentina) del día en que se tomó la foto
   tomada: string                // ISO del momento de la lectura
   posteos: PosteoFoto[]
   perfiles: PerfilFoto[]
+  anuncios?: AnuncioFoto[]      // gasto, CPM y CTR de cada anuncio
+  calidad?: CalidadFoto[]
   notas?: string[]              // avisos de la tarea (p. ej. «Business Suite no cargó»)
 }
 
@@ -61,7 +87,10 @@ export function validarFoto(entrada: unknown): { ok: true; foto: FotoCruce } | {
   if (!tomada) return { ok: false, motivo: 'tomada tiene que ser una fecha ISO' }
   if (!Array.isArray(e.posteos) || !Array.isArray(e.perfiles ?? [])) return { ok: false, motivo: 'posteos y perfiles tienen que ser listas' }
   const crudosPerfiles = (e.perfiles ?? []) as unknown[]
-  if (e.posteos.length + crudosPerfiles.length > MAX_FILAS) return { ok: false, motivo: `más de ${MAX_FILAS} filas` }
+  if (e.anuncios !== undefined && !Array.isArray(e.anuncios)) return { ok: false, motivo: 'anuncios tiene que ser una lista' }
+  if (e.calidad !== undefined && !Array.isArray(e.calidad)) return { ok: false, motivo: 'calidad tiene que ser una lista' }
+  const crudosAnuncios = (e.anuncios ?? []) as unknown[], crudosCalidad = (e.calidad ?? []) as unknown[]
+  if (e.posteos.length + crudosPerfiles.length + crudosAnuncios.length + crudosCalidad.length > MAX_FILAS) return { ok: false, motivo: `más de ${MAX_FILAS} filas` }
 
   const posteos: PosteoFoto[] = []
   for (const [i, p] of (e.posteos as unknown[]).entries()) {
@@ -103,8 +132,42 @@ export function validarFoto(entrada: unknown): { ok: true; foto: FotoCruce } | {
     })
   }
 
+  const anuncios: AnuncioFoto[] = []
+  for (const [i, a] of crudosAnuncios.entries()) {
+    const f = (a ?? {}) as Record<string, unknown>
+    const nombre = texto(f.nombre, 120), cuenta = texto(f.cuenta, 40)
+    const cpm = numONull(f.cpm), ctr = numONull(f.ctr)
+    if (!nombre || !cuenta) return { ok: false, motivo: `anuncio ${i + 1}: falta nombre o cuenta` }
+    if (typeof f.activo !== 'boolean') return { ok: false, motivo: `anuncio ${nombre}: activo tiene que ser true o false` }
+    if (![f.gastoAcum, f.gastoAyer, f.atribuidosAcum, f.atribuidosAyer].every(esNum))
+      return { ok: false, motivo: `anuncio ${nombre}: gasto y atribuidos tienen que ser números ≥ 0` }
+    if (cpm === undefined || ctr === undefined) return { ok: false, motivo: `anuncio ${nombre}: cpm y ctr tienen que ser números ≥ 0 o null` }
+    anuncios.push({
+      nombre, cuenta, activo: f.activo, gastoAcum: f.gastoAcum as number, gastoAyer: f.gastoAyer as number, cpm, ctr,
+      atribuidosAcum: f.atribuidosAcum as number, atribuidosAyer: f.atribuidosAyer as number,
+    })
+  }
+
+  const calidad: CalidadFoto[] = []
+  for (const [i, c] of crudosCalidad.entries()) {
+    const f = (c ?? {}) as Record<string, unknown>
+    const cuenta = texto(f.cuenta, 40), alcance = texto(f.alcance, 80)
+    if (!cuenta || !alcance) return { ok: false, motivo: `calidad ${i + 1}: falta cuenta o alcance` }
+    if (![f.revisados, f.abogados, f.dudosos, f.otros, f.sinDato].every(esNum))
+      return { ok: false, motivo: `calidad ${cuenta}: los conteos tienen que ser números ≥ 0` }
+    if ((f.abogados as number) + (f.dudosos as number) + (f.otros as number) + (f.sinDato as number) !== f.revisados)
+      return { ok: false, motivo: `calidad ${cuenta}: abogados + dudosos + otros + sinDato tiene que dar revisados` }
+    if (f.perfilesAbiertos !== undefined && !esNum(f.perfilesAbiertos))
+      return { ok: false, motivo: `calidad ${cuenta}: perfilesAbiertos tiene que ser un número ≥ 0` }
+    calidad.push({
+      cuenta, alcance, revisados: f.revisados as number, abogados: f.abogados as number, dudosos: f.dudosos as number,
+      otros: f.otros as number, sinDato: f.sinDato as number,
+      ...(f.perfilesAbiertos !== undefined ? { perfilesAbiertos: f.perfilesAbiertos as number } : {}),
+    })
+  }
+
   const notas = Array.isArray(e.notas) ? e.notas.map(n => texto(n, 240)).filter((n): n is string => !!n).slice(0, 10) : []
-  return { ok: true, foto: { dia, tomada, posteos, perfiles, ...(notas.length ? { notas } : {}) } }
+  return { ok: true, foto: { dia, tomada, posteos, perfiles, ...(anuncios.length ? { anuncios } : {}), ...(calidad.length ? { calidad } : {}), ...(notas.length ? { notas } : {}) } }
 }
 
 // ── Cálculo ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -150,6 +213,12 @@ export interface FilaPerfil {
   costoRealAyer: number | null
 }
 
+export interface FilaAnuncio extends AnuncioFoto { costoAtribuido: number | null }
+export interface FilaCalidad extends CalidadFoto {
+  pctAbogados: number | null       // abogados ÷ revisados: piso confirmado
+  pctConDudosos: number | null     // (abogados + dudosos) ÷ revisados
+}
+
 export interface TotalesCruce {
   gastoAcum: number
   atribuidosAcum: number
@@ -174,6 +243,8 @@ export interface CruceCalculado {
   perfiles: FilaPerfil[]
   totales: TotalesCruce
   porCuenta: { cuenta: string; totales: TotalesCruce }[]   // principal primero, después el resto por nombre
+  anuncios: FilaAnuncio[]          // activos primero, después por gasto del día y gasto total
+  calidad: FilaCalidad[]
   notas: string[]
 }
 
@@ -253,9 +324,20 @@ export function calcularCruce(actual: FotoCruce, anterior?: FotoCruce | null): C
     porCuenta: cuentas.map(cuenta => ({
       cuenta, totales: totalizar(posteos.filter(p => p.cuenta === cuenta), perfiles.filter(p => p.cuenta === cuenta), hayAnterior),
     })),
+    anuncios: (actual.anuncios ?? []).map(a => ({ ...a, costoAtribuido: costo(a.gastoAcum, a.atribuidosAcum) }))
+      .sort((a, b) => Number(b.activo) - Number(a.activo) || b.gastoAyer - a.gastoAyer || b.gastoAcum - a.gastoAcum),
+    calidad: (actual.calidad ?? []).map(c => ({
+      ...c,
+      pctAbogados: c.revisados > 0 ? c.abogados / c.revisados : null,
+      pctConDudosos: c.revisados > 0 ? (c.abogados + c.dudosos) / c.revisados : null,
+    })),
     notas: actual.notas ?? [],
   }
 }
+
+/** Semáforo de CPM y CTR de FM (reglas de Tomás: CPM hasta 1,4 bien, más de 1,7 mal; CTR desde 3,5 % bien). */
+export const tonoCpm = (cpm: number): 'bueno' | 'medio' | 'malo' => (cpm <= 1.4 ? 'bueno' : cpm <= 1.7 ? 'medio' : 'malo')
+export const tonoCtr = (ctr: number): 'bueno' | 'neutro' => (ctr >= 3.5 ? 'bueno' : 'neutro')
 
 /** Semáforo de costo por seguidor (el mismo del CPL Instagram del Resumen). */
 export function veredictoCosto(c: number): { etiqueta: string; tono: 'bueno' | 'medio' | 'malo' } {
