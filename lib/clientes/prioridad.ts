@@ -8,6 +8,7 @@
 //     son una plantilla que casi nunca se completa (23 de 600 hechas al 8/10): solo suman si tienen fecha de hecho.
 import { diasEntre, type Ymd } from './fechas'
 import type { CarpetaCliente } from './drive'
+import { normNombre } from '../nombresPersona'
 
 export const ETAPAS_SIN_CAMPANA = ['nuevo cliente', 'onboarding', 'en espera de tópicos', 'guionizar', 'opt. guiones', 'grabación', 'edición', 'creación de campaña'] as const
 export const ETIQUETA_ETAPA: Record<string, string> = {
@@ -32,12 +33,17 @@ export interface CampanaMeta {
   lanzamientoAprox: boolean // true = Meta no lo detectó como lanzamiento reciente: es desde cuándo viene corriendo la campaña
   semaforo: string | null   // verde / amarillo / rojo del tablero de anuncios
   aGrabar: 'quema' | 'no_rinde' | null   // el tablero pide guiones nuevos: se están quemando o no rinden
+  // Gasto real en la ventana de insights del tablero (35 días), para el hito «Campaña lanzada» (lanzamientoAuto.ts):
+  primerGasto?: Ymd | null   // el primer día con gasto que se ve
+  gastoAntesDe?: Ymd | null  // si ya gastaba el primer día de la ventana: ese día (el lanzamiento fue antes; no se sabe cuándo)
+  ultimoGasto?: Ymd | null   // el último día con gasto (para «en pausa desde…»)
 }
 export interface ClienteBase { id: string; nombre: string; closer: string; estado: string }
 export interface GuionesPlanilla { ultimoGuion: Ymd | null; fechasGuiones: Ymd[]; grabado: boolean; ultimaGrabacion: Ymd | null }
 
 // ── Cruce por nombre (CRM ↔ ClickUp / Meta) ──
-const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+// Sin apóstrofos antes de normalizar: «D’Arcangelo» = «DArcangelo» (lib/nombresPersona.ts)
+const norm = (s: string) => normNombre(s)
 const GENERICAS = new Set(['estudio', 'juridico', 'juridica', 'abogado', 'abogada', 'abogados', 'asociados', 'legal', 'del', 'los', 'las', 'con', 'dm', 'fm', 'usd', 'ars'])
 const palabras = (s: string) => norm(s).split(' ').filter(w => w.length >= 3 && !GENERICAS.has(w))
 export const claveNombre = (s: string) => norm(s)
