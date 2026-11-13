@@ -245,7 +245,7 @@ async function buscarReunion(
  *   - si la reunión todavía no empezó (Gero, 13/11/2026: más días de antelación), el link marca esa reunión para que el
  *     webhook la cancele cuando el lead reserve; si el closer no tiene evento Reagenda, el link de reprogramación de Calendly
  *     (mueve el evento y libera el horario viejo);
- *   - si ya pasó (Calendly no deja reprogramarla), el evento Reagenda.
+ *   - si ya pasó (Calendly no deja reprogramarla) o ya no está en Calendly (se canceló), el evento Reagenda.
  * `{ error }` si no se puede: el botón explica que hay que hacerlo a mano.
  */
 export async function linkReprogramacion(
@@ -258,7 +258,8 @@ export async function linkReprogramacion(
   const { reunion, api, evento } = b;
   const futura = !!evento && new Date(evento.ev.start_time).getTime() > ahora.getTime();
   const anfitrion = evento?.ev.event_memberships?.[0]?.user ?? null;
-  if (anfitrion || reunion.getTime() <= ahora.getTime()) {
+  // Sin evento activo (p. ej. la reunión se canceló con el botón Cancelar): el evento Reagenda del closer de la pestaña.
+  if (anfitrion || !futura) {
     const reagenda = elegirEventoReagenda(await eventosReagenda(api), anfitrion, closerDeHoja, fila.hoja);
     if (reagenda) return { url: linkConDatos(reagenda, fila, futura ? evento!.ev.uri : undefined) };
   }
