@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { Boton, SeccionTitulo } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import type { EntradaHistorial } from '@/lib/eow/db'
 import {
   COLORES, NOMBRE_COLOR, NOMBRE_TARJETA, TARJETAS, contar, fechaCorta, nuevoIdFila, rangoSemana, ubicar,
@@ -21,6 +22,7 @@ const hora = (iso: string | null) =>
 
 export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   const router = useRouter()
+  const [confirmar, dialogoConfirmar] = useConfirmacion()
   const [datos, setDatos] = useState<DatosEow>(() => ({ filas: inicial?.filas ?? [], tarjetas: inicial?.tarjetas ?? ({} as DatosEow['tarjetas']) }))
   const [version, setVersion] = useState(inicial?.version ?? 0)
   const [sucio, setSucio] = useState(false)
@@ -68,7 +70,12 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   }
 
   async function nuevaSemana() {
-    if (sucio && !window.confirm('Tenés cambios sin guardar en esta semana. ¿Crear la semana nueva igual?')) return
+    if (sucio && !(await confirmar({
+      titulo: '¿Crear la semana nueva igual?',
+      detalle: 'Tenés cambios sin guardar en esta semana. Si creás la nueva ahora, esos cambios se pierden y no se recuperan.',
+      accion: 'Crear la semana nueva',
+      peligro: true,
+    }))) return
     setEstado({ tipo: 'trabajando', texto: 'Creando la semana nueva…' })
     try {
       const r = await fetch('/api/eow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'nueva' }) })
@@ -85,6 +92,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   const titulo = inicial ? `Reporte EOW · semana del ${rangoSemana(inicial.semana)}` : 'Reporte EOW'
   return (
     <div className="eow cj-pila cj-pila--chica">
+      {dialogoConfirmar}
       <SeccionTitulo
         etiqueta="EOW · End of Week"
         titulo={titulo}

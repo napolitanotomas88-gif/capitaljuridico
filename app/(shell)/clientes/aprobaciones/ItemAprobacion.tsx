@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Boton } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import type { ItemAprobacion as Item } from '@/lib/clientes/aprobaciones'
 
 // Un pedido para aprobar: el texto (el mismo que iba a Verificaciones C.J.), un campo opcional para lo que antes iba después
@@ -13,10 +14,12 @@ export function ItemAprobacion({ item, puede }: { item: Item; puede: boolean }) 
   const [resto, setResto] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [msj, setMsj] = useState<{ ok: boolean; texto: string } | null>(null)
+  const [confirmar, dialogo] = useConfirmacion()
 
   async function responder(veredicto: 'ok' | 'no' | 'a_mano') {
     if (ocupado) return
-    if (veredicto === 'a_mano' && !confirm('¿Ya está hecho a mano? El bot no va a mandar nada por este pedido.')) return
+    if (veredicto === 'a_mano' && !(await confirmar({ titulo: '¿Ya está hecho a mano?', detalle: 'El bot no va a mandar nada por este pedido y sale de la lista.', accion: 'Sí, está hecho a mano' }))) return
+    if (ocupado) return
     setOcupado(true); setMsj(null)
     try {
       const r = await fetch('/api/clientes/aprobaciones', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fuente: item.fuente, id: item.id, veredicto, resto: resto.trim() }) })
@@ -44,6 +47,7 @@ export function ItemAprobacion({ item, puede }: { item: Item; puede: boolean }) 
         </>
       )}
       <div aria-live="polite">{msj && <p className={`cj-altas__resultado${msj.ok ? '' : ' cj-altas__resultado--error'}`}>{msj.texto}</p>}</div>
+      {dialogo}
     </section>
   )
 }

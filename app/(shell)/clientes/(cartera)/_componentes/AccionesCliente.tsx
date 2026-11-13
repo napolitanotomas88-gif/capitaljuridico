@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import './acciones.css'
 import { EditarDatos } from './EditarDatos'
 import { SeguimientoRespuesta } from './SeguimientoRespuesta'
@@ -60,6 +61,7 @@ function cuerpoDe(f: Forma, nombre: string): Record<string, unknown> | string {
 
 export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar, puedeFinanzas = false, estado, accionInicial }: { idCrm: string; nombre?: string; hoy: string; demo: boolean; puedeEditar: boolean; puedeFinanzas?: boolean; estado?: string; accionInicial?: string }) {
   const router = useRouter()
+  const [preguntar, dialogoConfirmar] = useConfirmacion()
   const inicial = tipoInicial(accionInicial, puedeFinanzas)
   const [hist, setHist] = useState<RespuestaHistorial | null>(null)
   const [errorHist, setErrorHist] = useState<string | null>(null)
@@ -143,7 +145,9 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
     finally { enVuelo.current = false; setEnviando(false) }
   }
   const deshacer = async (a: Accion) => {
-    if (enVuelo.current || intentoPendiente || datosPendientes || !window.confirm(`¿Deshacer «${a.resumen}»?`)) return
+    if (enVuelo.current || intentoPendiente || datosPendientes) return
+    if (!(await preguntar({ titulo: `¿Deshacer «${a.resumen}»?`, detalle: 'El cliente vuelve a como estaba antes de ese cambio.', accion: 'Deshacer el cambio', peligro: true }))) return
+    if (enVuelo.current) return
     enVuelo.current = true
     setEnviando(true); setMensaje(null)
     try {
@@ -169,6 +173,7 @@ export function AccionesCliente({ idCrm, nombre = idCrm, hoy, demo, puedeEditar,
   const campo = (k: keyof Forma, etiqueta: string, tipo = 'text', requerido = false) => <label className="rc-campo" key={k}><span className="cj-etiqueta">{etiqueta}</span><input className="rc-input" type={tipo} required={requerido} value={String(forma?.[k] ?? '')} onChange={e => cambiar(k, e.target.value)} maxLength={tipo === 'text' ? 300 : undefined} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined} /></label>
   const opcion = (k: keyof Forma, etiqueta: string, opciones: string[]) => <label className="rc-campo" key={k}><span className="cj-etiqueta">{etiqueta}</span><select className="rc-input" value={String(forma?.[k] ?? '')} onChange={e => cambiar(k, e.target.value)}>{opciones.map(o => <option key={o} value={o}>{o === '' ? 'Elegir…' : ({ '1m': '1 mes', '2s': '2 semanas', personalizado: 'Personalizado', link_enviado: 'Link enviado', agendada: 'Agendada', hecha: 'Realizada', 'Front-end': 'Inicial (Front-end)', 'Back-end': 'Renovación (Back-end)' } as Record<string, string>)[o] ?? o}</option>)}</select></label>
   return <div className="ac">
+    {dialogoConfirmar}
     {hist && <p className={`ac-modo ac-modo--${hist.modo}`}>{MODOS[hist.modo]}</p>}
     {errorHist && <p role="alert" className="ac-mensaje ac-mensaje--error">{errorHist}</p>}
     {archivado && <p role="status" className="ac-pausa">Cliente archivado: fuera de la cartera activa. Podés restaurarlo.</p>}

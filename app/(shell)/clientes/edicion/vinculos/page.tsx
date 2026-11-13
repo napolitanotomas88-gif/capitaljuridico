@@ -54,7 +54,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
                   {k.candidatos.map(x => (
                     v.puedeConfirmar
                       ? <BotonAccion key={x.id_crm} demo={c.demo} etiqueta={`Es ${x.nombre} (${x.id_crm} · ${x.puntaje})`} cuerpo={{ accion: 'vinculo_confirmar', carpeta_id: k.drive_id, id_crm: x.id_crm }}
-                          confirmar={`¿La carpeta «${k.nombre}» es de ${x.nombre} (${x.id_crm})? Desde ahí el vigía procesa sus crudos y avisos para ese cliente.`} />
+                          confirmar={{ titulo: `¿La carpeta «${k.nombre}» es de ${x.nombre} (${x.id_crm})?`, detalle: 'Desde ahí el vigía procesa sus crudos y avisos para ese cliente. Si es otro, se corrige escribiendo su id a mano.', accion: 'Vincular' }} />
                       : <span key={x.id_crm} className="ed-marca">{x.nombre} ({x.puntaje})</span>
                   ))}
                 </div>

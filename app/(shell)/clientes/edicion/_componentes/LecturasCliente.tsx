@@ -34,7 +34,11 @@ export function LecturasCliente({ lecturas, demo, puede }: Props) {
                 {n > 0 && (
                   <BotonAccion demo={demo} variante="primario"
                     etiqueta={n === 1 ? 'Confirmar el OK' : `Confirmar el OK de los ${n}`}
-                    confirmar={`¿El cliente dio el OK a ${n === 1 ? l.videos.find(v => v.id === l.okItems[0].video_id)?.nombre ?? 'este video' : `estos ${n} videos`}? Pasa${n === 1 ? '' : 'n'} a Aprobado y le avisamos a Valen.`}
+                    confirmar={{
+                      titulo: `¿El cliente dio el OK a ${n === 1 ? l.videos.find(v => v.id === l.okItems[0].video_id)?.nombre ?? 'este video' : `estos ${n} videos`}?`,
+                      detalle: `Pasa${n === 1 ? '' : 'n'} a Aprobado y le avisamos a Valen. Cada video se puede volver a mover desde su ficha.`,
+                      accion: 'Confirmar el OK',
+                    }}
                     cuerpo={n === 1 ? { accion: 'mover', video_id: l.okItems[0].video_id, version: l.okItems[0].version, transicion: 'ok_cliente', cita: l.cita } : { accion: 'mover_lote', transicion: 'ok_cliente', items: l.okItems, cita: l.cita }} />
                 )}
                 {l.pedidoHref && <Link href={l.pedidoHref} className="cj-boton cj-boton--primario">Revisar las notas</Link>}

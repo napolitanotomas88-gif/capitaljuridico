@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Boton } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import type { AltaVista, EsperaVista, Opcion } from '@/lib/bot/alta/despacho/vista'
 import { enviarAccion, nuevoId, type Respuesta } from './enviar'
 
@@ -46,8 +47,9 @@ function Resultado({ res }: { res: Respuesta | null }) {
 function OpcionesEquipo({ alta, espera }: { alta: string; espera: EsperaVista }) {
   const { ocupado, res, accion } = useAccion(alta)
   const [valores, setValores] = useState<Record<number, string>>({})
-  const responder = (texto: string) => {
-    if (texto.trim().toUpperCase().startsWith('NO') && !confirm(`¿Responder "${texto}"?`)) return
+  const [confirmar, dialogo] = useConfirmacion()
+  const responder = async (texto: string) => {
+    if (texto.trim().toUpperCase().startsWith('NO') && !(await confirmar({ titulo: `¿Responder "${texto}"?`, detalle: 'La respuesta le llega al bot del alta tal como está escrita.', accion: 'Responder NO', peligro: true }))) return
     void accion({ accion: 'responder', espera_id: espera.id, texto })
   }
   const campo = (i: number, o: Extract<Opcion, { prefijo: string }> | Extract<Opcion, { tipo: 'no' }>, placeholder: string, tipo = 'text') => (
@@ -65,9 +67,9 @@ function OpcionesEquipo({ alta, espera }: { alta: string; espera: EsperaVista })
           switch (o.tipo) {
             case 'boton': {
               const junta = conCuenta && /^OK\s+\S/i.test(o.texto)
-              return <Boton key={i} variante={i === 0 ? 'marca' : 'secundario'} disabled={ocupado || (junta && !fuente)} onClick={() => responder(junta ? `${o.texto} ${fuente}` : o.texto)}>{junta && fuente ? `${o.etiqueta} · ${fuente}` : o.etiqueta}</Boton>
+              return <Boton key={i} variante={i === 0 ? 'marca' : 'secundario'} disabled={ocupado || (junta && !fuente)} onClick={() => void responder(junta ? `${o.texto} ${fuente}` : o.texto)}>{junta && fuente ? `${o.etiqueta} · ${fuente}` : o.etiqueta}</Boton>
             }
-            case 'numero': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda, 'number')}<Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => responder(`OK ${valores[i]}`)}>OK {valores[i] ?? ''}</Boton></span>
+            case 'numero': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda, 'number')}<Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => void responder(`OK ${valores[i]}`)}>OK {valores[i] ?? ''}</Boton></span>
             case 'lista': return (
               <span key={i} className="cj-altas__botones">
                 <select className="cj-campo__entrada" aria-label={o.etiqueta} value={valores[i] ?? ''} onChange={(e) => setValores({ ...valores, [i]: e.target.value })}>
@@ -76,16 +78,17 @@ function OpcionesEquipo({ alta, espera }: { alta: string; espera: EsperaVista })
                 </select>
                 {conCuenta
                   ? <small>Elegí la fuente y después la cuenta que recibió.</small>
-                  : <Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => responder(`OK ${valores[i]}`)}>OK con la fuente</Boton>}
+                  : <Boton variante="marca" disabled={ocupado || !valores[i]} onClick={() => void responder(`OK ${valores[i]}`)}>OK con la fuente</Boton>}
               </span>
             )
-            case 'nombre': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda)}<Boton variante="secundario" disabled={ocupado || !valores[i]?.trim()} onClick={() => responder(`OK ${valores[i].trim()}`)}>OK con este nombre</Boton></span>
-            case 'no': return <span key={i} className="cj-altas__botones">{campo(i, o, 'Motivo')}<Boton variante="secundario" disabled={ocupado} onClick={() => responder(`NO ${valores[i]?.trim() ?? ''}`.trim())}>{o.etiqueta}</Boton></span>
+            case 'nombre': return <span key={i} className="cj-altas__botones">{campo(i, o, o.ayuda)}<Boton variante="secundario" disabled={ocupado || !valores[i]?.trim()} onClick={() => void responder(`OK ${valores[i].trim()}`)}>OK con este nombre</Boton></span>
+            case 'no': return <span key={i} className="cj-altas__botones">{campo(i, o, 'Motivo')}<Boton variante="secundario" disabled={ocupado} onClick={() => void responder(`NO ${valores[i]?.trim() ?? ''}`.trim())}>{o.etiqueta}</Boton></span>
             default: return null
           }
         })}
       </div>
       <Resultado res={res} />
+      {dialogo}
     </>
   )
 }
@@ -109,15 +112,20 @@ function DatosCloser({ alta, espera, opcion }: { alta: string; espera: EsperaVis
 
 function AMano({ alta, item, puede }: { alta: string; item: AltaVista['aMano'][number]; puede: boolean }) {
   const { ocupado, res, accion } = useAccion(alta)
+  const [confirmar, dialogo] = useConfirmacion()
   return (
     <div className="cj-altas__amano">
       <p><strong>{item.titulo}</strong> <span className="cj-texto-2">· {item.estado}{item.motivo ? ` · ${item.motivo}` : ''}</span></p>
       <ul className="cj-altas__lista">{item.detalle.map((d, i) => <li key={i}>{d}</li>)}</ul>
       {item.copiar && <details><summary>Texto para copiar</summary><pre className="cj-altas__texto">{item.copiar}</pre></details>}
       {puede ? (
-        <div className="cj-altas__botones"><Boton variante="secundario" disabled={ocupado} onClick={() => { if (confirm(`¿${item.titulo.replace('A mano: ', '')} ya está hecho a mano?`)) void accion({ accion: 'a_mano', paso: item.paso }) }}>Hecho a mano</Boton></div>
+        <div className="cj-altas__botones"><Boton variante="secundario" disabled={ocupado} onClick={async () => {
+          const ok = await confirmar({ titulo: `¿${item.titulo.replace('A mano: ', '')} ya está hecho a mano?`, detalle: 'El bot da este paso por hecho y no lo intenta de nuevo.', accion: 'Sí, está hecho a mano' })
+          if (ok) void accion({ accion: 'a_mano', paso: item.paso })
+        }}>Hecho a mano</Boton></div>
       ) : <p className="cj-texto-2">Lo marcan Tomás, Gero A, Aylu o Gero M.</p>}
       <Resultado res={res} />
+      {dialogo}
     </div>
   )
 }

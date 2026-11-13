@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { LARGO_NOTA_PASO } from '@/lib/edicion/pedido'
 import type { FilaPaso } from '@/lib/edicion/vista'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { Mensaje } from './Mensaje'
 import { TextoParaCopiar } from './TextoParaCopiar'
 import { useEnvio } from './useEnvio'
@@ -12,6 +13,7 @@ import { useEnvio } from './useEnvio'
 // marcan «hecho» con una nota; el día 9 lo decide Tomás: pausar o seguir con un recordatorio cada 4 días hábiles.
 export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; demo: boolean; puedeMarcar: boolean; puedeDecidir: boolean }) {
   const { enviando, msj, enviar } = useEnvio(demo)
+  const [confirmar, dialogo] = useConfirmacion()
   const [nota, setNota] = useState('')
   const cuerpoHecho = { accion: 'paso_hecho', paso_id: p.id, version: p.version }
   return (
@@ -50,12 +52,16 @@ export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; d
 
       {p.esDia9 && !p.decision && (puedeDecidir ? (
         <div className="ed-botones">
-          <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={() => { if (window.confirm('¿Pausar? Los videos que esperan crudos quedan en pausa y se cierra el seguimiento.')) void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'pausar' }) }}>Pausar</button>
+          <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={async () => {
+            const ok = await confirmar({ titulo: '¿Pausar?', detalle: 'Los videos que esperan crudos quedan en pausa y se cierra el seguimiento.', accion: 'Pausar', peligro: true })
+            if (ok) void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'pausar' })
+          }}>Pausar</button>
           <button type="button" className="cj-boton cj-boton--secundario" disabled={enviando} onClick={() => void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'seguir' })}>Seguir con recordatorios</button>
         </div>
       ) : <p className="ed-sub">Lo decide Tomás: pausar o seguir con un recordatorio cada 4 días hábiles.</p>)}
       {p.decision && <p className="ed-constancia">Decisión: {p.decision}</p>}
       <Mensaje msj={msj} enviando={enviando} />
+      {dialogo}
     </article>
   )
 }

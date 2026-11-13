@@ -132,7 +132,9 @@ export default async function EdicionPage({ searchParams }: Props) {
                     {g.lote && (
                       <BotonAccion demo={c.demo} variante="secundario"
                         etiqueta={g.lote.transicion === 'listo' ? `Terminé los ${g.lote.items.length} para editar` : `Sirven los ${g.lote.items.length}: a edición`}
-                        confirmar={g.lote.transicion === 'listo' ? `¿Marcar listos los ${g.lote.items.length} videos de ${g.cliente}?` : `¿Pasar los ${g.lote.items.length} crudos de ${g.cliente} a Para editar?`}
+                        confirmar={g.lote.transicion === 'listo'
+                          ? { titulo: `¿Marcar listos los ${g.lote.items.length} videos de ${g.cliente}?`, detalle: 'Pasan todos juntos al paso siguiente. Cada video se puede volver a mover desde su ficha.', accion: 'Marcar listos' }
+                          : { titulo: `¿Pasar los ${g.lote.items.length} crudos de ${g.cliente} a Para editar?`, detalle: 'Pasan todos juntos a edición. Cada video se puede volver a mover desde su ficha.', accion: 'Pasar a Para editar' }}
                         cuerpo={{ accion: 'mover_lote', transicion: g.lote.transicion, items: g.lote.items }} />
                     )}
                   </div>

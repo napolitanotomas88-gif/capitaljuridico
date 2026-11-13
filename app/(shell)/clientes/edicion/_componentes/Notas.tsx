@@ -5,6 +5,7 @@ import { ETIQUETA_TIPO_NOTA } from '@/lib/edicion/etiquetas'
 import { LARGO_NOTA_VIDEO, LARGO_URL, leerTiempo } from '@/lib/edicion/pedido'
 import { TIPOS_NOTA, type TipoNota } from '@/lib/edicion/tipos'
 import type { FilaNota, VistaVideo } from '@/lib/edicion/vista'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { Mensaje } from './Mensaje'
 import { useEnvio } from './useEnvio'
 
@@ -21,6 +22,7 @@ type Props = {
 
 function FilaDeNota({ n, demo }: { n: FilaNota; demo: boolean }) {
   const { enviando, msj, enviar } = useEnvio(demo)
+  const [confirmar, dialogo] = useConfirmacion()
   const [editando, setEditando] = useState(false)
   const [texto, setTexto] = useState(n.texto)
   const hecha = !!n.tilde
@@ -41,6 +43,7 @@ function FilaDeNota({ n, demo }: { n: FilaNota; demo: boolean }) {
         {n.afecta && <span className="ed-sub">{n.afecta}</span>}
         {n.tilde && <span className="ed-sub">Tildada por {n.tilde.quien || 'alguien'} · {n.tilde.cuando}</span>}
         <Mensaje msj={msj} enviando={enviando} />
+        {dialogo}
       </div>
       <div className="ed-nota__lado">
         {n.puedeTildar && (
@@ -52,7 +55,10 @@ function FilaDeNota({ n, demo }: { n: FilaNota; demo: boolean }) {
         {n.puedeEditar && !editando && (
           <span className="ed-botones">
             <button type="button" className="cj-chip" onClick={() => setEditando(true)}>Editar</button>
-            <button type="button" className="cj-chip ed-boton-peligro" disabled={enviando} onClick={() => { if (window.confirm('¿Borrar esta nota?')) void enviar({ accion: 'nota_borrar', nota_id: n.id, version: n.version }) }}>Borrar</button>
+            <button type="button" className="cj-chip ed-boton-peligro" disabled={enviando} onClick={async () => {
+              const ok = await confirmar({ titulo: '¿Borrar esta nota?', detalle: 'Se borra del video y no se puede deshacer.', accion: 'Borrar la nota', peligro: true })
+              if (ok) void enviar({ accion: 'nota_borrar', nota_id: n.id, version: n.version })
+            }}>Borrar</button>
           </span>
         )}
         {editando && (

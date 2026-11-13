@@ -152,10 +152,10 @@ export default async function EdicionClientePage({ params, searchParams }: Props
               <h3>{t.titulo}</h3>
               <div className="ed-botones">
                 {v.permisos.e04 && t.lote.length >= 2 && (
-                  <BotonAccion demo={c.demo} variante="primario" etiqueta={`Sirven los ${t.lote.length}: a edición`} confirmar={`¿Pasar los ${t.lote.length} videos a Para editar?`} cuerpo={{ accion: 'mover_lote', transicion: 'sirve', items: t.lote }} />
+                  <BotonAccion demo={c.demo} variante="primario" etiqueta={`Sirven los ${t.lote.length}: a edición`} confirmar={{ titulo: `¿Pasar los ${t.lote.length} videos a Para editar?`, detalle: 'Pasan todos juntos a edición. Cada video se puede volver a mover desde su ficha.', accion: 'Pasar a Para editar' }} cuerpo={{ accion: 'mover_lote', transicion: 'sirve', items: t.lote }} />
                 )}
                 {v.permisos.guiones && t.ofrecerGuionesEnviados && t.tanda !== null && (
-                  <BotonAccion demo={c.demo} etiqueta="Guiones enviados" confirmar={`¿Marcar los guiones de la tanda ${t.tanda} como enviados? Arranca el seguimiento si no graba.`} cuerpo={{ accion: 'guiones_enviados', id_crm: idCrm, tanda_guion: t.tanda }} />
+                  <BotonAccion demo={c.demo} etiqueta="Guiones enviados" confirmar={{ titulo: `¿Marcar los guiones de la tanda ${t.tanda} como enviados?`, detalle: 'Arranca el seguimiento si el cliente no graba.', accion: 'Marcar enviados' }} cuerpo={{ accion: 'guiones_enviados', id_crm: idCrm, tanda_guion: t.tanda }} />
                 )}
               </div>
             </div>
