@@ -39,7 +39,7 @@
 
 .eow-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .eow-fila {
-  display: grid; grid-template-columns: 180px minmax(0, 1fr) 160px 100px 210px 30px; gap: 8px; align-items: center;
+  display: grid; grid-template-columns: 180px minmax(0, 1fr) 160px 100px 210px 44px; gap: 8px; align-items: center;
   padding: 6px 0; border-bottom: 1px solid var(--cj-filete);
 }
 .eow-fila:last-child { border-bottom: 0; }
@@ -49,20 +49,21 @@
 
 .eow-input {
   width: 100%; min-width: 0; font: inherit; font-size: 14px; color: var(--cj-hueso); background: transparent;
-  border: 1px solid transparent; border-radius: var(--cj-radio-s); padding: 6px 8px; min-height: 34px;
+  border: 1px solid transparent; border-radius: var(--cj-radio-s); padding: 6px 8px; min-height: 44px;
 }
 .eow-input:hover { border-color: var(--cj-filete); }
-.eow-input:focus { outline: none; border-color: var(--cj-dorado); background: var(--cjc-campo, rgba(255, 255, 255, 0.5)); }
+/* Foco visible (13/11/2026): el borde dorado solo no llegaba a 3:1 contra el fondo */
+.eow-input:focus { outline: 2px solid var(--cj-dorado); outline-offset: 1px; border-color: var(--cj-dorado); background: var(--cjc-campo, rgba(255, 255, 255, 0.5)); }
 .eow-fila__cliente.eow-input { font-weight: 600; }
 
 .eow select {
   font: inherit; font-size: 13px; color: var(--cj-hueso); background: var(--cjc-campo, transparent);
-  border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio-s); padding: 5px 8px; min-height: 32px;
+  border: 1px solid var(--cj-filete-fuerte); border-radius: var(--cj-radio-s); padding: 5px 8px; min-height: 44px;
 }
 .eow select option { color: #1d1d1b; }
 
 .eow-pill {
-  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; border-radius: 999px; padding: 4px 12px; min-height: 28px;
+  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; border-radius: 999px; padding: 4px 12px; min-height: 44px;
   border: 1px solid var(--eow-pill); color: var(--eow-pill); background: color-mix(in srgb, var(--eow-pill) 14%, transparent); cursor: pointer;
 }
 .eow-pill--rojo { --eow-pill: var(--cj-error); }
@@ -71,13 +72,13 @@
 .eow-pill--pausado { --eow-pill: var(--eow-gris); }
 
 .eow-quitar {
-  font-size: 18px; line-height: 1; width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent;
+  font-size: 18px; line-height: 1; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; background: transparent;
   color: var(--cj-humo); cursor: pointer;
 }
 .eow-quitar:hover { color: var(--cj-error); background: var(--cj-filete); }
 .eow-agregar {
   margin-top: 8px; font: inherit; font-size: 13px; color: var(--cj-laton); background: transparent; border: 1px dashed var(--cj-filete-fuerte);
-  border-radius: var(--cj-radio-s); padding: 6px 12px; cursor: pointer; min-height: 32px;
+  border-radius: var(--cj-radio-s); padding: 6px 12px; cursor: pointer; min-height: 44px; min-width: 44px;
 }
 .eow-agregar:hover { border-color: var(--cj-dorado); }
 
@@ -106,7 +107,7 @@
 .eow-pausar {
   justify-self: start;
   font: inherit; font-size: 12px; white-space: nowrap; color: var(--cj-hueso); background: transparent; cursor: pointer;
-  border: 1px solid var(--cj-filete-fuerte); border-radius: 999px; padding: 4px 10px; min-height: 28px;
+  border: 1px solid var(--cj-filete-fuerte); border-radius: 999px; padding: 4px 14px; min-height: 44px;
 }
 .eow-pausar:hover { border-color: var(--cj-dorado); }
 .eow-cartera { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cj-humo); flex-wrap: wrap; }

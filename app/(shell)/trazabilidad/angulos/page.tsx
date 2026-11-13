@@ -44,7 +44,7 @@ export default async function AngulosPage({ searchParams }: { searchParams: Prom
       <SubNav actual="/trazabilidad/angulos" />
 
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Piezas" titulo={ver === 'todas' ? `Todas las piezas (${todas.length})` : `Piezas para revisar (${lista.length} de ${todas.length})`}
+        <SeccionTitulo nivel={2} titulo={ver === 'todas' ? `Todas las piezas (${todas.length})` : `Piezas para revisar (${lista.length} de ${todas.length})`}
           acciones={<a className="cj-chip" href={ver === 'todas' ? '/trazabilidad/angulos' : '/trazabilidad/angulos?ver=todas'}>{ver === 'todas' ? 'Solo para revisar' : 'Ver todas'}</a>} />
         <p className="traz-texto">Cada pieza es una etiqueta de ManyChat (el nombre del flujo del reel, carrusel o historia). «Para revisar» = sin ángulo o con el ángulo que propuso la IA. Al guardar, queda fijo.</p>
         <Tabla<FilaPieza>

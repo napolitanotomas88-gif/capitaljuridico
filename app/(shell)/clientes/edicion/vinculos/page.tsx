@@ -25,7 +25,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
   if (!puedePestana(c.rol, c.socio, 'vinculos')) {
     return (
       <div className="ed-pila">
-        <Encabezado etiqueta="Edición" titulo="Vínculos de carpetas" vigia={null} {...comun} />
+        <Encabezado titulo="Vínculos de carpetas" vigia={null} {...comun} />
         <Vacio frase="Esta parte es de Aylu y Tomás." accion={<BotonEnlace href={conSufijo('/clientes/edicion', c.sufijo)}>Volver al tablero</BotonEnlace>} />
       </div>
     )
@@ -37,11 +37,11 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
   else {
     try { carpetas = await listarVinculos() } catch (e) { logLectura('los vínculos', e); falla = 'No se pudo leer la base del Despacho. Probá de nuevo en un minuto.' }
   }
-  if (falla) return <div className="ed-pila"><SeccionTitulo etiqueta="Edición" titulo="Vínculos de carpetas" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
+  if (falla) return <div className="ed-pila"><SeccionTitulo titulo="Vínculos de carpetas" /><div className="cj-aviso" role="alert"><p>{falla}</p></div></div>
   const v = armarVinculos(carpetas, c.rol)
   return (
     <div className="ed-pila">
-      <Encabezado etiqueta="Edición" titulo="Vínculos de carpetas" vigia={null} contadores={{ vinculos: v.pendientes.length }} {...comun} />
+      <Encabezado titulo="Vínculos de carpetas" vigia={null} contadores={{ vinculos: v.pendientes.length }} {...comun} />
       <p className="ed-parrafo ed-sub">{v.confirmados} carpeta{v.confirmados === 1 ? '' : 's'} ya vinculada{v.confirmados === 1 ? '' : 's'} (se pueden corregir más abajo). Las por confirmar no procesan nada hasta que se confirme de qué cliente son.</p>
       {v.pendientes.length ? (
         <ul className="ed-vinculos">
@@ -54,7 +54,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
                   {k.candidatos.map(x => (
                     v.puedeConfirmar
                       ? <BotonAccion key={x.id_crm} demo={c.demo} etiqueta={`Es ${x.nombre} (${x.id_crm} · ${x.puntaje})`} cuerpo={{ accion: 'vinculo_confirmar', carpeta_id: k.drive_id, id_crm: x.id_crm }}
-                          confirmar={`¿La carpeta «${k.nombre}» es de ${x.nombre} (${x.id_crm})? Desde ahí el vigía procesa sus crudos y avisos para ese cliente.`} />
+                          confirmar={{ titulo: `¿La carpeta «${k.nombre}» es de ${x.nombre} (${x.id_crm})?`, detalle: 'Desde ahí el vigía procesa sus crudos y avisos para ese cliente. Si es otro, se corrige escribiendo su id a mano.', accion: 'Vincular' }} />
                       : <span key={x.id_crm} className="ed-marca">{x.nombre} ({x.puntaje})</span>
                   ))}
                 </div>
@@ -70,7 +70,7 @@ export default async function VinculosPage({ searchParams }: { searchParams: Pro
           <ul className="ed-vinculos">
             {v.vinculadas.map(k => (
               <li key={k.drive_id} className="ed-vinculo">
-                <p><strong>{k.nombre}</strong> → {k.id_crm} · por {k.por}{k.revisar ? <> · <span className="ed-marca ed-marca--laton">revisar</span></> : null} · <a className="ed-link" href={k.link} target="_blank" rel="noopener noreferrer">Abrir en Drive</a></p>
+                <p><strong>{k.nombre}</strong> → {k.id_crm}, por {k.por}{k.revisar ? <> <span className="ed-marca ed-marca--laton">revisar</span></> : null} · <a className="ed-link" href={k.link} target="_blank" rel="noopener noreferrer">Abrir en Drive</a></p>
                 {v.puedeConfirmar && (
                   <details className="cj-detalles">
                     <summary className="cj-etiqueta">Corregir el cliente</summary>

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ESTILO_WHATSAPP } from "@/components/crm/estilosWhatsApp";
+import { useConfirmacion } from "@/components/ui/Confirmacion";
 import { telefonoWhatsApp } from "@/components/tablero";
 import { actualizarPlan, nuevoPlan } from "@/lib/crm/cuotas/acciones";
 import {
@@ -166,13 +167,24 @@ export function TableroCuotas({
   };
   // Cerrar (✕ o Esc) o volver al plan con el formulario a medio cargar pide confirmación. En "Editar plan" el plan ya está
   // guardado: lo que se pierde son los cambios, no el plan
-  const puedeDescartar = () =>
+  const [confirmar, dialogoConfirmar] = useConfirmacion();
+  const puedeDescartar = async () =>
     !sucio.current ||
-    window.confirm(
+    (await confirmar(
       modal?.tipo === "editar"
-        ? "¿Descartar los cambios sin guardar?"
-        : "¿Descartar el plan sin guardar?",
-    );
+        ? {
+            titulo: "¿Descartar los cambios sin guardar?",
+            detalle: "El plan queda como estaba la última vez que se guardó. Lo que cargaste ahora no se recupera.",
+            accion: "Descartar cambios",
+            peligro: true,
+          }
+        : {
+            titulo: "¿Descartar el plan sin guardar?",
+            detalle: "Lo que cargaste en el formulario se pierde y no se recupera.",
+            accion: "Descartar plan",
+            peligro: true,
+          },
+    ));
   // Texto del aviso al guardar: qué se registró y en qué plan. Recibe el plan ya guardado (el que devuelve el servidor):
   // si en "Editar plan" se corrigió el nombre del cliente, el aviso dice el nuevo
   const exito = (r: RegistroPlan, c: Cambio): string => {
@@ -250,6 +262,7 @@ export function TableroCuotas({
       : undefined;
   return (
     <div className="w-full flex-1 space-y-5 py-5">
+      {dialogoConfirmar}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-dorado-oscuro">
@@ -608,8 +621,8 @@ export function TableroCuotas({
           // En "Editar plan" va la versión: con "Recargar datos del plan" desaparece el aviso con ese botón y el foco se vuelve a
           // ubicar como al abrir el formulario (sin ir a un campo: en el celular levantaría el teclado)
           vista={`${modal.tipo}|${"cuota" in modal ? modal.cuota : modal.tipo === "editar" ? modal.version : ""}`}
-          onCerrar={() => {
-            if (ocupado || !puedeDescartar()) return;
+          onCerrar={async () => {
+            if (ocupado || !(await puedeDescartar())) return;
             cerrarDialogo();
           }}
           // El navegador ya lo cerró por su cuenta (no deja frenar un segundo Esc o "volver" seguido): solo se acompaña.
@@ -621,8 +634,8 @@ export function TableroCuotas({
               type="button"
               className={`${SECUNDARIO} mb-4`}
               disabled={ocupado}
-              onClick={() => {
-                if (puedeDescartar())
+              onClick={async () => {
+                if (await puedeDescartar())
                   seleccionar({ tipo: "detalle", id: volverAlPlan });
               }}
             >
@@ -984,13 +997,16 @@ export function TableroCuotas({
                               <button
                                 className={SECUNDARIO}
                                 disabled={ocupado}
-                                onClick={() => {
+                                onClick={async () => {
                                   if (
-                                    window.confirm(
-                                      c.inicial
-                                        ? "¿Anular este registro de pago? Deja de contar como pagado y la corrección quedará en el historial."
-                                        : "¿Anular este registro de pago? El saldo volverá a quedar pendiente y la corrección quedará en el historial.",
-                                    )
+                                    await confirmar({
+                                      titulo: "¿Anular este registro de pago?",
+                                      detalle: c.inicial
+                                        ? "Deja de contar como pagado y la corrección queda en el historial."
+                                        : "El saldo vuelve a quedar pendiente y la corrección queda en el historial.",
+                                      accion: "Anular el pago",
+                                      peligro: true,
+                                    })
                                   )
                                     ejecutar(actual, {
                                       tipo: "anular",

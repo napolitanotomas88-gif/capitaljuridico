@@ -5,6 +5,7 @@ import { ETIQUETA_BLOQUEO, ETIQUETA_MOTIVO, ETIQUETA_PRIORIDAD } from '@/lib/edi
 import { LARGO_CITA, LARGO_MOTIVO_BLOQUEO, LARGO_NOTA, LARGO_URL } from '@/lib/edicion/pedido'
 import { BLOQUEOS, MOTIVOS_REGRABAR, PRIORIDADES, type Bloqueo, type MotivoRegrabar, type Prioridad } from '@/lib/edicion/tipos'
 import type { AccionBoton } from '@/lib/edicion/vista'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { Mensaje } from './Mensaje'
 import { useEnvio } from './useEnvio'
 
@@ -28,6 +29,7 @@ const TITULO_PIDE: Record<NonNullable<AccionBoton['pide']>, string> = {
 
 export function AccionesVideo({ videoId, version, acciones, demo, prioridad, puedePrioridad, bloqueo, permisoBloqueo, puedeTope, vacio }: Props) {
   const { enviando, msj, setMsj, enviar } = useEnvio(demo)
+  const [confirmar, dialogo] = useConfirmacion()
   const id = useId()
   const [abierta, setAbierta] = useState<AccionBoton | null>(null)
   const [motivo, setMotivo] = useState<MotivoRegrabar | ''>('')
@@ -64,10 +66,10 @@ export function AccionesVideo({ videoId, version, acciones, demo, prioridad, pue
     if (r?.ok) limpiar()
   }
 
-  function tocar(a: AccionBoton) {
+  async function tocar(a: AccionBoton) {
     setMsj(null)
     if (a.pide) { setAbierta(abierta?.accion === a.accion ? null : a); return }
-    if (a.tono === 'peligro' && !window.confirm(`¿${a.etiqueta}?`)) return
+    if (a.tono === 'peligro' && !(await confirmar({ titulo: `¿${a.etiqueta}?`, accion: a.etiqueta, peligro: true }))) return
     void mover(a)
   }
 
@@ -80,7 +82,7 @@ export function AccionesVideo({ videoId, version, acciones, demo, prioridad, pue
       {acciones.length > 0 ? (
         <div className="ed-acciones__botones">
           {acciones.map(a => (
-            <button key={a.accion} type="button" className={claseBoton(a)} disabled={enviando} aria-expanded={a.pide ? abierta?.accion === a.accion : undefined} aria-controls={a.pide ? `${id}-panel` : undefined} onClick={() => tocar(a)}>
+            <button key={a.accion} type="button" className={claseBoton(a)} disabled={enviando} aria-expanded={a.pide ? abierta?.accion === a.accion : undefined} aria-controls={a.pide ? `${id}-panel` : undefined} onClick={() => void tocar(a)}>
               {a.etiqueta}
             </button>
           ))}
@@ -186,6 +188,7 @@ export function AccionesVideo({ videoId, version, acciones, demo, prioridad, pue
         </div>
       )}
       <Mensaje msj={msj} enviando={enviando} />
+      {dialogo}
     </div>
   )
 }

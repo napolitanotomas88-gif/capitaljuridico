@@ -102,7 +102,7 @@ export function Tanda({ idCliente, t, aprobador, soloLectura = false }: { idClie
           {t.notas.map(n => (
             <li key={n.id} className={n.aplicada ? 'gu-nota gu-nota--aplicada' : 'gu-nota'}>
               <p>{n.guion ? <strong>Guion {n.guion}: </strong> : null}{n.texto}</p>
-              <span className="gu-meta">{n.aplicada ? `Aplicada por el bot${n.guiones.length ? ` en ${n.guiones.length === 1 ? 'el guion' : 'los guiones'} ${n.guiones.join(', ')}` : ''}` : 'El bot la está aplicando'}{n.origen === 'manual' ? ' · cargada a mano' : ' · por WhatsApp'}</span>
+              <span className="gu-meta">{n.aplicada ? `Aplicada por el bot${n.guiones.length ? ` en ${n.guiones.length === 1 ? 'el guion' : 'los guiones'} ${n.guiones.join(', ')}` : ''}` : 'El bot la está aplicando'}{n.origen === 'manual' ? ', cargada a mano' : ', por WhatsApp'}</span>
             </li>
           ))}
         </ul>
@@ -143,7 +143,7 @@ function GuionVista({ id, g, editable, aprobador, ocupado, onGuardar, onVerifica
       <div className="gu-guion__cab">
         <span className="gu-num">{g.numero}</span>
         <h3>{g.titulo}</h3>
-        <span className="gu-meta">{g.largo} caracteres{g.editado ? ` · editado por ${g.editado}` : ''}{g.estado !== 'listo' ? ' · corrigiendo' : ''}</span>
+        <span className="gu-meta">{g.largo} caracteres{g.editado ? ` · editado por ${g.editado}` : ''}{g.estado !== 'listo' ? ', corrigiendo' : ''}</span>
         {g.verificado ? <span className="gu-verificado">✓ Verificado por {g.verificado}</span>
           : pendiente ? <span className="gu-sello-pendiente">Editado · sin verificar</span>
           : <span className="gu-meta gu-sin-verificar">Sin verificar</span>}

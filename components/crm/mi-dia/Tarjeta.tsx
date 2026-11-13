@@ -317,7 +317,7 @@ export function Tarjeta({ item, enCurso, error, onBoton, onBandera, onRecordator
         <ul className="mt-2 space-y-1 rounded-lg bg-ambar-fondo px-3 py-2 text-sm text-ambar">
           {accion.avisos.map((a) => (
             <li key={a} className="wrap-anywhere">
-              ⚠ {a}
+              {a}
             </li>
           ))}
         </ul>

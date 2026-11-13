@@ -36,7 +36,7 @@ export default async function AltasPage({ searchParams }: Props) {
 
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo="Altas" />
+      <SeccionTitulo titulo="Altas" />
 
       {(modo !== 'real' || canal !== 'ambos' || faltan.length > 0) && (
         <div className="cj-panel cj-altas__estado">
@@ -52,7 +52,7 @@ export default async function AltasPage({ searchParams }: Props) {
       </div>
 
       <section aria-labelledby="altas-abiertas" className="cj-pila cj-pila--chica">
-        <SeccionTitulo etiqueta="En curso" titulo={`Altas abiertas (${ordenadas.length})`} nivel={2} />
+        <SeccionTitulo titulo={`Altas abiertas (${ordenadas.length})`} nivel={2} />
         {error && <div className="cj-aviso"><p>{error}</p></div>}
         {!error && ordenadas.length === 0 && <p className="cj-texto-2">No hay altas abiertas{closerPropio ? ' tuyas' : ''}.</p>}
         {ordenadas.map((a) => (
@@ -65,7 +65,7 @@ export default async function AltasPage({ searchParams }: Props) {
           <SeccionTitulo etiqueta="Historial" titulo="Últimas terminadas" nivel={2} />
           <ul className="cj-altas__historial">
             {terminadas.map((a) => (
-              <li key={a.id}><strong>{a.cliente}</strong>{a.closer ? ` · ${a.closer}` : ''} · {a.estadoTexto} · {a.origen === 'despacho' ? 'Despacho' : 'WhatsApp'}</li>
+              <li key={a.id}><strong>{a.cliente}</strong>{a.closer ? ` (${a.closer})` : ''} · {a.estadoTexto}, por {a.origen === 'despacho' ? 'el Despacho' : 'WhatsApp'}</li>
             ))}
           </ul>
         </section>

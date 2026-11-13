@@ -168,7 +168,7 @@ export function NotasReagenda({ identidad, original }: Props) {
       {ajena !== null && hayCambios && (
         <div role="alert" className="rounded-lg bg-ambar-fondo px-3 py-2 text-sm text-ambar">
           <p className="font-medium">
-            ⚠ La nota cambió en la planilla mientras escribías. Tu texto sigue acá: si lo guardás, reemplaza al de la
+            La nota cambió en la planilla mientras escribías. Tu texto sigue acá: si lo guardás, reemplaza al de la
             planilla; Descartar trae el de la planilla.
           </p>
           <details>

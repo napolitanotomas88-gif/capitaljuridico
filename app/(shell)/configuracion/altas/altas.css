@@ -20,7 +20,7 @@
 .alta-estado--lista { color: var(--cj-ok); }
 .alta-estado--fee { color: var(--cj-hueso); border-color: var(--cj-laton); border-style: dashed; }
 
-.alta-burbuja { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-left: 3px solid var(--cj-laton); background: var(--cj-sala); border-radius: 0 var(--cj-radio) var(--cj-radio) 0; }
+.alta-burbuja { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--cj-filete); background: var(--cj-sala); border-radius: var(--cj-radio); }
 .alta-burbuja p { margin: 0; }
 .alta-avisos { margin: 0; padding-left: 20px; color: var(--cj-error); display: flex; flex-direction: column; gap: 4px; }
 

@@ -39,7 +39,7 @@ export default async function GuionesPage({ searchParams }: Props) {
     const filas = await filasDemo()
     return (
       <div className="cj-pila">
-        <SeccionTitulo etiqueta="Guiones" titulo="Guiones y grabaciones" />
+        <SeccionTitulo titulo="Guiones y grabaciones" />
         <div className="cj-panel">
           <p><span className="cj-etiqueta cj-etiqueta--laton">Datos de ejemplo</span></p>
           <p>Estos clientes y fechas son ficticios y solo existen en desarrollo (?demo=1): sirven para revisar el diseño.</p>
@@ -57,7 +57,7 @@ export default async function GuionesPage({ searchParams }: Props) {
   const crm = leerCrmGuiones()
   return (
     <div className="cj-pila">
-      <SeccionTitulo etiqueta="Guiones" titulo="Guiones y grabaciones" />
+      <SeccionTitulo titulo="Guiones y grabaciones" />
       <Suspense fallback={<EsqueletoTandas />}><TandasEnVivo /></Suspense>
       <Suspense fallback={<EsqueletoTabla />}><TablaEnVivo crm={crm} /></Suspense>
       {veResumen

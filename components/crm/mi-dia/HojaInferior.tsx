@@ -23,6 +23,7 @@ import {
   type ResultadoFormulario,
   type SalidaNoVino,
 } from "@/lib/crm/pantalla";
+import { useConfirmacion } from "@/components/ui/Confirmacion";
 import { atraparTab, devolverFoco, enfocables, focoActual } from "./foco";
 
 type Props = {
@@ -117,9 +118,21 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
   useEffect(() => {
     refSucio.current = sucio;
   });
-  const pedirCerrar = useCallback(() => {
-    if (!refSucio.current || window.confirm("¿Descartar lo que cargaste?")) onCerrar();
-  }, [onCerrar]);
+  const [confirmar, dialogoConfirmar] = useConfirmacion();
+  const preguntando = useRef(false);
+  const pedirCerrar = useCallback(async () => {
+    if (preguntando.current) return;
+    if (!refSucio.current) return onCerrar();
+    preguntando.current = true;
+    const ok = await confirmar({
+      titulo: "¿Descartar lo que cargaste?",
+      detalle: "Se cierra el formulario y lo que cargaste se pierde. No se guardó nada.",
+      accion: "Descartar",
+      peligro: true,
+    });
+    preguntando.current = false;
+    if (ok) onCerrar();
+  }, [onCerrar, confirmar]);
 
   // Al abrir: foco en el primer control del formulario; al cerrar, de vuelta al botón que la abrió.
   // Mientras está abierta, la página de atrás no hace scroll.
@@ -137,7 +150,7 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
   // Escape cierra aunque el foco haya quedado afuera (p. ej. después de tocar el fondo).
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === "Escape") pedirCerrar();
+      if (e.key === "Escape") void pedirCerrar();
     };
     document.addEventListener("keydown", alTeclear);
     return () => document.removeEventListener("keydown", alTeclear);
@@ -225,8 +238,9 @@ export function HojaInferior({ item, boton, situaciones, ahora, enCurso, onConfi
         paddingRight: "env(safe-area-inset-right)",
         ...(zona ? { top: zona.arriba, height: zona.alto } : {}),
       }}
-      onClick={pedirCerrar}
+      onClick={() => void pedirCerrar()}
     >
+      {dialogoConfirmar}
       <div
         ref={refDialogo}
         role="dialog"

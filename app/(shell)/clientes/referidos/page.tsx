@@ -54,7 +54,6 @@ export default async function ReferidosPage({ searchParams }: Props) {
   return (
     <div className="cj-pila">
       <SeccionTitulo
-        etiqueta="Referidos"
         titulo="Programa de referidos"
         acciones={
           vista.esDemo ? undefined : (

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Boton } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 
 // «Es incumplimiento» / «No corresponde» de un hallazgo a verificar (capturas, guiones, crudos). Usa las clases de altas.css.
 export function Verificar({ id, resumen }: { id: number; resumen: string }) {
@@ -11,6 +12,7 @@ export function Verificar({ id, resumen }: { id: number; resumen: string }) {
   const [msj, setMsj] = useState<{ ok: boolean; texto: string } | null>(null)
   const [motivo, setMotivo] = useState('')
   const [descartar, setDescartar] = useState(false)
+  const [confirmar, dialogo] = useConfirmacion()
 
   async function accion(a: 'confirmar' | 'descartar') {
     if (ocupado) return
@@ -28,7 +30,10 @@ export function Verificar({ id, resumen }: { id: number; resumen: string }) {
   return (
     <span>
       <span className="cj-altas__botones">
-        <Boton disabled={ocupado} onClick={() => { if (confirm(`¿Confirmás que es incumplimiento? Se arma el aviso para el cliente (${resumen}).`)) void accion('confirmar') }}>{ocupado ? 'Guardando…' : 'Es incumplimiento'}</Boton>
+        <Boton disabled={ocupado} onClick={async () => {
+          const ok = await confirmar({ titulo: '¿Confirmás que es incumplimiento?', detalle: `Se arma el aviso para el cliente (${resumen}).`, accion: 'Es incumplimiento' })
+          if (ok) void accion('confirmar')
+        }}>{ocupado ? 'Guardando…' : 'Es incumplimiento'}</Boton>
         <Boton variante="secundario" disabled={ocupado} onClick={() => setDescartar((x) => !x)}>No corresponde</Boton>
       </span>
       {descartar && (
@@ -38,6 +43,7 @@ export function Verificar({ id, resumen }: { id: number; resumen: string }) {
         </span>
       )}
       <span aria-live="polite">{msj && <span className={`cj-altas__resultado${msj.ok ? '' : ' cj-altas__resultado--error'}`}>{msj.texto}</span>}</span>
+      {dialogo}
     </span>
   )
 }

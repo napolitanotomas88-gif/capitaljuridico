@@ -73,12 +73,12 @@ function chips(g: GrabacionCliente): Chip[] {
   if (grab) out.push(grab)
   if (g.guionesListos) {
     out.push({
-      texto: `guiones listos hace ${g.diasEsperando ?? 0}d — falta grabar`,
+      texto: `guiones listos hace ${g.diasEsperando ?? 0}d: falta grabar`,
       color: '#fff', bg: (g.diasEsperando ?? 0) > 7 ? '#7f202c' : '#805c29',
     })
   } else if (!grab) {
     out.push(enPreparacion(g)
-      ? { texto: '✍️ guiones en preparación', color: 'var(--text)', bg: 'color-mix(in srgb, var(--border) 60%, transparent)' }
+      ? { texto: 'guiones en preparación', color: 'var(--text)', bg: 'color-mix(in srgb, var(--border) 60%, transparent)' }
       : { texto: 'nunca grabó', color: '#fff', bg: '#805c29' })
   }
   return out

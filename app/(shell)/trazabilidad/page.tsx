@@ -28,7 +28,7 @@ export default async function TrazabilidadPage({ searchParams }: { searchParams:
   if (!datos) {
     return (
       <div className="cj-pila">
-        <SeccionTitulo etiqueta="Trazabilidad" titulo="Cierres y contenido" />
+        <SeccionTitulo titulo="Cierres y contenido" />
         <SubNav actual="/trazabilidad" />
         <p className="traz-error" role="alert">No se pudieron leer los datos: {error}</p>
       </div>
@@ -72,7 +72,6 @@ export default async function TrazabilidadPage({ searchParams }: { searchParams:
   return (
     <div className="cj-pila">
       <SeccionTitulo
-        etiqueta="Trazabilidad"
         titulo="Cierres y contenido"
         acciones={<FormAccion accion={procesarAhora} boton="Procesar pendientes" pendiente="Procesando (puede tardar 2 min)…" className="" />}
       />

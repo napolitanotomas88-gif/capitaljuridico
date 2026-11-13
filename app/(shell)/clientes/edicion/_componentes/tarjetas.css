@@ -22,8 +22,8 @@
 .et-campos-resumen>span { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
 .et-campos-resumen a { color:var(--cj-laton); }
 .et-tarjeta__pie { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-top:10px; }
-.et-expandir { background:none; border:0; color:var(--cj-texto-2); font:inherit; font-size:12px; cursor:pointer; min-height:32px; padding:4px 0; }
-.et-selector select { max-width:170px; min-height:32px; border:1px solid var(--cj-control); border-radius:var(--cj-radio-s); background:var(--cj-sala); color:var(--cj-hueso); font:inherit; font-size:12px; padding:4px 8px; }
+.et-expandir { background:none; border:0; color:var(--cj-texto-2); font:inherit; font-size:12px; cursor:pointer; min-height:44px; padding:4px 0; }
+.et-selector select { max-width:170px; min-height:44px; border:1px solid var(--cj-control); border-radius:var(--cj-radio-s); background:var(--cj-sala); color:var(--cj-hueso); font:inherit; font-size:12px; padding:4px 8px; }
 .et-etapa { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--cj-texto-2); margin:4px 0; }
 .et-vacia { font-size:12px; color:var(--cj-texto-2); text-align:center; padding:24px 8px; margin:0; }
 .et-error { border-color:var(--cj-error); }
@@ -34,7 +34,7 @@
 .et-dialogo::backdrop { background:rgb(0 25 19 / .35); backdrop-filter:blur(12px); }
 .et-dialogo>header { display:flex; align-items:start; gap:20px; border-bottom:1px solid var(--cj-filete); padding:20px 24px; position:sticky; top:0; background:rgba(255,253,248,.98); z-index:1; }
 .et-dialogo>header h2 { flex:1; margin:0; font-size:24px; overflow-wrap:anywhere; }
-.et-cerrar { flex:none; width:36px; height:36px; border:1px solid var(--cj-control); border-radius:50%; background:transparent; color:inherit; font:inherit; font-size:24px; cursor:pointer; }
+.et-cerrar { flex:none; width:44px; height:44px; border:1px solid var(--cj-control); border-radius:50%; background:transparent; color:inherit; font:inherit; font-size:24px; cursor:pointer; }
 .et-dialogo__cuerpo { padding:24px; }
 .et-dialogo .ed-pila { gap:20px; }
 .et-detalle-estado { display:flex; align-items:center; flex-wrap:wrap; gap:16px; }

@@ -166,7 +166,7 @@ export function LineaTiempo({ filas, abierto, detalle, avisos, avisoCliente }: P
       </div>
 
       <p className="rc-estado" role="status" aria-live="polite">
-        {activos.length ? <>Mostrando <strong>{mostrando}</strong> de {totalRecorrido} · {activos.join(' · ')}</> : <>Mostrando los {mostrando} clientes{f.cierre ? ', con pausa y bajas' : ''}</>}
+        {activos.length ? <>Mostrando <strong>{mostrando}</strong> de {totalRecorrido}: {activos.join(', ')}</> : <>Mostrando los {mostrando} clientes{f.cierre ? ', con pausa y bajas' : ''}</>}
       </p>
 
       {f.etapa && (

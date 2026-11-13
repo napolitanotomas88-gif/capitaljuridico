@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { Boton, SeccionTitulo } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import type { EntradaHistorial } from '@/lib/eow/db'
 import {
   COLORES, NOMBRE_COLOR, NOMBRE_TARJETA, TARJETAS, contar, fechaCorta, nuevoIdFila, rangoSemana, ubicar,
@@ -21,6 +22,7 @@ const hora = (iso: string | null) =>
 
 export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   const router = useRouter()
+  const [confirmar, dialogoConfirmar] = useConfirmacion()
   const [datos, setDatos] = useState<DatosEow>(() => ({ filas: inicial?.filas ?? [], tarjetas: inicial?.tarjetas ?? ({} as DatosEow['tarjetas']) }))
   const [version, setVersion] = useState(inicial?.version ?? 0)
   const [sucio, setSucio] = useState(false)
@@ -68,7 +70,12 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   }
 
   async function nuevaSemana() {
-    if (sucio && !window.confirm('Tenés cambios sin guardar en esta semana. ¿Crear la semana nueva igual?')) return
+    if (sucio && !(await confirmar({
+      titulo: '¿Crear la semana nueva igual?',
+      detalle: 'Tenés cambios sin guardar en esta semana. Si creás la nueva ahora, esos cambios se pierden y no se recuperan.',
+      accion: 'Crear la semana nueva',
+      peligro: true,
+    }))) return
     setEstado({ tipo: 'trabajando', texto: 'Creando la semana nueva…' })
     try {
       const r = await fetch('/api/eow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'nueva' }) })
@@ -85,6 +92,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
   const titulo = inicial ? `Reporte EOW · semana del ${rangoSemana(inicial.semana)}` : 'Reporte EOW'
   return (
     <div className="eow cj-pila cj-pila--chica">
+      {dialogoConfirmar}
       <SeccionTitulo
         etiqueta="EOW · End of Week"
         titulo={titulo}
@@ -171,7 +179,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
                         </select>
                       </label>
                       <button type="button" className="eow-pausar" onClick={() => editarFila(f.id, { pausado: !f.pausado })}>
-                        {f.pausado ? '▶ Reanudar' : '⏸ Pausar'}
+                        {f.pausado ? 'Reanudar' : 'Pausar'}
                       </button>
                       <CeldaCartera fila={f} vinculo={vincular(f)} cartera={cartera} alVincular={(cambio) => editarFila(f.id, cambio)} />
                       <button type="button" className="eow-quitar" aria-label={`Quitar a ${f.cliente || 'esta fila'}`} onClick={() => quitarFila(f.id)}>×</button>
@@ -194,7 +202,7 @@ export function EditorEow({ semanas, inicial, historial, cartera }: Props) {
               <summary>Historial de cambios ({historial.length})</summary>
               <ul>
                 {historial.map((h, i) => (
-                  <li key={i}><strong>{h.quien}</strong> · {hora(h.cuando)} — {h.cambios.slice(0, 8).join(' · ')}{h.cambios.length > 8 ? ` · y ${h.cambios.length - 8} más` : ''}</li>
+                  <li key={i}><strong>{h.quien}</strong> · {hora(h.cuando)}: {h.cambios.slice(0, 8).join('; ')}{h.cambios.length > 8 ? `; y ${h.cambios.length - 8} más` : ''}</li>
                 ))}
               </ul>
             </details>
@@ -227,7 +235,7 @@ function TarjetaEditable({ titulo, items, alCambiar }: { titulo: string; items: 
       </ul>
       <form className="eow-tarjeta__nuevo" onSubmit={(e) => { e.preventDefault(); sumar() }}>
         <input className="eow-input" value={nuevo} placeholder="Agregar…" aria-label={`Agregar a ${titulo}`} onChange={(e) => setNuevo(e.target.value)} />
-        <button type="submit" className="eow-agregar">+</button>
+        <button type="submit" className="eow-agregar" aria-label={`Agregar a ${titulo}`}>+</button>
       </form>
     </div>
   )
@@ -248,7 +256,7 @@ function CeldaCartera({ fila, vinculo, cartera, alVincular }: { fila: FilaEow; v
         }}>
           <option value="auto">Automático (por nombre)</option>
           <option value="ninguno">No vincular</option>
-          {[...cartera].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.id} · {NOMBRE_ESTADO_CARTERA[c.estado]}</option>)}
+          {[...cartera].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((c) => <option key={c.id} value={c.id}>{c.nombre} ({c.id}) · {NOMBRE_ESTADO_CARTERA[c.estado]}</option>)}
         </select>
       </label>
     )

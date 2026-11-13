@@ -18,13 +18,13 @@ const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-AR'
 
 function estadoAviso(i: IncumplimientoGuardado): string {
   if (i.estado === 'a_verificar') return 'A verificar (sin aviso al cliente todavía)'
-  if (i.estado === 'descartado_verificacion') return `No corresponde${i.motivo ? ` (${i.motivo})` : ''} · ${i.por ?? ''} ${hora(i.cuando)}`
+  if (i.estado === 'descartado_verificacion') return `No corresponde${i.motivo ? ` (${i.motivo})` : ''}, ${i.por ?? ''} ${hora(i.cuando)}`
   if (i.estado === 'enviado') return `Enviado por ${i.por ?? '—'} el ${hora(i.cuando)}`
   if (i.estado === 'descartado') return `No corresponde${i.motivo ? ` (${i.motivo})` : ''} · ${i.por ?? ''} ${hora(i.cuando)}`
   if (i.estado === 'para_enviar') return 'Para enviar'
   return 'Sin aviso registrado'
 }
-const confirmado = (i: IncumplimientoGuardado) => (i.verificado && i.estado !== 'descartado_verificacion' ? ` · confirmado por ${i.verificado.por ?? '—'} el ${hora(i.verificado.cuando)}` : '')
+const confirmado = (i: IncumplimientoGuardado) => (i.verificado && i.estado !== 'descartado_verificacion' ? `, confirmado por ${i.verificado.por ?? '—'} el ${hora(i.verificado.cuando)}` : '')
 
 export default async function ControlesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await exigirAcceso('clientes')
@@ -41,7 +41,7 @@ export default async function ControlesPage({ searchParams }: { searchParams: Pr
   } catch { error = 'No se pudo leer la base. Probá de nuevo en un rato.' }
   return (
     <div className="cj-pila cj-altas">
-      <SeccionTitulo etiqueta="Clientes" titulo="Controles de cumplimiento" />
+      <SeccionTitulo titulo="Controles de cumplimiento" />
       <p className="cj-texto-2">
         {controlesEncendidos() ? 'Encendidos: corren todos los días a las 10:00 y el resumen sale los lunes.' : 'Apagados (CONTROLES_CLIENTES no está en «encendido»).'}{' '}
         Error de pago y presupuesto del período no invertido dejan el aviso directo en <Link href="/clientes/para-enviar">Para enviar</Link>. Capturas, guiones y crudos quedan «a verificar»: el aviso se arma solo con «Es incumplimiento». Nada se le manda al cliente solo.
@@ -54,9 +54,10 @@ export default async function ControlesPage({ searchParams }: { searchParams: Pr
           {configs.map((c) => (
             <li key={c.idCrm}>
               <Link href={`/clientes/controles?cliente=${c.idCrm}`}><strong>{c.cliente}</strong> ({c.idCrm})</Link>
-              {' · '}{c.activo ? 'activo' : 'inactivo'} · desde {dm(c.desde)} · USD {c.presupuestoDiarioUsd}/día · Meta {c.cuentaMeta ? 'sí' : 'no'} · Capturas {c.carpetaCapturas ? 'sí' : 'se crea en la primera corrida'}
-              {' · '}plazos: revisión {c.plazos.revisionHabiles} hábiles, crudos {c.plazos.crudosCorridos} días, capturas {c.plazos.capturasHoras} h, corrección {c.plazos.correccionCorridos} días
-              {' · '}período de {c.plazos.periodoDias} días · cláusulas: pago {c.clausulas.pago}, gasto {c.clausulas.gasto}, guiones {c.clausulas.guiones}, crudos {c.clausulas.crudos}, capturas {c.clausulas.capturas}
+              {' · '}{c.activo ? 'activo' : 'inactivo'} desde el {dm(c.desde)}
+              <br /><span className="cj-texto-2">USD {c.presupuestoDiarioUsd}/día, cuenta de Meta: {c.cuentaMeta ? 'sí' : 'no'}, carpeta de capturas: {c.carpetaCapturas ? 'sí' : 'se crea en la primera corrida'}</span>
+              <br /><span className="cj-texto-2">Plazos: revisión {c.plazos.revisionHabiles} hábiles, crudos {c.plazos.crudosCorridos} días, capturas {c.plazos.capturasHoras} h, corrección {c.plazos.correccionCorridos} días; período de {c.plazos.periodoDias} días</span>
+              <br /><span className="cj-texto-2">Cláusulas: pago {c.clausulas.pago}, gasto {c.clausulas.gasto}, guiones {c.clausulas.guiones}, crudos {c.clausulas.crudos}, capturas {c.clausulas.capturas}</span>
             </li>
           ))}
         </ul>
@@ -68,8 +69,9 @@ export default async function ControlesPage({ searchParams }: { searchParams: Pr
         <ul className="cj-altas__historial">
           {historial.map((i) => (
             <li key={i.id}>
-              <strong>{dm(i.fecha)}</strong> · {i.idCrm} · {NOMBRE_TIPO[i.tipo] ?? i.tipo} · cláusula {i.clausula ?? '—'} · {estadoAviso(i)}{confirmado(i)}
-              {i.estado === 'a_verificar' && <><br /><span className="cj-texto-2">{i.lineas.slice(0, 2).join(' · ')}</span><br /><Verificar id={i.id} resumen={`${NOMBRE_TIPO[i.tipo] ?? i.tipo}, ${dm(i.fecha)}`} /></>}
+              <strong>{dm(i.fecha)}</strong> · {i.idCrm}, {NOMBRE_TIPO[i.tipo] ?? i.tipo}, cláusula {i.clausula ?? '—'}
+              <br /><span className="cj-texto-2">{estadoAviso(i)}{confirmado(i)}</span>
+              {i.estado === 'a_verificar' && <><br /><span className="cj-texto-2">{i.lineas.slice(0, 2).join('; ')}</span><br /><Verificar id={i.id} resumen={`${NOMBRE_TIPO[i.tipo] ?? i.tipo}, ${dm(i.fecha)}`} /></>}
               {i.mensajeId && i.estado === 'para_enviar' && <> · <Link href={`/clientes/para-enviar#m-${i.mensajeId}`}>Abrir aviso</Link></>}
             </li>
           ))}

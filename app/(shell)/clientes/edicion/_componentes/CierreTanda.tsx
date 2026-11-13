@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState } from 'react'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { LARGO_CITA } from '@/lib/edicion/pedido'
 import type { CierreTandaVista } from '@/lib/edicion/vista'
 import { BotonAccion } from './BotonAccion'
@@ -18,6 +19,7 @@ function OkDeTodos({ items, demo }: { items: CierreTandaVista['ok']; demo: boole
   const { enviando, msj, setMsj, enviar } = useEnvio(demo)
   const [abierto, setAbierto] = useState(false)
   const [cita, setCita] = useState('')
+  const [confirmar, dialogo] = useConfirmacion()
   const n = items.length
   return (
     <div className="ed-copiar">
@@ -33,7 +35,11 @@ function OkDeTodos({ items, demo }: { items: CierreTandaVista['ok']; demo: boole
           <div className="ed-botones">
             <button type="button" className="cj-boton cj-boton--primario" disabled={enviando} onClick={async () => {
               if (cita.trim().length < 2) { setMsj({ texto: 'Pegá el mensaje del cliente.', error: true }); return }
-              if (!window.confirm(`¿Pasar ${n === 1 ? 'el video' : `los ${n} videos`} a Aprobado? Le avisamos a Valen.`)) return
+              if (!(await confirmar({
+                titulo: `¿Pasar ${n === 1 ? 'el video' : `los ${n} videos`} a Aprobado?`,
+                detalle: `Le avisamos a Valen y el mensaje del cliente queda como cita. Cada video se puede volver a mover desde su ficha.`,
+                accion: n === 1 ? 'Aprobar el video' : `Aprobar los ${n}`,
+              }))) return
               const r = await enviar({ accion: 'mover_lote', transicion: 'ok_cliente', items, cita: cita.trim() })
               if (r?.ok) { setCita(''); setAbierto(false) }
             }}>Aprobar {n === 1 ? 'el video' : `los ${n}`}</button>
@@ -41,6 +47,7 @@ function OkDeTodos({ items, demo }: { items: CierreTandaVista['ok']; demo: boole
         </div>
       )}
       <Mensaje msj={msj} enviando={enviando} />
+      {dialogo}
     </div>
   )
 }
@@ -53,7 +60,11 @@ export function CierreTanda({ tanda, cierre, demo, puedeEnvio }: Props) {
       <p className="cj-etiqueta cj-etiqueta--laton">Cierre{de}</p>
       {nAl > 0 && (
         <BotonAccion demo={demo} variante="primario" etiqueta={nAl === 1 ? 'Está bien: al cliente' : `Están bien los ${nAl}: al cliente`}
-          confirmar={`¿Pasar ${nAl === 1 ? 'el video' : `los ${nAl} videos`}${de} a «Con el cliente»? Después copiás un solo mensaje con todos los links.`}
+          confirmar={{
+            titulo: `¿Pasar ${nAl === 1 ? 'el video' : `los ${nAl} videos`}${de} a «Con el cliente»?`,
+            detalle: 'Después copiás un solo mensaje con todos los links. Cada video se puede volver a mover desde su ficha.',
+            accion: 'Pasar al cliente',
+          }}
           cuerpo={{ accion: 'mover_lote', transicion: 'para_cliente', items: cierre.alCliente }} />
       )}
       {cierre.linkFinal && (

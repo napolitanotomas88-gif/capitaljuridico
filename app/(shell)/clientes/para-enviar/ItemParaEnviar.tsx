@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Boton } from '@/components/ui'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 
 // Un mensaje «para enviar»: el texto listo para copiar, el link a la pantalla de la pieza y los botones «Enviado» y
 // «No corresponde» (con motivo). Usa las clases de «Cargar alta» (altas.css), sin estilos propios.
@@ -18,6 +19,7 @@ export function ItemParaEnviar({ m }: { m: MensajeVista }) {
   const [msj, setMsj] = useState<{ ok: boolean; texto: string } | null>(null)
   const [motivo, setMotivo] = useState('')
   const [descartar, setDescartar] = useState(false)
+  const [confirmar, dialogo] = useConfirmacion()
 
   async function copiar() {
     try { await navigator.clipboard.writeText(m.texto); setMsj({ ok: true, texto: 'Texto copiado: pegalo en el grupo del cliente.' }) }
@@ -40,14 +42,17 @@ export function ItemParaEnviar({ m }: { m: MensajeVista }) {
     <section id={`m-${m.id}`} className="cj-panel cj-altas__tarjeta" aria-label={`${m.titulo} para ${m.cliente}`}>
       <div className="cj-altas__cabeza">
         <h2 className="cj-altas__nombre">{m.cliente}</h2>
-        <span className="cj-texto-2">{m.titulo} · grupo {m.grupo} · {m.desde}{m.responsables ? ` · ${m.responsables}` : ''}</span>
+        <span className="cj-texto-2">{m.titulo}, grupo {m.grupo}<br />{m.desde}{m.responsables ? ` · ${m.responsables}` : ''}</span>
       </div>
       <pre className="cj-altas__texto">{m.texto}</pre>
       {m.adjuntos.length > 0 && <ul className="cj-altas__lista">{m.adjuntos.map((a) => <li key={a}>Adjuntá: <a href={a} target="_blank" rel="noreferrer" className="cj-enlace">{a}</a></li>)}</ul>}
       <div className="cj-altas__botones">
         <Boton variante="secundario" onClick={() => void copiar()}>Copiar texto</Boton>
         {m.abrir && <Link href={m.abrir} className="cj-enlace">Abrir</Link>}
-        <Boton disabled={ocupado} onClick={() => { if (confirm(`¿Ya lo mandaste al grupo ${m.grupo} de ${m.cliente}?`)) void accion('enviado') }}>{ocupado ? 'Guardando…' : 'Enviado'}</Boton>
+        <Boton disabled={ocupado} onClick={async () => {
+          const ok = await confirmar({ titulo: `¿Ya lo mandaste al grupo ${m.grupo} de ${m.cliente}?`, detalle: 'Queda marcado como enviado y sale de la lista.', accion: 'Sí, lo mandé' })
+          if (ok) void accion('enviado')
+        }}>{ocupado ? 'Guardando…' : 'Enviado'}</Boton>
         <Boton variante="secundario" disabled={ocupado} onClick={() => setDescartar((x) => !x)}>No corresponde</Boton>
       </div>
       {descartar && (
@@ -57,6 +62,7 @@ export function ItemParaEnviar({ m }: { m: MensajeVista }) {
         </div>
       )}
       <div aria-live="polite">{msj && <p className={`cj-altas__resultado${msj.ok ? '' : ' cj-altas__resultado--error'}`}>{msj.texto}</p>}</div>
+      {dialogo}
     </section>
   )
 }

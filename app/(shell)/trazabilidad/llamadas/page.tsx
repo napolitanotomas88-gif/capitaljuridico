@@ -63,7 +63,7 @@ export default async function LlamadasPage({ searchParams }: { searchParams: Bus
 
   return (
     <div className="cj-pila">
-      <SeccionTitulo etiqueta="Trazabilidad" titulo="Llamadas de closers" acciones={<FormAccion accion={traerLlamadasCloser} boton="Traer llamadas nuevas" pendiente="Trayendo de Fathom…" className="" />} />
+      <SeccionTitulo titulo="Llamadas de closers" acciones={<FormAccion accion={traerLlamadasCloser} boton="Traer llamadas nuevas" pendiente="Trayendo de Fathom…" className="" />} />
       <SubNav actual="/trazabilidad/llamadas" />
       <p className="traz-texto">
         Las llamadas con leads de cada closer, sacadas de su cuenta de Fathom. Se traen solas a las 7:30 y con el botón. Cada una

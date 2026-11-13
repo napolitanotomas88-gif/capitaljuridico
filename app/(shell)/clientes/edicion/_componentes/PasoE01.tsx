@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { LARGO_NOTA_PASO } from '@/lib/edicion/pedido'
 import type { FilaPaso } from '@/lib/edicion/vista'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { Mensaje } from './Mensaje'
 import { TextoParaCopiar } from './TextoParaCopiar'
 import { useEnvio } from './useEnvio'
@@ -12,6 +13,7 @@ import { useEnvio } from './useEnvio'
 // marcan «hecho» con una nota; el día 9 lo decide Tomás: pausar o seguir con un recordatorio cada 4 días hábiles.
 export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; demo: boolean; puedeMarcar: boolean; puedeDecidir: boolean }) {
   const { enviando, msj, enviar } = useEnvio(demo)
+  const [confirmar, dialogo] = useConfirmacion()
   const [nota, setNota] = useState('')
   const cuerpoHecho = { accion: 'paso_hecho', paso_id: p.id, version: p.version }
   return (
@@ -21,13 +23,13 @@ export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; d
         <span className={p.vencido && !p.hecho ? 'ed-marca ed-marca--alerta' : 'ed-marca'}>{p.vencido ? 'Vencido' : 'Para'} el {p.debido.split('-').reverse().slice(0, 2).join('/')}</span>
       </div>
       <p className="ed-sub">
-        A cargo de <strong>{p.responsable}</strong> · {p.videos} video{p.videos === 1 ? '' : 's'} esperando · {p.diasHabiles} día{p.diasHabiles === 1 ? '' : 's'} hábil{p.diasHabiles === 1 ? '' : 'es'} · por {p.motivo}
+        A cargo de <strong>{p.responsable}</strong> · {p.videos} video{p.videos === 1 ? '' : 's'} esperando, {p.diasHabiles} día{p.diasHabiles === 1 ? '' : 's'} hábil{p.diasHabiles === 1 ? '' : 'es'}, por {p.motivo}
       </p>
       {p.frenado && <p className="ed-interno"><strong>Frenado</strong>Llegaron crudos del cliente que todavía no están ubicados: ubicalos en la ficha del cliente antes de seguir con el escalón.</p>}
 
       {p.noSalio && <p className="ed-interno"><strong>No salió por WhatsApp</strong>{p.noSalio.replace(/^No salió por WhatsApp:\s*/, '')}</p>}
       {p.hecho ? (
-        <p className="ed-constancia">Hecho por {p.hecho.quien || 'alguien'} · {p.hecho.cuando}{p.hecho.nota ? ` · ${p.hecho.nota}` : ''}</p>
+        <p className="ed-constancia">Hecho por {p.hecho.quien || 'alguien'} · {p.hecho.cuando}{p.hecho.nota ? `: ${p.hecho.nota}` : ''}</p>
       ) : p.bot && p.texto.para === 'grupo_contenido' ? (
         <p className="ed-sub">Lo manda el bot por WhatsApp al grupo Contenido (días hábiles, de 10 a 19). No lo mandes a mano: cuando salga, queda acá como hecho.</p>
       ) : p.texto.para === 'grupo_contenido' ? (
@@ -50,12 +52,16 @@ export function PasoE01({ p, demo, puedeMarcar, puedeDecidir }: { p: FilaPaso; d
 
       {p.esDia9 && !p.decision && (puedeDecidir ? (
         <div className="ed-botones">
-          <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={() => { if (window.confirm('¿Pausar? Los videos que esperan crudos quedan en pausa y se cierra el seguimiento.')) void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'pausar' }) }}>Pausar</button>
+          <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={async () => {
+            const ok = await confirmar({ titulo: '¿Pausar?', detalle: 'Los videos que esperan crudos quedan en pausa y se cierra el seguimiento.', accion: 'Pausar', peligro: true })
+            if (ok) void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'pausar' })
+          }}>Pausar</button>
           <button type="button" className="cj-boton cj-boton--secundario" disabled={enviando} onClick={() => void enviar({ accion: 'paso_decision', paso_id: p.id, version: p.version, decision: 'seguir' })}>Seguir con recordatorios</button>
         </div>
       ) : <p className="ed-sub">Lo decide Tomás: pausar o seguir con un recordatorio cada 4 días hábiles.</p>)}
       {p.decision && <p className="ed-constancia">Decisión: {p.decision}</p>}
       <Mensaje msj={msj} enviando={enviando} />
+      {dialogo}
     </article>
   )
 }

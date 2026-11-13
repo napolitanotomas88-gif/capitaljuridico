@@ -291,7 +291,7 @@ export function ListaClientes({ filas, iniciales, noClientes, creditosDisponible
         <div className="cj-fila">
           <p ref={refEstado} tabIndex={-1} className="cj-etiqueta" role="status" aria-atomic="true">
             {visibles.length} de {delTipo.length} {filtros.linea === 'consultora' ? 'clientes de Consultora' : 'clientes'}
-            {mostrando.length > 0 && ` · ${mostrando.join(' · ')}`}
+            {mostrando.length > 0 && `: ${mostrando.join(', ')}`}
             {avisoFuera && <span className="cl-aviso">{avisoFuera}</span>}
           </p>
           {hayFiltros && visibles.length > 0 && (

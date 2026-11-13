@@ -72,15 +72,14 @@ export default async function ClientesPage({ searchParams }: Props) {
   return (
     <div className="cj-pila">
       <SeccionTitulo
-        etiqueta="Clientes"
         titulo="Cartera de clientes"
         acciones={
           <div className="cj-fila">
             {/* Sin WhatsApp (2/11/2026): el alta arranca acá; lo que antes iba por WhatsApp se manda y se aprueba en el Despacho */}
             {puedeVer(sesion, 'altas') && <BotonEnlace href="/finanzas/pagos" variante="marca">＋ Cargar pago o alta</BotonEnlace>}
-            <BotonEnlace href="/clientes/para-enviar" variante="secundario">📤 Para enviar</BotonEnlace>
-            <BotonEnlace href="/clientes/aprobaciones" variante="secundario">✅ Aprobaciones</BotonEnlace>
-            <BotonEnlace href="/clientes/controles" variante="secundario">🧾 Controles</BotonEnlace>
+            <BotonEnlace href="/clientes/para-enviar" variante="secundario">Para enviar</BotonEnlace>
+            <BotonEnlace href="/clientes/aprobaciones" variante="secundario">Aprobaciones</BotonEnlace>
+            <BotonEnlace href="/clientes/controles" variante="secundario">Controles</BotonEnlace>
             {/* Ocultar o mostrar los montos en pantalla (solo con Finanzas; sin Finanzas ni llegan) */}
             {verCobros && <BotonMontos />}
             <p className="cj-etiqueta cj-seccion__meta">

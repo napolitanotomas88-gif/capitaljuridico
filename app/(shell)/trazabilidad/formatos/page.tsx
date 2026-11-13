@@ -78,11 +78,11 @@ export default async function FormatosPage({ searchParams }: { searchParams: Pro
       </p>
 
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Formato" titulo="Por formato" />
+        <SeccionTitulo nivel={2} titulo="Por formato" />
         <Tabla descripcion="Agendas y pagadores por formato de video" columnas={columnas('Formato')} filas={conAgendas(porFormato.filas)} claveFila={(f) => f.grupo} vacio={<Vacio frase="Sin agendas atribuidas en este período." />} />
       </section>
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Ángulo" titulo="Por ángulo del video" />
+        <SeccionTitulo nivel={2} titulo="Por ángulo del video" />
         <Tabla descripcion="Agendas y pagadores por ángulo" columnas={columnas('Ángulo')} filas={conAgendas(porAngulo.filas)} claveFila={(f) => f.grupo} vacio={<Vacio frase="Sin agendas atribuidas en este período." />} />
       </section>
       <section className="cj-pila cj-pila--chica">
@@ -90,7 +90,7 @@ export default async function FormatosPage({ searchParams }: { searchParams: Pro
         <Tabla descripcion="Combinaciones de formato y ángulo" columnas={columnas('Formato · ángulo')} filas={conAgendas(cruce.filas, 5)} claveFila={(f) => f.grupo} vacio={<Vacio frase="Ninguna combinación llega a 5 agendas en este período." />} />
       </section>
       <section className="cj-pila cj-pila--chica">
-        <SeccionTitulo nivel={2} etiqueta="Videos" titulo="Videos con pagadores o con más agendas" />
+        <SeccionTitulo nivel={2} titulo="Videos con pagadores o con más agendas" />
         <Tabla
           descripcion="Videos individuales"
           filas={porConcepto.filas.filter((f) => f.agendas > 0).sort((a, b) => b.pagadores - a.pagadores || b.cash - a.cash || b.agendas - a.agendas).slice(0, 30)}

@@ -12,7 +12,7 @@ import { UltimoVigia } from './UltimoVigia'
 const ROLES_DEMO: RolEdicion[] = ['aylu', 'rene', 'tomas', 'lector']
 
 type Props = {
-  etiqueta: string; titulo: string; vigia: VistaVigia | null; modo: 'dry' | 'real'; demo: boolean
+  etiqueta?: string; titulo: string; vigia: VistaVigia | null; modo: 'dry' | 'real'; demo: boolean
   rol: RolEdicion; pestanas: Pestana[]; actual: Pestana | 'tarjetas' | null; sufijo: string
   contadores?: Partial<Record<Pestana, number>>
   volver?: { href: string; texto: string }

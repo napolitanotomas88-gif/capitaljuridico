@@ -30,9 +30,10 @@
 .mr-lista { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .mr-item {
   display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--cj-radio-m, 10px);
-  background: rgba(255, 253, 248, 0.85); border: 1px solid var(--cj-filete); border-left: 3px solid var(--cj-laton);
+  background: rgba(255, 253, 248, 0.85); border: 1px solid var(--cj-filete);
 }
-.mr-item--urgente { border-left-color: var(--cj-error); }
+/* La franja queda solo para lo urgente: es estado, no adorno */
+.mr-item--urgente { border-left: 3px solid var(--cj-error); }
 .mr-item__texto { flex: 1; min-width: 0; }
 .mr-item__titulo { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .mr-item__titulo a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--cj-laton); }

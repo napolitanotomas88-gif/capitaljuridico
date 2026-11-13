@@ -31,7 +31,6 @@ export function AvisoFilaCambiada({ actual, anterior, que, ayuda, resumen, child
   return (
     <div role="alert" className="space-y-2 rounded-lg bg-ambar-fondo px-3 py-2 text-sm text-ambar">
       <p className="font-medium">
-        <span aria-hidden="true">⚠ </span>
         Esta fila ahora es de {actual.trim() || "otro lead"} (cambió la planilla): {que} para {anterior.trim() || "el lead anterior"} no
         se guardó.
       </p>

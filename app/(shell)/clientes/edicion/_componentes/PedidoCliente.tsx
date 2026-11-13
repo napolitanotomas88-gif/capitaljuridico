@@ -5,6 +5,7 @@ import { ETIQUETA_TIPO_NOTA } from '@/lib/edicion/etiquetas'
 import { LARGO_NOTA, LARGO_NOTA_VIDEO, LARGO_PEDIDO_CLIENTE, MAX_NOTAS_A_MANO, leerTiempo } from '@/lib/edicion/pedido'
 import { TIPOS_NOTA, type TipoNota } from '@/lib/edicion/tipos'
 import type { VistaPedido } from '@/lib/edicion/vista'
+import { useConfirmacion } from '@/components/ui/Confirmacion'
 import { Mensaje } from './Mensaje'
 import { useEnvio } from './useEnvio'
 
@@ -30,7 +31,7 @@ function Propuesto({ p, demo, seriaTercera, esTomas }: { p: VistaPedido; demo: b
   const alternar = (i: number) => setElegidas(xs => (xs.includes(i) ? xs.filter(x => x !== i) : [...xs, i].sort((a, b) => a - b)))
   return (
     <div className="ed-pedido">
-      <p className="cj-etiqueta cj-etiqueta--laton">Pedido del cliente · {p.creado}{p.creadoPor ? ` · lo cargó ${p.creadoPor}` : ''}</p>
+      <p className="cj-etiqueta cj-etiqueta--laton">Pedido del cliente · {p.creado}{p.creadoPor ? `, lo cargó ${p.creadoPor}` : ''}</p>
       <p className="ed-cita">{p.texto}</p>
       {p.propuesta.length ? (
         <ul className="ed-propuesta">
@@ -74,6 +75,7 @@ function Propuesto({ p, demo, seriaTercera, esTomas }: { p: VistaPedido; demo: b
 
 function EsperaTomas({ p, demo, esTomas }: { p: VistaPedido; demo: boolean; esTomas: boolean }) {
   const { enviando, msj, enviar } = useEnvio(demo)
+  const [confirmar, dialogo] = useConfirmacion()
   return (
     <div className="ed-pedido">
       <p className="ed-interno"><strong>Interno</strong>3.ª ronda del cliente: espera el OK de Tomás. René no la ve todavía y al cliente no se le dice nada.</p>
@@ -81,8 +83,12 @@ function EsperaTomas({ p, demo, esTomas }: { p: VistaPedido; demo: boolean; esTo
       <ul className="ed-guia">{p.elegidas.map(i => p.propuesta[i]).filter(Boolean).map((n, k) => <li key={k}>{n.tiempo ? `${n.tiempo} · ` : ''}{n.etiquetaTipo}: {n.texto}</li>)}</ul>
       <div className="ed-botones">
         {esTomas && <button type="button" className="cj-boton cj-boton--primario" disabled={enviando} onClick={() => void enviar({ accion: 'ronda_autorizar', pedido_id: p.id, version: p.version })}>Autorizar la ronda</button>}
-        <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={() => { if (window.confirm('¿Descartar el pedido? El video vuelve a quedar con el cliente, sin bloqueo.')) void enviar({ accion: 'pedido_descartar', pedido_id: p.id, version: p.version, nota: '' }) }}>Descartar el pedido</button>
+        <button type="button" className="cj-boton cj-boton--secundario ed-boton-peligro" disabled={enviando} onClick={async () => {
+          const ok = await confirmar({ titulo: '¿Descartar el pedido?', detalle: 'El video vuelve a quedar con el cliente, sin bloqueo. El pedido no se recupera: habría que cargarlo de nuevo.', accion: 'Descartar el pedido', peligro: true })
+          if (ok) void enviar({ accion: 'pedido_descartar', pedido_id: p.id, version: p.version, nota: '' })
+        }}>Descartar el pedido</button>
       </div>
+      {dialogo}
       <Mensaje msj={msj} enviando={enviando} />
     </div>
   )

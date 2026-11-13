@@ -11,7 +11,7 @@ export default function ErrorPantalla({ error, unstable_retry }: { error: Error 
   }, [error])
   return (
     <div className="cj-pila">
-      <SeccionTitulo etiqueta="Error" titulo="Algo salió mal" />
+      <SeccionTitulo titulo="Algo salió mal" />
       <div className="cj-aviso" role="alert">
         <p>No pudimos armar esta pantalla. Probá de nuevo; si sigue pasando, avisale al equipo.</p>
       </div>

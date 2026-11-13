@@ -32,7 +32,7 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
 
   return (
     <div className="cj-pila">
-      <SeccionTitulo etiqueta="Configuración" titulo="Accesos al dashboard" />
+      <SeccionTitulo titulo="Accesos al dashboard" />
       <p className="cj-parrafo cj-texto-2">
         Agregá a una persona con su mail de Google y elegí qué puede ver, o dale acceso de administrador. Entra con esa cuenta en el botón &ldquo;Entrar con Google&rdquo;.
         Los cambios rigen en menos de un minuto.
