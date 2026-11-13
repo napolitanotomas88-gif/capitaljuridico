@@ -2,11 +2,13 @@
 //   · imports relativos sin extensión → .ts (o .js, para las reglas puras de components/finanzas/skwd)
 //   · alias "@/..." (tsconfig paths) → raíz del proyecto, para poder importar las rutas de app/ y lib/ que lo usan
 //   · "next/server" → next/server.js (el paquete no declara "exports": en ESM hace falta la extensión), para probar proxy.ts
+//   · "next/cache" → next/cache.js, igual (lib/anuncios/cache.ts: fuera de Next usa solo la memoria)
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 const RAIZ = new URL('../', import.meta.url)
 export async function resolve(spec, ctx, next) {
   if (spec === 'next/server') return next('next/server.js', ctx)
+  if (spec === 'next/cache') return next('next/cache.js', ctx)
   if (spec.startsWith('@/')) {
     for (const sufijo of ['.ts', '.tsx', '/index.ts']) {
       const u = new URL(spec.slice(2) + sufijo, RAIZ)
