@@ -1,9 +1,10 @@
 import { fechaCorta } from '@/lib/clientes/formato'
 import { NOMBRE_BLOQUE, NOMBRE_NIVEL, sugerencia, type Bloque, type EstadoRenglon, type ResultadoPuntaje } from '@/lib/clientes/puntaje'
+import { NOMBRE_FUENTE_RAMA } from '@/lib/anuncios/ramas'
 import '@/components/clientes/puntaje.css'
 
 // Bloque «Puntaje» de la tarjeta del cliente (especificación v1, 13/11/2026): los dos números (el del cliente y el interno),
-// el nivel, la brecha y de dónde sale cada punto. Solo lectura: el puntaje no mueve la etapa ni escribe en el CRM.
+// el nivel, la brecha, la rama con su calidad (informativa) y de dónde sale cada punto. Solo lectura: el puntaje no mueve la etapa ni escribe en el CRM.
 
 const ESTADO: Record<EstadoRenglon, string> = { suma: 'Suma', parcial: 'Suma una parte', no_suma: 'No suma', sin_dato: 'Sin dato', resta: 'Resta', no_aplica: 'No resta' }
 const BLOQUES: Bloque[] = ['anuncios', 'resultados', 'equipo', 'bonus', 'resta']
@@ -22,14 +23,35 @@ export function BloquePuntaje({ p, etapa }: { p: ResultadoPuntaje | null; etapa:
         </div>
         <div className="pz-cifra">
           <dt className="cj-etiqueta">Puntaje interno</dt>
-          <dd className="pz-cifra__n">{p.interno}{p.bonus > 0 && <small> +{p.bonus} bonus</small>}</dd>
-          <dd className="pz-nota">{p.restas > 0 ? `${p.base} puntos menos ${p.restas} de restas` : `${p.base} de 100 puntos`}</dd>
+          {p.interno === null
+            ? <>
+                <dd className="pz-cifra__sin">Sin datos de Meta</dd>
+                <dd className="pz-nota">Meta no respondió en esta lectura: sin el bloque Anuncios (50 puntos) el interno no se calcula. Recargá en un minuto.</dd>
+              </>
+            : <>
+                <dd className="pz-cifra__n">{p.interno}{p.bonus > 0 && <small> +{p.bonus} bonus</small>}</dd>
+                <dd className="pz-nota">{p.restas > 0 ? `${p.base} puntos menos ${p.restas} de restas` : `${p.base} de 100 puntos`}</dd>
+              </>}
         </div>
         <div className="pz-cifra">
           <dt className="cj-etiqueta">Nivel</dt>
-          <dd><span className={`pz-nivel pz--${p.nivel}`}>{NOMBRE_NIVEL[p.nivel]}</span></dd>
-          <dd className="pz-nota">{p.estimado ? 'Estimado con el interno: el cliente no respondió' : 'Sale del puntaje del cliente'}</dd>
+          {p.nivel
+            ? <>
+                <dd><span className={`pz-nivel pz--${p.nivel}`}>{NOMBRE_NIVEL[p.nivel]}</span></dd>
+                <dd className="pz-nota">{p.estimado ? 'Estimado con el interno: el cliente no respondió' : 'Sale del puntaje del cliente'}</dd>
+              </>
+            : <>
+                <dd className="pz-cifra__sin">Sin nivel</dd>
+                <dd className="pz-nota">El cliente no respondió y sin Meta no hay interno para estimarlo.</dd>
+              </>}
         </div>
+        {p.rama && (
+          <div className="pz-cifra">
+            <dt className="cj-etiqueta">Rama</dt>
+            <dd className="pz-rama">{p.rama.nombre}</dd>
+            <dd className="pz-nota">Calidad {p.rama.calidad} de 5{p.rama.fuente ? ` · según ${NOMBRE_FUENTE_RAMA[p.rama.fuente]}` : ''}. Dato informativo: no suma ni resta.</dd>
+          </div>
+        )}
       </dl>
       {p.brecha && <p className="pz-brecha" role="note"><strong>Brecha de {p.brecha.diferencia} puntos.</strong> {p.brecha.texto}</p>}
       {s && <p className="pz-nota">{s}</p>}

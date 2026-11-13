@@ -9,8 +9,13 @@
 // no, del interno completo (interno + bonus) y se marca «estimado». Brecha: el del cliente y el interno (sin el bonus, los dos
 // en 0–100) a 20 puntos o más.
 // Una señal que no se pudo leer (o que el Despacho todavía no tiene) queda «sin dato» y suma 0: no se adivina.
+// Excepción (13/11/2026): si META NO RESPONDIÓ, el bloque Anuncios (50 puntos) no se puede medir y el interno saldría bajo sin
+// motivo. Ahí no hay interno (null: «Interno: sin datos de Meta»), ni nivel estimado, ni brecha; el puntaje del cliente, si
+// existe, se muestra igual con su nivel. Distinto de «la cuenta no está vinculada o no tiene anuncios»: eso SÍ es un dato (0).
+// La rama del cliente y su calidad (CALIDAD_RAMA, 1 a 5) van como dato informativo: no suman ni restan.
 // El puntaje NO mueve etapas ni escribe en el CRM: a lo sumo sugiere («llegó a 70: anotar Éxito»).
 import type { Ymd } from './fechas'
+import type { FuenteRama, Rama } from '../anuncios/ramas'
 
 export const UMBRAL_EXITO = 70
 export const UMBRAL_EN_CAMINO = 50
@@ -55,7 +60,12 @@ export interface SenalesPuntaje {
   referido: boolean | null
   /** Graba y responde a tiempo. null = el Despacho todavía no tiene esta señal. */
   grabaYResponde: boolean | null
+  /** La rama del tablero de Anuncios (la misma que fija el KPI del costo por mensaje). Solo informativa. */
+  rama?: RamaPuntaje | null
 }
+
+/** Rama del cliente y su calidad para Capital Jurídico (1 a 5). Dato informativo: no suma ni resta. */
+export interface RamaPuntaje { id: Rama; nombre: string; calidad: number; fuente: FuenteRama | null }
 
 export type Bloque = 'anuncios' | 'resultados' | 'equipo' | 'bonus' | 'resta'
 export const NOMBRE_BLOQUE: Record<Bloque, string> = { anuncios: 'Anuncios', resultados: 'Resultados', equipo: 'Mirada del equipo', bonus: 'Bonus de compromiso', resta: 'Restas' }
@@ -80,11 +90,13 @@ export interface ResultadoPuntaje {
   clienteDia: Ymd | null   // el día de esa respuesta
   base: number             // los 100 puntos, antes de las restas
   restas: number           // cuánto se restó (positivo)
-  interno: number          // base − restas, nunca menos de 0 (0–100)
+  interno: number | null   // base − restas, nunca menos de 0 (0–100); null = Meta no respondió (sin datos de Meta)
   bonus: number            // 0 a +15
-  total: number            // interno + bonus (puede pasar de 100)
-  nivel: Nivel
+  total: number | null     // interno + bonus (puede pasar de 100); null sin interno
+  nivel: Nivel | null      // null = el cliente no respondió y no hay interno
   estimado: boolean        // el nivel sale del interno porque el cliente no respondió
+  sinMeta: boolean         // Meta no respondió: el interno no se muestra (ni su nivel ni la brecha)
+  rama: RamaPuntaje | null // informativo
   brecha: Brecha | null
   sinDato: number          // cuántas señales quedaron sin dato
   detalle: Renglon[]
@@ -108,8 +120,9 @@ function bloqueAnuncios(s: SenalesPuntaje): Renglon[] {
   }
   const m = s.meta
   if (!m) {
-    const motivo = 'El tablero de Anuncios no tiene una cuenta con campaña de este cliente.'
-    return [r('campana', 'Campaña activa y gastando', 10, 0, 'no_suma', motivo), r('cpl', 'Costo por mensaje dentro del KPI', 25, 0, 'sin_dato', 'Sin campaña: no hay costo por mensaje para medir.'), r('gasto', 'Gasta lo pactado por día', 15, 0, 'sin_dato', 'Sin campaña: no hay gasto para comparar.')]
+    // Meta respondió y este cliente no tiene cuenta vinculada (o no tiene anuncios): es un dato, no una falta de lectura
+    const motivo = 'Meta respondió, pero el tablero de Anuncios no tiene una cuenta vinculada con anuncios de este cliente.'
+    return [r('campana', 'Campaña activa y gastando', 10, 0, 'no_suma', motivo), r('cpl', 'Costo por mensaje dentro del KPI', 25, 0, 'no_suma', 'Sin cuenta vinculada con anuncios: no hay costo por mensaje.'), r('gasto', 'Gasta lo pactado por día', 15, 0, 'no_suma', 'Sin cuenta vinculada con anuncios: no gasta.')]
   }
   const campana = m.activa
     ? r('campana', 'Campaña activa y gastando', 10, 10, 'suma', 'Tiene anuncios activos y gastó en los últimos 7 días.')
@@ -137,7 +150,7 @@ function bloqueResultados(s: SenalesPuntaje): Renglon[] {
   const p = s.promesa.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   const promesa = !p ? r('promesa', 'Promesa alcanzada', 0, 'sin_dato', 'La columna «Promesa» del CRM está vacía.')
     : p.startsWith('si') ? r('promesa', 'Promesa alcanzada', 15, 'suma', 'El CRM marca la promesa como alcanzada.')
-      : p.startsWith('parcial') ? r('promesa', 'Promesa alcanzada', 0, 'no_suma', 'El CRM la marca como parcial: solo suma la promesa alcanzada.')
+      : p.startsWith('parcial') ? r('promesa', 'Promesa alcanzada', 7, 'parcial', 'El CRM marca la promesa alcanzada en parte: suma la mitad.')
         : r('promesa', 'Promesa alcanzada', 0, 'no_suma', 'El CRM marca que la promesa todavía no se alcanzó.')
   const n = s.wins
   const wins = n === null ? r('wins', `Wins cargados (últimos ${DIAS_WINS} días)`, 0, 'sin_dato', 'No se pudo leer la base de wins.')
@@ -191,26 +204,33 @@ export function calcularPuntaje(s: SenalesPuntaje): ResultadoPuntaje {
   const menos = restas(s)
   const base = cien.reduce((t, x) => t + x.puntos, 0)
   const restado = menos.reduce((t, x) => t - x.puntos, 0)
-  const interno = Math.max(0, base - restado)
+  const sinMeta = !s.metaLeida
+  // Sin Meta el bloque Anuncios (50) no se midió: un interno sin él se leería como «el cliente está mal». No se muestra
+  const interno = sinMeta ? null : Math.max(0, base - restado)
   const b = Math.min(BONUS_MAXIMO, extra.reduce((t, x) => t + x.puntos, 0))
-  const total = interno + b
+  const total = interno === null ? null : interno + b
   const cliente = puntajeCliente(s.encuesta)
-  const estimado = cliente === null
-  const nivel = nivelDe(cliente ?? total)
+  const estimado = cliente === null && total !== null
+  const nivel = cliente !== null ? nivelDe(cliente) : total !== null ? nivelDe(total) : null
   let brecha: Brecha | null = null
   // La brecha compara con el interno SIN bonus: los dos están en 0–100 y el bonus mide compromiso, no resultados
-  if (cliente !== null && Math.abs(cliente - interno) >= UMBRAL_BRECHA) {
+  if (cliente !== null && interno !== null && Math.abs(cliente - interno) >= UMBRAL_BRECHA) {
     const diferencia = Math.abs(cliente - interno)
     brecha = cliente < interno
       ? { tipo: 'peor', diferencia, texto: 'Se siente peor que los números: prioridad para llamarlo.' }
       : { tipo: 'mejor', diferencia, texto: 'Se siente mejor que los números: cuidar que los resultados acompañen.' }
   }
   const detalle = [...cien, ...extra, ...menos]
-  return { cliente, clienteDia: cliente === null ? null : s.encuesta?.dia ?? null, base, restas: restado, interno, bonus: b, total, nivel, estimado, brecha, sinDato: detalle.filter(x => x.estado === 'sin_dato').length, detalle }
+  const rama = s.rama ?? null
+  return { cliente, clienteDia: cliente === null ? null : s.encuesta?.dia ?? null, base, restas: restado, interno, bonus: b, total, nivel, estimado, sinMeta, rama, brecha, sinDato: detalle.filter(x => x.estado === 'sin_dato').length, detalle }
 }
 
-/** «Cliente 80 · Interno 72 +8» / «Cliente — · Interno 72 (estimado)»: la línea chica de la cartera. */
+export const TEXTO_SIN_META = 'Interno: sin datos de Meta'
+
+/** «Cliente 80 · Interno 72 +8» / «Cliente — · Interno 72 (estimado)» / «Cliente 80 · Interno: sin datos de Meta»: la línea
+ *  chica de la cartera. Sin Meta y sin respuesta del cliente queda solo «Interno: sin datos de Meta». */
 export function textoCompacto(p: Pick<ResultadoPuntaje, 'cliente' | 'interno' | 'bonus' | 'estimado'>): string {
+  if (p.interno === null) return p.cliente === null ? TEXTO_SIN_META : `Cliente ${p.cliente} · ${TEXTO_SIN_META}`
   const interno = `Interno ${p.interno}${p.bonus ? ` +${p.bonus}` : ''}`
   return `Cliente ${p.cliente ?? '—'} · ${interno}${p.estimado ? ' (estimado)' : ''}`
 }
@@ -228,5 +248,5 @@ export function yaLanzo(e: { hitoLanzamiento: boolean; metaActiva?: boolean; pri
 }
 
 // ── Lo que viaja al navegador para la cartera (liviano) ──
-export interface PuntajeCompacto { cliente: number | null; interno: number; bonus: number; nivel: Nivel; estimado: boolean; brecha: Brecha['tipo'] | null }
+export interface PuntajeCompacto { cliente: number | null; interno: number | null; bonus: number; nivel: Nivel | null; estimado: boolean; brecha: Brecha['tipo'] | null }
 export const compacto = (p: ResultadoPuntaje): PuntajeCompacto => ({ cliente: p.cliente, interno: p.interno, bonus: p.bonus, nivel: p.nivel, estimado: p.estimado, brecha: p.brecha?.tipo ?? null })

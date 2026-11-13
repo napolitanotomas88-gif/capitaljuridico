@@ -8,6 +8,7 @@
 //     son una plantilla que casi nunca se completa (23 de 600 hechas al 8/10): solo suman si tienen fecha de hecho.
 import { diasEntre, type Ymd } from './fechas'
 import type { CarpetaCliente } from './drive'
+import type { FuenteRama, Rama } from '../anuncios/ramas'
 import { normNombre } from '../nombresPersona'
 
 export const ETAPAS_SIN_CAMPANA = ['nuevo cliente', 'onboarding', 'en espera de tópicos', 'guionizar', 'opt. guiones', 'grabación', 'edición', 'creación de campaña'] as const
@@ -42,6 +43,10 @@ export interface CampanaMeta {
   gastoRealDiarioUSD?: number | null            // promedio diario de los últimos 7 días completos (todas sus cuentas)
   gastoObjetivoDiarioUSD?: number | null        // presupuesto mensual pactado / días del mes (todas sus cuentas)
   errorPago?: boolean                           // alguna de sus cuentas está frenada por un problema de pago
+  // Rama del tablero de Anuncios (la que fija el KPI del costo por mensaje), de su cuenta que más gastó en 7 días, y de dónde
+  // salió (manual = ajuste privado, planilla = col D de «Cuentas Meta», clickup, cuenta = nombre de la cuenta)
+  rama?: Rama | null
+  ramaFuente?: FuenteRama | null
 }
 export interface ClienteBase { id: string; nombre: string; closer: string; estado: string }
 export interface GuionesPlanilla { ultimoGuion: Ymd | null; fechasGuiones: Ymd[]; grabado: boolean; ultimaGrabacion: Ymd | null }

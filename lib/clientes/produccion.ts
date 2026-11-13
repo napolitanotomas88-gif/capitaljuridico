@@ -58,6 +58,7 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
     if (!tablero) return { porCliente: vacio, aviso: 'Meta tardó en responder: se muestra sin el dato de campañas (recargá en un minuto).' }
     const porCliente = new Map<string, CampanaMeta>()
     const gastoCpl = new Map<string, number>()   // gasto de 7 días de la cuenta que dio el color del costo por mensaje
+    const gastoRama = new Map<string, number>()  // gasto de 7 días de la cuenta que dio la rama
     const hoy = hoyArgentina()
     for (const f of tablero.filas) {
       const nombre = f.clienteCRM || f.cliente
@@ -78,6 +79,9 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
       const colorCpl = COLOR_CPL[f.cpl.nivel] ?? null
       const usaEsta = colorCpl !== null && f.gasto.d7 >= (gastoCpl.get(k) ?? -1)
       if (usaEsta) gastoCpl.set(k, f.gasto.d7)
+      // Rama: la de la cuenta que más gastó en 7 días (con rama); la misma que usa el tablero para el KPI del costo por mensaje
+      const usaRama = !!f.rama && f.gasto.d7 >= (gastoRama.get(k) ?? -1)
+      if (usaRama) gastoRama.set(k, f.gasto.d7)
       const sumar = (a: number | null | undefined, b: number | null | undefined) => (a == null && b == null ? null : (a ?? 0) + (b ?? 0))
       const primero = [...f.lanzamientos.map(l => l.fecha).filter(Boolean), corriendoDesde, previo?.primerLanzamiento ?? null].filter((x): x is string => !!x).sort()[0] ?? null
       porCliente.set(k, {
@@ -92,6 +96,8 @@ export async function campanasMeta(esperaMs = 4000): Promise<{ porCliente: Map<s
         gastoRealDiarioUSD: sumar(previo?.gastoRealDiarioUSD, f.presupuesto.realDiarioUSD),
         gastoObjetivoDiarioUSD: sumar(previo?.gastoObjetivoDiarioUSD, f.presupuesto.objetivoDiarioUSD),
         errorPago: !!previo?.errorPago || (f.pago.errorPago && !f.pausado),
+        rama: usaRama ? f.rama!.id : previo?.rama ?? null,
+        ramaFuente: usaRama ? f.rama!.fuente : previo?.ramaFuente ?? null,
       })
     }
     return { porCliente, aviso: null }
