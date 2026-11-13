@@ -218,7 +218,6 @@ export function FormularioFicha({ identidad, original }: Props) {
       {mensaje && (
         <p role={mensaje.tipo === "ok" ? "status" : "alert"} className={`rounded-lg px-3 py-2 text-sm font-medium ${CLASE_MENSAJE[mensaje.tipo]}`}>
           {mensaje.tipo === "ok" && <span aria-hidden="true">✓ </span>}
-          {mensaje.tipo === "aviso" && <span aria-hidden="true">⚠ </span>}
           {mensaje.texto}
         </p>
       )}

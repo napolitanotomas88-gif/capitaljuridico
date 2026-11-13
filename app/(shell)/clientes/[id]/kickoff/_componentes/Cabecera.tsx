@@ -43,7 +43,7 @@ export function Cabecera({ v, idCliente, volver, opciones, sufijo, gemelas = [] 
         </p>
       ))}
       {e.resumen && <p className="ko-resumen">{e.resumen}</p>}
-      {e.corte && <p className="ko-sub" role="note">⏱️ {e.corte}: si después se habló o se hizo algo más, no está en la ficha.</p>}
+      {e.corte && <p className="ko-sub" role="note">{e.corte}: si después se habló o se hizo algo más, no está en la ficha.</p>}
       {opciones.length > 1 && (
         <nav className="ko-selector" aria-label="Fichas de este cliente">
           <span className="cj-etiqueta">Llamadas registradas ({opciones.length})</span>

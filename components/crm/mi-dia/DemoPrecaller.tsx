@@ -68,7 +68,7 @@ export function DemoPrecaller({ ahoraISO }: { ahoraISO: string }) {
     setRegistro((r) => [`${item.identidad.nombre} · «${b.etiqueta}»: en el Despacho de verdad ${queHariaDeVerdad(b)}`, ...r].slice(0, 12));
   };
   const alBandera = async (item: ItemCliente, marcar: boolean) => {
-    alTocar(item, { id: "bandera", etiqueta: marcar ? "🚩 Bandera roja" : "Quitar 🚩", cambios: { banderaRoja: marcar ? "Si" : "" } });
+    alTocar(item, { id: "bandera", etiqueta: marcar ? "Bandera roja" : "Quitar la bandera roja", cambios: { banderaRoja: marcar ? "Si" : "" } });
     return true;
   };
   const reiniciar = () => {

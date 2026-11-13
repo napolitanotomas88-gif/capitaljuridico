@@ -40,9 +40,9 @@ export default async function BotoneraPage() {
         <p className="traz-texto">Es la botonera de la clase con un botón más, <strong>Enviar al Despacho</strong>. Se usa en cada agenda (para el semanal) y en cada cierre (para el mensual), también en los que entraron por landing: casi todos tienen chat.</p>
         <ol className="traz-ol">
           <li>En Chrome: <code>chrome://extensions</code> → activar <strong>Modo desarrollador</strong> → <strong>Cargar descomprimida</strong> → elegir la carpeta <code>botonera-despacho</code> (la pasa Tomás).</li>
-          <li>Tocar el ícono ⚡ de la extensión y cargar la API key de ManyChat, la de Claude, la <strong>clave del Despacho</strong> y tu nombre. Guardar y recargar ManyChat.</li>
+          <li>Tocar el ícono de la extensión (el rayo) y cargar la API key de ManyChat, la de Claude, la <strong>clave del Despacho</strong> y tu nombre. Guardar y recargar ManyChat.</li>
           <li>Abrir el chat del lead → pestaña Resumen → <strong>Scroll + Resumen automático</strong>.</li>
-          <li>Revisar el resumen y tocar <strong>📤 Enviar al Despacho</strong>. En un minuto aparece analizado en su ficha.</li>
+          <li>Revisar el resumen y tocar <strong>Enviar al Despacho</strong>. En un minuto aparece analizado en su ficha.</li>
         </ol>
         <p className="traz-nota">El envío se vincula solo con el cierre por teléfono, mail o nombre. Si no coincide, se elige a mano en la ficha del lead.</p>
       </section>
