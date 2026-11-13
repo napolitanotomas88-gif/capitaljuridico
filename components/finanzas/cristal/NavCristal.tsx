@@ -1,8 +1,8 @@
 'use client'
 // Navegación de cristal de Finanzas (1/11/2026; diseño oficial desde el mismo día). Réplica del video de referencia que pasó Tomás («Glassy SideBar»):
-// riel de íconos ⇄ panel con la misma animación (ancho con curva de salida fuerte, etiquetas que entran escalonadas con
-// desenfoque, píldora activa «líquida» con dos resortes, lupa del riel con magnificación tipo dock, tooltip que se desliza,
-// insignias, subárbol desplegable, interruptor y usuario abajo). Colores: verde Toga / oro mate de Capital Jurídico.
+// riel de íconos ⇄ panel (ancho con curva de salida, etiquetas que aparecen con un fundido, ítem activo que se desliza con dos
+// resortes, tooltip que se desliza, insignias, subárbol desplegable, interruptor y usuario abajo). Colores: verde Toga / oro
+// mate de Capital Jurídico. 13/11/2026 (DESIGN.md): sin la lupa tipo dock del riel ni entradas con desenfoque o escala.
 // Atajos: [ abre y cierra; ⌘K (o Ctrl+K) enfoca el buscador. Estilos en ./cristal.css (todo bajo .fin-cristal).
 // Solo presentación: los conteos de las insignias son lecturas (select) por /api/finanzas/db; no se escribe nada.
 import Link from 'next/link'
@@ -93,7 +93,6 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   const [menuUsuario, setMenuUsuario] = useState(false)
   const [tip, setTip] = useState<{ texto: string; extra?: string; y: number; x: number; visible: boolean; siempre?: boolean }>({ texto: '', y: 0, x: 0, visible: false })
   const [anchoTip, setAnchoTip] = useState(0)
-  const [presionado, setPresionado] = useState<string | null>(null)
   // Hasta confirmar el ancho real, en el celular la barra no se muestra abierta (ver cristal.css, .fcn:not([data-listo]))
   const [listo, setListo] = useState(false)
 
@@ -244,38 +243,6 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
     return () => { window.removeEventListener('resize', alCambiar); cancelAnimationFrame(r.raf) }
   }, [moverPildora])
 
-  // ── Riel: magnificación tipo dock (escala continua según la distancia vertical al cursor) ──
-  const magnificar = (e: React.MouseEvent) => {
-    const l = lista.current
-    if (abierta || !l || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const filas = Array.from(l.querySelectorAll<HTMLElement>('[data-magnifica]')).filter((f) => f.offsetParent !== null)
-    const escalas = filas.map((f) => {
-      const c = f.getBoundingClientRect()
-      const dy = e.clientY - (c.top + c.height / 2)
-      return 1 + 0.45 * Math.max(0, 1 - Math.abs(dy) / 90)
-    })
-    const extras = escalas.map((s) => (s - 1) * 22)
-    // la fila más cercana al cursor queda quieta; las de arriba suben y las de abajo bajan
-    let k = 0
-    escalas.forEach((s, i) => { if (s > escalas[k]) k = i })
-    const acum = (i: number) => extras.slice(0, i).reduce((a, b) => a + b, 0) + extras[i] / 2
-    const centro = acum(k)
-    filas.forEach((f, i) => {
-      f.style.setProperty('--s', escalas[i].toFixed(3))
-      f.style.setProperty('--dy', `${(acum(i) - centro).toFixed(2)}px`)
-      if (f.dataset.vista === actual) {
-        pildora.current?.style.setProperty('--s', escalas[i].toFixed(3))
-        pildora.current?.style.setProperty('--dy', `${(acum(i) - centro).toFixed(2)}px`)
-      }
-    })
-  }
-  const soltarMagnificacion = () => {
-    lista.current?.querySelectorAll<HTMLElement>('[data-magnifica]').forEach((f) => { f.style.setProperty('--s', '1'); f.style.setProperty('--dy', '0px') })
-    pildora.current?.style.setProperty('--s', '1')
-    pildora.current?.style.setProperty('--dy', '0px')
-  }
-  useEffect(() => { if (abierta) soltarMagnificacion() }, [abierta])
-
   // ── Tooltip de cristal: uno solo que se desliza entre íconos ──
   const mostrarTip = (el: HTMLElement, texto: string, extra?: string, siempre = false) => {
     const contenedor = el.closest('.fcn')
@@ -293,11 +260,6 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
     onFocus: (e: React.FocusEvent<HTMLElement>) => mostrarTip(e.currentTarget, texto, extra),
     onBlur: ocultarTip,
   })
-  const presionar = (id: string) => ({
-    onPointerDown: () => setPresionado(id),
-    onPointerUp: () => setPresionado(null),
-    onPointerLeave: () => setPresionado((p) => (p === id ? null : p)),
-  })
 
   const iniciales = (correo ?? 'F').split('@')[0].split(/[._-]/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'F'
   const nombreUsuario = correo ? (correo.endsWith('@finanzas.despacho') ? 'Acceso con clave' : correo.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())) : 'Finanzas'
@@ -309,8 +271,8 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
     const n = conteos[item.id] ?? 0
     const activo = actual === item.id
     return (
-      <Link key={item.id} href={item.href} className="fcn-item" data-vista={item.id} data-magnifica data-presionado={presionado === item.id || undefined}
-        aria-current={activo ? 'page' : undefined} style={{ '--i': i } as CSSProperties} {...presionar(item.id)}
+      <Link key={item.id} href={item.href} className="fcn-item" data-vista={item.id}
+        aria-current={activo ? 'page' : undefined} style={{ '--i': i } as CSSProperties}
         {...propsTip(item.etiqueta, n > 0 ? String(n) : undefined)} onMouseLeave={ocultarTip}
         aria-label={n > 0 ? `${item.etiqueta} (${n} ${item.rotuloInsignia})` : undefined}>
         <span className="fcn-ico"><IconoCristal nombre={icono} />{n > 0 && <span className="fcn-punto-riel" aria-hidden="true" />}</span>
@@ -321,7 +283,7 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
   }
 
   return (
-    <div className="fcn" data-abierta={abierta} data-listo={listo || undefined} onMouseLeave={() => { ocultarTip(); soltarMagnificacion() }}>
+    <div className="fcn" data-abierta={abierta} data-listo={listo || undefined} onMouseLeave={ocultarTip}>
       <nav className="fcn-panel" aria-label="Finanzas">
         {/* Encabezado: logo + nombre */}
         <div className="fcn-cab">
@@ -350,7 +312,7 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
           <kbd className="fcn-kbd fcn-anima" style={{ '--i': 1 } as CSSProperties} aria-hidden="true">⌘K</kbd>
         </div>
 
-        <div ref={lista} className="fcn-lista" onMouseMove={magnificar} onMouseLeave={soltarMagnificacion}>
+        <div ref={lista} className="fcn-lista">
           <span ref={pildora} className="fcn-activa" aria-hidden="true" />
           {GRUPOS.map((g, gi) => {
             const visibles = g.items.filter((it) => ('hijos' in it ? it.hijos.some((h) => coincide(h.etiqueta)) || coincide(it.etiqueta) : coincide(it.etiqueta)))
@@ -368,9 +330,9 @@ export function NavCristal({ abiertaInicial, nocheInicial, onCambio }: { abierta
                   const abiertoSub = reportes || busqueda.trim() !== ''
                   return (
                     <div key={it.id} className="fcn-arbol" data-desplegado={abiertoSub}>
-                      <button type="button" className="fcn-item" data-magnifica data-vista={!abiertoSub || !abierta ? (hijoActivo ? actual : undefined) : undefined}
-                        aria-expanded={abiertoSub} aria-controls="fcn-sub-reportes" style={{ '--i': i } as CSSProperties} data-presionado={presionado === it.id || undefined}
-                        {...presionar(it.id)} {...propsTip(it.etiqueta)} onMouseLeave={ocultarTip}
+                      <button type="button" className="fcn-item" data-vista={!abiertoSub || !abierta ? (hijoActivo ? actual : undefined) : undefined}
+                        aria-expanded={abiertoSub} aria-controls="fcn-sub-reportes" style={{ '--i': i } as CSSProperties}
+                        {...propsTip(it.etiqueta)} onMouseLeave={ocultarTip}
                         onClick={() => { if (!abierta) { setAbierta(true); setReportes(true); guardarCookie(COOKIE_NAV, 'panel') } else setReportes((r) => !r) }}>
                         <span className="fcn-ico"><IconoCristal nombre="reportes" /></span>
                         <span className="fcn-txt fcn-anima">{it.etiqueta}</span>
