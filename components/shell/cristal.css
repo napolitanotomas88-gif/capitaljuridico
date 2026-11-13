@@ -1,7 +1,9 @@
 /* ── Cristal en todo el Despacho (2/11/2026) ─────────────────────────────────────────────────────────────────────────────
    Pedido de Tomás: «acomodá toda la interfaz cuando lancemos glass liquidity, o sea todo el tema nuevo». Es el mismo material
    del Finanzas oficial (components/finanzas/cristal/cristal.css, PR #41–#43): verde Toga ahumado con el imagotipo grande de
-   fondo, paneles de cristal esmerilado, texto marfil y oro mate. Dos modos, guardados por cuenta (como en Finanzas):
+   fondo, paneles con la luz del cristal, texto marfil y oro mate. Desde el 13/11/2026 el desenfoque va solo en lo que flota
+   (barra lateral, pestañas, hoja «Más», menús, tarjeta del cliente); lo demás es sólido (DESIGN.md). Dos modos, guardados por
+   cuenta (como en Finanzas):
      · claro    → el fondo con más luz y el cristal más translúcido;
      · nocturno → el fondo baja de luz y el cristal se ahúma más (el predeterminado).
    Cómo: .cj-raiz lleva .cj-cristal y data-noche (components/shell/MarcoShell.tsx). Los tokens --cj-*, los del dashboard viejo
@@ -17,8 +19,22 @@
     /* Material (el mismo de Finanzas) */
     --cjc-curva: cubic-bezier(0.22, 1, 0.36, 1);
     --cjc-blur: blur(22px) saturate(140%);
-    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.56);
+    /* Blancos translúcidos de uso repetido (velos, filetes, hover). Usar estos en vez de rgba() sueltos */
+    --cjc-blanco-5: rgba(255, 255, 255, 0.05);
+    --cjc-blanco-8: rgba(255, 255, 255, 0.08);
+    --cjc-blanco-12: rgba(255, 255, 255, 0.12);
+    --cjc-blanco-16: rgba(255, 255, 255, 0.16);
+    --cjc-blanco-24: rgba(255, 255, 255, 0.24);
+    --cjc-blanco-30: rgba(255, 255, 255, 0.3);
+    /* Vidrio solo en lo que flota (13/11/2026, DESIGN.md): --cjc-vidrio es el material translúcido que va con backdrop-filter
+       (pestañas del Hub); --cjc-panel es la superficie de todo lo que está en el flujo de la página: la misma luz de arriba
+       sobre una base casi opaca, sin desenfoque. Se ve igual, más nítido, y el texto no depende de lo que haya detrás. */
     --cjc-panel-liso: rgba(8, 36, 30, 0.82);
+    --cjc-vidrio: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), rgba(5, 30, 25, 0.56);
+    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 38%, rgba(190, 143, 73, 0.055) 100%), var(--cjc-panel-liso);
+    --cjc-placeholder: #d3c9b6;
+    /* Barras pegajosas del flujo (encabezados del Resumen, de Ventas y de Cuotas): el color que tenían sobre el fondo, opaco */
+    --cjc-barra: rgba(4, 32, 26, 0.96);
     --cjc-anidado: rgba(255, 255, 255, 0.055);
     --cjc-borde: rgba(255, 255, 255, 0.15);
     --cjc-borde-arriba: rgba(255, 255, 255, 0.3);
@@ -36,8 +52,8 @@
     --cj-humo: #e3dac8;
     --cj-humo-claro: #e3dac8;
     /* Oro de texto: más claro que el de Finanzas porque en el Despacho hay títulos y etiquetas directo sobre el fondo, donde
-       asoma el oro del logo. Peor punto calculado (modo claro, borde superior del logo sobre la luz de arriba = #44624a):
-       oro 4,8:1, humo 4,8:1, marfil 6,3:1. Sigue mate: sin brillo ni degradado. */
+       asoma el oro del logo. Peor punto calculado (13/11/2026, modo claro, logo sobre la luz de arriba = #3c5039): oro 6,1:1,
+       humo 6,3:1, marfil 8,2:1; sobre los paneles sólidos, 8,1 / 8,3 / 10,9. Sigue mate: sin brillo ni degradado. */
     --cj-laton: #eed6a8;
     --cj-dorado: #be8f49;
     --cj-borgona: #7f202c;
@@ -105,8 +121,10 @@
   }
   /* Nocturno un 20 % más oscuro (13/11/2026, pedido de Tomás): fondo, manchas, logo y paneles bajan un 20 % de luz */
   :root:has(.cj-cristal[data-noche='true']) {
-    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), rgba(2, 13, 10, 0.76);
     --cjc-panel-liso: rgba(3, 18, 14, 0.9);
+    --cjc-barra: rgba(3, 20, 16, 0.96);
+    --cjc-vidrio: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), rgba(2, 13, 10, 0.76);
+    --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.016) 40%, rgba(190, 143, 73, 0.032) 100%), var(--cjc-panel-liso);
     --card: rgba(3, 18, 14, 0.8);
     background: #021b16;
   }
@@ -135,16 +153,15 @@
   .cj-cristal :focus-visible { outline-color: #eed6a8; }
   .cj-cristal .marca-barra :focus-visible, .cj-cristal .bg-negro :focus-visible { outline-color: #1d1d1b; }
 
-  /* Fondo: el imagotipo de Capital Jurídico grande sobre verde Toga con textura (lo que el cristal esmerila) */
+  /* Fondo (13/11/2026, DESIGN.md): verde Toga casi plano con UNA sola luz suave arriba y el imagotipo grande en oro plano.
+     Sin grano, sin manchas de colores y sin desenfoque en vivo: es una capa fija que se pinta una vez. El modo nocturno baja
+     la luz con el mismo filtro de brillo de siempre (PR 207), que sobre una capa fija y quieta no se recalcula al desplazar. */
   .cj-cristal__fondo { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
   .cj-cristal__fondo > span { position: absolute; inset: 0; }
   .cj-cristal__manchas {
     background:
-      radial-gradient(70vmax 42vmax at 50% -6%, rgba(120, 160, 140, 0.24), transparent 62%),
-      radial-gradient(60vmax 40vmax at 55% 52%, rgba(0, 8, 6, 0.5), transparent 70%),
-      radial-gradient(70vmax 38vmax at 62% 112%, rgba(190, 143, 73, 0.42), transparent 64%),
-      radial-gradient(40vmax 30vmax at 4% 88%, rgba(127, 32, 44, 0.18), transparent 70%),
-      linear-gradient(180deg, #0f4236 0%, #06302a 38%, #03221c 62%, #0a2b20 100%);
+      radial-gradient(80vmax 46vmax at 50% -8%, rgba(120, 160, 140, 0.2), transparent 64%),
+      #05291f;
     transition: filter 400ms ease;
   }
   .cj-cristal__fondo > .cj-cristal__logo {
@@ -152,17 +169,12 @@
     width: min(80vw, 1120px);
     aspect-ratio: 927.41 / 446.75;
     translate: -50% -52%;
-    /* Oro mate parejo (sin la parte clara de arriba que tiene el de Finanzas): detrás hay texto suelto, no solo paneles */
-    background: linear-gradient(180deg, #be8f49 0%, #a97d3c 55%, #8c6631 100%);
+    /* Oro Capital plano y mate: sin degradado ni parte clara. Detrás hay texto suelto, no solo paneles: lo baja la opacidad */
+    background: #be8f49;
     -webkit-mask: url('/marca/logo-claro.svg') center / contain no-repeat;
     mask: url('/marca/logo-claro.svg') center / contain no-repeat;
     opacity: 0.2;
     transition: opacity 400ms ease;
-  }
-  .cj-cristal__grano {
-    opacity: 0.09;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
   }
   .cj-cristal[data-noche='true'] .cj-cristal__manchas { filter: brightness(0.44) saturate(0.85); }
   .cj-cristal[data-noche='true'] .cj-cristal__logo { opacity: 0.14; }
@@ -279,19 +291,19 @@
   :root:has(.cj-cristal) .cj-enlace { font-family: var(--cjc-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: var(--cj-laton); border-bottom-color: rgba(238, 214, 168, 0.5); }
   .cj-cristal .cj-saltar { border-radius: 999px; background: #fbf7ef; color: #102a24; }
 
-  /* ── Superficies: paneles de cristal (pocos por pantalla llevan desenfoque; las listas, cristal liso) ── */
+  /* ── Superficies del flujo de la página: sólidas, sin desenfoque (13/11/2026). Conservan la luz de arriba (degradado y
+     filete claro superior), así que se ven igual que el cristal, pero nítidas y sin decenas de capas de backdrop-filter.
+     El desenfoque queda solo en lo que flota: barra lateral, barra de pestañas, hoja «Más», menús y la tarjeta del cliente. ── */
   .cj-cristal :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio, .rc-col, .rc-tramo, .rc-regla) {
     background: var(--cjc-panel);
     border: 1px solid var(--cjc-borde);
     border-top-color: var(--cjc-borde-arriba);
     border-radius: var(--cj-radio-tarjeta);
     box-shadow: var(--cj-sombra-1);
-    -webkit-backdrop-filter: var(--cjc-blur);
-    backdrop-filter: var(--cjc-blur);
   }
   .cj-cristal .cj-vacio { padding: 32px 28px; }
   .cj-cristal :is(.cj-panel, .cj-bloque, .cj-ficha-seccion, .rc-col, .rc-tramo) :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio) {
-    background: var(--cjc-anidado); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+    background: var(--cjc-anidado); box-shadow: none;
   }
   .cj-cristal :is(.cj-tarjeta, .ed-tarjeta, .gs-item) {
     background: var(--cjc-panel-liso);
@@ -308,7 +320,9 @@
   .cj-cristal .cj-contenido:has(.cj-hub)::before { display: none; }
   .cj-cristal .cj-contenido:has(.cj-hub), .cj-cristal .cj-hub-cuerpo, .cj-cristal .cj-hub {
     --cj-laton: #eed6a8; --cj-humo: #e3dac8; --cj-texto-2: #e3dac8; --cj-ok: #9fdcc0; --cj-atencion: #ecca8f; --cj-alerta: #ecca8f;
-    --cj-vidrio: var(--cjc-panel); --cj-vidrio-borde: var(--cjc-borde); --cj-vidrio-sombra: var(--cj-sombra-1); --cj-desenfoque: var(--cjc-blur);
+    /* components/ui/cristal.css sigue cargado (lo importa PestanasClientes.tsx) y su regla de paneles del Hub gana por
+       especificidad: con estos tokens sus paneles quedan sólidos y sin desenfoque, igual que en el resto del Despacho */
+    --cj-vidrio: var(--cjc-panel); --cj-vidrio-borde: var(--cjc-borde); --cj-vidrio-sombra: var(--cj-sombra-1); --cj-desenfoque: none;
     --cj-sala: rgba(255, 255, 255, 0.06); --cj-superficie: var(--cjc-panel); --cj-sombra: var(--cj-sombra-1);
   }
   .cj-cristal .cj-hub-cuerpo :is(.cj-panel, .cj-ficha-seccion, .rc-col, .rc-tramo) :is(.rc-tarjeta, .rc-mini__item, .cj-dato, .rc-lista li, .rc-conteo li, .rc-recorrido) {
@@ -316,9 +330,9 @@
   }
   .cj-cristal .cj-hub-cuerpo :is(.cj-tarjeta, .ed-tarjeta, .gs-item) { background: var(--cjc-panel-liso); border-color: var(--cjc-borde); }
   .cj-cristal .cj-hub-cuerpo :is(input:not([type='checkbox']):not([type='radio']), select, textarea) { background-color: var(--cjc-campo); }
-  /* Pestañas del Hub: barra de cristal, la elegida en píldora clara */
+  /* Pestañas del Hub: barra de cristal (flota sobre el contenido: conserva el desenfoque), la elegida en píldora clara */
   .cj-raiz.cj-cristal.cj-cristal .cj-hub {
-    background: var(--cjc-panel); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
+    background: var(--cjc-vidrio); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
     border-radius: 18px; box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur); padding: 4px 6px;
   }
   .cj-raiz.cj-cristal.cj-cristal .cj-hub a.cj-hub__pestana { border-radius: 13px; color: #ddd3c1; }
@@ -343,6 +357,9 @@
     color-scheme: dark;
   }
   .cj-cristal .cj-campo__entrada { color: var(--cj-hueso); }
+  /* Placeholder (13/11/2026): #d3c9b6 (antes #b9ae99, 4,1:1): 5,5:1 sobre el campo en el peor punto del modo claro y 8:1 en
+     nocturno; se distingue del valor escrito (marfil) sin perder lectura */
+  .cj-cristal .cj-campo__entrada::placeholder, :root:has(.cj-cristal) .rc-capa ::placeholder { color: var(--cjc-placeholder); opacity: 1; }
   .cj-cristal .cj-estado { background: rgba(255, 255, 255, 0.08); }
   .cj-cristal .cj-estado--ok { background: rgba(159, 220, 192, 0.12); }
   .cj-cristal .cj-estado--atencion { background: rgba(236, 202, 143, 0.13); }
@@ -356,7 +373,7 @@
   .cj-cristal .bg-gris-linea { background-color: rgba(255, 255, 255, 0.16); }
   .cj-cristal .crm-raiz { background: transparent; }
   .cj-cristal .crm-raiz :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { background-color: var(--cjc-campo); border-color: var(--cjc-campo-borde); color: var(--cj-hueso); }
-  .cj-cristal .crm-raiz ::placeholder { color: #b9ae99; }
+  .cj-cristal .crm-raiz ::placeholder { color: var(--cjc-placeholder); }
 
   /* ── Tarjeta abierta del cliente (portal sobre <body>) ── */
   :root:has(.cj-cristal) .rc-capa {
@@ -379,7 +396,8 @@
   :root:has(.cj-cristal) .rc-capa .rc-panel__titulo { font-weight: 600; }
   :root:has(.cj-cristal) .rc-capa .rc-cerrar { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); }
   :root:has(.cj-cristal) .rc-capa .rc-cerrar:hover { background: rgba(255, 255, 255, 0.16); }
-  :root:has(.cj-cristal) .rc-capa .rc-saltos { background: rgba(4, 24, 20, 0.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom-color: rgba(255, 255, 255, 0.12); }
+  /* Barra pegajosa de secciones: va dentro del panel (que ya lleva el desenfoque): base casi opaca, sin un segundo desenfoque */
+  :root:has(.cj-cristal) .rc-capa .rc-saltos { background: rgba(4, 24, 20, 0.96); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom-color: var(--cjc-blanco-12); }
   :root:has(.cj-cristal) .rc-capa .rc-salto { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.22); color: #f2eadc; font-weight: 500; }
   :root:has(.cj-cristal) .rc-capa .rc-salto:hover { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.45); }
   :root:has(.cj-cristal) .rc-capa .cj-ficha-seccion {
@@ -402,7 +420,9 @@
   @media (prefers-reduced-transparency: reduce) {
     :root:has(.cj-cristal) { --cjc-panel: #0a2f27; --cjc-panel-liso: #0a2f27; --card: #0a2f27; }
     .cj-cristal .cj-lateral, .cj-cristal .cj-tabbar, :root:has(.cj-cristal) .rc-capa .rc-panel { background: #062a22; -webkit-backdrop-filter: none; backdrop-filter: none; }
-    .cj-cristal .cj-cristal__logo, .cj-cristal .cj-cristal__grano { display: none; }
+    .cj-cristal .cj-cristal__logo { display: none; }
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub, .cj-cristal .cj-hoja, :root:has(.cj-cristal) .cj-hoja, .cj-cristal .mr-panel, .cj-raiz.cj-cristal .cj-hub__menu, :root:has(.cj-cristal) .rc-capa .rc-fondo { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub { background: #062a22; }
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     :root:has(.cj-cristal) { --cjc-panel: rgba(8, 40, 33, 0.94); }
@@ -440,7 +460,14 @@
   .cj-cristal .rc-barra__n { font-weight: 700; }
   .cj-cristal .rc-barra__nombre { font-size: 12px; font-weight: 600; letter-spacing: 0; }
   .cj-cristal .rc-barra__freno { color: #2a0b10; }
-  .cj-cristal .rc-barra--zoom .rc-barra__btn[aria-pressed='false'] { opacity: 0.55; }
+  /* Etapas no elegidas mientras hay una elegida: antes opacity .55 (el texto bajaba a 3,9:1). Ahora el tono de la etapa se
+     apaga en el fondo y el texto queda en humo, 7:1 o más sobre la más clara; la elegida conserva su color pleno */
+  .cj-raiz.cj-cristal .rc-barra--zoom .rc-barra__btn[aria-pressed='false'] {
+    opacity: 1; color: var(--cj-humo);
+    background: color-mix(in srgb, var(--rc-c, #6f7470) 30%, #0b1a16);
+    border-top-color: color-mix(in srgb, var(--rc-c, #6f7470) 60%, #0b1a16);
+  }
+  .cj-raiz.cj-cristal .rc-barra--zoom .rc-barra__btn[aria-pressed='false']:hover { opacity: 1; color: var(--cj-hueso); background: color-mix(in srgb, var(--rc-c, #6f7470) 44%, #0b1a16); }
   .cj-cristal .rc-aviso { background: rgba(238, 214, 168, 0.1); }
   :root:has(.cj-cristal) .rc-pto { border-color: #0b2c25; }
   :root:has(.cj-cristal) .rc-pto--prod { background: rgba(238, 214, 168, 0.55); }
@@ -506,8 +533,8 @@
   }
   :root:has(.cj-cristal[data-noche='true'])[data-theme], .cj-cristal[data-noche='true'] .resumen-marca[data-theme] { --card: rgba(4, 22, 18, 0.74); }
   .cj-cristal .marca-banda {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)), rgba(4, 27, 22, 0.55);
-    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    /* Encabezado pegajoso del Resumen: sólido (antes cristal con desenfoque); el contenido no se trasluce al pasar debajo */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)), var(--cjc-barra);
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     --card: rgba(255, 255, 255, 0.08); --border: rgba(255, 255, 255, 0.3); --text-muted: #e3dac8; --brand-texto: #eed6a8;
   }
@@ -515,9 +542,9 @@
   .cj-cristal .resumen-marca :is(.card, .glass-board) { border-radius: 18px; }
   .cj-cristal :is(.card, .glass-board, .glass-alert) {
     background: var(--cjc-panel); border: 1px solid var(--cjc-borde); border-top-color: var(--cjc-borde-arriba);
-    box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    box-shadow: var(--cj-sombra-1);
   }
-  .cj-cristal :is(.card, .glass-board) :is(.card, .glass-tile, .glass-alert) { background: var(--cjc-anidado); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+  .cj-cristal :is(.card, .glass-board) :is(.card, .glass-tile, .glass-alert) { background: var(--cjc-anidado); box-shadow: inset 0 1px 0 var(--cjc-blanco-8); }
   .cj-cristal .glass-tile { background: var(--cjc-anidado); border-color: var(--cjc-borde); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
   /* El Resumen y los paneles viejos (Grabaciones, Meta, embudo) traen tamaños en línea de 8,5 a 11 px (unos 300 textos): piso de 12 px */
   .cj-cristal :is([style*='font-size: 8px'], [style*='font-size: 8.5px'], [style*='font-size: 9px'], [style*='font-size: 9.5px'], [style*='font-size: 10px'], [style*='font-size: 10.4px'], [style*='font-size: 10.5px'], [style*='font-size: 11px'], [style*='font-size: 11.5px']) { font-size: 12px !important; }
@@ -540,8 +567,9 @@
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)), rgba(4, 27, 22, 0.55);
     color: #fbf8f2;
   }
+  /* Encabezado pegajoso de Ventas y Cuotas: sólido, sin desenfoque (el contenido no se trasluce al pasar debajo) */
   .cj-cristal .marca-barra {
-    -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    background: linear-gradient(180deg, var(--cjc-blanco-12), rgba(255, 255, 255, 0.06)), var(--cjc-barra);
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   }
   .cj-cristal .marca-barra :focus-visible, .cj-cristal :is(thead, tr, th).bg-negro :focus-visible { outline-color: #eed6a8; }
@@ -557,7 +585,7 @@
   .cj-cristal .skw { background: transparent; font-family: var(--cjc-sans); --laton: #eed6a8; --humo: #e3dac8; --filete: rgba(255, 255, 255, 0.13); --filete-fuerte: rgba(255, 255, 255, 0.28); }
   .cj-cristal .skw .anu-tarjeta {
     background: var(--cjc-panel); border-color: var(--cjc-borde); border-top-color: var(--cjc-borde-arriba); border-radius: 16px;
-    box-shadow: var(--cj-sombra-1); -webkit-backdrop-filter: var(--cjc-blur); backdrop-filter: var(--cjc-blur);
+    box-shadow: var(--cj-sombra-1);
   }
   .cj-cristal .skw .anu-tarjeta[aria-pressed='true'] { border-color: #fbf8f2; }
   .cj-cristal .skw :is(.etq, .etq-laton, .enlace, .chip, .boton) { font-size: 12px; letter-spacing: 0.1em; font-weight: 600; }
@@ -587,6 +615,11 @@
   /* Superficies sueltas sobre el fondo (sin panel detrás) que usaban --cj-sala (6 % de blanco): sin base oscura, donde asoma
      el logo el texto humo bajaba a 4,2:1. Pasan a cristal liso, como las tarjetas */
   .cj-cristal :is(.ed-paso, .ed-vinculo) { background: var(--cjc-panel-liso); border-color: var(--cjc-borde); border-top-color: var(--cjc-borde-arriba); }
+  /* Lo mismo para las demás tarjetas con --cj-sala que pueden quedar sueltas sobre el fondo (13/11/2026: «ninguna superficie
+     con texto sin base oscura»). El velo de 6 % se conserva encima de una base oscura: dentro de un panel se ve igual que antes */
+  .cj-cristal :is(.eow-contador, .eow-color, .eow-tarjeta, .alta-burbuja, .ko-idea, .ko-revision, .pr-item, .pt-form, .et-tarjeta, .et-resultado, .ed-panel-accion) {
+    background: linear-gradient(var(--cj-sala), var(--cj-sala)), var(--cjc-panel-liso);
+  }
   .cj-cristal .crm-raiz article.bg-gris-fondo { background-color: rgba(4, 24, 20, 0.62); background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)); }
   /* Verde de estado directo sobre el fondo (semáforo, capas de Trazabilidad): un punto más claro, como en Finanzas */
   .cj-cristal :is(.cj-semaforo--verde, .traz-capa--si, .traz-lectura--dispara) { color: #b5ecd0; }
@@ -687,18 +720,13 @@
   .cj-cristal :is(.recharts-label, .recharts-pie-label-text) { fill: #e3dac8; }
   .cj-cristal .recharts-default-tooltip .recharts-tooltip-label, .cj-cristal .recharts-default-tooltip .recharts-tooltip-item { color: #fbf8f2 !important; }
 
-  /* ── Celular: un solo desenfoque, el del fondo ──
-     Con decenas de paneles con backdrop-filter el scroll se traba en equipos modestos. En el celular el fondo ya va
-     esmerilado de antemano (un filtro sobre una capa fija, que se pinta una vez) y los paneles pasan a cristal liso, un poco
-     más opaco: se ve igual y cada pantalla dibuja un solo desenfoque. Quedan con backdrop-filter solo las piezas que flotan
-     sobre contenido que se mueve (barra de pestañas, hoja «Más», tarjeta del cliente, menú rápido). */
+  /* ── Celular: todavía menos desenfoque ──
+     Los paneles del flujo ya son sólidos en todos los anchos (arriba). En el celular además la barra de arriba y las pestañas
+     del Hub van sin desenfoque (rinde mejor en equipos modestos); quedan con backdrop-filter la barra de pestañas de abajo,
+     la hoja «Más», los menús y la tarjeta del cliente, que flotan sobre contenido que se mueve. */
   @media (max-width: 767px) {
-    .cj-cristal .cj-cristal__logo { filter: blur(10px); }
-    .cj-cristal :is(.cj-panel, .cj-bloque, .cj-dato, .cj-ficha-seccion, .cj-vacio, .rc-col, .rc-tramo, .rc-regla, .card, .glass-board, .glass-alert, .marca-barra, .marca-banda, .anu-tarjeta, .cj-hub, .cj-lateral) {
-      -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-    }
-    :root:has(.cj-cristal) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 38%, rgba(190, 143, 73, 0.05) 100%), rgba(5, 30, 25, 0.72); }
-    :root:has(.cj-cristal[data-noche='true']) { --cjc-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(190, 143, 73, 0.03) 100%), rgba(2, 13, 10, 0.84); }
+    .cj-cristal :is(.cj-hub, .cj-lateral) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+    .cj-raiz.cj-cristal.cj-cristal .cj-hub { background: var(--cjc-panel); }
     :root:has(.cj-cristal) .rc-capa .rc-panel { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   }
 }

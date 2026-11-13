@@ -48,25 +48,25 @@ export default async function SistemaPage() {
         <PaletaYContrastes />
       </Bloque>
 
-      <Bloque etiqueta="Tipografía" titulo="Bodoni y Archivo">
+      <Bloque etiqueta="Tipografía" titulo="Serifa para títulos, sans para leer">
         <div className="cj-pila cj-pila--chica" style={{ gap: 28 }}>
           <div className="cj-pila cj-pila--chica" style={{ gap: 8 }}>
-            <Etiqueta>Título de página · Bodoni Moda 30 a 46 px (solo títulos y cifras)</Etiqueta>
+            <Etiqueta>Título de página · Sitka (Source Serif 4 donde no está) 30 a 46 px (solo títulos y cifras)</Etiqueta>
             <p className="cj-titulo" style={{ margin: 0 }}>Clientes en renovación</p>
           </div>
           <div className="cj-pila cj-pila--chica" style={{ gap: 8 }}>
-            <Etiqueta>Título de sección · Bodoni Moda 24 a 30 px</Etiqueta>
+            <Etiqueta>Título de sección · la misma serifa, 24 a 30 px</Etiqueta>
             <p className="cj-titulo cj-titulo--seccion" style={{ margin: 0 }}>Vencimientos de las próximas dos semanas</p>
           </div>
           <div className="cj-pila cj-pila--chica" style={{ gap: 8 }}>
-            <Etiqueta>Cuerpo · Archivo 15 px</Etiqueta>
+            <Etiqueta>Cuerpo · sans del sistema (SF Pro, Segoe UI, Roboto) 15 px</Etiqueta>
             <p style={{ margin: 0, maxWidth: '62ch' }}>
-              Los textos largos van siempre en Archivo. Las cifras y los títulos son lo único que usa Bodoni, para que la
-              serifa de alto contraste quede como firma y no como ruido.
+              Los textos largos, las tablas y los controles van en la sans del sistema: se lee bien en cualquier pantalla y no
+              pesa nada. Los títulos y las cifras grandes son lo único con serifa, para que quede como firma y no como ruido.
             </p>
           </div>
           <div className="cj-pila cj-pila--chica" style={{ gap: 8 }}>
-            <Etiqueta>Tabla densa · Archivo 14 px · cifras tabulares</Etiqueta>
+            <Etiqueta>Tabla densa · sans del sistema 14 px · cifras tabulares</Etiqueta>
             <p className="cj-num" style={{ margin: 0, fontSize: 14 }}>
               1.111 · 0.000 · 8.888 · 4.000 (los cuatro ocupan el mismo ancho)
             </p>
