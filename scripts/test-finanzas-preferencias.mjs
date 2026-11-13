@@ -78,10 +78,18 @@ describe('guardar y leer por cuenta', () => {
     assert.deepEqual(r, { noche: false, nav: 'riel' })
     assert.ok(!JSON.stringify([...falso.filas.values()]).includes('colado'))
   })
-  test('la tabla se crea una sola vez', async () => {
+  test('leer no crea la tabla; guardar la crea una sola vez', async () => {
     await P.leerPreferencias('uno@ejemplo.test')
-    await P.leerPreferencias('uno@ejemplo.test')
+    assert.equal(falso.consultas.filter((q) => /CREATE TABLE/.test(q)).length, 0)
+    await P.guardarPreferencias('uno@ejemplo.test', { noche: true })
+    await P.guardarPreferencias('uno@ejemplo.test', { noche: false })
     assert.equal(falso.consultas.filter((q) => /CREATE TABLE/.test(q)).length, 1)
+  })
+  test('sin la tabla todavía: leer devuelve null (nada guardado), otros errores sí se propagan', async () => {
+    P.usarSqlDePrueba(() => Promise.reject(Object.assign(new Error('relation "cj_preferencias_usuario" does not exist'), { code: '42P01' })))
+    assert.equal(await P.leerPreferencias('uno@ejemplo.test'), null)
+    P.usarSqlDePrueba(() => Promise.reject(new Error('caída')))
+    await assert.rejects(() => P.leerPreferencias('uno@ejemplo.test'), /caída/)
   })
   test('correo inválido: no consulta y no guarda', async () => {
     assert.equal(await P.leerPreferencias('nada'), null)
@@ -93,5 +101,22 @@ describe('guardar y leer por cuenta', () => {
     P.usarSqlDePrueba(() => new Promise(() => {}))
     assert.equal(await P.leerPreferenciasSinDemora('uno@ejemplo.test', 30), null)
     assert.equal(await P.leerPreferenciasSinDemora(null), null)
+  })
+})
+
+describe('marco del Despacho: no espera a la base cuando hay cookie (velocidad, tanda 2)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const leer = (r) => readFileSync(new URL(`../${r}`, import.meta.url), 'utf8')
+  test('con la cookie cj_noche no consulta Neon; la cuenta se sincroniza después en el navegador', () => {
+    const marco = leer('components/shell/MarcoShell.tsx')
+    assert.match(marco, /sesion\.esDePrueba \|\| conCookie \? null : await leerPreferenciasSinDemora\(/)
+    assert.match(marco, /<SincronizarNoche noche=\{noche\} \/>/)
+    const sync = leer('components/shell/SincronizarNoche.tsx')
+    assert.match(sync, /fetch\('\/api\/preferencias'/)
+    assert.match(sync, /sessionStorage/)   // una vez por pestaña, no en cada navegación
+  })
+  test('/api/preferencias: GET con sesión devuelve lo de la cuenta; sin sesión, 401', () => {
+    const ruta = leer('app/api/preferencias/route.ts')
+    assert.match(ruta, /export async function GET\(req: Request\) \{\n  const sesion = sesionDePeticion\(req\.headers\)\n  if \(!sesion\) return json\(\{ error: 'sin sesión' \}, 401\)/)
   })
 })

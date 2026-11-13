@@ -34,3 +34,5 @@ export function alArrastrar(x: number, previa: PreferenciaNav): PreferenciaNav {
 
 /** Modo nocturno del cristal en este navegador ("1" / "0"): caché de lo que guarda la cuenta (components/shell/ModoNocturno.tsx) */
 export const COOKIE_NOCHE = 'cj_noche'
+/** Evento del navegador cuando el modo nocturno cambia sin tocar el interruptor (lo trae SincronizarNoche de la cuenta). */
+export const EVENTO_NOCHE = 'cj:noche'

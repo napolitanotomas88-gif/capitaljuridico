@@ -52,6 +52,10 @@ function sql(): Sql {
   return neon(url, { fetchOptions: { signal: AbortSignal.timeout(TOPE_CONSULTA_MS) } })
 }
 
+// La tabla se crea al GUARDAR, no al leer (velocidad, tanda 2): la lectura corre en el marco de cada página y el
+// CREATE TABLE IF NOT EXISTS le sumaba una ida a Neon en cada arranque en frío. Sin tabla, leer = nada guardado.
+const faltaTabla = (e: unknown) => (e as { code?: string })?.code === '42P01' || /cj_preferencias_usuario" does not exist/i.test(String((e as Error)?.message ?? ''))
+
 let tablaLista: Promise<unknown> | null = null
 function asegurarTabla() {
   tablaLista ??= sql()`CREATE TABLE IF NOT EXISTS cj_preferencias_usuario (
@@ -69,8 +73,13 @@ function asegurarTabla() {
 export async function leerPreferencias(correo: string): Promise<PreferenciasCristal | null> {
   const clave = claveCorreo(correo)
   if (!clave) return null
-  await asegurarTabla()
-  const filas = (await sql()`SELECT prefs FROM cj_preferencias_usuario WHERE correo = ${clave}`) as { prefs: unknown }[]
+  let filas: { prefs: unknown }[]
+  try {
+    filas = (await sql()`SELECT prefs FROM cj_preferencias_usuario WHERE correo = ${clave}`) as { prefs: unknown }[]
+  } catch (e) {
+    if (faltaTabla(e)) return null
+    throw e
+  }
   return filas.length ? normalizarPreferencias(filas[0].prefs) : null
 }
 
