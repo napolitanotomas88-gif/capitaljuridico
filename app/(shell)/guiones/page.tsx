@@ -1,24 +1,20 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { exigirAcceso } from '@/lib/auth/sesion'
-import GuionesDashboard from '@/components/GuionesDashboard'
 import { cargarVista } from '@/lib/clientes/vista'
-import { campanasMeta, tareasClickUp } from '@/lib/clientes/produccion'
-import { carpetasDrive } from '@/lib/clientes/drive'
-import { claveNombre, crearCruceCarpetas, crearCruceClickUp, filasDeGuiones, type FilaGuiones, type GuionesPlanilla } from '@/lib/clientes/prioridad'
-import { Resumen, SeccionTitulo, type DatoResumen } from '@/components/ui'
+import { claveNombre, filasDeGuiones, type FilaGuiones, type GuionesPlanilla } from '@/lib/clientes/prioridad'
+import { SeccionTitulo } from '@/components/ui'
 import { pedidoDemo } from '@/lib/clientes/demo'
 import { sumarDias } from '@/lib/clientes/fechas'
 import { TablaGuiones } from './TablaGuiones'
-import { TandasPendientes } from './TandasPendientes'
-import { baseConfigurada, tandasAbiertas } from '@/lib/bot/guiones/registro'
-import { tandasPendientes } from '@/lib/bot/guiones/resumen'
-import { leerArchivados, excluirArchivados } from '@/lib/clientes/archivados'
+import { EsqueletoTabla, EsqueletoTandas, EsqueletoTracker, ResumenGuiones, TablaEnVivo, TandasEnVivo, TrackerEnVivo, leerCrmGuiones } from './EnVivo'
 
 export const metadata: Metadata = { title: 'Guiones' }
 export const dynamic = 'force-dynamic'
 
 // Guiones: arriba la tabla por cliente con prioridad (5 onboarding · 3 optimización · 1 variaciones), último guion, último
 // lanzamiento en Meta y si se grabó; abajo, el tracker de grabaciones de siempre. Si una fuente falla, la tabla sigue sin ese dato.
+// Las lecturas están en EnVivo.tsx: cada parte llega por streaming, sin frenar el título.
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 // ?demo=1 (solo en desarrollo, 25/10/2026): clientes ficticios de lib/clientes/demo.ts con fechas de guiones y grabaciones
@@ -39,69 +35,34 @@ async function filasDemo(): Promise<FilaGuiones[]> {
 export default async function GuionesPage({ searchParams }: Props) {
   const sesion = await exigirAcceso('guiones')
   const demo = pedidoDemo((await searchParams).demo)
-  // El tracker de grabaciones lee /api/raw, que pide Resumen. Quien entra solo con Guiones (Faus, 25/10) no lo ve: un aviso en
-  // lugar de un error. Su tanda la abre desde el link del aviso (/guiones/<ID>).
-  const veResumen = sesion.admin || sesion.secciones.includes('resumen')
-  let filas: FilaGuiones[] = []
-  let clientesPermitidos: string[] = []
-  const avisos: string[] = []
-  if (demo) filas = await filasDemo()
-  else try {
-    const { fetchRawData } = await import('@/lib/rawSheets')
-    const [vista, clickup, meta, raw, drive, archivados] = await Promise.all([
-      cargarVista(false), tareasClickUp(), campanasMeta(9000),
-      fetchRawData({ ligero: true }).catch(() => null),
-      carpetasDrive(12000),
-      leerArchivados(),
-    ])
-    const clientes = excluirArchivados(vista.datos.clientes.filter(c => c.linea === 'agencia' && c.id), archivados, c => c.id)
-    const normal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-    const conteos = new Map<string, number>()
-    for (const c of vista.datos.clientes.filter(c => c.linea === 'agencia')) conteos.set(normal(c.nombre), (conteos.get(normal(c.nombre)) ?? 0) + 1)
-    clientesPermitidos = clientes.filter(c => (c.estado === 'ACTIVO' || c.estado === 'PAUSADO') && conteos.get(normal(c.nombre)) === 1).map(c => c.nombre)
-    if (drive.aviso) avisos.push(drive.aviso)
-    const driveDe = crearCruceCarpetas(drive.carpetas, c => c.nombre, clientes.filter(c => c.estado === 'ACTIVO' || c.estado === 'PAUSADO').map(c => c.nombre))
-    if (clickup.aviso) avisos.push(clickup.aviso)
-    if (meta.aviso) avisos.push(meta.aviso)
-    if (!raw) avisos.push('No se pudo leer la planilla de guiones: sin fechas de guiones ni grabaciones.')
-    const porNombre = new Map<string, GuionesPlanilla>()
-    for (const g of raw?.grabaciones ?? []) {
-      porNombre.set(claveNombre(g.cliente), { ultimoGuion: g.ultimoGuion ?? null, fechasGuiones: g.fechasGuiones ?? [], grabado: g.grabado, ultimaGrabacion: g.ultimaGrabacion })
-    }
-    const tareaDe = crearCruceClickUp(clickup.tareas)
-    filas = filasDeGuiones(
-      clientes.map(c => ({ id: c.id, nombre: c.nombre, closer: c.closer, estado: c.estado })),
-      tareaDe, n => meta.porCliente.get(claveNombre(n)) ?? null, n => porNombre.get(claveNombre(n)) ?? null, vista.datos.hoy, driveDe,
-    )
-  } catch (e) {
-    console.error('Guiones: no se pudo armar la tabla:', (e as Error).message?.slice(0, 160))
-    avisos.push('No se pudo leer el CRM de clientes: la tabla de guiones no está disponible ahora.')
-  }
-  // Las tandas del bot que esperan a alguien (5/11/2026). Si la base falla, el panel lo dice y el resto sigue.
-  const tandas = demo || !baseConfigurada() ? [] : await tandasAbiertas().then(f => tandasPendientes(f)).catch(() => null)
-  // Mini panel (25/10/2026): los números que ordenan el día de guiones. Los filtros finos siguen en la lista de abajo.
-  const onboarding = filas.filter(f => f.prioridad === 5).length
-  const sinGrabar = filas.filter(f => f.guionSinGrabar).length
-  const sinGuionReciente = filas.filter(f => f.diasDesdeGuion === null || f.diasDesdeGuion > 30).length
-  const resumen: DatoResumen[] = [
-    { etiqueta: 'Clientes activos', icono: 'clientes', destacado: true, valor: filas.length, contexto: 'Agencia, con su prioridad de guiones', href: '#h-tabla-guiones', accion: 'Ver la lista' },
-    { etiqueta: 'Onboarding', icono: 'guiones', valor: onboarding, contexto: 'Prioridad 5: guiones desde cero', estado: onboarding ? { tono: 'alerta', texto: 'Escribir primero' } : { tono: 'ok', texto: 'Ninguno' } },
-    { etiqueta: 'Guiones sin grabar', icono: 'camara', valor: sinGrabar, contexto: 'Tienen guion nuevo y no grabaron', estado: sinGrabar ? { tono: 'atencion', texto: 'Seguir' } : { tono: 'ok', texto: 'Al día' } },
-    { etiqueta: 'Sin guion en 30 días', icono: 'calendario', valor: sinGuionReciente, contexto: 'O nunca tuvieron uno', estado: sinGuionReciente ? { tono: 'atencion', texto: 'Revisar' } : { tono: 'ok', texto: 'Al día' } },
-  ]
-  return (
-    <div className="cj-pila">
-      <SeccionTitulo etiqueta="Guiones" titulo="Guiones y grabaciones" />
-      {demo && (
+  if (demo) {
+    const filas = await filasDemo()
+    return (
+      <div className="cj-pila">
+        <SeccionTitulo etiqueta="Guiones" titulo="Guiones y grabaciones" />
         <div className="cj-panel">
           <p><span className="cj-etiqueta cj-etiqueta--laton">Datos de ejemplo</span></p>
           <p>Estos clientes y fechas son ficticios y solo existen en desarrollo (?demo=1): sirven para revisar el diseño.</p>
         </div>
-      )}
-      {!demo && <TandasPendientes tandas={tandas ?? []} error={tandas === null} />}
-      {filas.length > 0 && <Resumen titulo="Resumen de guiones" datos={resumen} />}
-      <TablaGuiones filas={filas} avisos={avisos} />
-      {demo ? null : veResumen ? <GuionesDashboard clientesPermitidos={clientesPermitidos} /> : <div className="cj-aviso"><p>Para revisar una tanda de guiones entrá desde el link del aviso en el grupo de guiones de WhatsApp.</p></div>}
+        <ResumenGuiones filas={filas} />
+        <TablaGuiones filas={filas} avisos={[]} />
+      </div>
+    )
+  }
+  // El tracker de grabaciones lee /api/raw, que pide Resumen. Quien entra solo con Guiones (Faus, 25/10) no lo ve: un aviso en
+  // lugar de un error. Su tanda la abre desde el link del aviso (/guiones/<ID>).
+  const veResumen = sesion.admin || sesion.secciones.includes('resumen')
+  // La página no espera ninguna fuente (13/11/2026): sale el título y cada parte llega con su esqueleto (ver EnVivo.tsx).
+  // El CRM se empieza a leer acá, una sola vez, para la tabla y el tracker.
+  const crm = leerCrmGuiones()
+  return (
+    <div className="cj-pila">
+      <SeccionTitulo etiqueta="Guiones" titulo="Guiones y grabaciones" />
+      <Suspense fallback={<EsqueletoTandas />}><TandasEnVivo /></Suspense>
+      <Suspense fallback={<EsqueletoTabla />}><TablaEnVivo crm={crm} /></Suspense>
+      {veResumen
+        ? <Suspense fallback={<EsqueletoTracker />}><TrackerEnVivo crm={crm} /></Suspense>
+        : <div className="cj-aviso"><p>Para revisar una tanda de guiones entrá desde el link del aviso en el grupo de guiones de WhatsApp.</p></div>}
     </div>
   )
 }
