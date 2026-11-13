@@ -27,6 +27,8 @@ export const PESTANAS_CLIENTES: readonly PestanaClientes[] = [
   { clave: 'referidos', etiqueta: 'Referidos', href: '/clientes/referidos', icono: 'referidos' },
   // «Encuesta» (4/11/2026): la encuesta mensual (/clientes/encuesta). Pide 'clientes' como la Cartera; sigue también en Atajos.
   { clave: 'clientes', id: 'encuesta', etiqueta: 'Encuesta', href: '/clientes/encuesta', icono: 'encuesta' },
+  // «Wins» (13/11/2026): lo que dijeron los clientes, textual y con captura (/clientes/wins). Pide 'clientes' como la Cartera.
+  { clave: 'clientes', id: 'wins', etiqueta: 'Wins', href: '/clientes/wins', icono: 'wins' },
 ]
 
 /** Secciones que forman el hub (las que ya no van sueltas en el menú). */
@@ -58,7 +60,7 @@ function bajo(pathname: string, href: string): boolean {
 }
 
 /**
- * Pestaña activa para una ruta (su idPestana). Edición, Referidos y Encuesta se miran antes que Cartera (están bajo /clientes);
+ * Pestaña activa para una ruta (su idPestana). Edición, Referidos, Encuesta y Wins se miran antes que Cartera (están bajo /clientes);
  * /clientes/<id> y su kickoff son la ficha: Cartera.
  */
 export function pestanaActiva(pathname: string): string | null {

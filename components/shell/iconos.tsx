@@ -32,6 +32,8 @@ const P: Record<string, React.ReactNode> = {
   estrategia: <><circle cx="6" cy="18" r="2" /><path d="M8 18h4a4 4 0 0 0 0-8H9a3 3 0 0 1 0-6h7" /><path d="M16 2v4l3-2z" /></>,
   // Encuesta mensual (4/11/2026): globo de respuesta con barras de puntaje
   encuesta: <><path d="M4 4.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1h-8.5L7 20.5V17H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z" /><path d="M8 13.5V12M12 13.5V9.5M16 13.5V8" /></>,
+  // Wins (13/11/2026): copa, lo que el cliente dijo que le salió bien
+  wins: <><path d="M8 4h8v5a4 4 0 0 1-8 0z" /><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4" /></>,
   mas: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
   salir: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
 }
