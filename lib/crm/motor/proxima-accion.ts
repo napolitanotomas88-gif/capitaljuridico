@@ -417,12 +417,13 @@ function indiceFaseV2(valor: string): { indice: number; conocido: boolean } {
 }
 
 /**
- * El lead va por el flujo v2: ya lo tocó el pre-caller (estado en AT), o es una reunión desde el encendido (`desde`, la variable
+ * El lead va por el flujo v2: ya lo tocó el pre-caller (estado en AT o contacto en AM), o es una reunión desde el encendido (`desde`, la variable
  * PRECALL_V2_DESDE) que nadie empezó por el flujo viejo (F y AI vacías). Las reuniones anteriores al encendido (incluidas las
  * que ya tienen "¿Se presentó?" y resultado) siguen con el closer como siempre; sin `desde`, ninguna entra sola.
  */
 export function esLeadV2(v: FilaLead["valores"], desde: Date | null = null): boolean {
-  if (v.estadoPrecaller.trim() !== "") return true;
+  // Lo tocó el pre-caller: estado (AT) o contacto (AM, p. ej. "No atendió 2ª" de la Llamada no efectiva del v2)
+  if (v.estadoPrecaller.trim() !== "" || v.contactoPrecaller.trim() !== "") return true;
   if (!desde || v.precall.trim() !== "" || v.llamadaPrecall.trim() !== "") return false;
   const call = parsearFechaSheet(v.fechaCall);
   return call !== null && call.getTime() >= desde.getTime();

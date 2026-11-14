@@ -177,7 +177,9 @@ export async function datosDelLead(hoja: string, numeroFila: number, ahora = new
   const [filas, log] = await Promise.all([leerHojas([hoja]), leerLog()]);
   const fila = (filas.get(hoja) ?? []).find((f) => f.numeroFila === numeroFila);
   if (!fila || !fila.valores.nombre.trim()) return null;
-  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(operacionesDeHoy(log, hoja, ahora)) };
+  // Con el pre-call v2 como en el tablero: sin esto la ficha mostraba la tarjeta de pre-call vieja de un lead del pre-caller y su
+  // "Llamada no efectiva" (sin WhatsApp) lo sacaba del v2 (Pinilla y Capraro, 13-14/11/2026).
+  const dia: ContextoDia = { precallHoy: precallEnviadoHoy(operacionesDeHoy(log, hoja, ahora)), precallV2: precallV2Activo(), precallV2Desde: precallV2Desde(), precallV2DesdePorHoja: precallV2DesdePorHoja(), precallV2Hojas: precallV2Hojas() };
   const [instagram, historial] = await Promise.all([instagramDeAgenda(fila.valores), historialDeFila(hoja, numeroFila, fila.valores.nombre)]);
   return {
     instagram,
