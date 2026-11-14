@@ -16,9 +16,9 @@ export function PanelVinculos({ vinculos }: { vinculos: Vinculos | undefined }) 
   if (!total && !vinculadasSinGasto.length) return null
   const linea = { borderBottom: '1px solid var(--filete)' }
   const ayuda = { color: 'var(--humo)', fontSize: 13 }
-  return <details id="vinculos" aria-label="Vínculos de cuentas" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-    <summary className="etq-laton" style={{ cursor: 'pointer' }}>
-      Vínculos de cuentas · {clientesSinCuenta.length} sin cuenta · {cuentasSinCliente.length} sin cliente{vinculadasSinGasto.length ? ` · ${vinculadasSinGasto.length} vinculadas sin gasto` : ''}
+  return <details id="vinculos" aria-label="Vínculos de cuentas" className="anu-solapa">
+    <summary className="etq-laton">
+      Vínculos de cuentas: {clientesSinCuenta.length} sin cuenta, {cuentasSinCliente.length} sin cliente{vinculadasSinGasto.length ? `, ${vinculadasSinGasto.length} vinculadas sin gasto` : ''}
     </summary>
     <p className="mt-3" style={ayuda}>Se cargan a mano en la pestaña «Cuentas Meta» del CRM (A = id de la cuenta, B = SI, C = nombre exacto del cliente en Agencia). El tablero la relee cada 5 minutos.</p>
 

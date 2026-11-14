@@ -725,7 +725,7 @@ describe('marca: cj.css y las fuentes de Capital Jurídico no se cuelan en el la
     assert.doesNotMatch(marco, /redirect\(|notFound\(/, 'MarcoOpcional no puede redirigir ni cerrar nada: solo decide si dibuja el marco')
     assert.match(marco, /return <main[^>]*>\{children\}<\/main>/, 'sin sesión de Google la pantalla se muestra sola')
     assert.match(lee('components', 'finanzas', 'Tema.tsx'), /\.fin-verde[\s\S]*#08382f/, 'Finanzas es verde')
-    assert.match(lee('app', 'anuncios', 'layout.tsx'), /--tinta: #08382f/, 'Anuncios es verde')
+    assert.match(lee('app', 'anuncios', 'layout.tsx'), /--tinta: #05291f/, 'Anuncios es verde (el fondo del Despacho desde el 13/11/2026)')
   })
   test('el marco no deja <main> anidados: las pantallas de Anuncios y Finanzas usan <div>', () => {
     for (const rel of ['components/anuncios/TableroAnuncios.tsx', 'app/anuncios/login/page.tsx', 'components/finanzas/FinanzasDashboard.tsx', 'components/finanzas/FormularioClave.tsx']) {

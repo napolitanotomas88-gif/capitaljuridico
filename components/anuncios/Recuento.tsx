@@ -99,7 +99,7 @@ export function RecuentoMeta({ hoy, casa }: { hoy: string; casa: CasaDolar }) {
             </div>
           </div>
 
-          {error && <p className="mt-6" style={{ borderLeft: '2px solid var(--borgona)', paddingLeft: 12 }}>No se pudo armar el recuento: {error}</p>}
+          {error && <p className="mt-6 anu-aviso">No se pudo armar el recuento: {error}</p>}
           {cargando && <p className="mt-6" style={{ color: 'var(--humo)' }}>Contando los días de {periodo.etiqueta} con todas las cuentas…{!datos ? ' (la primera vez tarda unos segundos)' : ''}</p>}
 
           {datos && !error && (
@@ -134,7 +134,7 @@ export function RecuentoMeta({ hoy, casa }: { hoy: string; casa: CasaDolar }) {
                     </p>
                   )}
                   <Totales r={datos} nombreCasa={nombreCasa} />
-                  {datos.avisos.map((a, i) => <p key={i} className="mt-3" style={{ fontSize: 13, borderLeft: '2px solid var(--borgona)', paddingLeft: 10 }}>{a}</p>)}
+                  {datos.avisos.map((a, i) => <p key={i} className="mt-3 anu-aviso" style={{ fontSize: 13 }}>{a}</p>)}
                 </div>
               </div>
             </div>
@@ -167,7 +167,7 @@ function Totales({ r, nombreCasa }: { r: Recuento; nombreCasa: string }) {
 function Cifra({ etq, children }: { etq: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="etq" style={{ fontSize: 10 }}>{etq}</div>
+      <div className="etq">{etq}</div>
       <div className="num" style={{ fontSize: 17, marginTop: 2 }}>{children}</div>
     </div>
   )
@@ -187,7 +187,7 @@ function Calendario({ r }: { r: Recuento }) {
   return (
     <div role="table" aria-label="Calendario de días malos de Meta" style={{ display: 'inline-block' }}>
       <div role="row" style={{ display: 'grid', gridTemplateColumns: `repeat(7, ${celda}px)`, gap: 3, marginBottom: 4 }}>
-        {LETRAS.map((l, i) => <span key={i} role="columnheader" className="etq" style={{ fontSize: 9.5, textAlign: 'center' }}>{l}</span>)}
+        {LETRAS.map((l, i) => <span key={i} role="columnheader" className="etq" style={{ textAlign: 'center' }}>{l}</span>)}
       </div>
       {semanas.map(sem => (
         <div key={sem[0]} role="row" style={{ display: 'grid', gridTemplateColumns: `repeat(7, ${celda}px)`, gap: 3, marginBottom: 3 }}>

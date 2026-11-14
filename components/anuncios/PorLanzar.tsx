@@ -9,7 +9,7 @@
 // antes (acceso a Meta y etapa de ClickUp) con la marca "sin ficha de kickoff"; si la base no se pudo leer, sin la marca
 // (no se sabe). La ficha del Despacho y la grabación de Fathom piden su propio login: el tablero se entra con la clave de
 // Anuncios, así que acá va todo lo necesario para lanzar. Mismo estilo que el resto del tablero: filetes finos, sin
-// sombras, latón = falta, azul = listo.
+// sombras, latón = falta, salvia (--info) = listo.
 // Desde el 26/10 (regla de Tomás) solo están los que ya tienen videos en «Editados - X» (lib/anuncios/editadosPorLanzar.ts):
 // cada uno lleva el link a su carpeta. Los que todavía no tienen videos (antes, una línea al pie) van desde el 3/11 en su
 // propio bloque, cada uno con la etapa donde está trabado y quién lo destraba (lib/anuncios/trabados.ts).
@@ -19,13 +19,13 @@
 // clientes cuyo bloque del Doc ya estaba el día de la línea de base (ya lanzados que quedaron en el Doc) se esconden; el
 // filtro «Ver también lo histórico del Doc» los muestra, marcados como históricos.
 import { useState, type ReactNode } from 'react'
-import { EMOJI_ETAPA, NOMBRE_ETAPA_TRABA } from '@/lib/anuncios/trabados'
+import { NOMBRE_ETAPA_TRABA } from '@/lib/anuncios/trabados'
 import type { PorLanzar } from '@/lib/anuncios/tablero'
 import type { EstadoMapaLanzar, GrupoPorLanzar, KickoffPorLanzar } from '@/lib/anuncios/porLanzar'
 
 type ConFicha = PorLanzar & { kickoff: KickoffPorLanzar }
 const ROJO_SUAVE = '#c98085'   // el borgoña legible sobre el verde (el mismo de "Se están pasando" en presupuesto)
-const COLOR_MAPA: Record<EstadoMapaLanzar, string> = { leido: 'var(--hueso)', anotado: 'var(--hueso)', revisar: 'var(--laton)', leyendo: 'var(--azul)', pendiente: 'var(--laton)' }
+const COLOR_MAPA: Record<EstadoMapaLanzar, string> = { leido: 'var(--hueso)', anotado: 'var(--hueso)', revisar: 'var(--laton)', leyendo: 'var(--info)', pendiente: 'var(--laton)' }
 const TITULO_FATHOM = 'Abre la grabación en Fathom (pide acceso a la grabación)'
 
 const etapaTexto = (e: string | null) => (e ? e[0].toUpperCase() + e.slice(1) : 'Sin tarea en Seguimiento')
@@ -35,16 +35,16 @@ const cuentaCorta = (c: { id: string; nombre: string }) => `${c.nombre} (${c.id.
 function Editados({ p }: { p: PorLanzar }) {
   const e = p.editados
   if (!e) return <span style={{ color: 'var(--humo)', fontSize: 13 }}>Carpeta de editados no encontrada</span>
-  const t = `🎬 ${e.cantidad} ${e.cantidad === 1 ? 'editado' : 'editados'}${e.ultimo ? ` · último ${e.ultimo.slice(8, 10)}/${e.ultimo.slice(5, 7)}` : ''}`
+  const t = `${e.cantidad} ${e.cantidad === 1 ? 'editado' : 'editados'}${e.ultimo ? `, último ${e.ultimo.slice(8, 10)}/${e.ultimo.slice(5, 7)}` : ''}`
   return e.url ? <a className="enlace" href={e.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>{t}</a> : <span style={{ fontSize: 13 }}>{t}</span>
 }
 
-// Su estado en el Doc de ADS (el bloque más nuevo): azul = LISTO para lanzar; latón = otra nota o cruce dudoso
+// Su estado en el Doc de ADS (el bloque más nuevo): salvia (--info) = LISTO para lanzar; latón = otra nota o cruce dudoso
 function DocAds({ p }: { p: PorLanzar }) {
   const d = p.docAds
   if (!d) return null
-  if (d.historico) return <span style={{ fontSize: 13, color: 'var(--humo)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}». Ya estaba en el Doc el día de la línea de base: el bot no hace nada con este bloque.`}>🗂️ Doc de ADS (histórico): {d.texto}</span>
-  return <span style={{ fontSize: 13, color: d.listo && d.firme ? 'var(--azul)' : 'var(--laton)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}»`}>🗂️ Doc de ADS{d.nuevos ? ` (nuevo · ${d.nuevos} ${d.nuevos === 1 ? 'video nuevo' : 'videos nuevos'})` : ''}: {d.texto}</span>
+  if (d.historico) return <span style={{ fontSize: 13, color: 'var(--humo)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}». Ya estaba en el Doc el día de la línea de base: el bot no hace nada con este bloque.`}>Doc de ADS (histórico): {d.texto}</span>
+  return <span style={{ fontSize: 13, color: d.listo && d.firme ? 'var(--info)' : 'var(--laton)' }} title={`Doc «Organización de ADS - Orgánico»: «${d.titulo}»`}>Doc de ADS{d.nuevos ? ` (nuevo, ${d.nuevos} ${d.nuevos === 1 ? 'video nuevo' : 'videos nuevos'})` : ''}: {d.texto}</span>
 }
 
 const ACCION_DOC: Record<string, string> = {
@@ -70,7 +70,7 @@ function BotonDocAds() {
   const listos = (r?.clientes ?? []).filter(c => c.accion !== 'solo_estado' && c.accion !== 'historico')
   return <div className="mt-3">
     <button type="button" className="enlace" onClick={leer} disabled={estado === 'leyendo'} style={{ fontSize: 13 }}>
-      {estado === 'leyendo' ? 'Leyendo el Doc de ADS… (puede tardar un par de minutos si arma campañas)' : '🗂️ Leer el Doc de ADS ahora'}
+      {estado === 'leyendo' ? 'Leyendo el Doc de ADS… (puede tardar un par de minutos si arma campañas)' : 'Leer el Doc de ADS ahora'}
     </button>
     {r && <div className="mt-2" style={{ fontSize: 12, color: 'var(--humo)' }}>
       {r.error ? <span style={{ color: 'var(--laton)' }}>No se pudo: {r.error}</span>
@@ -92,7 +92,7 @@ function FilaSinFicha({ p }: { p: PorLanzar }) {
   return <li className="flex flex-col md:flex-row md:items-baseline gap-x-4 gap-y-0.5" style={{ padding: '8px 0', borderBottom: '1px solid var(--filete)' }}>
     <span style={{ fontWeight: 500, minWidth: 240 }}>
       {p.cliente}
-      {p.sinFicha && <span className="etq" title="No hay una ficha de kickoff lista de este cliente en el Despacho" style={{ display: 'inline-block', marginLeft: 10, fontSize: 9.5, padding: '2px 6px', border: '1px solid var(--filete-fuerte)' }}>Sin ficha de kickoff</span>}
+      {p.sinFicha && <span className="etq" title="No hay una ficha de kickoff lista de este cliente en el Despacho" style={{ display: 'inline-block', marginLeft: 10, fontSize: 12, padding: '2px 6px', border: '1px solid var(--filete-fuerte)' }}>Sin ficha de kickoff</span>}
     </span>
     <span style={{ color: 'var(--humo)', fontSize: 14, minWidth: 190 }}><EtapaClickUp p={p} /></span>
     <Editados p={p} />
@@ -109,10 +109,10 @@ function FilaEsperando({ p }: { p: PorLanzar }) {
   const k = p.kickoff?.fechaIso ? new Date(p.kickoff.fechaIso).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' }) : null
   return <li className="flex flex-col md:flex-row md:items-baseline gap-x-4 gap-y-0.5" style={{ padding: '8px 0', borderBottom: '1px solid var(--filete)' }}>
     <span style={{ fontWeight: 500, minWidth: 240 }}>{p.cliente}</span>
-    <span style={{ fontSize: 14, minWidth: 190, color: 'var(--laton)' }}>{t ? `${EMOJI_ETAPA[t.etapa]} ${NOMBRE_ETAPA_TRABA[t.etapa]}` : 'Etapa sin dato'}</span>
+    <span style={{ fontSize: 14, minWidth: 190, color: 'var(--laton)' }}>{t ? NOMBRE_ETAPA_TRABA[t.etapa] : 'Etapa sin dato'}</span>
     <span style={{ fontSize: 14, flex: 1 }}>
       {t ? <>{t.motivo} → <b style={{ fontWeight: 500 }}>{t.responsable}</b></> : '—'}
-      {!!t?.ademas.length && <span style={{ color: 'var(--laton)' }}> · ⚠️ {t.ademas.join('; ')}</span>}
+      {!!t?.ademas.length && <span className="anu-laton">. Además: {t.ademas.join('; ')}</span>}
     </span>
     <span style={{ color: 'var(--humo)', fontSize: 13 }}>{k ? `Kickoff ${k}` : p.sinFicha ? 'Sin ficha de kickoff' : ''}</span>
   </li>
@@ -120,7 +120,7 @@ function FilaEsperando({ p }: { p: PorLanzar }) {
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return <div>
-    <dt style={{ color: 'var(--humo)', fontSize: 11, marginBottom: 4 }}>{etiqueta}</dt>
+    <dt className="anu-chico" style={{ marginBottom: 4 }}>{etiqueta}</dt>
     <dd style={{ margin: 0, fontSize: 14 }}>{children}</dd>
   </div>
 }
@@ -130,7 +130,7 @@ const Nota = ({ children, color = 'var(--humo)' }: { children: ReactNode; color?
 function LineaCuentaFicha({ p }: { p: PorLanzar }) {
   const cf = p.cuentaFicha
   if (!cf) return null
-  if (cf.estado === 'visible') return <Nota color="var(--azul)">El tablero ya la ve{cf.cuenta.estado !== 1 ? ' · con problema de estado' : ''}</Nota>
+  if (cf.estado === 'visible') return <Nota color="var(--info)">El tablero ya la ve{cf.cuenta.estado !== 1 ? ' · con problema de estado' : ''}</Nota>
   if (cf.estado === 'con_fila') return <Nota color="var(--hueso)">Ya gasta en el tablero como «{cf.cliente}»: el nombre de esa fila no es el del CRM (revisar «Cuentas Meta»)</Nota>
   if (cf.estado === 'excluida') return <Nota color="var(--laton)">El tablero no sigue esta cuenta ({cf.motivo}): revisar antes de armar</Nota>
   if (cf.estado === 'sin_dato') return <Nota>No se pudieron listar las cuentas de Meta: no se sabe si el tablero la ve</Nota>
@@ -171,7 +171,7 @@ function Zona({ k }: { k: KickoffPorLanzar }) {
 function EtiquetaAcceso({ p }: { p: PorLanzar }) {
   const [texto, color] = p.grupo === 'ya_gasta' ? ['Ya gasta en el tablero', 'var(--hueso)']
     : p.cuentaFicha?.estado === 'excluida' ? ['Cuenta fuera del tablero', 'var(--laton)']
-      : p.acceso === 'si' ? ['Con acceso a Meta', 'var(--azul)'] : ['Sin acceso a Meta', 'var(--laton)']
+      : p.acceso === 'si' ? ['Con acceso a Meta', 'var(--info)'] : ['Sin acceso a Meta', 'var(--laton)']
   return <span className="etq" style={{ color }}>{texto}</span>
 }
 
@@ -229,8 +229,8 @@ function TarjetaKickoff({ p }: { p: ConFicha }) {
 }
 
 // Los grupos con ficha, en el orden de porLanzar.ts
-const GRUPOS_FICHA: { grupo: GrupoPorLanzar; titulo: string; azul?: boolean }[] = [
-  { grupo: 'listo', titulo: 'Listos para armar · ficha de kickoff, acceso a su cuenta y nada que frene', azul: true },
+const GRUPOS_FICHA: { grupo: GrupoPorLanzar; titulo: string; info?: boolean }[] = [
+  { grupo: 'listo', titulo: 'Listos para armar · ficha de kickoff, acceso a su cuenta y nada que frene', info: true },
   { grupo: 'revisar', titulo: 'Con ficha de kickoff, revisar antes de armar' },
   { grupo: 'sin_acceso', titulo: 'Con ficha de kickoff, falta el acceso a Meta' },
   { grupo: 'ya_gasta', titulo: 'Con ficha de kickoff, ya gastan en el tablero con otro nombre' },
@@ -252,14 +252,14 @@ export function PanelPorLanzar({ items: todosItems, avisos = [], sinEditados = [
   const T = seLeyoLaBase ? 'h4' : 'h3'
   const gruposSinFicha = <>
     {!!sin.length && <section aria-label="Sin acceso" className="mt-4"><T className="etq-laton">Sin acceso a Meta · {sin.length}</T><ul>{sin.map(p => <FilaSinFicha key={p.cliente} p={p} />)}</ul></section>}
-    {!!con.length && <section aria-label="Con acceso" className="mt-6"><T className="etq" style={{ color: 'var(--azul)' }}>Con acceso, esperando lanzar · {con.length}</T><ul>{con.map(p => <FilaSinFicha key={p.cliente} p={p} />)}</ul></section>}
+    {!!con.length && <section aria-label="Con acceso" className="mt-6"><T className="etq anu-info">Con acceso, esperando lanzar · {con.length}</T><ul>{con.map(p => <FilaSinFicha key={p.cliente} p={p} />)}</ul></section>}
   </>
-  return <details id="por-lanzar" aria-label="Por lanzar" className="mt-8" style={{ borderLeft: '2px solid var(--laton)', paddingLeft: 16 }}>
-    <summary className="etq-laton" style={{ cursor: 'pointer' }}>Por lanzar · {items.length}{seLeyoLaBase ? ` · con ficha ${conFicha.length}` : ''} · sin acceso {sinAccesoTotal}{avisos.length ? ' · con avisos' : ''}</summary>
+  return <details id="por-lanzar" aria-label="Por lanzar" className="anu-solapa">
+    <summary className="etq-laton">Por lanzar: {items.length}{seLeyoLaBase ? `, con ficha ${conFicha.length}` : ''}, sin acceso {sinAccesoTotal}{avisos.length ? ', con avisos' : ''}</summary>
     {avisos.length > 0 && <ul className="mt-3" aria-label="Avisos de Por lanzar" style={{ fontSize: 13, color: 'var(--laton)' }}>
       {avisos.map(a => <li key={a} style={{ marginTop: 4 }}>{a}</li>)}
     </ul>}
-    <p className="mt-3" style={{ color: 'var(--humo)', fontSize: 13 }}>
+    <p className="mt-3 anu-nota">
       Clientes activos del CRM que todavía no gastaron (no tienen fila en el tablero) y ya tienen videos editados para lanzar. Aparecen solos en el tablero cuando empiezan a gastar.
       {seLeyoLaBase ? ' Con ficha de kickoff: lo que hace falta para armar la campaña, sacado de la ficha del Despacho; el acceso es el de la cuenta que revisó la ficha. Sin ficha: como antes, con la etapa de ClickUp.' : ''}
       {' '}«Cuenta visible» = el tablero ya puede leer su cuenta de Meta; si no, falta el acceso al portfolio.
@@ -270,10 +270,10 @@ export function PanelPorLanzar({ items: todosItems, avisos = [], sinEditados = [
       <input type="checkbox" checked={verHistorico} onChange={e => setVerHistorico(e.target.checked)} />
       Ver también lo histórico del Doc ({historicos} {historicos === 1 ? 'cliente' : 'clientes'} que ya estaban en el Doc el día de la línea de base: el bot no los toca)
     </label>}
-    {GRUPOS_FICHA.map(({ grupo, titulo, azul }) => {
+    {GRUPOS_FICHA.map(({ grupo, titulo, info }) => {
       const xs = conFicha.filter(p => p.grupo === grupo)
       return xs.length > 0 && <section key={grupo} aria-label={titulo} className="mt-6">
-        <h3 className={azul ? 'etq' : 'etq-laton'} style={azul ? { color: 'var(--azul)' } : undefined}>{titulo} · {xs.length}</h3>
+        <h3 className={info ? 'etq anu-info' : 'etq-laton'}>{titulo} · {xs.length}</h3>
         <ul>{xs.map(p => <TarjetaKickoff key={p.cliente} p={p} />)}</ul>
       </section>
     })}
