@@ -33,6 +33,15 @@ describe("pre-call v2 (bandera)", () => {
   });
 });
 
+describe("lead del pre-caller con la Llamada no efectiva vieja también cargada (Pinilla, 14/11/2026)", () => {
+  // La ficha mostraba el botón viejo (AI = No efectiva) y después el tablero el del v2 (AM = No atendió 2ª): sigue con el pre-caller.
+  const pinilla = { llamadaPrecall: "No efectiva", contactoPrecaller: PRECALLER.noAtendio2 };
+  it("con contacto del pre-caller en AM es v2 aunque AI tenga algo", () => {
+    expect(esLeadV2(fila(pinilla).valores, DESDE)).toBe(true);
+    expect(v2(pinilla).map((a) => a.tipo)).toEqual(["PRE_CALLER"]);
+  });
+});
+
 describe("encendido: solo reuniones desde PRECALL_V2_DESDE", () => {
   // Reunión vieja (antes del encendido) con F y AI vacías y "¿Se presentó?" = Si: sigue con el closer (RESULTADO).
   const vieja = { fechaCall: "21/09/2026 10:00", presentoAgenda1: "Si" };
